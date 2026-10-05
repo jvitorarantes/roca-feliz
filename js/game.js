@@ -941,10 +941,13 @@ function harvestPlot(p, pos) {
 // Colheita rápida: colhe de uma vez todo canteiro pronto da sua roça.
 function harvestAll() {
   if (!isHome()) return;
-  const list = state.plots.map((p, i) => ({ p, i })).filter(x => ripe(x.p));
-  if (!list.length) return toast('Nada pronto pra colher agora. 🌱');
+  const list = state.plots.map((p, i) => ({ p, i })).filter(x => ripe(x.p)), frutas = fruteirasProntas();
+  if (!list.length && !frutas.length) return toast('Nada pronto pra colher agora. 🌱');
   for (const { p, i } of list) harvestPlot(p, cellCenter(i));
-  toast(`Colheu ${list.length} ${list.length > 1 ? 'canteiros' : 'canteiro'}.`, 'good');
+  for (const o of frutas) colherFruteira(o);
+  if (frutas.length) sfx('collect');
+  const partes = [list.length && `${list.length} ${list.length > 1 ? 'canteiros' : 'canteiro'}`, frutas.length && `${frutas.length} ${frutas.length > 1 ? 'frutíferas' : 'frutífera'}`].filter(Boolean);
+  toast(`Colheu ${partes.join(' e ')}.`, 'good');
   done();
 }
 // Limpeza rápida: limpa de uma vez toda terra seca da sua roça (mesma ação do enxadão, uma por uma).
@@ -2110,13 +2113,15 @@ async function checkSent() {
   if (changed) { done(); cloudSave(); }
 }
 
+// A roça do amigo vem da nuvem como texto (stateJson); os objetos (frutíferas com placa) ficam lá dentro.
+const estadoDoAmigo = f => { try { return f && f.stateJson ? JSON.parse(f.stateJson) : f; } catch (e) { return f; } };
 // (a cada 2 min lê de novo, para o botão "Precisa de ajuda" ficar em dia)
 function fetchFriendInfo(uid, forca) {
   const fi = friendInfo[uid];
   if (!user || (fi !== undefined && !(fi && fi.at && !fi.buscando && (forca || Date.now() - fi.at > 120e3)))) return;
   if (fi && fi.at) fi.buscando = true; else friendInfo[uid] = 'loading';
   Cloud.loadFarm(uid).then(f => {
-    friendInfo[uid] = f ? { name: limpaNome(f.apelido) || firstName(f.name || 'Amigo'), fazenda: limpaNome(f.fazenda) || 'Roça Feliz', photo: f.photo || '', moldura: typeof f.moldura === 'string' ? f.moldura : '', level: f.level || 1, ajuda: pedidosAjuda(f), at: Date.now() } : null;
+    friendInfo[uid] = f ? { name: limpaNome(f.apelido) || firstName(f.name || 'Amigo'), fazenda: limpaNome(f.fazenda) || 'Roça Feliz', photo: f.photo || '', moldura: typeof f.moldura === 'string' ? f.moldura : '', level: f.level || 1, ajuda: pedidosAjuda(estadoDoAmigo(f)), at: Date.now() } : null;
     renderTabs();
   }).catch(e => {
     // Não conseguiu ler (sem internet, login ainda carregando, ou a pessoa desfez a amizade):
@@ -4516,7 +4521,7 @@ function atualizarRastelo() {
 // Atualiza o texto do botão de colheita rápida sem recriar o #tools inteiro.
 function atualizarColher() {
   const b = $('#colherBtn'); if (!b) return;
-  const n = state.plots.filter(ripe).length;
+  const n = state.plots.filter(ripe).length + fruteirasProntas().length;
   const key = 'colher:' + n;
   if (b.dataset.key === key) return;
   b.dataset.key = key;
@@ -4525,7 +4530,7 @@ function atualizarColher() {
 // Menu do botão 🚜: escolher entre colheita automática (canteiros prontos) e limpeza automática (terra seca).
 function abrirMenuColher(btn) {
   const m = $('#ctxMenu'), r = btn.getBoundingClientRect();
-  const nColher = state.plots.filter(ripe).length, nLimpar = state.plots.filter(p => p.s === 'withered').length;
+  const nColher = state.plots.filter(ripe).length + fruteirasProntas().length, nLimpar = state.plots.filter(p => p.s === 'withered').length;
   m.innerHTML = `<b>Ações automáticas</b><button type="button" data-ctx="colher">🧺 Colheita automática${nColher ? ` (${nColher})` : ''}</button><button type="button" data-ctx="limpar">🧹 Limpeza automática de terras${nLimpar ? ` (${nLimpar})` : ''}</button><button type="button" data-ctx="fechar">Cancelar</button>`;
   m.dataset.key = ''; m.hidden = false;
   const w = m.offsetWidth, h = m.offsetHeight;
@@ -8269,7 +8274,7 @@ function missoesHTML() {
   let html = `<div class="seg small" role="tablist">${segs.map(([id, n]) => `<button type="button" role="tab" data-mseg="${id}" aria-selected="${missSeg === id}">${n}${conta[id] ? `<span class="badge" aria-label="${conta[id]} novidades">${conta[id]}</span>` : ''}</button>`).join('')}</div>`;
   const est = estacao();
   html += `<div class="row sel"><div class="avatar" style="background:#7aa35a;font-size:26px">${est.icone}</div><div><div class="name">${est.nome}</div>
-    <div class="meta">Esta semana rendem ${Math.round(ESTACAO_BONUS * 100)}% a mais: ${est.plantas.map(id => CROP[id].nome.toLowerCase()).join(', ')}.</div></div><div></div></div>`;
+    <div class="meta">Esta semana rendem ${Math.round(ESTACAO_BONUS * 100)}% a mais: ${est.plantas.map(id => (CROP[id] || ENFEITE[id] || { nome: id }).nome.toLowerCase()).join(', ')}.</div></div><div></div></div>`;
   if (missSeg === 'vila') return html + vilaHTML();
   if (missSeg === 'trevos') return html + trevosHTML();
   if (missSeg === 'colecao') {
@@ -9868,6 +9873,19 @@ function dominioPomarHTML() {
     ${pomarAResgatar().length ? `<button class="btn gold dresg" type="button" data-trevo-pomar="1">Resgatar 🍀${pomarAResgatar().reduce((t, n) => t + (TREVO_DOMINIO[n] || 0), 0)}</button>` : ''}
     <span class="dinfo">+${d.frutas} fruta${d.frutas === 1 ? '' : 's'} por colheita · ${colheitasDe(ENFEITE.pitangueira)} colheitas antes de secar${d.max ? ' · máximo!' : ` · ${d.fim - d.xp} pts p/ Nv ${d.nv + 1} (colher arbusto 1, árvore 2, ajudar amigo 1)`}</span></div>`;
 }
+// Colhe uma frutífera sua que está pronta (toque nela ou colheita automática). Devolve quantas frutas deu.
+function colherFruteira(o) {
+  const e = ENFEITE[o.id], f = FRUTA[e.fruta], rende = rendeDe(e);
+  state.barn[f.id] = (state.barn[f.id] || 0) + rende;
+  for (let k = 0; k < rende; k++) collect(f.id, null);
+  o.ult = Date.now(); o.colhidas = (o.colhidas || 0) + 1; state.stats.colheitas = (state.stats.colheitas || 0) + 1; track('colher');
+  addXP(e.fruteira === 'arvore' ? 6 : 3, null);
+  if (o.colhidas >= colheitasDe(e)) o.seca = 1;
+  ganharPomar(e.fruteira === 'arvore' ? 2 : 1);
+  return rende;
+}
+// Frutíferas suas (roça e rancho) prontas para colher.
+const fruteirasProntas = () => ['roca', 'animais'].flatMap(sc => objetosDe(state, sc).filter(o => o && ENFEITE[o.id] && ENFEITE[o.id].fruteira && estadoFruteira(o).pronto));
 function estadoFruteira(o) {
   const e = ENFEITE[o.id], agora = Date.now(), t0 = o.t0 || agora, ult = o.ult || t0;
   const restam = o.seca ? 0 : Math.max(0, colheitasDe(e) - (o.colhidas || 0)), morta = restam <= 0, pronto = !morta && agora - ult >= e.tempo * 1000;
@@ -9946,15 +9964,9 @@ function actFruteira(sc, i) {
     return toast(`${e.nome} de ${view.nome}: ${st.morta ? (o.placa ? 'secou e está pedindo ajuda.' : 'secou.') : st.txt}`);
   }
   if (st.pronto) {
-    const rende = rendeDe(e);
-    state.barn[f.id] = (state.barn[f.id] || 0) + rende;
-    for (let k = 0; k < rende; k++) collect(f.id, null);
-    o.ult = Date.now(); o.colhidas = (o.colhidas || 0) + 1; state.stats.colheitas = (state.stats.colheitas || 0) + 1; track('colher');
-    addXP(e.fruteira === 'arvore' ? 6 : 3, null); sfx('collect');
-    const max = colheitasDe(e), acabou = o.colhidas >= max, resta = max - o.colhidas;
-    if (acabou) o.seca = 1;
+    const rende = colherFruteira(o); sfx('collect');
+    const max = colheitasDe(e), acabou = !!o.seca, resta = max - o.colhidas;
     toast(`🧺 +${rende} ${f.nome.toLowerCase()}s no celeiro!${acabou ? ` Foi a última: ${e.nome.toLowerCase()} secou. Toque nela para pedir ajuda aos amigos (ela volta a dar frutas) ou derrubar.` : ` Falta${resta > 1 ? 'm' : ''} ${resta} colheita${resta > 1 ? 's' : ''}.`}`, 'good');
-    ganharPomar(e.fruteira === 'arvore' ? 2 : 1);
     return done();
   }
   if (st.morta) return menuFruteira(sc, i);
