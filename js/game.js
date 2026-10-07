@@ -994,9 +994,15 @@ function usePotion(p, pos) {
   toast(`Poção usada: ${CROP[p.c].nome.toLowerCase()} voltou a ficar boa. Colha logo!`, 'good');
   done();
 }
+// O que dá para plantar de cada cultura: as mudas do inventário mais o que você colheu e guardou no celeiro.
+const plantaQtd = c => (state.plantas[c.id] || 0) + (state.barn[c.prod] || 0);
+function gastaPlanta(c) {
+  if ((state.plantas[c.id] || 0) > 0) state.plantas[c.id]--;
+  else if ((state.barn[c.prod] || 0) > 0) { state.barn[c.prod]--; if (!state.barn[c.prod]) delete state.barn[c.prod]; }
+}
 // Janelinha com as plantas que você tem: escolha uma e clique nas terras aradas.
 function abrirPlantPicker() {
-  const l = CROPS.filter(c => c.nivel <= state.level && (state.plantas[c.id] || 0) > 0);
+  const l = CROPS.filter(c => c.nivel <= state.level && plantaQtd(c) > 0);
   if (!l.length) return toast('Você não tem plantas. Veja a Feira da vizinhança, as missões, o caminhão ou peça aos amigos!', 'bad');
   let el = $('#plantPicker');
   if (!el) {
@@ -1005,22 +1011,22 @@ function abrirPlantPicker() {
       const b = e.target.closest('[data-pick-seed]');
       if (b) {
         state.seed = b.dataset.pickSeed; state.tool = 'seed'; el.hidden = true; save(); renderTools();
-        return toast(`${CROP[state.seed].nome} na mão: clique nas terras aradas (${state.plantas[state.seed] || 0} plantas).`);
+        return toast(`${CROP[state.seed].nome} na mão: clique nas terras aradas (${plantaQtd(CROP[state.seed])} plantas).`);
       }
       if (e.target.closest('[data-pick-close]')) el.hidden = true;
     });
     document.body.appendChild(el);
   }
   el.innerHTML = `<div class="pp-head"><b>🌱 O que plantar?</b><button type="button" class="btn ghost tiny" data-pick-close>✕</button></div>
-    <div class="pp-list">${l.map(c => `<button type="button" class="pp-item" data-pick-seed="${c.id}"><img alt="" src="${cropIcon(c.id)}"><span>${c.nome}</span><em>⏱ ${fmt(c.tempo)}</em><em>rende ${faixa(c)} × ${c.preco}</em><small>${state.plantas[c.id]}</small></button>`).join('')}</div>`;
+    <div class="pp-list">${l.map(c => `<button type="button" class="pp-item" data-pick-seed="${c.id}"><img alt="" src="${cropIcon(c.id)}"><span>${c.nome}</span><em>⏱ ${fmt(c.tempo)}</em><em>rende ${faixa(c)} × ${c.preco}</em><small>${plantaQtd(c)}</small></button>`).join('')}</div>`;
   el.hidden = false;
 }
 function plant(p, pos) {
   const crop = CROP[state.seed];
   if (crop.nivel > state.level) return toast(`${crop.nome} libera no nível ${crop.nivel}.`);
-  if ((state.plantas[crop.id] || 0) <= 0) { state.tool = 'hand'; return toast(`Você não tem ${crop.nome.toLowerCase()} para plantar.`, 'bad'); }
-  state.plantas[crop.id]--;
-  if (!state.plantas[crop.id]) { state.tool = 'hand'; toast(`Acabaram as plantas de ${crop.nome.toLowerCase()}.`, 'bad'); }
+  if (plantaQtd(crop) <= 0) { state.tool = 'hand'; return toast(`Você não tem ${crop.nome.toLowerCase()} para plantar.`, 'bad'); }
+  gastaPlanta(crop);
+  if (plantaQtd(crop) <= 0) { state.tool = 'hand'; toast(`Acabaram as plantas de ${crop.nome.toLowerCase()}.`, 'bad'); }
   Object.assign(p, emptyPlot('growing'), { c: crop.id, id: newId(), ouro: Math.random() < OURO_CHANCE });
   sfx('plant'); useFx('seed', pos); track('plantar');
   if (xpAllowed(crop.id)) addXP(1, pos);
@@ -1317,6 +1323,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 248, txt: "Corrigido: o que você colhe e guarda no celeiro (feijão, arroz…) agora também serve para plantar. A janela ao clicar na terra e a aba Plantas contam as mudas mais o celeiro, e o celeiro ganhou o botão Plantar. Vender deixando menos de 10 avisa para não ficar sem plantas. Mina: cada ferramenta tem sua chance de achar um minério extra (picareta 10%, dinamite 30% com mais chance de raros, TNT 60% bem raros) e o kit inicial agora é 10 picaretas, 4 dinamites e 1 TNT." },
   { v: 247, txt: "Folhas e chocadeira 🍂🥚: a colheita automática (🚜) agora também limpa todos os montes de folhas sem o avatar ir, e cada monte pode render ferramentas da mina (picareta, dinamite, às vezes TNT). Aparecem até 5 montes por dia. A chocadeira ficou rústica, cabe de 2 a 6 ovos (melhore até o nível 4) e mostra os espaços ao clicar. Cada ave tem seu tempo para botar e para chocar (codorna 14h/8h, galinha 22h/12h, d'angola 26h/14h, pato 34h/16h, peru, ganso, pavão e avestruz mais longos). Mamíferos não usam a chocadeira: o filhote nasce direto no abrigo, junto dos pais. Todo filhote recém-nascido tem nome de graça ao tocar nele. E os animais da mesma espécie se encontram: um sobe no outro, com corações 💕." },
   { v: 246, txt: "A mina mudou ⛏️ (nível 6): agora é uma entrada de caverna lá na sua roça, com 4 depósitos de minério na frente. Toque na entrada para escolher a ferramenta e toque num depósito: o avatar vai até lá e bate com a picareta (faíscas!), acende a dinamite (quebra 5 batidas de uma vez) ou explode tudo com TNT. As ferramentas se gastam: você começa com 25 picaretas e 2 dinamites, e ganha mais em missões diárias e semanais, no caminhão, de presente de amigos, na feira da vizinhança e na Loja do Trevo. Cada depósito volta depois de um tempo, e dá para mover a mina no modo Mover." },
   { v: 245, txt: "Forja & Joalheria ⚒️ (Negócios › Fábrica, a partir do nível 8): transforme os minérios da mina em tijolo, barras de ferro, cobre, prata e ouro, e depois em ferradura, panela de cobre, pingente de prata, aliança de ouro e anel de gema. As barras são ingredientes das peças, e tudo vale bem mais que o minério puro." },
@@ -1714,13 +1721,10 @@ function usarDecor(id) {
 function sell(id, qtd) {
   const it = item(id), q = state.barn[id] || 0; if (!q || !it) return;
   const n = qtd === true ? q : clamp(Math.round(qtd) || 1, 1, q);
-  const vai_zerar = (q - n === 0);
-  if (vai_zerar && PRODUCE[id]) {
-    const crop = PRODUCE[id].planta ? CROP[PRODUCE[id].planta] : null;
-    if (crop) {
-      const msg = `Vai vender todas as ${it.nome.toLowerCase()}. Deixar alguma quantidade para plantar?`;
-      if (!confirm(msg)) return;
-    }
+  const crop = PRODUCE[id] && PRODUCE[id].planta ? CROP[PRODUCE[id].planta] : null;
+  if (crop) {
+    const sobra = (q - n) + (state.plantas[crop.id] || 0);
+    if (sobra < PLANTAS_BAIXO && !confirm(`Cuidado: vendendo ${n} você fica com ${sobra} ${it.nome.toLowerCase()} para plantar (o ideal é ter pelo menos ${PLANTAS_BAIXO}). Vender mesmo assim?`)) return;
   }
   state.barn[id] = q - n; if (!state.barn[id]) delete state.barn[id];
   state.coins += n * it.preco; state.stats.vendido += n * it.preco; track('vender', n * it.preco);
@@ -1736,12 +1740,12 @@ function sellAll() {
     total += q * it.preco;
     if (PRODUCE[id] && PRODUCE[id].planta) {
       const crop = CROP[PRODUCE[id].planta];
-      if (crop) avisos.push(crop.nome);
+      if (crop && (state.plantas[crop.id] || 0) < PLANTAS_BAIXO) avisos.push(crop.nome);
     }
   }
   if (!total) return toast('Nenhum produto desbloqueado para vender.', 'bad');
   if (avisos.length > 0) {
-    const msg = `Vai vender tudo. Isso vai zerar as colheitas de:\n${avisos.join(', ')}\n\nTem certeza?`;
+    const msg = `Vai vender tudo. Isso deixa menos de ${PLANTAS_BAIXO} para plantar de:\n${avisos.join(', ')}\n\nTem certeza? (dica: use 🔒 Bloquear nos que quer guardar)`;
     if (!confirm(msg)) return;
   }
   for (const [id] of Object.entries(state.barn)) {
@@ -5328,11 +5332,11 @@ function renderPane() {
     const segs = [['sementes', 'Plantas'], ['pomar', 'Pomar'], ['adubo', 'Itens'], ['animais', 'Animais'], ['abrigos', 'Abrigos'], ['caes', 'Cães'], ['decor', 'Casa'], ['enfeites', 'Enfeites'], ['temas', 'Temas'], ['trevo', '🍀 Trevo']];
     html += `<div class="seg small" role="tablist">${segs.map(([id, n]) => `<button type="button" role="tab" data-seg="${id}" aria-selected="${shopSeg === id}">${n}</button>`).join('')}</div>`;
     if (shopSeg === 'sementes') {
-      html += `<p class="hint">Não tem mais semente: você planta a própria planta, e ela rende quantas vezes quiser. Escolha uma, clique nas terras aradas (uma por canteiro) e ela fica na mão até acabar. Ganhe mais plantas em missões, no caminhão, de amigos ou na banca deles.</p>`;
+      html += `<p class="hint">Não tem mais semente: você planta a própria planta (as mudas e também o que colheu e guardou no celeiro), e ela rende quantas vezes quiser. Escolha uma, clique nas terras aradas (uma por canteiro) e ela fica na mão até acabar. Ganhe mais plantas em missões, no caminhão, de amigos ou na banca deles.</p>`;
       const shown = CROPS.filter(c => c.nivel <= state.level);
       const upcoming = CROPS.filter(c => c.nivel > state.level);
       for (const c of [...shown, ...upcoming.slice(0, 2)]) {
-        const locked = c.nivel > state.level, sel = state.seed === c.id && state.tool === 'seed', qtd = state.plantas[c.id] || 0;
+        const locked = c.nivel > state.level, sel = state.seed === c.id && state.tool === 'seed', qtd = plantaQtd(c);
         const total = c.rend * c.preco;
         const meta = `${fmt(c.tempo)} · rende ${faixa(c)} × ${c.preco} (até ${total.toLocaleString('pt-BR')}) · ${c.xp} XP`;
         html += `<div class="row ${locked ? 'locked' : ''} ${sel ? 'sel' : ''}">
@@ -5483,7 +5487,7 @@ function renderPane() {
     let total = 0; for (const it of items) total += state.barn[it.id] * it.preco;
     const minhasPlantas = CROPS.filter(c => (state.plantas[c.id] || 0) > 0);
     if (minhasPlantas.length) {
-      html += `<h3>🌱 Plantas</h3>`;
+      html += `<h3>🌱 Mudas</h3>`;
       for (const c of minhasPlantas) {
         const q = state.plantas[c.id];
         html += `<div class="row"><img alt="" src="${cropIcon(c.id)}"><div><div class="name">${c.nome} × ${q}${q < PLANTAS_BAIXO ? ' <span class="tag bad">poucas</span>' : ''}</div><div class="meta">${fmt(c.tempo)} · rende ${faixa(c)} × ${c.preco}</div></div>
@@ -5499,7 +5503,7 @@ function renderPane() {
         const bloq = state.bloqueados && state.bloqueados[it.id];
         html += `<div class="row"><img alt="" src="${itemIcon(it.id)}">
           <div><div class="name">${it.nome} × ${q}${bloq ? ' 🔒' : ''}</div><div class="meta">${moeda(it.preco)} cada · ${moeda(q * it.preco)} no total${it.id === 'milho' ? '<br>também serve de comida para os animais' : ''}</div></div>
-          <div class="stack"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" ${bloq ? 'checked' : ''} data-toggle-block="${it.id}"> Bloquear</label>${!bloq ? (q > 1 ? qtdStep(key, q) : '') + `<button class="btn" data-sell="${it.id}" data-qtd="${sel}">Vender ${sel} · ${moeda(sel * it.preco)}</button>${q > 1 ? `<button class="btn ghost" data-sellall-of="${it.id}">Todos</button>` : ''}` : '<button class="btn ghost" disabled>Bloqueado</button>'}</div></div>`;
+          <div class="stack">${PRODUCE[it.id] && PRODUCE[it.id].planta && CROP[PRODUCE[it.id].planta].nivel <= state.level ? `<button class="btn gold" data-seed="${PRODUCE[it.id].planta}">Plantar</button>` : ''}<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" ${bloq ? 'checked' : ''} data-toggle-block="${it.id}"> Bloquear</label>${!bloq ? (q > 1 ? qtdStep(key, q) : '') + `<button class="btn" data-sell="${it.id}" data-qtd="${sel}">Vender ${sel} · ${moeda(sel * it.preco)}</button>${q > 1 ? `<button class="btn ghost" data-sellall-of="${it.id}">Todos</button>` : ''}` : '<button class="btn ghost" disabled>Bloqueado</button>'}</div></div>`;
       }
     }
   } else if (tab === 'terreno') {
@@ -5724,7 +5728,7 @@ $('#pane').addEventListener('click', e => {
   if (d.rankModo) { rankModo = d.rankModo; renderPane(); return; }
   if (d.seg) { shopSeg = d.seg; renderPane(); $('#pane').scrollTop = 0; if (d.focus) focusRow('abrigo-' + d.focus); }
   else if (d.abrigo) buyAbrigo(d.abrigo);
-  else if (d.seed) { state.seed = d.seed; state.tool = 'seed'; if (!isHome()) goHome(); setScene('roca'); closePanel(); save(); toast(`${CROP[d.seed].nome} na mão: clique nas terras aradas para plantar (${state.plantas[d.seed] || 0} plantas).`); }
+  else if (d.seed) { state.seed = d.seed; state.tool = 'seed'; if (!isHome()) goHome(); setScene('roca'); closePanel(); save(); toast(`${CROP[d.seed].nome} na mão: clique nas terras aradas para plantar (${plantaQtd(CROP[d.seed])} plantas).`); }
   else if (d.buyAnimal) buyAnimal(d.buyAnimal);
   else if (d.buyDecor) buyDecor(d.buyDecor);
   else if (d.usarDecor) usarDecor(d.usarDecor);
@@ -7063,7 +7067,7 @@ const PLANTAS_BAIXO = 10;
 let plantasAvisoChave = '';
 function checkPlantasLow() {
   if (!state || !state.plantas || isGated() || state.boasVindas || !$('#boasvindas').hidden || !$('#panel').hidden) return;
-  const baixas = CROPS.filter(c => c.nivel <= state.level && (state.plantas[c.id] || 0) < PLANTAS_BAIXO);
+  const baixas = CROPS.filter(c => c.nivel <= state.level && plantaQtd(c) < PLANTAS_BAIXO);
   // o milho do celeiro é a isca da pesca e das armadilhas: avisa antes de acabar
   const milho = state.level >= CROP.milho.nivel ? (state.barn.milho || 0) : PLANTAS_BAIXO;
   const chave = baixas.map(c => c.id).join(',') + (milho < PLANTAS_BAIXO ? '|milho' : '');
@@ -7071,7 +7075,7 @@ function checkPlantasLow() {
   const antes = plantasAvisoChave; plantasAvisoChave = chave;
   const nova = chave.split('|')[0] !== antes.split('|')[0], milhoNovo = milho < PLANTAS_BAIXO && !antes.includes('|milho');
   if (nova && baixas.length) {
-    const ver = baixas.slice(0, 3).map(c => `${c.nome} (${state.plantas[c.id] || 0})`).join(', ') + (baixas.length > 3 ? ` +${baixas.length - 3}` : '');
+    const ver = baixas.slice(0, 3).map(c => `${c.nome} (${plantaQtd(c)})`).join(', ') + (baixas.length > 3 ? ` +${baixas.length - 3}` : '');
     plantaAlerta(`⚠️ Poucas plantas: ${ver}`);
   }
   if (milhoNovo) plantaAlerta(`🌽 Cuidado: só ${milho} milho no celeiro! Ele é a isca da pesca e das armadilhas, não deixe acabar.`);
@@ -9315,11 +9319,11 @@ function feiraHTML() {
 // no caminhão, de amigos, na feira e na Loja do Trevo. Cada depósito volta depois de um tempo.
 const MINA_NIVEL = 6, MINA_VEIAS = 4;
 const MINA_FERR = {
-  pic: { nome: 'Picareta',  nomePl: 'picaretas', dano: 1, mao: 'picareta', desc: 'Uma batida num depósito.', emoji: '⛏️', dur: 1500 },
-  din: { nome: 'Dinamite',  nomePl: 'dinamites', dano: 5,         mao: 'dinamite', desc: 'Quebra até 5 batidas de um depósito de uma vez.', emoji: '🧨', dur: 2200 },
-  tnt: { nome: 'TNT',       nomePl: 'TNTs',      dano: 99,        mao: 'tnt',      desc: 'Explode todos os depósitos e ainda rende 1 minério extra em cada.', emoji: '💥', dur: 2600 },
+  pic: { nome: 'Picareta',  nomePl: 'picaretas', dano: 1, mao: 'picareta', desc: 'Uma batida num depósito. 10% de chance de um minério extra.', emoji: '⛏️', dur: 1500 },
+  din: { nome: 'Dinamite',  nomePl: 'dinamites', dano: 5,         mao: 'dinamite', desc: 'Quebra até 5 batidas de uma vez. 30% de chance de um minério extra, mais raro.', emoji: '🧨', dur: 2200 },
+  tnt: { nome: 'TNT',       nomePl: 'TNTs',      dano: 99,        mao: 'tnt',      desc: 'Explode todos os depósitos, +1 minério em cada e 60% de chance de um extra bem raro.', emoji: '💥', dur: 2600 },
 };
-const MINA_KIT = { pic: 25, din: 2, tnt: 0 };
+const MINA_KIT = { pic: 10, din: 4, tnt: 1 };
 const MINA_OFF = [[-0.58, 0.2], [-0.2, 0.42], [0.24, 0.42], [0.6, 0.18]]; // onde cada depósito fica, em frente à caverna (múltiplos de W)
 const minaLiberada = s => (s.level || 1) >= MINA_NIVEL;
 const minaDe = () => {
@@ -9349,8 +9353,18 @@ const minaHitAt = {};
 let minaTela = null; // onde a mina foi desenhada neste quadro (para o avatar e os efeitos)
 const minaVeiaTela = i => minaTela ? { x: minaTela.x + MINA_OFF[i][0] * minaTela.W, y: minaTela.y + MINA_OFF[i][1] * minaTela.W - minaTela.W * 0.12 } : null;
 const minaVeiaMundo = i => { const [u, v] = posOf(state, 'roca', 'mina'), [ox, oy] = MINA_OFF[i]; return [u + ox + 2 * oy, v + 2 * oy - ox]; };
-function minaQuebrar(i, extra) {
+// Cada ferramenta tem sua chance de achar, além do minério do depósito, outro minério sorteado entre os que você já libera.
+// Quanto mais forte a ferramenta, maior a chance e mais o sorteio favorece os raros.
+const MINA_BONUS = { pic: { chance: 0.1, raro: 0 }, din: { chance: 0.3, raro: 0.35 }, tnt: { chance: 0.6, raro: 0.65 } };
+function minaSorteioBonus(f) {
+  const B = MINA_BONUS[f] || MINA_BONUS.pic, l = MINERIOS.filter(m => m.nivel <= state.level);
+  const w = l.map(m => m.peso * Math.pow(m.preco, B.raro)), tot = w.reduce((a, b) => a + b, 0);
+  let r = Math.random() * tot; for (let k = 0; k < l.length; k++) { r -= w[k]; if (r <= 0) return l[k]; }
+  return l[l.length - 1];
+}
+function minaQuebrar(i, extra, f) {
   const M = minaDe(), v = M.vs[i], m = MINERIO[v.t], pos = minaVeiaTela(i);
+  if (f && Math.random() < (MINA_BONUS[f] || MINA_BONUS.pic).chance) { const b = minaSorteioBonus(f); gain(b.id, 1, pos ? { x: pos.x, y: pos.y - L.W * 0.12 } : null); toast(`✨ A ${MINA_FERR[f].nome.toLowerCase()} achou um ${b.nome.toLowerCase()} extra!`, 'good'); }
   const qty = m.qtd[0] + Math.floor(Math.random() * (m.qtd[1] - m.qtd[0] + 1)) + (extra || 0);
   M.vs[i] = { t: null, volta: Date.now() + m.volta };
   gain(m.id, qty, pos); addXP(m.xp, pos); track('minerar'); state.stats.minerado = (state.stats.minerado || 0) + 1;
@@ -9362,14 +9376,14 @@ function minaConcluir(i, f) {
   M.ferr[f]--;
   if (f === 'tnt') {
     sfx('harvest'); let n = 0;
-    M.vs.forEach((v, k) => { if (v.t) { minaQuebrar(k, 1); n++; } });
+    M.vs.forEach((v, k) => { if (v.t) { minaQuebrar(k, 1, 'tnt'); n++; } });
     if (!n) toast('Não tinha nada para explodir… o TNT foi gasto.', 'bad');
   } else {
     const v = M.vs[i];
     if (!v || !v.t) return done();
     minaHitAt[i] = performance.now();
     v.hp -= F.dano;
-    if (v.hp > 0) { sfx('weed'); popupAt(minaVeiaTela(i), `${v.hp}/${MINERIO[v.t].hp}`, '#ffe9b0'); } else { sfx('harvest'); minaQuebrar(i, 0); }
+    if (v.hp > 0) { sfx('weed'); popupAt(minaVeiaTela(i), `${v.hp}/${MINERIO[v.t].hp}`, '#ffe9b0'); } else { sfx('harvest'); minaQuebrar(i, 0, f); }
   }
   done();
 }
