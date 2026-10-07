@@ -1334,6 +1334,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 263, txt: "Corrigido: o botão 🆘 Precisa de ajuda de um amigo continuava aceso mesmo depois de você ajudar a árvore dele. Agora ele apaga assim que você ajuda (e volta a acender se a ajuda não chegar em 12 horas)." },
   { v: 262, txt: "Corrigido: o menu do botão direito (Mover, Guardar…) e o segurar para mover tinham parado de funcionar em tudo (construções, itens, plantas e canteiros) por causa da entrada da mina, que não tinha área de clique. Voltou ao normal." },
   { v: 261, txt: "Quando você ajuda uma frutífera seca de um amigo, ela agora aparece revivida para você ao visitar de novo, mesmo que o dono ainda não tenha aberto o jogo (para ele, ela volta quando abrir)." },
   { v: 260, txt: "Corrigido: ajuda numa frutífera seca de um amigo. Se o envio da ajuda falhava, o jogo marcava 'Você já ajudou esta' e a árvore não voltava nunca. Agora, se não conseguir enviar, dá para tentar de novo na hora, e depois de 12 horas sem a árvore voltar a ajuda pode ser refeita. A regra de uma ajuda por árvore (depois ela seca de vez) continua igual." },
@@ -1919,7 +1920,7 @@ async function visitFriend(uid, ajudar) {
     view = { kind: 'friend', uid, nome, fazenda: limpaNome(f.fazenda || data.fazenda) || 'Roça Feliz', cao: 'Bidu', pega: 0.12, casa: '#7aa35a', data, nivel: data.level || f.level || 1, avatar: avatarOk(data.avatar) };
     afterVisit();
     // veio pelo botão "Precisa de ajuda": vai para onde está a frutífera com a placa
-    const onde = ['roca', 'animais'].find(sc => pedidosAjuda({ pomarXP: data.pomarXP, objetos: { [sc]: data.objetos && data.objetos[sc] } }));
+    const onde = ['roca', 'animais'].find(sc => pedidosAjuda({ pomarXP: data.pomarXP, objetos: { [sc]: data.objetos && data.objetos[sc] } }, uid));
     if (onde) {
       if (onde !== 'roca') setScene(onde);
       toast(`🆘 Procure a frutífera com a placa AJUDA! (tem uma setinha 🤝 em cima) ${onde === 'animais' ? 'aqui no rancho ' : ''}e toque nela para ajudar.`, 'good');
@@ -2442,7 +2443,7 @@ function fetchFriendInfo(uid, forca) {
   if (!user || (fi !== undefined && !(fi && fi.at && !fi.buscando && (forca || Date.now() - fi.at > 120e3)))) return;
   if (fi && fi.at) fi.buscando = true; else friendInfo[uid] = 'loading';
   Cloud.loadFarm(uid).then(f => {
-    friendInfo[uid] = f ? { name: limpaNome(f.apelido) || firstName(f.name || 'Amigo'), fazenda: limpaNome(f.fazenda) || 'Roça Feliz', photo: f.photo || '', moldura: typeof f.moldura === 'string' ? f.moldura : '', level: f.level || 1, ajuda: pedidosAjuda(estadoDoAmigo(f)), amz: pontosAmizadeDele(estadoDoAmigo(f)), at: Date.now() } : null;
+    friendInfo[uid] = f ? { name: limpaNome(f.apelido) || firstName(f.name || 'Amigo'), fazenda: limpaNome(f.fazenda) || 'Roça Feliz', photo: f.photo || '', moldura: typeof f.moldura === 'string' ? f.moldura : '', level: f.level || 1, ajuda: pedidosAjuda(estadoDoAmigo(f), uid), amz: pontosAmizadeDele(estadoDoAmigo(f)), at: Date.now() } : null;
     renderTabs();
   }).catch(e => {
     // Não conseguiu ler (sem internet, login ainda carregando, ou a pessoa desfez a amizade):
@@ -10994,7 +10995,9 @@ function estadoFruteira(o) {
 const secaDe = (o, s) => !!(o && ENFEITE[o.id] && ENFEITE[o.id].fruteira && (o.seca || (o.colhidas || 0) >= ENFEITE[o.id].colheitas + dominioPomar(s).colheitas));
 const precisaAjuda = (o, s) => secaDe(o, s) && !o.ajudada;
 // Frutíferas dos amigos (na roça e no rancho) com a placa de ajuda.
-const pedidosAjuda = s => ['roca', 'animais'].reduce((n, sc) => n + (s && s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : []).filter(o => precisaAjuda(o, s)).length, 0);
+// Árvores secas do amigo que ainda pedem ajuda. Se você já ajudou há pouco (e o dono ainda não abriu o jogo), não conta mais.
+const ajudeiHa = (uid, o) => { const t = uid && o && o.fid ? state.log[uid + ':fr:' + o.fid + ':ajuda'] : 0; return !!t && Date.now() - t < 12 * 3600e3; };
+const pedidosAjuda = (s, uid) => ['roca', 'animais'].reduce((n, sc) => n + (s && s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : []).filter(o => precisaAjuda(o, s) && !ajudeiHa(uid, o)).length, 0);
 // Põe a placa e avisa todos os amigos (aviso no celular e o botão "Precisa de ajuda" na lista de amigos).
 function pedirAjudaFruteira(sc, i) {
   const o = objetosDe(state, sc)[i]; if (!o || !estadoFruteira(o).morta || o.ajudada) return;
@@ -11047,7 +11050,8 @@ function actFruteira(sc, i) {
       o.placa = 0; o.seca = 0; o.ajudada = 1; o.colhidas = Math.max(0, (o.colhidas || 0) - 1); o.ult = Date.now();
       help(pos); ganharPomar(1); addXP(3, pos); sfx('level'); popupAt(pos, 'Reviveu! 🌱', '#8fd16a');
       const envio = sendVisit({ t: 'help', what: 'fruteira', sc, fid: o.fid || '', idx: i });
-      if (envio) envio.then(ok => { if (!ok) { delete state.log[key]; toast('Não consegui enviar a ajuda agora. Toque na árvore de novo para tentar outra vez.', 'bad'); } });
+      if (view.kind === 'friend' && friendInfo[view.uid] && typeof friendInfo[view.uid] === 'object') { friendInfo[view.uid].ajuda = pedidosAjuda(view.data, view.uid); renderTabs(); }
+      if (envio) envio.then(ok => { if (!ok) { delete state.log[key]; if (friendInfo[view.uid] && typeof friendInfo[view.uid] === 'object') friendInfo[view.uid].ajuda = (friendInfo[view.uid].ajuda || 0) + 1; toast('Não consegui enviar a ajuda agora. Toque na árvore de novo para tentar outra vez.', 'bad'); } });
       toast(`🤝 Você ajudou ${view.nome}: ${e.nome.toLowerCase()} vai dar fruta mais uma vez antes de secar de vez!`, 'good');
       return done();
     }
