@@ -668,6 +668,12 @@ function migrate(s) {
     }
     if (novos.length) s.news = [{ at: Date.now(), msg: `Animais novos para resgatar em Loja › Animais: ${novos.join(', ')}.` }].concat(Array.isArray(s.news) ? s.news : []);
   }
+  // a chocadeira virou um item: vai para o inventário para cada um pôr onde quiser no rancho
+  if (!s.chocadeiraItem) {
+    s.chocadeiraItem = 1; s.enfeites = s.enfeites && typeof s.enfeites === 'object' ? s.enfeites : {};
+    const posta = ['roca', 'animais'].some(sc => (s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : []).some(o => o && o.id === 'chocadeira'));
+    if (!posta) { s.enfeites.chocadeira = (s.enfeites.chocadeira || 0) + 1; s.invNovos = (s.invNovos || 0) + 1; }
+  }
   // a cerca em volta da roça saiu: quem já jogava ganha 40 pedaços de cerca para pôr onde quiser
   if (!s.cercaDada) { s.cercaDada = 1; s.enfeites = s.enfeites && typeof s.enfeites === 'object' ? s.enfeites : {}; s.enfeites.cerca = (s.enfeites.cerca || 0) + 40; s.invNovos = (s.invNovos || 0) + 1; }
   s.bloqueados = s.bloqueados && typeof s.bloqueados === 'object' ? s.bloqueados : {};
@@ -2311,6 +2317,7 @@ async function recuperarAmigos() {
 // ============================================================
 // Casal = 2 animais da mesma espécie. O relógio começa quando o casal se forma e, a cada tempoRepro(espécie),
 // se os dois estiverem alimentados, nasce um filhote (aves põem um ovo na chocadeira do rancho).
+const temChocadeira = () => objetosDe(state, 'animais').some(o => o.id === 'chocadeira');
 const reproEspecies = () => Object.keys(FILHOTES).filter(k => ANIMAL[k] && ANIMAL[k].tipo === 'prod');
 function reproEstado(k) {
   const casal = state.animals.filter(a => a.k === k);
@@ -2322,6 +2329,7 @@ function reproTexto(k) {
   if (!FILHOTES[k] || !isHome()) return '';
   const d = ANIMAL[k], ave = AVES.includes(k), r = reproEstado(k), oQue = ave ? 'ovo na chocadeira' : 'filhote';
   if (!r.par) return `💞 Falta um par para ter ${ave ? 'ovos' : 'filhotes'}: compre mais ${d.f ? 'uma' : 'um'} ${d.nome.toLowerCase()}.`;
+  if (ave && !temChocadeira()) return '🥚 Ponha a chocadeira no rancho (Inventário) para as aves botarem ovos.';
   if (r.falta > 0) return `${ave ? '🥚' : '🐾'} Próximo ${oQue} em ${fmt(r.falta / 1000)}${r.alim < 2 ? ' (alimente o casal)' : ''}`;
   if (r.alim < 2) return `${ave ? '🥚' : '🐾'} Pronto para ter ${oQue}, mas o casal precisa estar alimentado.`;
   if (ave && state.chocadeira.ovos.length >= 20) return '🥚 A chocadeira está cheia.';
@@ -2346,7 +2354,7 @@ function verificarReproducao() {
       state.ultima_reproducao[k] = now;
       toast(`🐾 Nasceu ${ANIMAL[filhote].f ? 'uma' : 'um'} ${ANIMAL[filhote].nome.toLowerCase()}!`, 'good');
       done();
-    } else if (state.chocadeira.ovos.length < 20) {
+    } else if (temChocadeira() && state.chocadeira.ovos.length < 20) {
       state.chocadeira.ovos.push({ especie: filhote, nascimento: now + 24 * HOUR });
       state.ultima_reproducao[k] = now;
       toast(`🥚 Ovo de ${ANIMAL[filhote].nome.toLowerCase()} colocado na chocadeira!`, 'good');
@@ -2557,7 +2565,6 @@ function layout(sc) {
     // da grade original entra na conta, senão o enquadramento não crescia pra mostrar ele.
     let u0 = 0, u1 = RANCH_C, v0 = 0, v1 = RANCH_R;
     for (const b of ABRIGOS) { const y = yardOf(b.id); u0 = Math.min(u0, y.u0); u1 = Math.max(u1, y.u1); v0 = Math.min(v0, y.v0); v1 = Math.max(v1, y.v1); }
-    for (const o of objList(state, 'animais')) if (o.key === 'chocadeira') { u0 = Math.min(u0, o.u - 0.8); v0 = Math.min(v0, o.v - 0.8); u1 = Math.max(u1, o.u + 0.8); v1 = Math.max(v1, o.v + 0.8); }
     const du = u1 - u0, dv = v1 - v0;
     const bw = (du + dv) / 2 + 0.8, bh = (du + dv) / 4 + 1.6;
     L.W = Math.max(Math.min(aw / bw, ah / bh) * 1.08, cw < 700 ? 72 : 0);
@@ -5106,6 +5113,7 @@ function focusRow(id) {
 function chocadeiraHTML() {
   let html = '';
     html += `<h3>Chocadeira 🐣</h3>`;
+    if (!temChocadeira()) html += `<div class="empty">Sua chocadeira está no Inventário: ponha no rancho onde quiser para as aves botarem ovos.</div>`;
     html += `<p class="hint">Cada espécie precisa de um casal (2 animais) alimentado. Aves (e avestruzes) põem ovos aqui; mamíferos têm o filhote direto no abrigo. O tempo depende da espécie: de 1 dia (galinhas, patos, coelhos…) a 5 dias (a rara onça-pintada).</p>`;
     for (const k of reproEspecies()) {
       if (!state.animals.some(a => a.k === k)) continue;
@@ -5701,6 +5709,7 @@ function tipBicho(i) {
 }
 function tipEnfeite(id, key, sc) {
   const e = ENFEITE[id]; if (!e) return null;
+  if (e.chocadeira) return isHome() ? tipChocadeira() : `<b>${e.nome}</b>`;
   if (e.fruteira) { const o = key && objetosDe(S(), sc || scene)[Number(String(key).slice(4))]; if (o) return tipFruteira(o); }
   return `<b>${e.nome}</b><br>+${e.conforto}% de XP${e.especial ? `<br>${origemEnfeite(e, S())}` : ''}${isHome() ? '<br>Mude de lugar com o botão Mover.' : ''}`;
 }
@@ -5718,7 +5727,7 @@ function tipDecor(id) {
 let lastTip = '';
 function updateTip() {
   const show = hover && $('#ctxMenu').hidden && (pointer.inside && !pointer.touch || performance.now() < pointer.tipUntil);
-  const html = !show ? null : hover.kind === 'plot' ? tipPlot(hover.i) : hover.kind === 'animal' ? tipAnimal(hover.id) : hover.kind === 'dog' ? tipDog(hover.slot) : hover.kind === 'canil' ? tipCanil(hover.slot) : hover.kind === 'caminha' ? tipCaminha(hover.id) : hover.kind === 'abrigo' ? tipAbrigo(hover.id) : hover.kind === 'land' ? tipLand() : hover.kind === 'caca' ? (state.level >= CACA_NIVEL ? '<b>🎯 Trilha da caçada</b><br>Clique para caçar pragas com o estilingue ou a espingarda, e armar a arapuca.' : `<b>🎯 Trilha da caçada</b><br>Libera no nível ${CACA_NIVEL}.`) : hover.kind === 'bicho' ? tipBicho(hover.i) : hover.kind === 'avatar' ? (hover.quem === 'dono' ? `<b>${esc(view.nome)}</b><br>${view.avatar && view.avatar.sexo === 'f' ? 'Dona' : 'Dono'} de ${esc(view.fazenda || 'Roça Feliz')}. Clique para dar um oi.` : `<b>${esc(meuApelido())}</b>${meuApelido() === 'Você' ? '' : ' (você)'}<br>Clique para dar um oi.`) : hover.kind === 'invasor' ? `<b>${invasor ? (invasor.tipo === 'javali' ? '🐗 Javali' : '🐀 Rato') : 'Praga'} na plantação!</b><br>Clique para espantar antes que ele coma.` : hover.kind === 'chocadeira' ? tipChocadeira() : hover.kind === 'armadilha' ? `<b>🪤 Armadilha de pragas</b><br>${armadilhaPronta() ? 'Carregada: pega a próxima praga que invadir a plantação.' : `Recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`}` : hover.kind === 'mural' ? `<b>📷 Mural da caçada</b><br>${hover.n} foto${hover.n === 1 ? '' : 's'} de bichos. ${isHome() ? 'Clique para abrir o Livro da caçada.' : ''}` : hover.kind === 'folhas' ? '<b>🍂 Monte de folhas</b><br>Clique e o avatar vai rastelar (+XP e umas moedinhas).' : hover.kind === 'lago' ? `<b>🎣 Lago</b><br>Clique para pescar (🪱 ${iscasDe().minhoca || 0} minhocas).` : hover.kind === 'enfeite' ? tipEnfeite(hover.id, hover.key, hover.sc) : hover.kind === 'obj' ? null : hover.kind === 'celeiro' ? `<b>${isHome() ? 'Seu celeiro' : 'Celeiro de ' + esc(view.nome)}</b>${isHome() ? '<br>Clique para ver o que está guardado.' : ''}` : hover.kind === 'casa' ? `<b>${isHome() ? 'Sua casa' : 'Casa de ' + esc(view.nome)}</b><br>${isHome() ? 'Clique para entrar ou trocar o tema.' : 'Clique para entrar.'}` : tipDecor(hover.id);
+  const html = !show ? null : hover.kind === 'plot' ? tipPlot(hover.i) : hover.kind === 'animal' ? tipAnimal(hover.id) : hover.kind === 'dog' ? tipDog(hover.slot) : hover.kind === 'canil' ? tipCanil(hover.slot) : hover.kind === 'caminha' ? tipCaminha(hover.id) : hover.kind === 'abrigo' ? tipAbrigo(hover.id) : hover.kind === 'land' ? tipLand() : hover.kind === 'caca' ? (state.level >= CACA_NIVEL ? '<b>🎯 Trilha da caçada</b><br>Clique para caçar pragas com o estilingue ou a espingarda, e armar a arapuca.' : `<b>🎯 Trilha da caçada</b><br>Libera no nível ${CACA_NIVEL}.`) : hover.kind === 'bicho' ? tipBicho(hover.i) : hover.kind === 'avatar' ? (hover.quem === 'dono' ? `<b>${esc(view.nome)}</b><br>${view.avatar && view.avatar.sexo === 'f' ? 'Dona' : 'Dono'} de ${esc(view.fazenda || 'Roça Feliz')}. Clique para dar um oi.` : `<b>${esc(meuApelido())}</b>${meuApelido() === 'Você' ? '' : ' (você)'}<br>Clique para dar um oi.`) : hover.kind === 'invasor' ? `<b>${invasor ? (invasor.tipo === 'javali' ? '🐗 Javali' : '🐀 Rato') : 'Praga'} na plantação!</b><br>Clique para espantar antes que ele coma.` : hover.kind === 'armadilha' ? `<b>🪤 Armadilha de pragas</b><br>${armadilhaPronta() ? 'Carregada: pega a próxima praga que invadir a plantação.' : `Recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`}` : hover.kind === 'mural' ? `<b>📷 Mural da caçada</b><br>${hover.n} foto${hover.n === 1 ? '' : 's'} de bichos. ${isHome() ? 'Clique para abrir o Livro da caçada.' : ''}` : hover.kind === 'folhas' ? '<b>🍂 Monte de folhas</b><br>Clique e o avatar vai rastelar (+XP e umas moedinhas).' : hover.kind === 'lago' ? `<b>🎣 Lago</b><br>Clique para pescar (🪱 ${iscasDe().minhoca || 0} minhocas).` : hover.kind === 'enfeite' ? tipEnfeite(hover.id, hover.key, hover.sc) : hover.kind === 'obj' ? null : hover.kind === 'celeiro' ? `<b>${isHome() ? 'Seu celeiro' : 'Celeiro de ' + esc(view.nome)}</b>${isHome() ? '<br>Clique para ver o que está guardado.' : ''}` : hover.kind === 'casa' ? `<b>${isHome() ? 'Sua casa' : 'Casa de ' + esc(view.nome)}</b><br>${isHome() ? 'Clique para entrar ou trocar o tema.' : 'Clique para entrar.'}` : tipDecor(hover.id);
   if (!html) { tip.hidden = true; lastTip = ''; return; }
   if (html !== lastTip) { tip.innerHTML = html; lastTip = html; }
   tip.hidden = false;
@@ -5797,7 +5806,7 @@ let holdTimer = null, holdFired = false;
 function objAt(x, y) {
   if (!isHome() || scene === 'casa') return null;
   // a área de clique cobre o desenho inteiro (largura para cada lado e altura, em casas da grade)
-  const CAIXA = { armadilha: [0.25, 0.35], mata: [0.6, 0.8], placa: [0.5, 0.95], casa: [0.55, 1.0], celeiro: [0.62, 1.15], canil: [0.4, 0.65], chocadeira: [0.35, 0.55], arv1: [0.4, 1.05], arv2: [0.4, 1.05], pesqueiro: [0.5, 0.3] };
+  const CAIXA = { armadilha: [0.25, 0.35], mata: [0.6, 0.8], placa: [0.5, 0.95], casa: [0.55, 1.0], celeiro: [0.62, 1.15], canil: [0.4, 0.65], arv1: [0.4, 1.05], arv2: [0.4, 1.05], pesqueiro: [0.5, 0.3] };
   let best = null, bd = Infinity;
   for (const o of objList(state, scene)) {
     if (o.key === 'placa' && !landSignText()) continue;
@@ -5907,7 +5916,6 @@ cv.addEventListener('click', e => {
   else if (target.kind === 'lago') abrirPesca();
   else if (target.kind === 'folhas') rastelarFolhas(target.id);
   else if (target.kind === 'invasor') espantarInvasor();
-  else if (target.kind === 'chocadeira') openPanel('chocadeira');
   else if (target.kind === 'armadilha') toast(armadilhaPronta() ? '🪤 Armadilha carregada: pega a próxima praga que invadir a plantação.' : `🪤 Armadilha recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`);
   else if (target.kind === 'mural') { abrirCaca(); if (caca) { cacaLivro = true; renderCaca(); } }
   else if (target.kind === 'avatar' && target.quem === 'dono') { falar('avatar:dono', view.nome, sorteia(FALAS_DONO.concat(FALAS_AVATAR))); sfx('fala'); }
@@ -9087,9 +9095,10 @@ const ENFEITES = [
   { id: 'balanco',      nome: 'Balanço de madeira',        especial: true, trevo: true, conforto: 2 },
   { id: 'carrodeboi',   nome: 'Carro de boi',              especial: true, trevo: true, conforto: 3 },
   { id: 'trofeuchupa',  nome: 'Troféu do Chupa-cabra',     especial: true, caca: true, conforto: 3 },
+  { id: 'chocadeira',   nome: 'Chocadeira',                especial: true, chocadeira: true, soRancho: true, conforto: 0 },
 ];
 // Etiqueta de onde veio um item especial.
-const origemEnfeite = (e, s) => e.caca ? 'Troféu da caçada 🎯' : e.trevo ? 'Exclusivo da Loja do Trevo 🍀' : e.vila ? 'Presente da vila' : `Especial dos pioneiros · ${obtidoEm(s)}`;
+const origemEnfeite = (e, s) => e.chocadeira ? 'Choca os ovos das aves do rancho 🥚' : e.caca ? 'Troféu da caçada 🎯' : e.trevo ? 'Exclusivo da Loja do Trevo 🍀' : e.vila ? 'Presente da vila' : `Especial dos pioneiros · ${obtidoEm(s)}`;
 const ENFEITE = Object.fromEntries(ENFEITES.map(e => [e.id, e]));
 // Lugares antigos (saves de antes do modo Mover): viram posições livres.
 const LUGARES = {
@@ -9101,10 +9110,10 @@ const LUGARES = {
 const POS_PADRAO = {
   // (as árvores de enfeite saíram: agora as árvores são as frutíferas do Pomar, compradas na Loja)
   roca: { casa: [1.25, -1.45], celeiro: [-0.95, 2.15], canil: [-1.65, 3.65], pesqueiro: [-1.05, 4.85], placa: [-0.1, 1.1], mata: [1.6, 6.9], armadilha: [3.3, -0.6] },
-  animais: { canil: [-1.65, 3.65], chocadeira: [-1.3, 5.6] },
+  animais: { canil: [-1.65, 3.65] },
 };
 const LAGO_POS = [3.55, -1.95];
-const OBJ_INFO = { casa: { nome: 'Casa', r: 1.1 }, celeiro: { nome: 'Celeiro', r: 1.2 }, canil: { nome: 'Casinha do cachorro', r: 0.8 }, arv1: { nome: 'Árvore', r: 0.7 }, arv2: { nome: 'Árvore', r: 0.7 }, pesqueiro: { nome: 'Pesqueiro', r: 0.9 }, placa: { nome: 'Placa de terras', r: 0.45 }, mata: { nome: 'Trilha da caçada', r: 1.0 }, armadilha: { nome: 'Armadilha de pragas', r: 0.45 }, chocadeira: { nome: 'Chocadeira', r: 0.5 } };
+const OBJ_INFO = { casa: { nome: 'Casa', r: 1.1 }, celeiro: { nome: 'Celeiro', r: 1.2 }, canil: { nome: 'Casinha do cachorro', r: 0.8 }, arv1: { nome: 'Árvore', r: 0.7 }, arv2: { nome: 'Árvore', r: 0.7 }, pesqueiro: { nome: 'Pesqueiro', r: 0.9 }, placa: { nome: 'Placa de terras', r: 0.45 }, mata: { nome: 'Trilha da caçada', r: 1.0 }, armadilha: { nome: 'Armadilha de pragas', r: 0.45 } };
 // Giro de 90° em 90° (rot 0..3, sentido contrário ao relógio visto de cima): os desenhos são 2,5D, vistos
 // de um ângulo só. Nos giros ímpares a imagem fica espelhada (as faces trocam de lado); nos giros 2 e 3
 // as construções (casa, celeiro, casinha) mostram os fundos, sem porta nem janelas da frente. Itens sem
@@ -9114,7 +9123,7 @@ const comGiro = (x, rot, fn) => {
   ctx.save(); ctx.translate(x, 0); ctx.scale(-1, 1); ctx.translate(-x, 0);
   try { fn(); } finally { ctx.restore(); }
 };
-const giravel = key => !!key && !['placa', 'mata', 'armadilha', 'chocadeira'].includes(key);
+const giravel = key => !!key && !['placa', 'mata', 'armadilha'].includes(key);
 function posOf(s, sc, key) {
   const p = s.pos && s.pos[sc] && s.pos[sc][key];
   if (Array.isArray(p)) return p;
@@ -9476,7 +9485,7 @@ function drawObjetos(s, sc, t, home, stage, d0 = -Infinity, d1 = Infinity) {
   let cachorroDepois = false;
   // Na roça a terra agora se estende pros dois lados da casa (u ou v negativos também têm canteiro),
   // então tudo entra na ordem de profundidade junto com os canteiros ('tras' não desenha nada lá).
-  const atras = o => sc !== 'roca' && o.key !== 'chocadeira' && (o.u < 0 || o.v < 0); // a chocadeira fica por cima dos cercados
+  const atras = o => sc !== 'roca' && (o.u < 0 || o.v < 0);
   const l = objList(s, sc).filter(o => atras(o) === (stage === 'tras') && o.u + o.v >= d0 && o.u + o.v < d1).sort((a, b) => (a.u + a.v) - (b.u + b.v));
   for (const o of l) {
     if (moving && !moving.novo && moving.key === o.key) continue; // está na mão do jogador
@@ -9499,14 +9508,6 @@ function drawObjetos(s, sc, t, home, stage, d0 = -Infinity, d1 = Infinity) {
     if (o.key === 'armadilha') {
       drawArmadilha(q.x, q.y, W, !s.armadilha || Date.now() >= (s.armadilha.pronta || 0), t);
       if (!moveMode && home) hits.push({ kind: 'armadilha', x: q.x, y: q.y - W * 0.12, r: W * 0.25 });
-      continue;
-    }
-    if (o.key === 'chocadeira') {
-      drawChocadeira(q.x, q.y, W, (s.chocadeira && s.chocadeira.ovos) || [], t);
-      if (!moveMode && home) {
-        if (hover && hover.kind === 'chocadeira') { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.3, W * 0.1, 0, 0, 7); ctx.stroke(); }
-        hits.push({ kind: 'chocadeira', x: q.x, y: q.y - W * 0.2, r: W * 0.28 });
-      }
       continue;
     }
     if (o.key === 'mata') {
@@ -9631,7 +9632,6 @@ function drawMoving(sc, t) {
   else if (k === 'placa') drawLandSign(q.x, q.y, true);
   else if (k === 'mata') drawMataCaca(q.x, q.y, W);
   else if (k === 'armadilha') drawArmadilha(q.x, q.y, W, true, t);
-  else if (k === 'chocadeira') drawChocadeira(q.x, q.y, W, [], t);
   else comGiro(q.x, gr, () => drawTree(q.x, q.y, W * 0.9, t, sc === 'roca' && temaDe(s).coqueiro));
   ctx.globalAlpha = 1;
 }
@@ -9698,6 +9698,7 @@ function comprarEnfeite(id, qtd = 1) {
 }
 function actEnfeite(id, key, sc) {
   const e = ENFEITE[id];
+  if (e.chocadeira) return isHome() ? openPanel('chocadeira') : toast(`Chocadeira de ${view.nome}.`);
   if (e.fruteira && key) return actFruteira(sc || scene, Number(String(key).slice(4)));
   toast(isHome() ? `${e.nome}: +${e.conforto}% de XP. Para mudar de lugar, use o botão Mover; para guardar, o Inventário.` : `${e.nome} de ${view.nome}.`);
 }
@@ -9709,8 +9710,8 @@ function inventarioHTML() {
   html += `<h3>Guardados</h3>`;
   if (!guardados.length) html += `<div class="empty">Nada guardado. Compre enfeites na Loja › Enfeites.</div>`;
   for (const e of guardados) {
-    html += `<div class="row wide ${e.especial ? 'sel' : ''}"><img alt="" src="${enfeiteIcon(e.id)}"><div><div class="name">${e.nome} × ${state.enfeites[e.id]}${e.especial ? ` <span class="tag">${e.vila ? '🏡 vila' : '⭐ pioneiros'}</span>` : ''}</div><div class="meta">${e.cerca ? 'Um pedaço de cerca para a roça. Depois de pôr um, já vem o próximo (dá para girar).' : `+${e.conforto}% de XP quando está na roça ou no rancho`}${e.especial ? `<br>${origemEnfeite(e, state)}` : ''}</div></div>
-      <div class="actions"><button class="btn gold" data-inv-por="${e.id}" data-sc="roca">Pôr na roça</button>${e.cerca ? '' : `<button class="btn gold" data-inv-por="${e.id}" data-sc="animais">Pôr no rancho</button>`}
+    html += `<div class="row wide ${e.especial ? 'sel' : ''}"><img alt="" src="${enfeiteIcon(e.id)}"><div><div class="name">${e.nome} × ${state.enfeites[e.id]}${e.especial ? ` <span class="tag">${e.chocadeira ? '🥚 rancho' : e.vila ? '🏡 vila' : '⭐ pioneiros'}</span>` : ''}</div><div class="meta">${e.cerca ? 'Um pedaço de cerca para a roça. Depois de pôr um, já vem o próximo (dá para girar).' : e.chocadeira ? 'Ponha no rancho, onde quiser: sem ela as aves não botam ovos.' : `+${e.conforto}% de XP quando está na roça ou no rancho`}${e.especial ? `<br>${origemEnfeite(e, state)}` : ''}</div></div>
+      <div class="actions">${e.soRancho ? '' : `<button class="btn gold" data-inv-por="${e.id}" data-sc="roca">Pôr na roça</button>`}${e.cerca ? '' : `<button class="btn gold" data-inv-por="${e.id}" data-sc="animais">Pôr no rancho</button>`}
       ${e.especial ? '' : venderBtn('enf:' + e.id, Math.floor(e.custo / 2), state.enfeites[e.id])}</div></div>`;
   }
   for (const sc of ['roca', 'animais']) {
@@ -9729,7 +9730,7 @@ function inventarioHTML() {
       const e = ENFEITE[o.id];
       if (e.cerca) return;
       html += e.fruteira ? `<div class="row"><img alt="" src="${enfeiteIcon(e.id)}"><div><div class="name">${e.nome}</div><div class="meta">${estadoFruteira(o).txt}</div></div><div></div></div>`
-        : `<div class="row"><img alt="" src="${enfeiteIcon(e.id)}"><div><div class="name">${e.nome}</div><div class="meta">+${e.conforto}% de XP${e.especial ? ` · ${origemEnfeite(e, state)}` : ''}</div></div><button class="btn ghost" data-inv-guardar="${sc}:${i}">Guardar</button></div>`;
+        : `<div class="row"><img alt="" src="${enfeiteIcon(e.id)}"><div><div class="name">${e.nome}</div><div class="meta">${e.chocadeira ? '' : `+${e.conforto}% de XP`}${e.especial ? `${e.chocadeira ? '' : ' · '}${origemEnfeite(e, state)}` : ''}</div></div><button class="btn ghost" data-inv-guardar="${sc}:${i}">Guardar</button></div>`;
     });
   }
   return html;
@@ -9941,6 +9942,7 @@ function drawPeixesRoca(s, t) {
 // Desenho dos enfeites, com a base em (x, y). s = escala (1 = casa de 100px).
 function drawEnfeite(id, x, y, s, t, rot) {
   if (ENFEITE[id] && ENFEITE[id].fruteira) return drawFruteira({ id }, x, y, s, t, false);
+  if (id === 'chocadeira') return drawChocadeira(x, y, s * 100, (S().chocadeira && S().chocadeira.ovos) || [], t);
   if (ENFEITE[id] && ENFEITE[id].cerca && id !== 'cerca') {
     // ícone: um pedaço de frente, no estilo do item
     const W0 = L.W; L.W = 230 * s / 1.6;
@@ -10554,12 +10556,12 @@ const CACA_BICHOS = [
   { id: 'chupacabra', nome: 'Chupa-cabra',     raro: 'lendário', praga: true, armas: ['espingarda'], nivel: 20, lug: 3, forma: 'chupa', cor: '#6a7a6a', tam: 1.25, vel: 1.75, hp: 4, moedas: 1600, peso: 0.6, drop: { id: 'presa', qtd: 2 } },
   // nativos: só na arapuca, e voltam para o mato
   { id: 'rolinha',    nome: 'Rolinha',         raro: 'comum',    armas: ['arapuca'], nivel: 10,  lug: 0, forma: 'ave',   cor: '#c89a7a', tam: 0.6,  moedas: 10,  peso: 10 },
-  { id: 'prea',       nome: 'Preá',            raro: 'comum',    armas: ['arapuca'], nivel: 10,  lug: 0, forma: 'rato',  cor: '#8a6a4a', tam: 0.7,  moedas: 10,  peso: 10, semRabo: true },
+  { id: 'prea',       nome: 'Preá',            raro: 'comum',    armas: ['arapuca'], nivel: 10,  lug: 0, forma: 'cavia',  cor: '#8a6a4a', tam: 0.7,  moedas: 10,  peso: 10, semRabo: true },
   { id: 'codorna',    nome: 'Codorna',         raro: 'comum',    armas: ['arapuca'], nivel: 10,  lug: 0, forma: 'ave',   cor: '#9a7a52', tam: 0.65, moedas: 10,  peso: 8, gorda: true },
   { id: 'inhambu',    nome: 'Inhambu',         raro: 'incomum',  armas: ['arapuca'], nivel: 10,  lug: 1, forma: 'ave',   cor: '#7a6a4a', tam: 0.75, moedas: 18, peso: 6, gorda: true },
   { id: 'tatu',       nome: 'Tatu-galinha',    raro: 'incomum',  armas: ['arapuca'], nivel: 10,  lug: 1, forma: 'tatu',  cor: '#a09080', tam: 0.9,  moedas: 18, peso: 6 },
-  { id: 'cutia',      nome: 'Cutia',           raro: 'incomum',  armas: ['arapuca'], nivel: 12, lug: 1, forma: 'rato',  cor: '#c8843a', tam: 0.9,  moedas: 18, peso: 5, semRabo: true },
-  { id: 'paca',       nome: 'Paca',            raro: 'raro',     armas: ['arapuca'], nivel: 12, lug: 2, forma: 'rato',  cor: '#7a5230', tam: 1,    moedas: 35, peso: 3, semRabo: true, pintas: true },
+  { id: 'cutia',      nome: 'Cutia',           raro: 'incomum',  armas: ['arapuca'], nivel: 12, lug: 1, forma: 'cavia',  cor: '#c8843a', tam: 0.9,  moedas: 18, peso: 5, semRabo: true },
+  { id: 'paca',       nome: 'Paca',            raro: 'raro',     armas: ['arapuca'], nivel: 12, lug: 2, forma: 'cavia',  cor: '#7a5230', tam: 1,    moedas: 35, peso: 3, semRabo: true, pintas: true },
   { id: 'jacu',       nome: 'Jacu',            raro: 'raro',     armas: ['arapuca'], nivel: 14, lug: 2, forma: 'ave',   cor: '#2e2a2a', tam: 0.95, moedas: 35, peso: 3, papo: true },
   { id: 'mutum',      nome: 'Mutum',           raro: 'épico',    armas: ['arapuca'], nivel: 18, lug: 3, forma: 'ave',   cor: '#1e1e22', tam: 1.05, moedas: 70, peso: 1.2, crista: true },
   // +3 espécies na capoeira/mata/cerrado/serra/chapada (lug 0)
@@ -10567,40 +10569,40 @@ const CACA_BICHOS = [
   { id: 'sabia', nome: 'Sabiá', raro: 'comum', armas: ['arapuca'], nivel: 10, lug: 0, forma: 'ave', cor: '#9aa3ad', tam: 0.6, moedas: 10, peso: 10 },
   { id: 'joaodebarro', nome: 'João-de-barro', raro: 'comum', armas: ['arapuca'], nivel: 10, lug: 0, forma: 'ave', cor: '#a07a4a', tam: 0.62, moedas: 10, peso: 9, gorda: true },
   // +6 espécies na capoeira/mata/cerrado/serra/chapada (lug 1)
-  { id: 'quati', nome: 'Quati', raro: 'incomum', praga: true, armas: ['estilingue', 'espingarda'], nivel: 12, lug: 1, forma: 'rato', cor: '#b08a5a', tam: 0.95, vel: 1.2, hp: 1, moedas: 45, peso: 5, semRabo: false },
-  { id: 'irara', nome: 'Irara', raro: 'raro', praga: true, armas: ['espingarda'], nivel: 12, lug: 1, forma: 'lebre', cor: '#5a4a3a', tam: 0.9, vel: 1.5, hp: 1, moedas: 70, peso: 4 },
+  { id: 'quati', nome: 'Quati', raro: 'incomum', praga: true, armas: ['estilingue', 'espingarda'], nivel: 12, lug: 1, forma: 'canido', anelado: true, cor: '#b08a5a', tam: 0.95, vel: 1.2, hp: 1, moedas: 45, peso: 5, semRabo: false },
+  { id: 'irara', nome: 'Irara', raro: 'raro', praga: true, armas: ['espingarda'], nivel: 12, lug: 1, forma: 'canido', baixo: true, cor: '#5a4a3a', tam: 0.9, vel: 1.5, hp: 1, moedas: 70, peso: 4 },
   { id: 'saira', nome: 'Saíra', raro: 'incomum', armas: ['arapuca'], nivel: 12, lug: 1, forma: 'ave', cor: '#7a5a44', tam: 0.6, moedas: 15, peso: 6, voa: true },
-  { id: 'tucano', nome: 'Tucano', raro: 'raro', armas: ['arapuca'], nivel: 12, lug: 1, forma: 'ave', cor: '#c89a7a', tam: 0.85, moedas: 22, peso: 4, voa: true, papo: true },
-  { id: 'veadocatingueiro', nome: 'Veado-catingueiro', raro: 'raro', armas: ['arapuca'], nivel: 12, lug: 1, forma: 'porco', cor: '#8a6a4a', tam: 1.15, moedas: 28, peso: 3 },
+  { id: 'tucano', nome: 'Tucano', raro: 'raro', armas: ['arapuca'], nivel: 12, lug: 1, forma: 'ave', bicoGrande: true, cor: '#c89a7a', tam: 0.85, moedas: 22, peso: 4, voa: true, papo: true },
+  { id: 'veadocatingueiro', nome: 'Veado-catingueiro', raro: 'raro', armas: ['arapuca'], nivel: 12, lug: 1, forma: 'veado', galhada: 1, cor: '#8a6a4a', tam: 1.15, moedas: 28, peso: 3 },
   { id: 'quero-quero', nome: 'Quero-quero', raro: 'comum', armas: ['arapuca'], nivel: 12, lug: 1, forma: 'ave', cor: '#9a7a52', tam: 0.65, moedas: 12, peso: 7 },
   // +7 espécies na capoeira/mata/cerrado/serra/chapada (lug 2)
-  { id: 'raposa', nome: 'Raposa-do-campo', raro: 'raro', praga: true, armas: ['espingarda'], nivel: 15, lug: 2, forma: 'lebre', cor: '#7a6a4a', tam: 1, vel: 1.4, hp: 2, moedas: 85, peso: 4 },
+  { id: 'raposa', nome: 'Raposa-do-campo', raro: 'raro', praga: true, armas: ['espingarda'], nivel: 15, lug: 2, forma: 'canido', cor: '#7a6a4a', tam: 1, vel: 1.4, hp: 2, moedas: 85, peso: 4 },
   { id: 'queixada', nome: 'Queixada', raro: 'épico', praga: true, armas: ['espingarda'], nivel: 15, lug: 2, forma: 'porco', cor: '#a09080', tam: 1.35, vel: 1.1, hp: 2, moedas: 150, peso: 2.2, pintas: true },
   { id: 'serieman', nome: 'Seriema', raro: 'incomum', armas: ['arapuca'], nivel: 15, lug: 2, forma: 'ave', cor: '#c8843a', tam: 0.9, moedas: 18, peso: 6, crista: true },
-  { id: 'tamandua', nome: 'Tamanduá-bandeira', raro: 'raro', armas: ['arapuca'], nivel: 15, lug: 2, forma: 'tatu', cor: '#7a5230', tam: 1.1, moedas: 30, peso: 3 },
-  { id: 'emaCampo', nome: 'Ema', raro: 'épico', armas: ['arapuca'], nivel: 15, lug: 2, forma: 'ave', cor: '#2e2a2a', tam: 1.3, moedas: 45, peso: 1.5, gorda: true },
+  { id: 'tamandua', nome: 'Tamanduá-bandeira', raro: 'raro', armas: ['arapuca'], nivel: 15, lug: 2, forma: 'tamandua', cor: '#7a5230', tam: 1.1, moedas: 30, peso: 3 },
+  { id: 'emaCampo', nome: 'Ema', raro: 'épico', armas: ['arapuca'], nivel: 15, lug: 2, forma: 'ema', cor: '#2e2a2a', tam: 1.3, moedas: 45, peso: 1.5, gorda: true },
   { id: 'curica', nome: 'Curicaca', raro: 'incomum', armas: ['arapuca'], nivel: 15, lug: 2, forma: 'ave', cor: '#1e1e22', tam: 0.8, moedas: 16, peso: 6, voa: true },
-  { id: 'lobinho', nome: 'Lobinho-do-cerrado', raro: 'raro', armas: ['arapuca'], nivel: 15, lug: 2, forma: 'lebre', cor: '#6a7a6a', tam: 1, moedas: 32, peso: 3 },
+  { id: 'lobinho', nome: 'Lobinho-do-cerrado', raro: 'raro', armas: ['arapuca'], nivel: 15, lug: 2, forma: 'canido', cor: '#6a7a6a', tam: 1, moedas: 32, peso: 3 },
   // +8 espécies na capoeira/mata/cerrado/serra/chapada (lug 3)
-  { id: 'gatomato', nome: 'Gato-do-mato', raro: 'épico', praga: true, armas: ['espingarda'], nivel: 20, lug: 3, forma: 'lebre', cor: '#8a8078', tam: 1, vel: 1.6, hp: 2, moedas: 180, peso: 2, pintas: true },
+  { id: 'gatomato', nome: 'Gato-do-mato', raro: 'épico', praga: true, armas: ['espingarda'], nivel: 20, lug: 3, forma: 'felino', manchas: 'pintas', cor: '#8a8078', tam: 1, vel: 1.6, hp: 2, moedas: 180, peso: 2, pintas: true },
   { id: 'javaliSerra', nome: 'Javali-serrano', raro: 'raro', praga: true, armas: ['espingarda'], nivel: 20, lug: 3, forma: 'porco', cor: '#9aa3ad', tam: 1.4, vel: 1.05, hp: 2, moedas: 170, peso: 3 },
-  { id: 'gaviao', nome: 'Gavião-carijó', raro: 'raro', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'ave', cor: '#a07a4a', tam: 0.95, moedas: 25, peso: 4, voa: true },
-  { id: 'jaguatirica', nome: 'Jaguatirica', raro: 'épico', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'lebre', cor: '#b08a5a', tam: 1.15, moedas: 48, peso: 1.8, pintas: true },
-  { id: 'capivaraSerra', nome: 'Capivara', raro: 'incomum', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'rato', cor: '#5a4a3a', tam: 1.3, moedas: 20, peso: 5 },
-  { id: 'maracana', nome: 'Maracanã', raro: 'raro', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'ave', cor: '#7a5a44', tam: 0.8, moedas: 26, peso: 3.5, voa: true },
-  { id: 'vedetinha', nome: 'Veado-campeiro', raro: 'épico', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'porco', cor: '#c89a7a', tam: 1.2, moedas: 55, peso: 1.6 },
-  { id: 'corujaBuraqueira', nome: 'Coruja-buraqueira', raro: 'incomum', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'ave', cor: '#8a6a4a', tam: 0.7, moedas: 18, peso: 5, voa: true },
+  { id: 'gaviao', nome: 'Gavião-carijó', raro: 'raro', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'ave', bicoGancho: true, cor: '#a07a4a', tam: 0.95, moedas: 25, peso: 4, voa: true },
+  { id: 'jaguatirica', nome: 'Jaguatirica', raro: 'épico', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'felino', manchas: 'pintas', cor: '#b08a5a', tam: 1.15, moedas: 48, peso: 1.8, pintas: true },
+  { id: 'capivaraSerra', nome: 'Capivara', raro: 'incomum', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'cavia', focinhoCurto: true, cor: '#5a4a3a', tam: 1.3, moedas: 20, peso: 5 },
+  { id: 'maracana', nome: 'Maracanã', raro: 'raro', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'ave', bicoGancho: true, longaCauda: true, cor: '#7a5a44', tam: 0.8, moedas: 26, peso: 3.5, voa: true },
+  { id: 'vedetinha', nome: 'Veado-campeiro', raro: 'épico', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'veado', galhada: 2, cor: '#c89a7a', tam: 1.2, moedas: 55, peso: 1.6 },
+  { id: 'corujaBuraqueira', nome: 'Coruja-buraqueira', raro: 'incomum', armas: ['arapuca'], nivel: 20, lug: 3, forma: 'ave', coruja: true, cor: '#8a6a4a', tam: 0.7, moedas: 18, peso: 5, voa: true },
   // +10 espécies na capoeira/mata/cerrado/serra/chapada (lug 4)
-  { id: 'oncepintada', nome: 'Onça-pintada', raro: 'lendário', praga: true, armas: ['espingarda'], nivel: 28, lug: 4, forma: 'lebre', cor: '#9a7a52', tam: 1.5, vel: 1.3, hp: 3, moedas: 700, peso: 0.9, pintas: true },
-  { id: 'lobo-guara', nome: 'Lobo-guará', raro: 'épico', praga: true, armas: ['espingarda'], nivel: 28, lug: 4, forma: 'lebre', cor: '#7a6a4a', tam: 1.25, vel: 1.35, hp: 2, moedas: 220, peso: 1.8 },
-  { id: 'antaChapada', nome: 'Anta', raro: 'épico', praga: true, armas: ['espingarda'], nivel: 28, lug: 4, forma: 'porco', cor: '#a09080', tam: 1.5, vel: 0.95, hp: 3, moedas: 240, peso: 1.7 },
-  { id: 'arara-azul', nome: 'Arara-azul-de-lear', raro: 'lendário', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'ave', cor: '#c8843a', tam: 1, moedas: 90, peso: 0.8, voa: true },
+  { id: 'oncepintada', nome: 'Onça-pintada', raro: 'lendário', praga: true, armas: ['espingarda'], nivel: 28, lug: 4, forma: 'felino', manchas: 'rosetas', cor: '#9a7a52', tam: 1.5, vel: 1.3, hp: 3, moedas: 700, peso: 0.9, pintas: true },
+  { id: 'lobo-guara', nome: 'Lobo-guará', raro: 'épico', praga: true, armas: ['espingarda'], nivel: 28, lug: 4, forma: 'canido', pernasLongas: true, cor: '#7a6a4a', tam: 1.25, vel: 1.35, hp: 2, moedas: 220, peso: 1.8 },
+  { id: 'antaChapada', nome: 'Anta', raro: 'épico', praga: true, armas: ['espingarda'], nivel: 28, lug: 4, forma: 'anta', cor: '#a09080', tam: 1.5, vel: 0.95, hp: 3, moedas: 240, peso: 1.7 },
+  { id: 'arara-azul', nome: 'Arara-azul-de-lear', raro: 'lendário', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'ave', bicoGancho: true, longaCauda: true, cor: '#c8843a', tam: 1, moedas: 90, peso: 0.8, voa: true },
   { id: 'tatuBola', nome: 'Tatu-bola', raro: 'raro', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'tatu', cor: '#7a5230', tam: 0.95, moedas: 32, peso: 3 },
-  { id: 'gaviaoReal', nome: 'Gavião-real', raro: 'lendário', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'ave', cor: '#2e2a2a', tam: 1.1, moedas: 95, peso: 0.7, voa: true, crista: true },
-  { id: 'suacu', nome: 'Suaçu-veado', raro: 'épico', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'porco', cor: '#1e1e22', tam: 1.25, moedas: 50, peso: 1.6 },
-  { id: 'papagaioChapada', nome: 'Papagaio-chauá', raro: 'raro', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'ave', cor: '#6a7a6a', tam: 0.85, moedas: 35, peso: 3, voa: true, papo: true },
-  { id: 'preaDaChapada', nome: 'Preá-da-chapada', raro: 'incomum', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'rato', cor: '#8a8078', tam: 0.75, moedas: 20, peso: 5, semRabo: true },
-  { id: 'tucanAcu', nome: 'Tucano-açu', raro: 'épico', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'ave', cor: '#9aa3ad', tam: 0.95, moedas: 45, peso: 1.8, voa: true, papo: true },
+  { id: 'gaviaoReal', nome: 'Gavião-real', raro: 'lendário', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'ave', bicoGancho: true, cor: '#2e2a2a', tam: 1.1, moedas: 95, peso: 0.7, voa: true, crista: true },
+  { id: 'suacu', nome: 'Suaçu-veado', raro: 'épico', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'veado', galhada: 3, cor: '#1e1e22', tam: 1.25, moedas: 50, peso: 1.6 },
+  { id: 'papagaioChapada', nome: 'Papagaio-chauá', raro: 'raro', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'ave', bicoGancho: true, cor: '#6a7a6a', tam: 0.85, moedas: 35, peso: 3, voa: true, papo: true },
+  { id: 'preaDaChapada', nome: 'Preá-da-chapada', raro: 'incomum', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'cavia', cor: '#8a8078', tam: 0.75, moedas: 20, peso: 5, semRabo: true },
+  { id: 'tucanAcu', nome: 'Tucano-açu', raro: 'épico', armas: ['arapuca'], nivel: 28, lug: 4, forma: 'ave', bicoGrande: true, cor: '#9aa3ad', tam: 0.95, moedas: 45, peso: 1.8, voa: true, papo: true },
 
 ];
 const CACA_BICHO = Object.fromEntries(CACA_BICHOS.map(b => [b.id, b]));
@@ -10800,16 +10802,20 @@ function soltarBicho(t, cw, ch) {
 }
 function moverBicho(t, cw, ch) {
   const a = caca.a, dt = Math.min(0.05, (t - a.ult) / 1000); a.ult = t;
+  // vai e volta da moita andando (antes o y mudava de uma vez e o bicho parecia teleportar)
+  if (a.yAlvo !== undefined) a.y += (a.yAlvo - a.y) * Math.min(1, dt * 6);
+  if (a.vaiEsconder && Math.abs(a.y - a.yAlvo) < 2) { a.vaiEsconder = false; a.esconde = t + 500 + Math.random() * 700; }
   if (a.pausa > t || a.esconde > t) return;
+  if (a.escondeu && !a.vaiEsconder && !a.voltando && a.esconde && t >= a.esconde) { a.voltando = true; a.yAlvo = a.yBase; }
   a.x += a.dir * a.vel * dt;
   // moitas: de vez em quando o bicho de chão para escondido atrás de uma. Alinha o y do bicho com
   // o da moita certa (mesma fórmula do desenhaMoitas em desenharCaca) pra ele sumir atrás da planta
   // de verdade, não numa fileira vazia do gramado.
   if (!caca.bicho.voa && !a.escondeu) for (const [k, mx] of MOITAS.entries()) if (Math.abs(a.x - mx * cw) < 6 && Math.random() < 0.45) {
-    a.esconde = t + 500 + Math.random() * 700; a.escondeu = true; a.y = ch * (0.6 + (k % 3) * 0.12) + 4;
+    a.escondeu = true; a.vaiEsconder = true; a.voltando = false; a.yBase = a.y; a.yAlvo = ch * (0.6 + (k % 3) * 0.12) + 4;
   }
   if ((a.dir > 0 && a.x > cw + 50) || (a.dir < 0 && a.x < -50)) {
-    a.passes++; a.escondeu = false;
+    a.passes++; a.escondeu = false; a.vaiEsconder = false; a.voltando = false; a.yAlvo = undefined;
     if (a.passes >= 3) { caca = { fase: 'resultado', msg: `${um(caca.bicho) === 'uma' ? 'A' : 'O'} ${caca.bicho.nome.toLowerCase()} sumiu no mato… 😩 Tente de novo!` }; sfx('error'); return renderCaca(); }
     a.dir *= -1; a.y = ch * a.faixas[Math.floor(Math.random() * 3)]; a.pausa = t + 400 + Math.random() * 700;
   }
@@ -10953,6 +10959,83 @@ function drawBicho(g, x, y, s, b, t, correndo) {
     g.fillStyle = '#f4efe2'; g.beginPath(); g.moveTo(19 * k, -8 * k); g.quadraticCurveTo(22 * k, -13 * k, 20 * k, -16 * k); g.lineTo(18.6 * k, -9 * k); g.fill(); // presa
     g.fillStyle = esc; g.beginPath(); g.moveTo(11 * k, -17 * k); g.lineTo(13 * k, -22 * k); g.lineTo(15 * k, -17 * k); g.fill();
     olho(16, -14, 1.2, '#1a0a0a');
+  } else if (b.forma === 'felino') {
+    perna(-7, pe * 1.2); perna(-3, -pe * 1.2); perna(6, pe * 1.2); perna(10, -pe * 1.2);
+    g.strokeStyle = cor; g.lineWidth = 2.8 * k; g.beginPath(); g.moveTo(-13 * k, -12 * k); g.quadraticCurveTo(-25 * k, -12 * k, -24 * k, -23 * k); g.stroke();
+    g.fillStyle = cor; g.beginPath(); g.ellipse(0, -12 * k, 14 * k, 6.5 * k, 0, 0, 7); g.fill();
+    g.fillStyle = cla; g.beginPath(); g.ellipse(1 * k, -8.6 * k, 10 * k, 2.6 * k, 0, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(30,18,8,.8)'; g.fillStyle = 'rgba(30,18,8,.8)'; g.lineWidth = 1.1 * k;
+    for (const [mx, my] of [[-9, -14], [-4, -11], [0, -15], [5, -12], [9, -15], [-6, -16.5], [3, -9.5]]) { g.beginPath(); g.arc(mx * k, my * k, 1.5 * k, 0, 7); if (b.manchas === 'rosetas') g.stroke(); else g.fill(); }
+    g.fillStyle = cor; g.beginPath(); g.arc(14 * k, -16 * k, 6 * k, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(10 * k, -20 * k); g.lineTo(11.5 * k, -26 * k); g.lineTo(15 * k, -21 * k); g.fill();
+    g.beginPath(); g.moveTo(15 * k, -21 * k); g.lineTo(18.5 * k, -25.5 * k); g.lineTo(19 * k, -19.5 * k); g.fill();
+    g.fillStyle = cla; g.beginPath(); g.ellipse(18.5 * k, -14.5 * k, 3 * k, 2.2 * k, 0, 0, 7); g.fill();
+    g.fillStyle = '#e88a9a'; g.beginPath(); g.arc(20.8 * k, -15.4 * k, 0.9 * k, 0, 7); g.fill();
+    olho(15.5, -17.5, 1.3, '#2a1a08');
+  } else if (b.forma === 'canido') {
+    const alta = b.pernasLongas ? 12 : b.baixo ? 4 : 7.5, cy = -(alta + 4.5) * k;
+    g.strokeStyle = esc; g.lineWidth = 2.2 * k;
+    for (const [px, d] of [[-7, pe], [-3, -pe], [6, pe], [10, -pe]]) { g.beginPath(); g.moveTo(px * k, cy + 2 * k); g.lineTo(px * k + d, 0); g.stroke(); }
+    // cauda felpuda (anelada no quati)
+    g.fillStyle = b.anelado ? cor : esc; g.beginPath(); g.ellipse(-18 * k, cy + 1 * k, 9 * k, 3.6 * k, -0.35, 0, 7); g.fill();
+    if (b.anelado) { g.fillStyle = esc; for (const q of [-23, -19, -15]) { g.beginPath(); g.ellipse(q * k, cy + (q < -20 ? -1.2 : 0.6) * k, 1.6 * k, 3 * k, -0.35, 0, 7); g.fill(); } }
+    else { g.fillStyle = '#f4efe2'; g.beginPath(); g.ellipse(-24 * k, cy - 2 * k, 3.2 * k, 2.4 * k, -0.35, 0, 7); g.fill(); }
+    g.fillStyle = cor; g.beginPath(); g.ellipse(0, cy, (b.baixo ? 15 : 12) * k, (b.baixo ? 4.4 : 5.6) * k, 0, 0, 7); g.fill();
+    g.fillStyle = cla; g.beginPath(); g.ellipse(2 * k, cy + 3 * k, 8 * k, 2 * k, 0, 0, 7); g.fill();
+    g.fillStyle = cor; g.beginPath(); g.ellipse(12 * k, cy - 4 * k, 5.2 * k, 4.2 * k, 0.2, 0, 7); g.fill();
+    const foc = b.anelado ? 8 : 6;
+    g.beginPath(); g.moveTo(14 * k, cy - 8 * k); g.lineTo((14 + foc + 4) * k, cy - 3.5 * k); g.lineTo(14 * k, cy - 0.5 * k); g.fill();
+    g.beginPath(); g.moveTo(9 * k, cy - 7 * k); g.lineTo(9.5 * k, cy - 13.5 * k); g.lineTo(13 * k, cy - 8 * k); g.fill();
+    g.beginPath(); g.moveTo(12.5 * k, cy - 8 * k); g.lineTo(15.5 * k, cy - 13 * k); g.lineTo(16.5 * k, cy - 7.5 * k); g.fill();
+    g.fillStyle = '#222'; g.beginPath(); g.arc((14 + foc + 3.6) * k, cy - 3.6 * k, 1.1 * k, 0, 7); g.fill();
+    olho(13, cy - 5.5, 1.1);
+  } else if (b.forma === 'veado') {
+    const leg = (px, d) => { g.strokeStyle = esc; g.lineWidth = 1.8 * k; g.beginPath(); g.moveTo(px * k, -13 * k); g.lineTo(px * k + d, 0); g.stroke(); };
+    leg(-8, pe); leg(-4, -pe); leg(6, pe); leg(10, -pe);
+    g.fillStyle = '#f4efe2'; g.beginPath(); g.ellipse(-12 * k, -16 * k, 2.2 * k, 3 * k, 0, 0, 7); g.fill();
+    g.fillStyle = cor; g.beginPath(); g.ellipse(0, -16 * k, 12 * k, 5.6 * k, 0, 0, 7); g.fill();
+    if (b.galhada === 1) { g.fillStyle = 'rgba(255,240,215,.7)'; for (const [mx, my] of [[-6, -17], [-1, -19], [4, -17], [-3, -14]]) { g.beginPath(); g.arc(mx * k, my * k, 0.9 * k, 0, 7); g.fill(); } }
+    g.strokeStyle = cor; g.lineWidth = 3.4 * k; g.beginPath(); g.moveTo(8 * k, -19 * k); g.lineTo(12 * k, -26 * k); g.stroke();
+    g.fillStyle = cor; g.beginPath(); g.ellipse(14 * k, -27 * k, 4.8 * k, 3 * k, 0.35, 0, 7); g.fill();
+    g.fillStyle = '#222'; g.beginPath(); g.arc(18 * k, -25.8 * k, 1 * k, 0, 7); g.fill();
+    g.fillStyle = cla; g.beginPath(); g.ellipse(10 * k, -29.5 * k, 1.6 * k, 3.2 * k, -0.4, 0, 7); g.fill();
+    g.strokeStyle = '#6a4a2a'; g.lineWidth = 1.3 * k;
+    for (let q = 0; q < (b.galhada || 1); q++) { const bx = 13 * k, by = -29.5 * k, h = (3.2 + q * 2.6) * k; g.beginPath(); g.moveTo(bx, by); g.lineTo(bx - 1.5 * k, by - h); g.moveTo(bx - 0.7 * k, by - h * 0.55); g.lineTo(bx + 2.4 * k, by - h * 0.8); g.stroke(); }
+    olho(16, -27.5, 1);
+  } else if (b.forma === 'anta') {
+    perna(-8, pe); perna(-3, -pe); perna(5, pe); perna(10, -pe);
+    g.fillStyle = cor; g.beginPath(); g.ellipse(0, -12 * k, 14 * k, 8.4 * k, 0, 0, 7); g.fill();
+    g.fillStyle = cla; g.beginPath(); g.ellipse(-8 * k, -12 * k, 6 * k, 8 * k, 0, 0, 7); g.fill();
+    g.fillStyle = cor; g.beginPath(); g.ellipse(15 * k, -13 * k, 6.5 * k, 5.4 * k, 0.15, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(19 * k, -16 * k); g.quadraticCurveTo(28 * k, -14 * k, 26 * k, -7.5 * k); g.quadraticCurveTo(22 * k, -9 * k, 18 * k, -9 * k); g.fill();
+    g.fillStyle = esc; g.beginPath(); g.ellipse(12 * k, -19 * k, 1.8 * k, 2.6 * k, 0, 0, 7); g.fill();
+    olho(16.5, -15, 1.1);
+  } else if (b.forma === 'tamandua') {
+    perna(-5, pe); perna(5, -pe);
+    g.fillStyle = esc; g.beginPath(); g.moveTo(-10 * k, -13 * k); g.quadraticCurveTo(-27 * k, -22 * k, -24 * k, -5 * k); g.quadraticCurveTo(-16 * k, -6 * k, -10 * k, -7 * k); g.fill();
+    g.fillStyle = cor; g.beginPath(); g.ellipse(0, -10 * k, 12 * k, 6 * k, 0, 0, 7); g.fill();
+    g.strokeStyle = '#f2efe6'; g.lineWidth = 4.6 * k; g.beginPath(); g.moveTo(-3 * k, -16 * k); g.lineTo(9 * k, -5 * k); g.stroke();
+    g.strokeStyle = '#1a1a1a'; g.lineWidth = 2.8 * k; g.beginPath(); g.moveTo(-3 * k, -16 * k); g.lineTo(9 * k, -5 * k); g.stroke();
+    g.fillStyle = cla; g.beginPath(); g.moveTo(9 * k, -15 * k); g.lineTo(26 * k, -8.5 * k); g.lineTo(9 * k, -6 * k); g.fill();
+    g.fillStyle = '#222'; g.beginPath(); g.arc(25 * k, -8.6 * k, 1 * k, 0, 7); g.fill();
+    olho(14, -11, 1);
+  } else if (b.forma === 'cavia') {
+    perna(-5, pe); perna(5, -pe);
+    g.fillStyle = cor; g.beginPath(); g.ellipse(0, -8.5 * k, 11 * k, 7.5 * k, 0, 0, 7); g.fill();
+    if (b.pintas) { g.fillStyle = '#f4ead8'; for (let r = 0; r < 2; r++) for (let q = 0; q < 4; q++) { g.beginPath(); g.arc((-6 + q * 4) * k, (-11 + r * 4) * k, 1 * k, 0, 7); g.fill(); } }
+    g.fillStyle = cor; g.beginPath(); g.ellipse(11 * k, -9 * k, (b.focinhoCurto ? 5.4 : 6) * k, 5.6 * k, 0.1, 0, 7); g.fill();
+    g.fillStyle = esc; g.beginPath(); g.arc(7 * k, -14 * k, 1.8 * k, 0, 7); g.fill();
+    g.fillStyle = '#3a2a22'; g.beginPath(); g.ellipse(16.5 * k, -8 * k, 1.8 * k, 1.5 * k, 0, 0, 7); g.fill();
+    olho(12.5, -10.5, 1.2);
+  } else if (b.forma === 'ema') {
+    g.strokeStyle = '#8a7a6a'; g.lineWidth = 1.8 * k;
+    g.beginPath(); g.moveTo(-1 * k, -12 * k); g.lineTo(-1 * k + pe * 0.6, 0); g.moveTo(4 * k, -12 * k); g.lineTo(4 * k - pe * 0.6, 0); g.stroke();
+    g.fillStyle = esc; g.beginPath(); g.ellipse(-6 * k, -16 * k, 8 * k, 6 * k, -0.3, 0, 7); g.fill();
+    g.fillStyle = cor; g.beginPath(); g.ellipse(1 * k, -16 * k, 10 * k, 6.4 * k, -0.1, 0, 7); g.fill();
+    g.strokeStyle = cla; g.lineWidth = 3 * k; g.beginPath(); g.moveTo(7 * k, -18 * k); g.lineTo(12 * k, -28 * k); g.stroke();
+    g.fillStyle = cla; g.beginPath(); g.ellipse(13 * k, -29.5 * k, 3.4 * k, 2.3 * k, 0.1, 0, 7); g.fill();
+    g.fillStyle = '#c8a070'; g.beginPath(); g.moveTo(15.5 * k, -30.5 * k); g.lineTo(20 * k, -29.5 * k); g.lineTo(15.5 * k, -28.5 * k); g.fill();
+    olho(13.5, -30, 0.9);
   } else if (b.forma === 'chupa') {
     // Chupa-cabra: corcunda cinza-esverdeada com espinhos, pernas compridas, olhos vermelhos e presas
     const brilho = 0.5 + 0.5 * Math.sin(t / 200);
@@ -10969,18 +11052,22 @@ function drawBicho(g, x, y, s, b, t, correndo) {
   } else { // ave
     const asa = correndo && b.voa ? Math.sin(t / 50) : 0.2;
     if (!b.voa || !correndo) { g.strokeStyle = '#c8783a'; g.lineWidth = 1.3 * k; g.beginPath(); g.moveTo(-2 * k, -5 * k); g.lineTo(-2 * k + pe * 0.5, 0); g.moveTo(3 * k, -5 * k); g.lineTo(3 * k - pe * 0.5, 0); g.stroke(); }
-    g.fillStyle = esc; g.beginPath(); g.moveTo(-9 * k, -11 * k); g.lineTo(-17 * k, -14 * k); g.lineTo(-16 * k, -8 * k); g.fill();
+    const cd = b.longaCauda ? 2.1 : 1;
+    g.fillStyle = esc; g.beginPath(); g.moveTo(-9 * k, -11 * k); g.lineTo(-17 * cd * k, -14 * k); g.lineTo(-16 * cd * k, -8 * k); g.fill();
     g.fillStyle = cor; g.beginPath(); g.ellipse(0, -11 * k, (b.gorda ? 10 : 9) * k, (b.gorda ? 7.5 : 6) * k, -0.1, 0, 7); g.fill();
     g.fillStyle = esc; g.beginPath(); g.ellipse(-1 * k, (-12 - asa * 6) * k, 7 * k, (2.6 + Math.abs(asa) * 2.5) * k, -0.2 - asa * 0.4, 0, 7); g.fill();
     g.fillStyle = cor; g.beginPath(); g.arc(8 * k, -17 * k, 4.6 * k, 0, 7); g.fill();
     if (b.papo) { g.fillStyle = '#d8352a'; g.beginPath(); g.ellipse(9 * k, -12 * k, 2 * k, 2.8 * k, 0, 0, 7); g.fill(); }
     if (b.crista) { g.fillStyle = '#111'; g.beginPath(); for (let q = 0; q < 4; q++) { g.moveTo((5 + q) * k, -20 * k); g.lineTo((4 + q * 1.4) * k, -26 * k); g.lineTo((6.5 + q) * k, -20.5 * k); } g.fill(); }
-    g.fillStyle = b.crista ? '#f2c02a' : '#e8a040'; g.beginPath(); g.moveTo(12 * k, -18 * k); g.lineTo(16.5 * k, -16.5 * k); g.lineTo(12 * k, -15 * k); g.fill();
-    olho(9.5, -18, 1.2);
+    if (b.bicoGrande) { g.fillStyle = '#f08a1a'; g.beginPath(); g.moveTo(11 * k, -20 * k); g.quadraticCurveTo(21 * k, -20 * k, 22 * k, -15 * k); g.lineTo(11 * k, -14 * k); g.fill(); g.fillStyle = '#222'; g.beginPath(); g.moveTo(19 * k, -19 * k); g.quadraticCurveTo(22 * k, -18 * k, 22 * k, -15 * k); g.lineTo(19 * k, -15 * k); g.fill(); }
+    else if (b.bicoGancho) { g.fillStyle = '#3a3a3a'; g.beginPath(); g.moveTo(11.5 * k, -19.5 * k); g.quadraticCurveTo(17 * k, -20 * k, 16.5 * k, -14 * k); g.quadraticCurveTo(15 * k, -17 * k, 12 * k, -16 * k); g.fill(); }
+    else { g.fillStyle = b.crista ? '#f2c02a' : '#e8a040'; g.beginPath(); g.moveTo(12 * k, -18 * k); g.lineTo(16.5 * k, -16.5 * k); g.lineTo(12 * k, -15 * k); g.fill(); }
+    if (b.coruja) { g.fillStyle = '#f2d03a'; g.beginPath(); g.arc(9 * k, -17.5 * k, 2.6 * k, 0, 7); g.arc(12 * k, -17.5 * k, 2.2 * k, 0, 7); g.fill(); g.fillStyle = '#111'; g.beginPath(); g.arc(9.4 * k, -17.5 * k, 1.1 * k, 0, 7); g.arc(12.2 * k, -17.5 * k, 1 * k, 0, 7); g.fill(); }
+    else olho(9.5, -18, 1.2);
   }
   g.restore();
 }
-const escBicho = id => id === 'chupacabra' ? [44, 84, 1.3] : CACA_BICHO[id].forma === 'porco' ? [40, 76, 2.05 / CACA_BICHO[id].tam] : [46, 74, 2.3 / Math.max(0.9, CACA_BICHO[id].tam)];
+const escBicho = id => id === 'chupacabra' ? [44, 84, 1.3] : ['veado', 'ema'].includes(CACA_BICHO[id].forma) ? [44, 80, 1.75 / Math.max(0.9, CACA_BICHO[id].tam)] : ['felino', 'canido'].includes(CACA_BICHO[id].forma) ? [46, 78, 2 / Math.max(0.9, CACA_BICHO[id].tam)] : CACA_BICHO[id].forma === 'porco' ? [40, 76, 2.05 / CACA_BICHO[id].tam] : [46, 74, 2.3 / Math.max(0.9, CACA_BICHO[id].tam)];
 const bichoIcon = id => makeIcon('bicho2:' + id, () => { const [x, y, e] = escBicho(id); drawBicho(ctx, x, y, e, CACA_BICHO[id], 0, false); });
 const bichoSombra = id => makeIcon('bichos2:' + id, () => { ctx.globalAlpha = 0.85; const [x, y, e] = escBicho(id); drawBicho(ctx, x, y, e, Object.assign({}, CACA_BICHO[id], { cor: '#5b6470', pintas: false, papo: false }), 0, false); ctx.globalAlpha = 1; });
 function drawArma(g, id, x, y, s) {
