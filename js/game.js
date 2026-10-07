@@ -586,7 +586,7 @@ function migrate(s) {
   if (!CROP[s.seed]) s.seed = 'feijao';
   if (!s.tool || s.tool === 'weed') s.tool = 'hand';
   // frutíferas ganham um id (para os amigos ajudarem) e passam a viver por colheitas
-  for (const sc of ['roca', 'animais']) for (const o of (s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : [])) if (o && ENFEITE[o.id] && ENFEITE[o.id].fruteira) { if (!o.fid) o.fid = newId(); if (typeof o.colhidas !== 'number') o.colhidas = 0; }
+  for (const sc of ['roca', 'animais']) for (const o of (s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : [])) if (o && ENFEITE[o.id] && ENFEITE[o.id].fruteira) { if (!o.fid) o.fid = newId(); if (typeof o.colhidas !== 'number') o.colhidas = 0; if (!o.seca && secaDe(o, s)) { o.seca = 1; if (!o.ajudada && !o.placa) o.placa = Date.now(); } }
   // a cerca em volta da roça saiu: quem já jogava ganha 40 pedaços de cerca para pôr onde quiser
   if (!s.cercaDada) { s.cercaDada = 1; s.enfeites = s.enfeites && typeof s.enfeites === 'object' ? s.enfeites : {}; s.enfeites.cerca = (s.enfeites.cerca || 0) + 40; s.invNovos = (s.invNovos || 0) + 1; }
   s.bloqueados = s.bloqueados && typeof s.bloqueados === 'object' ? s.bloqueados : {};
@@ -1656,7 +1656,7 @@ async function visitFriend(uid, ajudar) {
     view = { kind: 'friend', uid, nome, fazenda: limpaNome(f.fazenda || data.fazenda) || 'Roça Feliz', cao: 'Bidu', pega: 0.12, casa: '#7aa35a', data, nivel: data.level || f.level || 1, avatar: avatarOk(data.avatar) };
     afterVisit();
     // veio pelo botão "Precisa de ajuda": vai para onde está a frutífera com a placa
-    const onde = ['roca', 'animais'].find(sc => pedidosAjuda({ objetos: { [sc]: data.objetos && data.objetos[sc] } }));
+    const onde = ['roca', 'animais'].find(sc => pedidosAjuda({ pomarXP: data.pomarXP, objetos: { [sc]: data.objetos && data.objetos[sc] } }));
     if (onde) {
       if (onde !== 'roca') setScene(onde);
       toast(`🆘 Procure a frutífera com a placa AJUDA! (tem uma setinha 🤝 em cima) ${onde === 'animais' ? 'aqui no rancho ' : ''}e toque nela para ajudar.`, 'good');
@@ -1685,7 +1685,7 @@ function renderVisita() {
   const fora = !isHome();
   document.body.classList.toggle('visitando', fora);
   if (fora && !$('#panel').hidden && !TABS_VISITA.includes(tab)) closePanel();
-  renderMoveBtn(); pedirFitHud();
+  renderMoveBtn(); pedirFitHud(); renderTabs();
 }
 function goHome() {
   if (!isHome()) telaCarregando(`Voltando para ${minhaFazenda()}…`, CARREGA_MS, view.fazenda || view.nome || 'Vizinho', true);
@@ -4909,7 +4909,13 @@ function renderTabs() {
   const unread = state ? state.news.filter(n => n.at > state.newsSeen).length : 0;
   setBadge(document.querySelector('.tab[data-tab="amigos"]'), requests.length + naoLidas() + amigosPedindo().length, 'pedidos de amizade, mensagens e amigos pedindo ajuda');
   setBadge(document.querySelector('.tab[data-tab="correio"]'), unread, 'cartas novas');
-  if (state) {
+  const visitando = !isHome();
+  if (state && visitando) {
+    // na roça de outra pessoa só importa o que tem na banca dela
+    for (const t of ['celeiro', 'inventario']) setBadge(document.querySelector(`.tab[data-tab="${t}"]`), 0, '');
+    const nb = view.data && Array.isArray(view.data.banca) ? view.data.banca.length : 0;
+    setBadge(document.querySelector('.tab[data-tab="fabrica"]'), nb, 'itens na banca');
+  } else if (state) {
     setBadge(document.querySelector('.tab[data-tab="celeiro"]'), avisoItens('celeiro') ? Object.values(state.barn).reduce((t, q) => t + (q > 0 ? q : 0), 0) : 0, 'itens no celeiro');
     setBadge(document.querySelector('.tab[data-tab="inventario"]'), avisoItens('inventario') ? state.invNovos || 0 : 0, 'coisas novas no inventário');
     setBadge(document.querySelector('.tab[data-tab="fabrica"]'), prontosFab() + entregaveis(), 'coisas prontas, disponíveis pra fazer na fábrica, ou pedidos para entregar');
@@ -4919,7 +4925,7 @@ function renderTabs() {
   renderGiftBtn();
   // Avisos nos botões Roça e Rancho: quantas coisas estão prontas para colher ou recolher.
   if (state) {
-    const prontos = { roca: state.plots.filter(p => ripe(p)).length,
+    const prontos = visitando ? { roca: 0, animais: 0 } : { roca: state.plots.filter(p => ripe(p)).length,
       animais: state.animals.filter(a => (ANIMAL[a.k].tipo === 'prod' && a.ready) || isAdult(a)).length };
     for (const [sc, n] of Object.entries(prontos)) {
       const b = document.querySelector(`#scenes [data-scene="${sc}"]`); if (!b) continue;
@@ -10042,8 +10048,8 @@ const ferramentaIcon = id => id === 'motosserra' ? makeIcon('ferr:motosserra2', 
 // Cada nível dá mais frutas por colheita (+1 nos níveis 3, 5, 7 e 9) e mais colheitas antes de secar
 // (+1 nos níveis 4, 7 e 10). Cada nível também dá trevos para resgatar.
 const POMAR_NV = [0, 5, 12, 22, 35, 52, 75, 105, 145, 200];
-function dominioPomar() {
-  const xp = (state && state.pomarXP) || 0; let nv = 1;
+function dominioPomar(est = state) {
+  const xp = (est && est.pomarXP) || 0; let nv = 1;
   while (nv < POMAR_NV.length && xp >= POMAR_NV[nv]) nv++;
   return { nv, xp, ini: POMAR_NV[nv - 1], fim: POMAR_NV[nv], max: nv >= POMAR_NV.length, frutas: Math.floor((nv - 1) / 2), colheitas: [4, 7, 10].filter(n => nv >= n).length };
 }
@@ -10086,9 +10092,10 @@ function estadoFruteira(o) {
   return { morta, pronto, falta, restam, txt };
 }
 // Frutífera seca pela primeira vez (ainda não ajudada): os amigos podem ajudar.
-const precisaAjuda = o => !!(o && o.seca && !o.ajudada && ENFEITE[o.id] && ENFEITE[o.id].fruteira);
+const secaDe = (o, s) => !!(o && ENFEITE[o.id] && ENFEITE[o.id].fruteira && (o.seca || (o.colhidas || 0) >= ENFEITE[o.id].colheitas + dominioPomar(s).colheitas));
+const precisaAjuda = (o, s) => secaDe(o, s) && !o.ajudada;
 // Frutíferas dos amigos (na roça e no rancho) com a placa de ajuda.
-const pedidosAjuda = s => ['roca', 'animais'].reduce((n, sc) => n + (s && s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : []).filter(precisaAjuda).length, 0);
+const pedidosAjuda = s => ['roca', 'animais'].reduce((n, sc) => n + (s && s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : []).filter(o => precisaAjuda(o, s)).length, 0);
 // Põe a placa e avisa todos os amigos (aviso no celular e o botão "Precisa de ajuda" na lista de amigos).
 function pedirAjudaFruteira(sc, i) {
   const o = objetosDe(state, sc)[i]; if (!o || !estadoFruteira(o).morta || o.ajudada) return;
