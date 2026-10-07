@@ -2557,6 +2557,7 @@ function layout(sc) {
     // da grade original entra na conta, senão o enquadramento não crescia pra mostrar ele.
     let u0 = 0, u1 = RANCH_C, v0 = 0, v1 = RANCH_R;
     for (const b of ABRIGOS) { const y = yardOf(b.id); u0 = Math.min(u0, y.u0); u1 = Math.max(u1, y.u1); v0 = Math.min(v0, y.v0); v1 = Math.max(v1, y.v1); }
+    for (const o of objList(state, 'animais')) if (o.key === 'chocadeira') { u0 = Math.min(u0, o.u - 0.8); v0 = Math.min(v0, o.v - 0.8); u1 = Math.max(u1, o.u + 0.8); v1 = Math.max(v1, o.v + 0.8); }
     const du = u1 - u0, dv = v1 - v0;
     const bw = (du + dv) / 2 + 0.8, bh = (du + dv) / 4 + 1.6;
     L.W = Math.max(Math.min(aw / bw, ah / bh) * 1.08, cw < 700 ? 72 : 0);
@@ -9475,7 +9476,7 @@ function drawObjetos(s, sc, t, home, stage, d0 = -Infinity, d1 = Infinity) {
   let cachorroDepois = false;
   // Na roça a terra agora se estende pros dois lados da casa (u ou v negativos também têm canteiro),
   // então tudo entra na ordem de profundidade junto com os canteiros ('tras' não desenha nada lá).
-  const atras = o => sc !== 'roca' && (o.u < 0 || o.v < 0);
+  const atras = o => sc !== 'roca' && o.key !== 'chocadeira' && (o.u < 0 || o.v < 0); // a chocadeira fica por cima dos cercados
   const l = objList(s, sc).filter(o => atras(o) === (stage === 'tras') && o.u + o.v >= d0 && o.u + o.v < d1).sort((a, b) => (a.u + a.v) - (b.u + b.v));
   for (const o of l) {
     if (moving && !moving.novo && moving.key === o.key) continue; // está na mão do jogador
