@@ -12,8 +12,8 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="223">
-<script src="firebase-config.js?v=223"></script>
+<meta name="rf-version" content="224">
+<script src="firebase-config.js?v=224"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chewy&family=Baloo+2:wght@400;600;800&display=swap">
@@ -603,6 +603,10 @@
   .gate { display: none; min-height: 100vh; min-height: 100dvh; place-items: center; padding: 16px; }
   .gated .gate { display: grid; }
   .gated .app { display: none; }
+  .gate, .gate * { touch-action: pan-y; }
+  .gated, .gated body { overflow-y: auto; }
+  .gate { align-items: start; }
+  .gate-card { margin: auto; }
   .gate-card {
     width: min(100%, 480px); display: grid; overflow: hidden; text-align: center;
     background: var(--panel); border: 5px solid var(--wood); border-radius: 22px;
@@ -619,6 +623,15 @@
   .gbtn.big { font-size: 17px; padding: 10px 22px 10px 14px; border: 2px solid #dadce0; box-shadow: 0 3px 0 rgba(0,0,0,.12); }
   .gbtn.big svg { width: 24px; height: 24px; }
   .gate-note { color: var(--muted); max-width: 34ch; }
+  @media (orientation: landscape) and (max-height: 520px) {
+    .gate { padding: 8px; }
+    .gate-card { width: min(100%, 860px); grid-template-columns: 1fr 1fr; border-width: 4px; }
+    .gate-head { grid-column: 1 / -1; padding: 6px 12px; }
+    .gate-head .brand { font-size: 30px; }
+    .gate-card canvas { height: 100%; aspect-ratio: auto; border-bottom: 0; border-right: 5px solid var(--wood); object-fit: cover; }
+    .gate-body { padding: 12px 16px; gap: 8px; align-content: center; }
+    .gate-lead { font-size: 15px; }
+  }
 
   @media (max-width: 699px) {
     .player { top: 6px; left: 6px; gap: 6px; padding-right: 10px; }
@@ -1034,8 +1047,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=223"></script>
-<script src="js/cloud.js?v=223"></script>
-<script src="js/game.js?v=223"></script>
+<script src="js/audio.js?v=224"></script>
+<script src="js/cloud.js?v=224"></script>
+<script src="js/game.js?v=224"></script>
 </body>
 </html>
