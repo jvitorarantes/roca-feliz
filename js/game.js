@@ -1283,6 +1283,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 238, txt: "Amizade ❤️ agora é do par: você e seu amigo veem sempre a mesma quantidade de corações (os pontos de quem ajuda e de quem presenteia se somam)." },
   { v: 237, txt: "Sistema de plantações renovado (Hay Day style) 🌱: sem mais sementes, você recebe 4 plantas ao desbloquear cada nível. Replante a planta inteira quantas vezes quiser — ela produz infinitamente. Alerta quando uma plantação tiver menos de 10 unidades. Amizade agora vai até 10 corações ❤️, e roubos diários aumentam com a amizade (6+ itens com 5+ corações)." },
   { v: 236, txt: "O Correio estava sem as novidades das últimas versões: agora todas aparecem aqui." },
   { v: 235, txt: "Chocadeira bem maior no rancho e a colmeia virou uma árvore com a colmeia pendurada num galho, com abelhinhas em volta 🐝." },
@@ -2339,7 +2340,7 @@ function fetchFriendInfo(uid, forca) {
   if (!user || (fi !== undefined && !(fi && fi.at && !fi.buscando && (forca || Date.now() - fi.at > 120e3)))) return;
   if (fi && fi.at) fi.buscando = true; else friendInfo[uid] = 'loading';
   Cloud.loadFarm(uid).then(f => {
-    friendInfo[uid] = f ? { name: limpaNome(f.apelido) || firstName(f.name || 'Amigo'), fazenda: limpaNome(f.fazenda) || 'Roça Feliz', photo: f.photo || '', moldura: typeof f.moldura === 'string' ? f.moldura : '', level: f.level || 1, ajuda: pedidosAjuda(estadoDoAmigo(f)), at: Date.now() } : null;
+    friendInfo[uid] = f ? { name: limpaNome(f.apelido) || firstName(f.name || 'Amigo'), fazenda: limpaNome(f.fazenda) || 'Roça Feliz', photo: f.photo || '', moldura: typeof f.moldura === 'string' ? f.moldura : '', level: f.level || 1, ajuda: pedidosAjuda(estadoDoAmigo(f)), amz: pontosAmizadeDele(estadoDoAmigo(f)), at: Date.now() } : null;
     renderTabs();
   }).catch(e => {
     // Não conseguiu ler (sem internet, login ainda carregando, ou a pessoa desfez a amizade):
@@ -6550,7 +6551,10 @@ function closeGift() { $('#gift').hidden = true; }
 // (até o máximo), e os presentes que você manda pra ela ficam melhores — igual a amizade da vila, mas
 // entre jogadores de verdade.
 const AMIZADE_POR_NIVEL = 3, AMIZADE_NIVEL_MAX = 10;
-const nivelAmizade = uid => clamp(Math.floor((state.amizade[uid] || 0) / AMIZADE_POR_NIVEL), 0, AMIZADE_NIVEL_MAX);
+// Os corações são do par: somam os pontos que eu dei com os que o amigo deu, então os dois veem o mesmo tanto.
+const pontosAmizadeDele = est => Math.max(0, Number(est && est.amizade && user && est.amizade[user.uid]) || 0);
+const pontosAmizade = uid => (state.amizade[uid] || 0) + (friendInfo[uid] && friendInfo[uid].amz || 0);
+const nivelAmizade = uid => clamp(Math.floor(pontosAmizade(uid) / AMIZADE_POR_NIVEL), 0, AMIZADE_NIVEL_MAX);
 function ganharAmizade(uid) {
   if (!uid) return;
   const key = 'amz:' + uid + ':' + localDay();
