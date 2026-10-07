@@ -3980,6 +3980,13 @@ const SHED_LOOK = {
   aprisco:    { wall: '#cfc8b8', wallR: '#b3ab98', roof: '#6c8f3a', roofD: '#4f6e28', chao: '#bfe08a', h: 0.6, pedra: true },
   estabulo:   { wall: '#c8402f', wallR: '#a53325', roof: '#7a2a1e', roofD: '#5a1d14', chao: '#cdb97c', h: 0.75, trim: true },
   cocheira:   { wall: '#b07a44', wallR: '#94622f', roof: '#3f6fa8', roofD: '#2c5282', chao: '#c9b27a', h: 0.72, trim: true },
+  angoleiro:    { wall: '#e0b87a', wallR: '#c79c5e', roof: '#7a6a9a', roofD: '#5a4c78', chao: '#dccb8e', h: 0.55, legs: 0.12 },
+  patoril:      { wall: '#b8d4e0', wallR: '#9ab8c8', roof: '#3f6fa8', roofD: '#2c5282', chao: '#b5dc7a', h: 0.5, legs: 0.1 },
+  cabril:       { wall: '#cfc8b8', wallR: '#b3ab98', roof: '#6c8f3a', roofD: '#4f6e28', chao: '#bfe08a', h: 0.6, pedra: true },
+  ovelharia:    { wall: '#e8e2d0', wallR: '#cfc8b0', roof: '#8a7a5a', roofD: '#6b5c40', chao: '#bfe08a', h: 0.6 },
+  estabulo_buf: { wall: '#8a6a5a', wallR: '#6e5244', roof: '#4a2a1e', roofD: '#33190f', chao: '#cdb97c', h: 0.75, trim: true },
+  jumentaria:   { wall: '#a8a090', wallR: '#8e8676', roof: '#5a4a3a', roofD: '#403326', chao: '#c9b27a', h: 0.7, trim: true },
+  colmeal:      { wall: '#f4d774', wallR: '#dcb957', roof: '#e08a2e', roofD: '#b86a1a', chao: '#b5dc7a', h: 0.45, small: true },
   cercado:    { wall: '#e3bf62', wallR: '#c9a24a', roof: '#e3bf62', roofD: '#b8943a', chao: '#b5dc7a', h: 0.8, aberto: true },
 };
 const sm0 = k => !!k.small;
@@ -4983,6 +4990,30 @@ function focusRow(id) {
   const el = document.getElementById(id); if (!el) return;
   el.scrollIntoView({ block: 'center' }); el.classList.add('flash');
 }
+function chocadeiraHTML() {
+  let html = '';
+    html += `<h3>Chocadeira 🐣</h3>`;
+    if (!state.chocadeira || !state.chocadeira.ovos || !state.chocadeira.ovos.length) {
+      html += `<div class="empty">A chocadeira está vazia.<br>Animais bem-alimentados se reproduzem automaticamente e colocam ovos para incubar.</div>`;
+    } else {
+      html += `<p class="hint">Ovos levam 24 horas para incubar. Filhotes nascem automaticamente se houver vaga no abrigo.</p>`;
+      const agora = Date.now();
+      for (const ovo of state.chocadeira.ovos) {
+        const tempoRestante = ovo.nascimento - agora;
+        const porcentagem = Math.max(0, Math.min(100, 100 - (tempoRestante / (24 * HOUR)) * 100));
+        const animalData = ANIMAL[ovo.especie];
+
+        html += `<div class="row"><img alt="" src="${animalIcon(ovo.especie)}">
+          <div><div class="name">Ovo de ${animalData.nome.toLowerCase()}</div>
+          <div class="meta">${tempoRestante > 0 ? `Nasce em ${fmt(tempoRestante / 1000)}` : '<b>Pronto para nascer!</b>'}</div>
+          <div class="mbar"><i style="width:${porcentagem}%"></i></div></div>
+          <div></div></div>`;
+      }
+      html += `<div class="row"><div class="avatar" style="background:#5a646c">🥚</div>
+        <div><div class="name">Total de ovos</div><div class="meta">${state.chocadeira.ovos.length} de 20</div></div></div>`;
+    }
+  return html;
+}
 function renderPane() {
   const open = !$('#panel').hidden;
   document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', String(open && b.dataset.tab === tab)));
@@ -5155,7 +5186,7 @@ function renderPane() {
     }
   } else if (tab === 'celeiro') {
     html += chaveAviso('celeiro', 'Mostrar a quantidade de itens no botão do Celeiro');
-    const items = [...Object.values(PRODUCE), ...PRODUCTS, ...PRODUTOS_CACA.map(p => PRODUCT[p.id]), ...PEIXES.map(p => PRODUCT[p.id]), ...FRUTAS.map(f => PRODUCT[f.id]), ...PRESENTES_GATO.map(p => PRODUCT[p.id]), ...PRESENTES_CAVALO.map(p => PRODUCT[p.id]), ...PREMIOS_NIVEL.map(p => PRODUCT[p.id]), ...RECEITAS].filter(it => state.barn[it.id] > 0);
+    const items = [...Object.values(PRODUCE), ...PRODUCTS, ...PRODUTOS_CACA.map(p => PRODUCT[p.id]), ...PEIXES.map(p => PRODUCT[p.id]), ...FRUTAS.map(f => PRODUCT[f.id]), ...PRESENTES_GATO.map(p => PRODUCT[p.id]), ...PREMIOS_NIVEL.map(p => PRODUCT[p.id]), ...RECEITAS].filter(it => state.barn[it.id] > 0);
     let total = 0; for (const it of items) total += state.barn[it.id] * it.preco;
     html += `<h3>Celeiro</h3>`;
     if (!items.length) html += `<div class="empty">O celeiro está vazio.<br>Colha na roça e recolha ovos, leite, lã e trufas dos animais.</div>`;
@@ -5182,6 +5213,7 @@ function renderPane() {
       <span>Ajudas aos amigos</span><span>${state.stats.ajudas}</span></div>`;
     if (freeLots()) html += `<div class="row sel"><div></div><div><div class="name">${freeLots()} ${freeLots() > 1 ? 'canteiros' : 'canteiro'} para colocar</div><div class="meta">Clique num + encostado na sua terra (duas vezes) para escolher o lugar.</div></div>
         <button class="btn gold" data-see-land>Ver na roça</button></div>`;
+    html += chocadeiraHTML();
     html += `<h3>Expansões</h3>`;
     EXPANSOES.forEach((e, k) => {
       if (k === 0) return;
@@ -5193,26 +5225,7 @@ function renderPane() {
     });
     html += `<p class="hint">Pragas comem parte da colheita enquanto ficam lá. Terra seca faz a planta crescer mais devagar. Nunca acontecem os dois juntos. Cada planta dá XP em até ${XP_CAP} colheitas por dia.</p>`;
   } else if (tab === 'chocadeira') {
-    html += `<h3>Chocadeira 🐣</h3>`;
-    if (!state.chocadeira || !state.chocadeira.ovos || !state.chocadeira.ovos.length) {
-      html += `<div class="empty">A chocadeira está vazia.<br>Animais bem-alimentados se reproduzem automaticamente e colocam ovos para incubar.</div>`;
-    } else {
-      html += `<p class="hint">Ovos levam 24 horas para incubar. Filhotes nascem automaticamente se houver vaga no abrigo.</p>`;
-      const agora = Date.now();
-      for (const ovo of state.chocadeira.ovos) {
-        const tempoRestante = ovo.nascimento - agora;
-        const porcentagem = Math.max(0, Math.min(100, 100 - (tempoRestante / (24 * HOUR)) * 100));
-        const animalData = ANIMAL[ovo.especie];
-
-        html += `<div class="row"><img alt="" src="${animalIcon(ovo.especie)}">
-          <div><div class="name">Ovo de ${animalData.nome.toLowerCase()}</div>
-          <div class="meta">${tempoRestante > 0 ? `Nasce em ${fmt(tempoRestante / 1000)}` : '<b>Pronto para nascer!</b>'}</div>
-          <div class="mbar"><i style="width:${porcentagem}%"></i></div></div>
-          <div></div></div>`;
-      }
-      html += `<div class="row"><div class="avatar" style="background:#5a646c">🥚</div>
-        <div><div class="name">Total de ovos</div><div class="meta">${state.chocadeira.ovos.length} de 20</div></div></div>`;
-    }
+    html += chocadeiraHTML();
   } else if (tab === 'correio') {
     // Caixa de correio: as novidades da sua roça (visitas, presentes, cachorro, animais…)
     podarNews();
