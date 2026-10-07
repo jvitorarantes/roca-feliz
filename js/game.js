@@ -236,7 +236,6 @@ const ABRIGOS = [
   { id: 'estabulo',     nome: 'Curral de Vacas',   o: 'o', nivel: 6,  precos: [3500, 5500, 11000], bichos: ['vaca', 'bezerro'] },
   { id: 'estabulo_buf', nome: 'Curral de Búfalas', o: 'o', nivel: 18, precos: [5000, 7000, 14000], bichos: ['bufala'] },
   { id: 'chiqueiro',    nome: 'Chiqueiro',         o: 'o', nivel: 3,  precos: [1500, 3000, 6000],  bichos: ['porco', 'porca'] },
-  { id: 'colmeal',      nome: 'Colmeia',           o: 'a', nivel: 12, precos: [3000, 4500, 9000],  bichos: [] },
   { id: 'cocheira',     nome: 'Cocheira de Cavalo', o: 'a', nivel: 10, precos: [6000, 9000, 18000], bichos: ['potro'] },
   { id: 'jumentaria',   nome: 'Jumentaria',        o: 'a', nivel: 14, precos: [4000, 6000, 12000], bichos: ['burro'] },
   { id: 'cercado',      nome: 'Viveiro de Avestruz', o: 'o', nivel: 15, precos: [8000, 12000, 24000], bichos: ['avestruz'] },
@@ -3995,7 +3994,6 @@ const SHED_LOOK = {
   ovelharia:    { wall: '#e8e2d0', wallR: '#cfc8b0', roof: '#8a7a5a', roofD: '#6b5c40', chao: '#bfe08a', h: 0.6 },
   estabulo_buf: { wall: '#8a6a5a', wallR: '#6e5244', roof: '#4a2a1e', roofD: '#33190f', chao: '#cdb97c', h: 0.75, trim: true },
   jumentaria:   { wall: '#a8a090', wallR: '#8e8676', roof: '#5a4a3a', roofD: '#403326', chao: '#c9b27a', h: 0.7, trim: true },
-  colmeal:      { wall: '#f4d774', wallR: '#dcb957', roof: '#e08a2e', roofD: '#b86a1a', chao: '#b5dc7a', h: 0.45, small: true },
   cercado:    { wall: '#e3bf62', wallR: '#c9a24a', roof: '#e3bf62', roofD: '#b8943a', chao: '#b5dc7a', h: 0.8, aberto: true },
 };
 const sm0 = k => !!k.small;
@@ -8922,6 +8920,7 @@ const ENFEITES = [
   { id: 'bananeira',     nome: 'Bananeira',      fruteira: 'arvore',  fruta: 'banana',     nivel: 22, custo: 460,  tempo: 9 * 3600,  rende: 6, colheitas: 3, conforto: 2, copa: '#4a9a3a' },
   { id: 'coqueiro',      nome: 'Coqueiro',       fruteira: 'arvore',  fruta: 'coco',       nivel: 24, custo: 500,  tempo: 11 * 3600, rende: 3, colheitas: 3, conforto: 2, copa: '#3a8a2c' },
   { id: 'goiabeira',     nome: 'Goiabeira',      fruteira: 'arvore',  fruta: 'goiaba',     nivel: 28, custo: 580,  tempo: 15 * 3600, rende: 5, colheitas: 3, conforto: 2, copa: '#5a9a3a' },
+  { id: 'colmeieira',    nome: 'Colmeia',        fruteira: 'colmeia', fruta: 'mel',        nivel: 12, custo: 800,  tempo: 24 * 3600, rende: 3, colheitas: 4, conforto: 2, copa: '#e8c240' },
   { id: 'arcoflores',   nome: 'Arco de flores',            especial: true, trevo: true, conforto: 2 },
   { id: 'ipe',          nome: 'Ipê-amarelo',               especial: true, trevo: true, conforto: 3 },
   { id: 'fogueira',     nome: 'Fogueira de São João',      especial: true, trevo: true, conforto: 2 },
@@ -8966,7 +8965,7 @@ const objetosDe = (s, sc) => (s.objetos && Array.isArray(s.objetos[sc]) ? s.obje
 function objList(s, sc) {
   const l = Object.keys(POS_PADRAO[sc]).filter(key => key !== 'armadilha' || s.armadilha).map(key => { const [u, v] = posOf(s, sc, key); return { key, u, v, r: OBJ_INFO[key].r, rot: (s.rotPos && s.rotPos[sc] && s.rotPos[sc][key]) | 0 }; });
   objetosDe(s, sc).forEach((o, i) => l.push(ehCerca(o.id) ? { key: 'enf:' + i, id: o.id, u: o.u, v: o.v, r: 0.3, obj: o, cerca: true, rot: o.rot ? 1 : 0 }
-    : { key: 'enf:' + i, id: o.id, u: o.u, v: o.v, r: ENFEITE[o.id].fruteira === 'arvore' ? 0.65 : 0.55, obj: o, rot: (o.rot | 0) % 4 }));
+    : { key: 'enf:' + i, id: o.id, u: o.u, v: o.v, r: ['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.65 : 0.55, obj: o, rot: (o.rot | 0) % 4 }));
   return l;
 }
 const confortoEnfeites = s => ['roca', 'animais'].reduce((t, sc) => t + objetosDe(s, sc).reduce((u, o) => u + ENFEITE[o.id].conforto, 0), 0);
@@ -9396,7 +9395,7 @@ function drawObjetos(s, sc, t, home, stage, d0 = -Infinity, d1 = Infinity) {
         if (ENFEITE[o.id].fruteira && o.obj) drawFruteira(o.obj, q.x, q.y, W / 100, t, home);
         else drawEnfeite(o.id, q.x, q.y, W / 100, t, o.rot);
       });
-      if (!moveMode) hits.push({ kind: 'enfeite', sc, key: o.key, id: o.id, x: q.x, y: q.y - W * (ENFEITE[o.id].fruteira === 'arvore' ? 0.45 : 0.25), r: W * (ENFEITE[o.id].fruteira === 'arvore' ? 0.45 : 0.32) });
+      if (!moveMode) hits.push({ kind: 'enfeite', sc, key: o.key, id: o.id, x: q.x, y: q.y - W * (['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.45 : 0.25), r: W * (['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.45 : 0.32) });
     }
   }
   return cachorroDepois;
@@ -9515,7 +9514,7 @@ function botaoEnfeiteLoja(e, podeComprar = true, qtd = 1) {
   return `<div class="stack"><button class="btn gold" data-enfeite-usar="${e.id}">📦 Usar · tem ${tem}</button>${podeComprar ? comprar(true) : ''}</div>`;
 }
 // Limite de cada frutífera: contando as plantadas (roça e rancho) e as guardadas no inventário.
-const LIMITE_FRUTEIRA = { arbusto: 4, arvore: 3 };
+const LIMITE_FRUTEIRA = { arbusto: 4, arvore: 3, colmeia: 4 };
 const fruteirasDe = id => ['roca', 'animais'].reduce((n, sc) => n + objetosDe(state, sc).filter(o => o.id === id).length, 0) + (state.enfeites[id] || 0);
 function comprarEnfeite(id, qtd = 1) {
   const e = ENFEITE[id];
@@ -9993,7 +9992,7 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.fillStyle = '#ffb300'; ctx.beginPath(); ctx.ellipse(x, y - 54 * s + Math.sin(t / 120) * 0.5 * s, 2 * s, 3.5 * s, 0, 0, 7); ctx.fill();
   }
 }
-const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && ENFEITE[id].fruteira === 'arvore' ? 1.1 : { bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4 }[id] || 1.6, 0));
+const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && ['arvore', 'colmeia'].includes(ENFEITE[id].fruteira) ? 1.1 : { bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4 }[id] || 1.6, 0));
 
 // ============================================================
 // Pomar: frutíferas (arbustos e árvores) plantadas no gramado. Dão frutas de tempos em tempos
@@ -10067,9 +10066,9 @@ function colherFruteira(o) {
   state.barn[f.id] = (state.barn[f.id] || 0) + rende;
   for (let k = 0; k < rende; k++) collect(f.id, null);
   o.ult = Date.now(); o.colhidas = (o.colhidas || 0) + 1; state.stats.colheitas = (state.stats.colheitas || 0) + 1; track('colher');
-  addXP(e.fruteira === 'arvore' ? 6 : 3, null);
+  addXP(['arvore', 'colmeia'].includes(e.fruteira) ? 6 : 3, null);
   if (o.colhidas >= colheitasDe(e)) { o.seca = 1; if (!o.ajudada) avisarSecou(o); }
-  ganharPomar(e.fruteira === 'arvore' ? 2 : 1);
+  ganharPomar(['arvore', 'colmeia'].includes(e.fruteira) ? 2 : 1);
   return rende;
 }
 // Frutíferas suas (roça e rancho) prontas para colher.
@@ -10079,7 +10078,7 @@ function estadoFruteira(o) {
   const restam = o.seca ? 0 : Math.max(isHome() ? 0 : 1, colheitasDe(e) - (o.colhidas || 0)), morta = restam <= 0, pronto = !morta && agora - ult >= e.tempo * 1000;
   const falta = Math.max(0, ult + e.tempo * 1000 - agora);
   const f = FRUTA[e.fruta], resto = `${restam} colheita${restam > 1 ? 's' : ''} até secar`;
-  const txt = morta ? (o.ajudada ? `Secou 🥀 de vez: já foi ajudada uma vez, não dá mais pra reviver. Derrube com ${e.fruteira === 'arvore' ? 'a motosserra' : 'a enxada de arrancar'}.`
+  const txt = morta ? (o.ajudada ? `Secou 🥀 de vez: já foi ajudada uma vez, não dá mais pra reviver. Derrube com ${['arvore', 'colmeia'].includes(e.fruteira) ? 'a motosserra' : 'a enxada de arrancar'}.`
       : isHome() ? 'Secou 🥀 · seus amigos foram avisados: quando um ajudar, ela dá frutas mais uma vez 🤝'
       : 'Secou 🥀 · precisa de ajuda! Toque para ajudar 🤝')
     : pronto ? `Pronta! ${rendeDe(e)} ${f.nome.toLowerCase()}s para colher · ${resto}`
@@ -10107,7 +10106,7 @@ function avisarSecou(o) {
 }
 function derrubarFruteira(sc, i) {
   const o = objetosDe(state, sc)[i]; if (!o) return;
-  const e = ENFEITE[o.id], fer = e.fruteira === 'arvore' ? 'motosserra' : 'enxada', F = FERR_DERRUBAR[fer], d = derrubarDe();
+  const e = ENFEITE[o.id], fer = ['arvore', 'colmeia'].includes(e.fruteira) ? 'motosserra' : 'enxada', F = FERR_DERRUBAR[fer], d = derrubarDe();
   if (!d[fer]) { toast(`Precisa de ${F.emoji} ${F.nome.toLowerCase()} para derrubar: compre na Loja › Pomar, ganhe completando as missões ou peça a um amigo.`, 'bad'); return openPanel('loja', 'pomar'); }
   d[fer]--; const l = objetosDe(state, sc); l.splice(i, 1); state.objetos[sc] = l;
   sfx('water'); toast(`${F.emoji} ${e.nome} derrubada. O lugar ficou livre para plantar outra!`, 'good'); done();
@@ -10115,7 +10114,7 @@ function derrubarFruteira(sc, i) {
 // Menu da frutífera seca: pedir ajuda ou derrubar.
 function menuFruteira(sc, i) {
   const o = objetosDe(state, sc)[i]; if (!o) return;
-  const e = ENFEITE[o.id], fer = e.fruteira === 'arvore' ? 'motosserra' : 'enxada', F = FERR_DERRUBAR[fer], m = $('#ctxMenu'), q = iso(o.u, o.v);
+  const e = ENFEITE[o.id], fer = ['arvore', 'colmeia'].includes(e.fruteira) ? 'motosserra' : 'enxada', F = FERR_DERRUBAR[fer], m = $('#ctxMenu'), q = iso(o.u, o.v);
   m.innerHTML = `<b>${esc(e.nome)} secou 🥀</b>${o.ajudada ? '<span class="meta" style="display:block;margin:2px 0 6px">Secou de vez: já foi ajudada uma vez</span>'
     : '<span class="meta" style="display:block;margin:2px 0 6px">Esperando um amigo ajudar 🤝</span><button type="button" data-ctx="placa">🔔 Avisar os amigos de novo</button>'}<button type="button" data-ctx="derrubar">${ferrEmo(fer)} Derrubar (você tem ${derrubarDe()[fer]})</button><button type="button" data-ctx="fechar">Cancelar</button>`;
   m.dataset.key = 'enf:' + i; m.dataset.sc = sc; m.hidden = false;
@@ -10125,7 +10124,7 @@ function menuFruteira(sc, i) {
 }
 function tipFruteira(o) {
   const e = ENFEITE[o.id], st = estadoFruteira(o);
-  return `<b>${e.nome}</b><br>${st.txt}${st.morta && isHome() ? `<br>Você tem ${derrubarDe()[e.fruteira === 'arvore' ? 'motosserra' : 'enxada']}.` : ''}`;
+  return `<b>${e.nome}</b><br>${st.txt}${st.morta && isHome() ? `<br>Você tem ${derrubarDe()[['arvore', 'colmeia'].includes(e.fruteira) ? 'motosserra' : 'enxada']}.` : ''}`;
 }
 function actFruteira(sc, i) {
   const o = objetosDe(S(), sc)[i]; if (!o) return;
@@ -10197,7 +10196,7 @@ function drawFruta(id, x, y, s) {
 }
 // A frutífera no chão: arbusto redondinho ou árvore com tronco. Pronta = cheia de frutas; seca = galhos pelados.
 function drawFruteira(o, x, y, s, t, home) {
-  const e = ENFEITE[o.id], st = o.t0 || o.ult || o.seca || o.colhidas != null ? estadoFruteira(o) : { pronto: true, morta: false }, f = FRUTA[e.fruta], arv = e.fruteira === 'arvore';
+  const e = ENFEITE[o.id], st = o.t0 || o.ult || o.seca || o.colhidas != null ? estadoFruteira(o) : { pronto: true, morta: false }, f = FRUTA[e.fruta], arv = ['arvore', 'colmeia'].includes(e.fruteira);
   const seca = st.morta, pronto = st.pronto && !seca, sway = Math.sin(t / 900 + x * 0.03) * 0.6 * s;
   const bola = (cx, cy, r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + cx * s, y + cy * s, r * s, 0, 7); ctx.fill(); };
   const tronco = (pts, w, c) => { ctx.strokeStyle = c; ctx.lineWidth = w * s; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); pts.forEach(([px, py], k) => k ? ctx.lineTo(x + px * s, y + py * s) : ctx.moveTo(x + px * s, y + py * s)); ctx.stroke(); ctx.lineCap = 'butt'; };
@@ -10339,7 +10338,7 @@ function pomarLojaHTML() {
   html += `<h3>Ferramentas de derrubar</h3>`;
   for (const [id, F] of Object.entries(FERR_DERRUBAR)) html += `<div class="row"><img alt="" src="${ferramentaIcon(id)}"><div><div class="name">${F.nome}</div><div class="meta">Tira um${F.para === 'arvore' ? 'a árvore' : ' arbusto'} seco · você tem <b>${d[id]}</b></div></div>
     <button class="btn" data-comprar-ferr="${id}" ${state.coins < F.custo ? 'disabled' : ''}>${moeda(F.custo)}</button></div>`;
-  for (const [tipo, titulo] of [['arbusto', 'Arbustos'], ['arvore', 'Árvores']]) {
+  for (const [tipo, titulo] of [['arbusto', 'Arbustos'], ['arvore', 'Árvores'], ['colmeia', 'Colmeias']]) {
     html += `<h3>${titulo}</h3>`;
     for (const e of ENFEITES.filter(x => x.fruteira === tipo)) {
       const f = FRUTA[e.fruta], locked = e.nivel > state.level, tem = state.enfeites[e.id] || 0, lim = LIMITE_FRUTEIRA[e.fruteira], ja = fruteirasDe(e.id), cheio = ja >= lim;
