@@ -88,6 +88,8 @@ const PRODUCTS = [
   { id: 'peloonca',    nome: 'Pelo de onça',    preco: 2500 },
 ];
 const PRODUCT = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
+// Mudas (a planta inteira, para replantar): ficam em state.plantas, não no celeiro. Dá para vender na banca e trocar com amigos.
+for (const c of CROPS) PRODUCT['p_' + c.id] = { id: 'p_' + c.id, nome: 'Muda de ' + c.nome.toLowerCase(), nomePl: 'mudas de ' + c.nome.toLowerCase(), preco: Math.max(20, Math.round(c.preco * c.rend * 0.4)), muda: c.id };
 // Materiais que os bichos da caçada deixam ao serem pegos (além das moedas): usados na fábrica, vendidos ou entregues no caminhão.
 const PRODUTOS_CACA = [
   { id: 'carnejavali', nome: 'Carne de javali',      nomePl: 'carnes de javali',      preco: 60 },
@@ -498,7 +500,8 @@ function newState() {
     stats: { colheitas: 0, coletas: 0, vendido: 0, roubado: 0, ajudas: 0 },
     chocadeira: { ovos: [], level: 0 },
     animalCred: {}, animalNivel: {},
-    bloqueados: {}, plantas: {},
+    bloqueados: {}, plantasInit: 1,
+    plantas: Object.fromEntries(CROPS.filter(c => c.nivel <= 1).map(c => [c.id, 4])),
   };
 }
 
@@ -685,18 +688,13 @@ function migrate(s) {
   s.bloqueados = s.bloqueados && typeof s.bloqueados === 'object' ? s.bloqueados : {};
   s.chocadeira = s.chocadeira && typeof s.chocadeira === 'object' ? s.chocadeira : { ovos: [], level: 0 };
   s.ultima_reproducao = s.ultima_reproducao && typeof s.ultima_reproducao === 'object' ? s.ultima_reproducao : {};
-  // Novo sistema de plantações: jogador recebe plantas baseado no nível
-  if (!s.plantas || typeof s.plantas !== 'object') {
-    s.plantas = {};
-    for (const c of CROPS) {
-      if (c.nivel <= s.level) s.plantas[c.id] = (s.plantas[c.id] || 0) + 4;
-    }
-    if (Object.keys(s.plantas).length > 0) {
-      s.invNovos = (s.invNovos || 0) + 1;
-      s.news = [{ at: Date.now(), msg: 'Sistema de plantações renovado 🌱: agora você recebe plantas ao subir de nível, em presentes de amigos e outras formas. Plantações reproduzem infinitamente — colha e replante quantas vezes quiser!' }].concat(Array.isArray(s.news) ? s.news : []);
-    }
-  } else {
-    s.plantas = s.plantas && typeof s.plantas === 'object' ? s.plantas : {};
+  // Plantações sem semente: quem já jogava ganha 4 plantas de cada uma que o nível já liberou
+  s.plantas = s.plantas && typeof s.plantas === 'object' && !Array.isArray(s.plantas) ? s.plantas : {};
+  if (!s.plantasInit) {
+    s.plantasInit = 1;
+    for (const c of CROPS) if (c.nivel <= s.level && s.plantas[c.id] === undefined) s.plantas[c.id] = 4;
+    s.invNovos = (s.invNovos || 0) + 1;
+    s.news = [{ at: Date.now(), msg: 'Sem mais sementes 🌱: você ganhou 4 plantas de cada plantação que já liberou. Plante a própria planta, ela rende sempre! Mais plantas vêm em missões, no caminhão, de amigos e na banca deles.' }].concat(Array.isArray(s.news) ? s.news : []);
   }
   return s;
 }
@@ -963,7 +961,7 @@ function actPlot(i) {
   }
   if (p.s === 'plowed' && tool === 'seed') return plant(p, pos);
   // Terra vazia sem semente na mão: abre a Loja para escolher o que plantar (nada é plantado sozinho).
-  if (p.s === 'plowed' && tool === 'hand') { openPanel('loja', 'sementes'); return toast('Escolha uma semente na Loja e clique na terra para plantar.'); }
+  if (p.s === 'plowed' && tool === 'hand') { openPanel('loja', 'sementes'); return toast('Escolha uma planta e clique nas terras aradas para plantar.'); }
   const hints = {
     hoe: 'O enxadão limpa plantas secas e arranca plantações.', water: 'Essa terra não precisa de água.',
     pest: 'Não há pragas aqui.', weed: 'Não há mato aqui.', seed: 'Só dá para plantar em terra arada.',
@@ -985,9 +983,9 @@ function usePotion(p, pos) {
 function plant(p, pos) {
   const crop = CROP[state.seed];
   if (crop.nivel > state.level) return toast(`${crop.nome} libera no nível ${crop.nivel}.`);
-  const plantasDisponiveis = (state.plantas[crop.id] || 0);
-  if (plantasDisponiveis <= 0) return toast(`Você não tem ${crop.nome} para plantar.`, 'bad');
+  if ((state.plantas[crop.id] || 0) <= 0) { state.tool = 'hand'; return toast(`Você não tem ${crop.nome.toLowerCase()} para plantar.`, 'bad'); }
   state.plantas[crop.id]--;
+  if (!state.plantas[crop.id]) { state.tool = 'hand'; toast(`Acabaram as plantas de ${crop.nome.toLowerCase()}.`, 'bad'); }
   Object.assign(p, emptyPlot('growing'), { c: crop.id, id: newId(), ouro: Math.random() < OURO_CHANCE });
   sfx('plant'); useFx('seed', pos); track('plantar');
   if (xpAllowed(crop.id)) addXP(1, pos);
@@ -1283,6 +1281,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 239, txt: "Plantas sem semente 🌱: em Loja › Plantas você escolhe uma planta e clica em quantas terras aradas quiser. Ganhe mais plantas em missões diárias e semanais, nos pedidos do caminhão, de presente específico dos amigos (🎁 › Plantas) e comprando mudas na banca de amigos e vizinhos (e venda as suas na sua banca). Aviso vermelho quando uma planta tiver menos de 10. As fazendas dos vizinhos agora têm tudo que o nível deles permite." },
   { v: 238, txt: "Amizade ❤️ agora é do par: você e seu amigo veem sempre a mesma quantidade de corações (os pontos de quem ajuda e de quem presenteia se somam)." },
   { v: 237, txt: "Sistema de plantações renovado (Hay Day style) 🌱: sem mais sementes, você recebe 4 plantas ao desbloquear cada nível. Replante a planta inteira quantas vezes quiser — ela produz infinitamente. Alerta quando uma plantação tiver menos de 10 unidades. Amizade agora vai até 10 corações ❤️, e roubos diários aumentam com a amizade (6+ itens com 5+ corações)." },
   { v: 236, txt: "O Correio estava sem as novidades das últimas versões: agora todas aparecem aqui." },
@@ -1991,8 +1990,8 @@ function applyVisits(list) {
     } else if (v.t === 'buy') {
       const sl = (state.banca || []).find(x => x.id === v.slot && x.item === v.item && x.qtd === v.qtd && x.preco === v.preco);
       if (sl) bancaVendeu(sl, who);
-    } else if (v.t === 'gift' && PRESENTE_AMIGO.some(g => g.id === v.gift)) {
-      const g = PRESENTE_AMIGO.find(x => x.id === v.gift), lvl = clamp(Number(v.nivel) || 0, 0, AMIZADE_NIVEL_MAX);
+    } else if (v.t === 'gift' && presenteDe(String(v.gift))) {
+      const g = presenteDe(String(v.gift)), lvl = clamp(Number(v.nivel) || 0, 0, AMIZADE_NIVEL_MAX);
       g.dar(state, lvl); note(`mandou um presente para você: ${g.nome(lvl)}`);
     } else if (v.t === 'feed' && a && ANIMAL[a.k].tipo === 'prod' && isHungry(a)) {
       a.fed = true; note('alimentou seus animais'); helpedBy(v.from, who);
@@ -4712,7 +4711,7 @@ const potionIcon = () => makeIcon('pocao', () => {
   ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(38, 50, 5, 8, -0.5, 0, 7); ctx.fill();
   ctx.fillStyle = '#e0d4f5'; ctx.fillRect(40, 22, 16, 16); ctx.fillStyle = '#8a5a2b'; ctx.fillRect(38, 14, 20, 9);
 });
-const itemIcon = id => PRODUCE[id] ? cropIcon(PRODUCE[id].planta) : productIcon(id);
+const itemIcon = id => PRODUCE[id] ? cropIcon(PRODUCE[id].planta) : PRODUCT[id] && PRODUCT[id].muda ? cropIcon(PRODUCT[id].muda) : productIcon(id);
 const dogIcon = raca => makeIcon('dog:' + raca, () => drawDog(50, 88, 118, 0, raca, false));
 const bowlIcon = () => makeIcon('bowl', () => {
   ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.beginPath(); ctx.ellipse(48, 74, 32, 7, 0, 0, 7); ctx.fill();
@@ -5236,20 +5235,20 @@ function renderPane() {
   else if (tab === 'missoes') html = missoesHTML();
   else if (tab === 'fabrica') html = fabricaHTML();
   else if (tab === 'loja') {
-    const segs = [['sementes', 'Sementes'], ['pomar', 'Pomar'], ['adubo', 'Itens'], ['animais', 'Animais'], ['abrigos', 'Abrigos'], ['caes', 'Cães'], ['decor', 'Casa'], ['enfeites', 'Enfeites'], ['temas', 'Temas'], ['trevo', '🍀 Trevo']];
+    const segs = [['sementes', 'Plantas'], ['pomar', 'Pomar'], ['adubo', 'Itens'], ['animais', 'Animais'], ['abrigos', 'Abrigos'], ['caes', 'Cães'], ['decor', 'Casa'], ['enfeites', 'Enfeites'], ['temas', 'Temas'], ['trevo', '🍀 Trevo']];
     html += `<div class="seg small" role="tablist">${segs.map(([id, n]) => `<button type="button" role="tab" data-seg="${id}" aria-selected="${shopSeg === id}">${n}</button>`).join('')}</div>`;
     if (shopSeg === 'sementes') {
-      html += `<p class="hint">Escolha uma semente e clique na terra arada para plantar. Cada semente vale para um canteiro e é cobrada no plantio.</p>`;
+      html += `<p class="hint">Não tem mais semente: você planta a própria planta, e ela rende quantas vezes quiser. Escolha uma, clique nas terras aradas (uma por canteiro) e ela fica na mão até acabar. Ganhe mais plantas em missões, no caminhão, de amigos ou na banca deles.</p>`;
       const shown = CROPS.filter(c => c.nivel <= state.level);
       const upcoming = CROPS.filter(c => c.nivel > state.level);
       for (const c of [...shown, ...upcoming.slice(0, 2)]) {
-        const locked = c.nivel > state.level, sel = state.seed === c.id && state.tool === 'seed';
+        const locked = c.nivel > state.level, sel = state.seed === c.id && state.tool === 'seed', qtd = state.plantas[c.id] || 0;
         const total = c.rend * c.preco;
-        const meta = `Semente ${c.custo.toLocaleString('pt-BR')} · ${fmt(c.tempo)}<br>rende ${faixa(c)} × ${c.preco} · lucro médio ${(total - c.custo).toLocaleString('pt-BR')} · ${c.xp} XP`;
+        const meta = `${fmt(c.tempo)} · rende ${faixa(c)} × ${c.preco} (até ${total.toLocaleString('pt-BR')}) · ${c.xp} XP`;
         html += `<div class="row ${locked ? 'locked' : ''} ${sel ? 'sel' : ''}">
           <img alt="" src="${cropIcon(c.id)}">
-          <div><div class="name">${c.nome}${daEstacao(c.id) ? ` <span class="tag">${estacao().icone} da estação +${Math.round(ESTACAO_BONUS * 100)}%</span>` : ''}</div><div class="meta">${meta}</div></div>
-          ${locked ? `<button class="btn" disabled>Nível ${c.nivel}</button>` : `<button class="btn ${sel ? 'gold' : ''}" data-seed="${c.id}" aria-label="${sel ? 'Na mão' : `Escolher ${c.nome} por ${c.custo} moedas`}">${sel ? 'Na mão' : moeda(c.custo)}</button>`}
+          <div><div class="name">${c.nome}${locked ? '' : ` <span class="tag ${qtd < PLANTAS_BAIXO ? 'bad' : ''}">${qtd} ${qtd === 1 ? 'planta' : 'plantas'}</span>`}${daEstacao(c.id) ? ` <span class="tag">${estacao().icone} da estação +${Math.round(ESTACAO_BONUS * 100)}%</span>` : ''}</div><div class="meta">${meta}</div></div>
+          ${locked ? `<button class="btn" disabled>Nível ${c.nivel}</button>` : `<button class="btn ${sel ? 'gold' : ''}" data-seed="${c.id}" ${qtd ? '' : 'disabled'}>${sel ? 'Na mão' : qtd ? 'Plantar' : 'Sem plantas'}</button>`}
         </div>`;
       }
       if (upcoming.length > 2) html += `<p class="hint">Mais ${upcoming.length - 2} plantações liberam nos próximos níveis, até o nível ${upcoming[upcoming.length - 1].nivel}.</p>`;
@@ -5622,7 +5621,7 @@ $('#pane').addEventListener('click', e => {
   if (d.rankModo) { rankModo = d.rankModo; renderPane(); return; }
   if (d.seg) { shopSeg = d.seg; renderPane(); $('#pane').scrollTop = 0; if (d.focus) focusRow('abrigo-' + d.focus); }
   else if (d.abrigo) buyAbrigo(d.abrigo);
-  else if (d.seed) { state.seed = d.seed; state.tool = 'seed'; if (!isHome()) goHome(); setScene('roca'); closePanel(); save(); toast(`${CROP[d.seed].nome} na mão: clique na terra arada para plantar.`); }
+  else if (d.seed) { state.seed = d.seed; state.tool = 'seed'; if (!isHome()) goHome(); setScene('roca'); closePanel(); save(); toast(`${CROP[d.seed].nome} na mão: clique nas terras aradas para plantar (${state.plantas[d.seed] || 0} plantas).`); }
   else if (d.buyAnimal) buyAnimal(d.buyAnimal);
   else if (d.buyDecor) buyDecor(d.buyDecor);
   else if (d.usarDecor) usarDecor(d.usarDecor);
@@ -5729,7 +5728,7 @@ function tipPlot(i) {
     if (home && !freeLots()) return '<b>Pasto</b><br>Compre uma expansão na aba Terreno para ter mais canteiros.';
     return home ? 'Pasto.' : null;
   }
-  if (p.s === 'plowed') return home ? `<b>Terra arada</b><br>${state.tool === 'seed' ? `Clique para plantar ${CROP[state.seed].nome}.` : 'Clique para escolher uma semente na Loja.'}` : '<b>Terra arada</b>';
+  if (p.s === 'plowed') return home ? `<b>Terra arada</b><br>${state.tool === 'seed' ? `Clique para plantar ${CROP[state.seed].nome}.` : 'Clique para escolher o que plantar.'}` : '<b>Terra arada</b>';
   if (p.s === 'withered') return '<b>Planta seca</b><br>Use a Mão ou o enxadão para limpar.';
   const crop = CROP[p.c], st = stageOf(p), T = phaseTempo(p), k = Math.min(1, p.g / T);
   if (p.podre) return `<b>${crop.nome} podre</b><br>Ficou mais de 24h sem colher.<br>${home ? `Clique para usar uma poção (você tem ${state.pocao || 0}) ou peça ajuda a um amigo.` : 'Clique para salvar a planta do seu amigo!'}`;
@@ -6307,6 +6306,8 @@ $('#moveBtn').addEventListener('click', () => setMoveMode(!moveMode));
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && moveMode) { if (moving) { cancelarMove(); toast('Cancelado.'); } else setMoveMode(false); } });
 $('#presente').addEventListener('click', e => {
   const o = e.target.closest('[data-pres]');
+  if (o && o.dataset.pres === 'plantas') return listaPresentePlantas();
+  if (o && o.dataset.pres === 'voltar') return escolherPresente(presenteParaUid, true);
   if (o) { $('#presente').hidden = true; return sendFriendGift(presenteParaUid, o.dataset.pres); }
   if (e.target === $('#presente') || e.target.closest('[data-close]')) $('#presente').hidden = true;
 });
@@ -6385,7 +6386,7 @@ const daEstacao = id => estacao().plantas.includes(id);
 const temProd = () => state.animals.some(a => ANIMAL[a.k].tipo === 'prod');
 const MISSOES_DIA = [
   { ev: 'colher', txt: 'Colha {n} vezes', alvo: [10, 20, 30] },
-  { ev: 'plantar', txt: 'Plante {n} sementes', alvo: [10, 20, 30] },
+  { ev: 'plantar', txt: 'Plante {n} plantas', alvo: [10, 20, 30] },
   { ev: 'regar', txt: 'Regue {n} canteiros (seus ou dos vizinhos)', alvo: [3, 5, 8] },
   { ev: 'coletar', txt: 'Recolha {n} produtos dos animais', alvo: [4, 8, 12], need: temProd },
   { ev: 'alimentar', txt: 'Alimente {n} animais', alvo: [4, 8, 12], need: temProd },
@@ -6409,7 +6410,7 @@ const MISSOES_DIA = [
 const MISSOES_DIARIAS_N = 5;
 const MISSOES_SEMANA = [
   { ev: 'colher', txt: 'Colha {n} vezes', alvo: [100, 200, 350] },
-  { ev: 'plantar', txt: 'Plante {n} sementes', alvo: [100, 200, 350] },
+  { ev: 'plantar', txt: 'Plante {n} plantas', alvo: [100, 200, 350] },
   { ev: 'coletar', txt: 'Recolha {n} produtos dos animais', alvo: [30, 60, 100], need: temProd },
   { ev: 'vender', txt: 'Venda {n} moedas no celeiro', alvo: [4000, 20000, 60000] },
   { ev: 'ajudar', txt: 'Ajude os vizinhos {n} vezes', alvo: [20, 35, 50] },
@@ -6457,6 +6458,13 @@ function track(ev, n = 1) {
   }
   if (pronto) { toast('Missão cumprida! Pegue o prêmio em Missões.', 'good'); sfx('level'); renderTabs(); }
 }
+// Muda sorteada entre as plantações que você já liberou (prêmio de missão e de pedido do caminhão).
+function sortearMuda(n) {
+  const l = CROPS.filter(c => c.nivel <= state.level), c = l[Math.floor(Math.random() * l.length)];
+  return { id: c.id, n, nome: c.nome.toLowerCase() };
+}
+const darMuda = m => { state.plantas[m.id] = (state.plantas[m.id] || 0) + m.n; };
+const txtMuda = m => `${m.n} plantas de ${m.nome}`;
 function claimMission(tipo, k) {
   const m = state.missions[tipo][k];
   if (!m || m.pego || m.feito < m.alvo) return;
@@ -6466,7 +6474,8 @@ function claimMission(tipo, k) {
   if (p.racao) state.racaoEsp += p.racao;
   sfx('coin');
   const bicho = tipo === 'semana' ? sortearAnimalCred() : null;
-  toast(`Prêmio: +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.racao ? ' e 1 ração especial' : ''}${bicho ? ` e ${bicho.f ? 'uma' : 'um'} ${bicho.nome.toLowerCase()} para resgatar (Loja › Animais)` : ''}!`, 'good');
+  const muda = sortearMuda(tipo === 'semana' ? 6 : 3); darMuda(muda);
+  toast(`Prêmio: +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.racao ? ' e 1 ração especial' : ''} e ${txtMuda(muda)}${bicho ? ` e ${bicho.f ? 'uma' : 'um'} ${bicho.nome.toLowerCase()} para resgatar (Loja › Animais)` : ''}!`, 'good');
   // completou todas do dia (ou da semana)? ganha trevos, uma vez por dia / por semana
   const ms = state.missions, marca = tipo === 'dia' ? 'd' : 'w';
   if (ms[tipo].every(x => x.pego) && ms['trevo_' + tipo] !== ms[marca]) {
@@ -6574,6 +6583,13 @@ const PRESENTE_AMIGO = [
   { id: 'enxada', nome: () => '1 enxada de arrancar', dar: s => { (s.derrubar = s.derrubar || {}).enxada = (s.derrubar.enxada || 0) + 1; } },
   { id: 'motosserra', nome: () => '1 motosserra', dar: s => { (s.derrubar = s.derrubar || {}).motosserra = (s.derrubar.motosserra || 0) + 1; } },
 ];
+// Presente de plantas: o amigo escolhe qual planta (das que você já liberou). Cada nível de amizade dá mais.
+const plantasPresente = lvl => 2 + Math.floor(lvl / 2);
+const presenteDe = id => {
+  const c = id.startsWith('planta:') && CROP[id.slice(7)];
+  if (c) return { id, nome: lvl => `${plantasPresente(lvl)} plantas de ${c.nome.toLowerCase()}`, dar: (st, lvl) => { st.plantas = st.plantas || {}; st.plantas[c.id] = (st.plantas[c.id] || 0) + plantasPresente(lvl); } };
+  return PRESENTE_AMIGO.find(x => x.id === id);
+};
 const PRESENTE_MAX = 5;
 function giftsToday() {
   if (!state.sentGifts || state.sentGifts.d !== localDay()) state.sentGifts = { d: localDay(), to: [] };
@@ -6581,7 +6597,7 @@ function giftsToday() {
 }
 // Antes de enviar, abre uma janelinha para escolher o presente daquele amigo.
 let presenteParaUid = null;
-function escolherPresente(uid) {
+function escolherPresente(uid, volta) {
   const g = giftsToday();
   if (g.to.includes(uid)) return toast('Você já mandou um presente para essa pessoa hoje.');
   if (g.to.length >= PRESENTE_MAX) return toast(`Você já mandou ${PRESENTE_MAX} presentes hoje. À meia-noite libera de novo!`);
@@ -6589,8 +6605,15 @@ function escolherPresente(uid) {
   const f = friendInfo[uid], lvl = nivelAmizade(uid);
   $('#presTxt').textContent = `Escolha o presente para ${firstName(f && f.name ? f.name : 'seu amigo')}. Não custa nada!${lvl ? ` Amizade nível ${lvl}: presentes melhores!` : ''}`;
   const icon = { animal: animalIcon('galinha'), basico: fertIcon('basico'), racao: bowlIcon(), racaoCao: dogIcon('caramelo'), enxada: ferramentaIcon('enxada'), motosserra: ferramentaIcon('motosserra') };
-  $('#presOpcoes').innerHTML = PRESENTE_AMIGO.filter(p => !p.minLvl || lvl >= p.minLvl).map(p => `<button type="button" class="presopt" data-pres="${p.id}"><img alt="" src="${p.id === 'moedas' ? giftIcon({ moedas: 100 + lvl * 50 }) : icon[p.id]}"><span>${p.nome(lvl)}</span></button>`).join('');
+  $('#presOpcoes').innerHTML = PRESENTE_AMIGO.filter(p => !p.minLvl || lvl >= p.minLvl).map(p => `<button type="button" class="presopt" data-pres="${p.id}"><img alt="" src="${p.id === 'moedas' ? giftIcon({ moedas: 100 + lvl * 50 }) : icon[p.id]}"><span>${p.nome(lvl)}</span></button>`).join('')
+    + `<button type="button" class="presopt" data-pres="plantas"><img alt="" src="${cropIcon('milho')}"><span>🌱 Plantas (${plantasPresente(lvl)} da que escolher)</span></button>`;
   $('#presente').hidden = false;
+  $('#presOpcoes button').focus();
+}
+function listaPresentePlantas() {
+  const lvl = nivelAmizade(presenteParaUid);
+  $('#presOpcoes').innerHTML = `<button type="button" class="presopt" data-pres="voltar"><span>⬅️ Voltar</span></button>`
+    + CROPS.filter(c => c.nivel <= state.level).map(c => `<button type="button" class="presopt" data-pres="planta:${c.id}"><img alt="" src="${cropIcon(c.id)}"><span>${plantasPresente(lvl)} ${c.nome.toLowerCase()}</span></button>`).join('');
   $('#presOpcoes button').focus();
 }
 // Quando o jogo do amigo perdeu você da lista (erro antigo), o Firebase recusa presentes e visitas.
@@ -6609,7 +6632,7 @@ async function reatarAmizade(uid, silencioso) {
 }
 async function sendFriendGift(uid, escolha) {
   if (!user) return;
-  const g = giftsToday(), pick = PRESENTE_AMIGO.find(p => p.id === escolha) || PRESENTE_AMIGO[0], lvl = nivelAmizade(uid);
+  const g = giftsToday(), pick = presenteDe(escolha) || PRESENTE_AMIGO[0], lvl = nivelAmizade(uid);
   if (g.to.includes(uid)) return toast('Você já mandou um presente para essa pessoa hoje.');
   if (g.to.length >= PRESENTE_MAX) return toast(`Você já mandou ${PRESENTE_MAX} presentes hoje. À meia-noite libera de novo!`);
   g.to.push(uid); renderPane();
@@ -6923,18 +6946,24 @@ function drawWeather(t) {
   ctx.stroke();
 }
 
-let plantasAlertadasUltimo = {};
+const PLANTAS_BAIXO = 10;
+let plantasAvisoChave = '';
 function checkPlantasLow() {
-  if (!state || !state.plantas) return;
-  for (const [cropId, qtd] of Object.entries(state.plantas)) {
-    if (qtd > 0 && qtd <= 10 && !plantasAlertadasUltimo[cropId]) {
-      plantasAlertadasUltimo[cropId] = true;
-      const crop = CROP[cropId];
-      toast(`⚠️ Você tem apenas ${qtd} ${crop.nome.toLowerCase()} no inventário!`, 'warn');
-    } else if (qtd > 10) {
-      plantasAlertadasUltimo[cropId] = false;
-    }
-  }
+  if (!state || !state.plantas || isGated() || state.boasVindas || !$("#boasvindas").hidden) return;
+  const baixas = CROPS.filter(c => c.nivel <= state.level && (state.plantas[c.id] || 0) < PLANTAS_BAIXO);
+  const chave = baixas.map(c => c.id).join(',');
+  if (chave === plantasAvisoChave) return;
+  plantasAvisoChave = chave;
+  if (!baixas.length) return;
+  const ver = baixas.slice(0, 4).map(c => `${c.nome} (${state.plantas[c.id] || 0})`).join(', ') + (baixas.length > 4 ? ` e mais ${baixas.length - 4}` : '');
+  plantaAlerta(`⚠️ Poucas plantas: ${ver}. Ganhe mais com amigos, missões ou no caminhão!`);
+}
+// Aviso vermelho que fica um pouco mais na tela que um toast comum.
+function plantaAlerta(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast bad'; el.textContent = msg;
+  sfx('error'); $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), 6000);
 }
 
 // ---------- Borboletas, sapos, porquinhos-da-índia, grilos e vaga-lumes ----------
@@ -7612,10 +7641,10 @@ $('#boasvindas').addEventListener('click', e => {
 for (const id of ['#bvFazenda', '#bvAvatarNome']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); salvarBoasVindas(); } });
 
 const TUTORIAL = [
-  { alvo: '#tools', cena: 'roca', txt: '🌱 <b>Plantar:</b> com a ✋ Mão, clique numa terra arada. A Loja abre para você escolher a semente; depois clique na terra para plantar.' },
+  { alvo: '#tools', cena: 'roca', txt: '🌱 <b>Plantar:</b> com a ✋ Mão, clique numa terra arada. Abre a lista de plantas; escolha uma e clique nas terras aradas, quantas quiser.' },
   { alvo: '#tools', cena: 'roca', txt: '💧 <b>Cuidar:</b> use o Regador nas plantas com sede e o Inseticida quando aparecer praga. Planta cuidada cresce certinho.' },
   { alvo: '[data-tab="celeiro"]', cena: 'roca', txt: '🧺 <b>Colher:</b> quando aparecer o ✔ em cima da planta, clique para colher. Tudo vai para o <b>Celeiro</b>, onde dá para vender.' },
-  { alvo: '[data-tab="loja"]', cena: 'roca', txt: '🏪 <b>Loja:</b> sementes, mudas, adubo, animais, abrigos, cachorros e enfeites. Coisas novas liberam a cada nível.' },
+  { alvo: '[data-tab="loja"]', cena: 'roca', txt: '🏪 <b>Loja:</b> plantas, mudas, adubo, animais, abrigos, cachorros e enfeites. Coisas novas liberam a cada nível.' },
   { alvo: '[data-scene="animais"]', cena: 'animais', txt: '🐔 <b>Rancho:</b> seus animais ficam aqui. Dê ração e recolha ovos, leite e mais. Clique num abrigo para ver quem mora nele.' },
   { alvo: '[data-tab="fabrica"]', cena: 'roca', txt: '🏭 <b>Negócios:</b> na Fábrica você transforma o que colheu em produtos que valem mais; na Banca vende para outros jogadores; o Caminhão leva pedidos grandes.' },
   { alvo: '[data-tab="missoes"]', cena: 'roca', txt: '📋 <b>Missões:</b> todo dia tem missões novas com prêmios. A vila também faz pedidos.' },
@@ -8740,7 +8769,7 @@ function missoesHTML() {
     return html + '</div>';
   }
   const tipo = missSeg, lista = state.missions[tipo], p = tipo === 'dia' ? premioDia() : premioSemana();
-  html += `<p class="hint">${tipo === 'dia' ? 'Missões novas todo dia à meia-noite.' : 'Missões novas toda segunda-feira à meia-noite.'} Cada uma dá ${p.moedas.toLocaleString('pt-BR')} moedas e ${p.xp} XP${p.racao ? ' e 1 ração especial' : ''}. ${state.missions['trevo_' + tipo] === state.missions[tipo === 'dia' ? 'd' : 'w'] ? `<b>🍀 +${TREVO_MISSOES[tipo]} trevos já ganhos!</b>` : `Pegue o prêmio de todas e ganhe <b>🍀 ${TREVO_MISSOES[tipo]} trevos</b> e ${tipo === 'dia' ? '<img class="emo" alt="" src="' + ferramentaIcon('enxada') + '"> 1 enxada de arrancar' : '<img class="emo" alt="" src="' + ferramentaIcon('motosserra') + '"> 1 motosserra'}.`}</p>`;
+  html += `<p class="hint">${tipo === 'dia' ? 'Missões novas todo dia à meia-noite.' : 'Missões novas toda segunda-feira à meia-noite.'} Cada uma dá ${p.moedas.toLocaleString('pt-BR')} moedas, ${p.xp} XP${p.racao ? ', 1 ração especial' : ''} e ${tipo === 'dia' ? 3 : 6} plantas sorteadas. ${state.missions['trevo_' + tipo] === state.missions[tipo === 'dia' ? 'd' : 'w'] ? `<b>🍀 +${TREVO_MISSOES[tipo]} trevos já ganhos!</b>` : `Pegue o prêmio de todas e ganhe <b>🍀 ${TREVO_MISSOES[tipo]} trevos</b> e ${tipo === 'dia' ? '<img class="emo" alt="" src="' + ferramentaIcon('enxada') + '"> 1 enxada de arrancar' : '<img class="emo" alt="" src="' + ferramentaIcon('motosserra') + '"> 1 motosserra'}.`}</p>`;
   lista.forEach((m, k) => {
     const ok = m.feito >= m.alvo;
     html += `<div class="row ${m.pego ? 'locked' : ok ? 'sel' : ''}"><div class="avatar" style="background:${ok ? '#4f9a2f' : '#d39a5c'}">${ok ? '✓' : k + 1}</div>
@@ -8865,15 +8894,22 @@ const bancaDesconto = () => Math.min(BANCA_DESC_MAX, (state.friends || []).lengt
 const bancaNivelVaga = i => Math.max(1, BANCA_EXTRA[i] - bancaDesconto());
 const bancaMax = () => BANCA_BASE + BANCA_EXTRA.filter((_, i) => state.level >= bancaNivelVaga(i)).length;
 const valorDe = id => (item(id) || {}).preco || 0;
+// Estoque de um item: mudas ficam em state.plantas; o resto, no celeiro.
+const estoqueDe = id => PRODUCT[id] && PRODUCT[id].muda ? (state.plantas[PRODUCT[id].muda] || 0) : (state.barn[id] || 0);
+function mudaEstoque(id, q) {
+  const m = PRODUCT[id] && PRODUCT[id].muda, alvo = m ? state.plantas : state.barn, k = m || id;
+  alvo[k] = Math.max(0, (alvo[k] || 0) + q); if (!alvo[k] && !m) delete alvo[k];
+}
+const itensVendaveis = () => [...Object.keys(state.barn).filter(id => state.barn[id] > 0 && item(id)), ...CROPS.filter(c => (state.plantas[c.id] || 0) > 0).map(c => 'p_' + c.id)];
 function bancaAdd(id, qtd, preco) {
   state.banca = state.banca || [];
   const lim = bancaMax();
   if (state.banca.length >= lim) return toast(`A banca tem ${lim} lugares.`);
   qtd = clamp(Math.floor(qtd) || 1, 1, 10);
-  if ((state.barn[id] || 0) < qtd) return toast('Você não tem tudo isso no celeiro.', 'bad');
+  if (estoqueDe(id) < qtd) return toast('Você não tem tudo isso.', 'bad');
   const [min, max] = faixaPreco(id, qtd);
   preco = clamp(Math.round(preco) || 0, min, max);
-  state.barn[id] -= qtd; if (!state.barn[id]) delete state.barn[id];
+  mudaEstoque(id, -qtd);
   state.banca.push({ id: newId(), item: id, qtd, preco, at: Date.now() });
   sfx('buy'); toast(`${qtd} ${item(id).nome.toLowerCase()} na banca por ${preco.toLocaleString('pt-BR')} moedas.`, 'good');
   done();
@@ -8884,7 +8920,7 @@ const faixaPreco = (id, qtd) => [Math.max(1, Math.round(valorDe(id) * qtd * 0.5)
 // Janelinha que abre ao clicar num lugar livre da banca.
 const bm = { item: null, qtd: 1, preco: 0 };
 function abrirBancaModal() {
-  const tenho = Object.keys(state.barn).filter(id => state.barn[id] > 0 && item(id));
+  const tenho = itensVendaveis();
   if (!tenho.length) return toast('O celeiro está vazio. Colha ou fabrique algo para vender.');
   const max = bancaMax();
   if ((state.banca || []).length >= max) return toast(`A banca tem ${max} lugares.`);
@@ -8893,15 +8929,15 @@ function abrirBancaModal() {
   $('#bancaModal').hidden = false;
 }
 function escolherBancaItem(id) {
-  bm.item = id; bm.qtd = Math.min(bm.qtd || 1, state.barn[id] || 1, BANCA_QTD_MAX);
+  bm.item = id; bm.qtd = Math.min(bm.qtd || 1, estoqueDe(id) || 1, BANCA_QTD_MAX);
   bm.preco = Math.round(valorDe(id) * bm.qtd * 1.2);
   renderBancaModal();
 }
 function renderBancaModal() {
-  const tenho = Object.keys(state.barn).filter(id => state.barn[id] > 0 && item(id));
+  const tenho = itensVendaveis();
   $('#bmItens').innerHTML = tenho.map(id => `<button type="button" class="bmitem ${id === bm.item ? 'sel' : ''}" data-bm-item="${id}" aria-pressed="${id === bm.item}">
-    <img alt="" src="${itemIcon(id)}"><span>${esc(item(id).nome)}</span><small>tem ${state.barn[id]}</small></button>`).join('');
-  const tem = state.barn[bm.item] || 0, maxQ = Math.min(tem, BANCA_QTD_MAX), [min, max] = faixaPreco(bm.item, bm.qtd);
+    <img alt="" src="${itemIcon(id)}"><span>${esc(item(id).nome)}</span><small>tem ${estoqueDe(id)}</small></button>`).join('');
+  const tem = estoqueDe(bm.item), maxQ = Math.min(tem, BANCA_QTD_MAX), [min, max] = faixaPreco(bm.item, bm.qtd);
   bm.qtd = clamp(bm.qtd, 1, maxQ); bm.preco = clamp(bm.preco, min, max);
   $('#bmNome').textContent = item(bm.item).nome;
   $('#bmQtd').textContent = bm.qtd;
@@ -8963,7 +8999,7 @@ function bancaComprar(sid) {
   if (!s || s.vendido) return toast('Esse já foi vendido.');
   if (state.coins < s.preco) return toast(`Faltam moedas: custa ${s.preco.toLocaleString('pt-BR')}.`, 'bad');
   state.coins -= s.preco; s.vendido = true;
-  state.barn[s.item] = (state.barn[s.item] || 0) + s.qtd;
+  mudaEstoque(s.item, s.qtd);
   state.log['banca:' + s.id] = Date.now();
   sfx('coin');
   toast(`Comprou ${s.qtd} ${item(s.item).nome.toLowerCase()} de ${view.nome}!`, 'good');
@@ -8971,7 +9007,7 @@ function bancaComprar(sid) {
   done();
 }
 function npcBanca() {
-  const pool = [...CROPS.filter(c => c.nivel <= state.level + 2).map(c => c.prod), 'ovo', 'leite', ...RECEITAS.filter(r => r.nivel <= state.level + 2).map(r => r.id)];
+  const pool = [...CROPS.filter(c => c.nivel <= state.level + 2).map(c => c.prod), ...CROPS.filter(c => c.nivel <= state.level + 2).map(c => 'p_' + c.id), 'ovo', 'leite', ...RECEITAS.filter(r => r.nivel <= state.level + 2).map(r => r.id)];
   return Array.from({ length: 3 }, () => {
     const it = pool[Math.floor(Math.random() * pool.length)], qtd = 1 + Math.floor(Math.random() * 5);
     return { id: newId(), item: it, qtd, preco: Math.round(valorDe(it) * qtd * (1 + Math.random() * 0.3)), at: Date.now() };
@@ -8995,7 +9031,9 @@ function novoPedido() {
     itens[id] = barato ? 4 + Math.floor(Math.random() * (4 + state.level)) : 1 + Math.floor(Math.random() * 4);
   }
   const valor = Object.entries(itens).reduce((t, [id, q]) => t + valorDe(id) * q, 0);
-  return { itens, moedas: Math.round(valor * 1.6 / 5) * 5, xp: Math.max(3, Math.round(valor / 25)), feito: false };
+  const ped = { itens, moedas: Math.round(valor * 1.6 / 5) * 5, xp: Math.max(3, Math.round(valor / 25)), feito: false };
+  if (Math.random() < 0.5) ped.muda = sortearMuda(2 + Math.floor(Math.random() * 4));
+  return ped;
 }
 function rollCaminhao() {
   const b = blocoCaminhao();
@@ -9010,8 +9048,9 @@ function entregar(k) {
   for (const [id, q] of Object.entries(p.itens)) { state.barn[id] -= q; if (!state.barn[id]) delete state.barn[id]; }
   p.feito = true;
   state.coins += p.moedas; addXP(p.xp, null); track('entregar');
+  if (p.muda) darMuda(p.muda);
   done();
-  mostrarEntrega(`O caminhão levou o pedido! +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP.`);
+  mostrarEntrega(`O caminhão levou o pedido! +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.muda ? ` e ${txtMuda(p.muda)}` : ''}.`);
 }
 
 // ---------- Tela da fábrica (com a banca e o caminhão) ----------
@@ -9057,7 +9096,7 @@ function fabricaHTML() {
       return `<div class="bslot"><img alt="" src="${itemIcon(s.item)}"><b>${s.qtd} ${esc(item(s.item).nome)}</b><span>${moeda(s.preco)}</span>
         <button class="btn ${armed ? 'danger' : 'ghost'} tiny" data-banca-rem="${s.id}">${armed ? 'Confirmar' : 'Tirar'}</button></div>`;
     }).join('')}</div>`;
-    if (!Object.keys(state.barn).some(id => state.barn[id] > 0 && item(id))) html += `<div class="empty">O celeiro está vazio. Colha ou fabrique algo para vender.</div>`;
+    if (!itensVendaveis().length) html += `<div class="empty">O celeiro está vazio. Colha ou fabrique algo para vender.</div>`;
     else if (banca.length < max) html += `<p class="hint">Clique num lugar livre para escolher o que vender.</p>`;
   } else {
     const t = state.truck, falta = (t.b + 1) * CAMINHAO_BLOCO - Date.now();
@@ -9066,7 +9105,7 @@ function fabricaHTML() {
       const ok = podeEntregar(p);
       const lista = Object.entries(p.itens).map(([id, q]) => `<span class="${(state.barn[id] || 0) >= q ? '' : 'falta'}"><img alt="" src="${itemIcon(id)}">${q} ${esc(item(id).nome.toLowerCase())} (${state.barn[id] || 0})</span>`).join('');
       html += `<div class="row ${p.feito ? 'locked' : ok ? 'sel' : ''}"><div class="avatar" style="background:${p.feito ? '#4f9a2f' : '#3f6fa8'}">${p.feito ? '✓' : k + 1}</div>
-        <div><div class="pedido">${lista}</div><div class="meta">${p.moedas.toLocaleString('pt-BR')} moedas · ${p.xp} XP</div></div>
+        <div><div class="pedido">${lista}</div><div class="meta">${p.moedas.toLocaleString('pt-BR')} moedas · ${p.xp} XP${p.muda ? ` · 🌱 ${txtMuda(p.muda)}` : ''}</div></div>
         ${p.feito ? '<button class="btn ghost" disabled>Entregue</button>' : `<button class="btn gold" data-entregar="${k}" ${ok ? '' : 'disabled'}>Entregar</button>`}</div>`;
     });
   }
