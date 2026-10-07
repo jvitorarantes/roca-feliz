@@ -1257,6 +1257,23 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 236, txt: "O Correio estava sem as novidades das últimas versões: agora todas aparecem aqui." },
+  { v: 235, txt: "Chocadeira bem maior no rancho e a colmeia virou uma árvore com a colmeia pendurada num galho, com abelhinhas em volta 🐝." },
+  { v: 234, txt: "Corrigido: a aba Pomar da Loja não abria por causa da colmeia." },
+  { v: 233, txt: "A chocadeira agora é um item do Inventário: ponha no rancho onde quiser (sem ela as aves não botam ovo). Na caçada, os bichos ganharam desenhos próprios (onça, raposa, lobos, veados, anta, tamanduá, capivara, ema…) e não teleportam mais para as moitas." },
+  { v: 231, txt: "Gatos no máximo 3 e araras no máximo 2 — e as araras agora voam junto com o seu avatar 🦜. Borboletas, sapos, porquinhos-da-índia e grilos voltaram à roça. Chegaram 5 animais novos: codorna, peru, ganso, pavão e lhama." },
+  { v: 230, txt: "Cada espécie reproduz no seu ritmo: 1 dia (aves e coelho), 2 (cabra, ovelha, porca), 3 (vaca, búfala, potro, burro, avestruz) e 5 (a rara onça-pintada, nível 35). Todos os animais agora produzem algo para vender: bacon, esterco, crina, leite de jumenta, pena de avestruz, pelo de onça… e a arara deixa presentes." },
+  { v: 229, txt: "Animais não se compram mais 🎁: vêm ao subir de nível, em missões da semana, de presente de amigos (amizade nível 2+) e da reprodução. Resgate em Loja › Animais. Quem tinha mais de 2 de uma espécie ficou com 2, e os outros foram vendidos e viraram moedas." },
+  { v: 228, txt: "Reprodução em casal: precisa de 2 animais da mesma espécie, alimentados. Ao clicar no bicho aparece quanto falta para o próximo ovo ou filhote." },
+  { v: 227, txt: "Na roça do amigo, os selos de Roça, Rancho e Negócios agora só mostram o que importa lá (a banca dele). Corrigido o botão 🆘 e a placa AJUDA das frutíferas secas." },
+  { v: 226, txt: "Colmeia 🍯 agora é do Pomar (Loja › Pomar): dá mel, até 4 por jogador." },
+  { v: 225, txt: "Cada abrigo agora cabe no máximo 6 animais." },
+  { v: 224, txt: "A tela de início do jogo agora aparece inteira com o celular deitado." },
+  { v: 220, txt: "Reprodução e chocadeira 🥚🐣: aves bem alimentadas botam ovos que chocam em 24h; mamíferos têm o filhote direto no abrigo." },
+  { v: 218, txt: "Celeiro: dá para bloquear os produtos que você não quer vender." },
+  { v: 217, txt: "Cada espécie de animal agora tem o seu abrigo no rancho." },
+  { v: 216, txt: "Frutífera que seca pede ajuda sozinha aos amigos; a ajuda dá só mais uma colheita." },
+  { v: 215, txt: "Missões, colheita automática do pomar e botão de ajuda consertados." },
   { v: 46, txt: 'Seu progresso agora é protegido: o jogo guarda uma cópia da roça por dia e dá para restaurar em ⚙️ › Cópias de segurança.' },
   { v: 51, txt: 'Notificações! Ative em ⚙️ › Notificações e receba avisos de colheita pronta, animais, fábrica, caminhão e amigos, mesmo com o jogo fechado.' },
   { v: 52, txt: 'Dê um nome para a sua fazenda e para o seu avatar em ⚙️ › Nomes. Quem visitar vai ver "[fazenda] de [avatar]".' },
@@ -1436,7 +1453,7 @@ function tickLife() {
     if (lifeLeft(a) > 0) continue;
     const d = ANIMAL[a.k];
     state.animals = state.animals.filter(x => x !== a); delete amb[a.id];
-    const msg = `${seuSua(d)} viveu ${d.periodo} dias e foi embora. Compre ${d.f ? 'outra' : 'outro'} na loja.`;
+    const msg = `${seuSua(d)} viveu ${d.periodo} dias e foi embora. Resgate ${d.f ? 'outra' : 'outro'} em Loja › Animais ou mantenha um casal para a reprodução repor.`;
     addNews(msg); toast(msg);
     changed = true;
   }
