@@ -1334,6 +1334,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 258, txt: "Negócios: nas receitas, a quantidade de planta que você tem aparece em vermelho quando é menor que 10, e ao fazer um produto que deixa menos de 10 plantas para replantar aparece um aviso com Sim e Não." },
   { v: 257, txt: "Nova curva de XP para subir de nível: até o nível 20 continua rápida, e depois cada nível pede só um pouco mais que o anterior (por volta de 10 mil XP no nível 42), em vez de explodir. Você mantém seu nível e seu XP." },
   { v: 256, txt: "As 4 plantas que você ganha ao liberar cada cultura já chegam bloqueadas (🔒 4), então não são vendidas sem querer; desbloqueie quando quiser. Corrigido também: um jogo novo começa com as 4 plantas de cada cultura do nível 1 no Celeiro." },
   { v: 255, txt: "Vizinhos da vila renovados 🏘️: chegaram o Seu Bastião (Fazenda Santa Rita) e a Dona Véia (Cantinho da Véia), com pedidos e presentes próprios (porteira e cadeira de balanço). Cada vizinho agora tem a casa (skin), as cercas e o jeito de plantar dele (fileiras, quadras, anéis e tabuleiro), com tantas terras quanto o nível dele libera e todas as árvores do pomar que ele já pode ter. E mudas e colheita viraram uma coisa só: o que você colhe é a planta, tudo fica no Celeiro (suas mudas antigas já foram para lá)." },
@@ -9102,12 +9103,15 @@ function comprarSlotFab(mid) {
   sfx('buy'); toast(`Novo espaço na ${M.nome}!`, 'good'); done();
 }
 const temIngredientes = (r, n = 1) => Object.entries(r.in).every(([id, q]) => (state.barn[id] || 0) >= q * n);
-function fabricar(id) {
+function fabricar(id, confirmado) {
   const r = RECEITA[id], mid = MAQUINA_DE[id], M = MAQUINA[mid], m = filaDe(mid), max = slotsMax(mid);
   if (state.level < r.nivel) return toast(`${r.nome} libera no nível ${r.nivel}.`);
   if (!max) return toast(`A ${M.nome} libera no nível ${M.slots[0].nivel}.`);
   if (m.fila.length >= max) return toast(`Os ${max} espaços da ${M.nome} estão ocupados. Recolha o que ficou pronto ou compre mais espaço.`);
   if (!temIngredientes(r)) return toast(`Faltam ingredientes para ${r.nome.toLowerCase()}.`, 'bad');
+  // plantas que ficariam com menos de 10 para replantar: pergunta antes
+  const sobras = Object.entries(r.in).filter(([iid, q]) => PRODUCE[iid] && (state.barn[iid] || 0) - q < PLANTAS_BAIXO).map(([iid, q]) => `${(state.barn[iid] || 0) - q} ${item(iid).nome.toLowerCase()}`);
+  if (sobras.length && !confirmado) return perguntar(`Ao fazer ${r.nome.toLowerCase()} vão sobrar só: ${sobras.join(', ')} (o ideal é ter pelo menos ${PLANTAS_BAIXO} de cada para plantar).\n\nQuer prosseguir?`, () => fabricar(id, true));
   for (const [iid, q] of Object.entries(r.in)) { state.barn[iid] -= q; if (!state.barn[iid]) delete state.barn[iid]; }
   // cada espaço trabalha sozinho: começa na hora
   const ini = Date.now();
@@ -9611,7 +9615,7 @@ function fabricaHTML() {
       const vis = receitasM.filter(r => r.nivel <= state.level), prox = receitasM.filter(r => r.nivel > state.level).slice(0, 1);
       for (const r of [...vis, ...prox]) {
         const locked = r.nivel > state.level, ok = !locked && temIngredientes(r) && m.fila.length < max;
-        const ing = Object.entries(r.in).map(([id, q]) => `<span class="${(state.barn[id] || 0) >= q ? '' : 'falta'}">${q} ${item(id) ? item(id).nome.toLowerCase() : id} (${state.barn[id] || 0})</span>`).join(' + ');
+        const ing = Object.entries(r.in).map(([id, q]) => `<span class="${(state.barn[id] || 0) >= q ? '' : 'falta'}">${q} ${item(id) ? item(id).nome.toLowerCase() : id} (${PRODUCE[id] && (state.barn[id] || 0) < PLANTAS_BAIXO ? `<b class="falta">${state.barn[id] || 0}</b>` : (state.barn[id] || 0)})</span>`).join(' + ');
         html += `<div class="row ${locked ? 'locked' : ''}"><img alt="" src="${productIcon(r.id)}"><div><div class="name">${r.nome}${state.barn[r.id] ? ` <span class="meta">(${state.barn[r.id]} no celeiro)</span>` : ''}</div>
           <div class="meta">${ing}<br>${fmt(r.tempo)} · vende por ${moeda(r.preco)}</div></div>
           ${locked ? `<button class="btn" disabled>Nível ${r.nivel}</button>` : `<button class="btn" data-fabricar="${r.id}" ${ok ? '' : 'disabled'}>Fazer</button>`}</div>`;
