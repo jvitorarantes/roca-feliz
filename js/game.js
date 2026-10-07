@@ -509,7 +509,7 @@ function newState() {
   const novVisto = typeof NOVIDADES !== 'undefined' ? NOVIDADES.reduce((m, n) => Math.max(m, n.v), 0) - 1 : 0;
   START_LOTS.forEach(i => plots[i].s = 'plowed');
   return {
-    v: 3, coins: 2000, xp: 0, level: 1, plots, barn: {}, owned: START_LOTS.length, exp: 0, novVisto, boasVindas: true,
+    v: 3, coins: 2000, xp: 0, level: 1, plots, barn: Object.fromEntries(CROPS.filter(c => c.nivel <= 1).map(c => [c.prod, 4])), owned: START_LOTS.length, exp: 0, novVisto, boasVindas: true,
     tool: 'hand', seed: 'feijao', t: Date.now(), nb: {}, tools: { enxada: false }, xpDay: { d: 0, c: {} },
     animals: [], decor: {}, abrigos: { galinheiro: 1 }, racaoEsp: 0,
     enfeites: { cerca: 40 }, cercaDada: 1, objetos: { roca: [], animais: [] }, pos: {}, invNovos: 0, skins: {}, skin: null,
@@ -520,7 +520,7 @@ function newState() {
     stats: { colheitas: 0, coletas: 0, vendido: 0, roubado: 0, ajudas: 0 },
     chocadeira: { ovos: [], level: 0 },
     animalCred: {}, animalNivel: {},
-    bloqueados: {}, plantasInit: 1, plantasUno: 1,
+    bloqueados: Object.fromEntries(CROPS.filter(c => c.nivel <= 1).map(c => [c.prod, 4])), plantasInit: 1,
     plantasDado: Object.fromEntries(CROPS.filter(c => c.nivel <= 1).map(c => [c.id, 1])),
   };
 }
@@ -714,7 +714,7 @@ function migrate(s) {
   s.plantasDado = s.plantasDado && typeof s.plantasDado === 'object' ? s.plantasDado : {};
   if (!s.plantasInit) {
     s.plantasInit = 1;
-    for (const c of CROPS) if (c.nivel <= s.level && !s.plantasDado[c.id]) { s.plantasDado[c.id] = 1; s.barn[c.prod] = (s.barn[c.prod] || 0) + 4; }
+    for (const c of CROPS) if (c.nivel <= s.level && !s.plantasDado[c.id]) { s.plantasDado[c.id] = 1; s.barn[c.prod] = (s.barn[c.prod] || 0) + 4; travarInicial(c, s.bloqueados); }
     s.invNovos = (s.invNovos || 0) + 1;
     s.news = [{ at: Date.now(), msg: 'Sem mais sementes 🌱: você ganhou 4 plantas de cada plantação que já liberou, guardadas no Celeiro. A colheita é a própria planta: plante o que colheu! Mais plantas vêm em missões, no caminhão, de amigos e na feira.' }].concat(Array.isArray(s.news) ? s.news : []);
   }
@@ -943,8 +943,8 @@ function addXP(n, pos) {
     for (const c of CROPS) {
       const dado = state.plantasDado || (state.plantasDado = {});
       if (c.nivel !== state.level || dado[c.id]) continue;
-      dado[c.id] = 1; darPlanta(c, 4);
-      novas.push(`+4 ${c.nome.toLowerCase()} para plantar`);
+      dado[c.id] = 1; darPlanta(c, 4); travarInicial(c);
+      novas.push(`+4 ${c.nome.toLowerCase()} para plantar (bloqueadas)`);
     }
     toast(`Nível ${state.level}! +${bonus} moedas · +${trevos} 🍀 · +1 ${premio.nome.toLowerCase()}` + (novas.length ? ` · novidades: ${novas.join(', ')}` : ''), 'good');
   }
@@ -1010,6 +1010,8 @@ function usePotion(p, pos) {
 // O que dá para plantar de cada cultura: o que você colheu e guardou no celeiro (colheita e planta são a mesma coisa).
 const plantaQtd = c => state.barn[c.prod] || 0;
 function gastaPlanta(c) { if ((state.barn[c.prod] || 0) > 0) { state.barn[c.prod]--; if (!state.barn[c.prod]) delete state.barn[c.prod]; } }
+// As 4 plantas que você ganha ao liberar uma cultura já vêm bloqueadas (guardadas) até você desbloquear.
+function travarInicial(c, obj) { const b = obj || state.bloqueados || (state.bloqueados = {}); if (b[c.prod] !== true) b[c.prod] = Math.max(Number(b[c.prod]) || 0, 4); }
 const darPlanta = (c, n) => { state.barn[c.prod] = (state.barn[c.prod] || 0) + n; };
 // Janelinha com as plantas que você tem: escolha uma e clique nas terras aradas.
 function abrirPlantPicker() {
@@ -1334,6 +1336,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 256, txt: "As 4 plantas que você ganha ao liberar cada cultura já chegam bloqueadas (🔒 4), então não são vendidas sem querer; desbloqueie quando quiser. Corrigido também: um jogo novo começa com as 4 plantas de cada cultura do nível 1 no Celeiro." },
   { v: 255, txt: "Vizinhos da vila renovados 🏘️: chegaram o Seu Bastião (Fazenda Santa Rita) e a Dona Véia (Cantinho da Véia), com pedidos e presentes próprios (porteira e cadeira de balanço). Cada vizinho agora tem a casa (skin), as cercas e o jeito de plantar dele (fileiras, quadras, anéis e tabuleiro), com tantas terras quanto o nível dele libera e todas as árvores do pomar que ele já pode ter. E mudas e colheita viraram uma coisa só: o que você colhe é a planta, tudo fica no Celeiro (suas mudas antigas já foram para lá)." },
   { v: 254, txt: "Celeiro: botão Vender todas as plantas no topo da aba Plantas, e todos os botões de vender tudo (geral e o Todos de cada item) agora perguntam 'Você tem certeza que quer vender tudo?' com Sim e Não." },
   { v: 253, txt: "A janela da mina ganhou mais espaço nas laterais: os textos não encostam mais na borda." },
