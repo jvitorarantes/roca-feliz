@@ -75,6 +75,12 @@ const PRODUCTS = [
   { id: 'leite',       nome: 'Leite',           preco: 300 },
   { id: 'mel',         nome: 'Mel',             preco: 400 },
   { id: 'leitebufala', nome: 'Leite de búfala', preco: 500 },
+  { id: 'esterco',     nome: 'Esterco',         preco: 110 },
+  { id: 'bacon',       nome: 'Bacon',           preco: 350 },
+  { id: 'leitejumenta', nome: 'Leite de jumenta', preco: 450 },
+  { id: 'crina',       nome: 'Crina de cavalo', preco: 650 },
+  { id: 'penaavestruz', nome: 'Pena de avestruz', preco: 800 },
+  { id: 'peloonca',    nome: 'Pelo de onça',    preco: 2500 },
 ];
 const PRODUCT = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
 // Materiais que os bichos da caçada deixam ao serem pegos (além das moedas): usados na fábrica, vendidos ou entregues no caminhão.
@@ -95,7 +101,12 @@ const PRESENTES_GATO = [
   { id: 'presentemisterioso', nome: 'Presente misterioso', nomePl: 'presentes misteriosos', preco: 480, peso: 2 },
 ];
 for (const p of PRESENTES_GATO) PRODUCT[p.id] = { ...p, gato: true };
-const PET_PRESENTES = { gato: PRESENTES_GATO };
+const PRESENTES_ARARA = [
+  { id: 'penaarara', nome: 'Pena de arara', nomePl: 'penas de arara', preco: 300, peso: 10 },
+  { id: 'ovoarara',  nome: 'Ovo de arara',  nomePl: 'ovos de arara',  preco: 520, peso: 3 },
+];
+for (const p of PRESENTES_ARARA) PRODUCT[p.id] = { ...p, gato: true };
+const PET_PRESENTES = { gato: PRESENTES_GATO, arara: PRESENTES_ARARA };
 const PET_EMOJI = { gato: '🐱', arara: '🦜' };
 function sortearPresentePet(pool) {
   const tot = pool.reduce((t, p) => t + (p.peso || 1), 0);
@@ -179,20 +190,22 @@ PRODUCT.leitao = { id: 'leitao', nome: 'Leitão', preco: 700 };
 // tipo 'cria': compra pequeno, alimenta 1 vez por dia (racao) e vende adulto por "venda".
 // tipo 'pet': companhia, não come nem produz. lugar: 'casa' ou 'curral'.
 const ANIMALS = [
-  { id: 'galinha',   tipo: 'prod', nome: 'Galinha',   f: 1, nivel: 2,  custo: 500,  racao: 20,  tempo: 4 * HOUR,  prod: 'ovo',         periodo: 30, xp: 2 },
-  { id: 'angola',    tipo: 'prod', nome: "Galinha-d'angola", f: 1, nivel: 3, custo: 700, racao: 25, tempo: 5 * HOUR, prod: 'ovoangola', periodo: 30, xp: 2 },
-  { id: 'pato',      tipo: 'prod', nome: 'Pato',      f: 0, nivel: 4,  custo: 900,  racao: 30,  tempo: 6 * HOUR,  prod: 'ovopata',     periodo: 30, xp: 3 },
-  { id: 'coelho',    tipo: 'prod', nome: 'Coelho',    f: 0, nivel: 5,  custo: 1200, racao: 40,  tempo: 8 * HOUR,  prod: 'pelo',        periodo: 30, xp: 3 },
-  { id: 'cabra',     tipo: 'prod', nome: 'Cabra',     f: 1, nivel: 7,  custo: 2000, racao: 60,  tempo: 8 * HOUR,  prod: 'leitecabra',  periodo: 45, xp: 4 },
-  { id: 'ovelha',    tipo: 'prod', nome: 'Ovelha',    f: 1, nivel: 8,  custo: 2500, racao: 80,  tempo: 10 * HOUR, prod: 'la',          periodo: 45, xp: 5 },
-  { id: 'vaca',      tipo: 'prod', nome: 'Vaca',      f: 1, nivel: 10, custo: 4000, racao: 120, tempo: 8 * HOUR,  prod: 'leite',       periodo: 45, xp: 5 },
-  { id: 'porca',     tipo: 'prod', nome: 'Porca',     f: 1, nivel: 15, custo: 5000, racao: 150, tempo: 24 * HOUR, prod: 'leitao',      periodo: 45, xp: 5, desenho: 'porco', escala: 1.15 },
-  { id: 'bufala',    tipo: 'prod', nome: 'Búfala',    f: 1, nivel: 18, custo: 8000, racao: 250, tempo: 12 * HOUR, prod: 'leitebufala', periodo: 60, xp: 7 },
-  { id: 'porco',     tipo: 'cria', nome: 'Porquinho', f: 0, nivel: 3,  custo: 1000, racao: 50,  tempo: 24 * HOUR, venda: 1600,  xp: 10 },
-  { id: 'bezerro',   tipo: 'cria', nome: 'Bezerro',   f: 0, nivel: 6,  custo: 2000, racao: 80,  tempo: 48 * HOUR, venda: 3200,  xp: 15, desenho: 'vaca' },
-  { id: 'potro',     tipo: 'cria', nome: 'Potro',     f: 0, nivel: 12, custo: 5000, racao: 120, tempo: 72 * HOUR, venda: 8000,  xp: 25, desenho: 'cavalo' },
-  { id: 'burro',     tipo: 'cria', nome: 'Burro',     f: 0, nivel: 14, custo: 3500, racao: 100, tempo: 60 * HOUR, venda: 5500,  xp: 20, desenho: 'jumento' },
-  { id: 'avestruz',  tipo: 'cria', nome: 'Avestruz',  f: 1, nivel: 20, custo: 8000, racao: 200, tempo: 96 * HOUR, venda: 13000, xp: 35 },
+  // repro = dias entre filhotes/ovos de um casal da espécie (sem repro, a espécie só nasce de outra)
+  { id: 'galinha',   tipo: 'prod', nome: 'Galinha',   f: 1, nivel: 2,  custo: 500,  racao: 20,  tempo: 4 * HOUR,  prod: 'ovo',         periodo: 30, xp: 2, repro: 1 },
+  { id: 'angola',    tipo: 'prod', nome: "Galinha-d'angola", f: 1, nivel: 3, custo: 700, racao: 25, tempo: 5 * HOUR, prod: 'ovoangola', periodo: 30, xp: 2, repro: 1 },
+  { id: 'pato',      tipo: 'prod', nome: 'Pato',      f: 0, nivel: 4,  custo: 900,  racao: 30,  tempo: 6 * HOUR,  prod: 'ovopata',     periodo: 30, xp: 3, repro: 1 },
+  { id: 'coelho',    tipo: 'prod', nome: 'Coelho',    f: 0, nivel: 5,  custo: 1200, racao: 40,  tempo: 8 * HOUR,  prod: 'pelo',        periodo: 30, xp: 3, repro: 1 },
+  { id: 'cabra',     tipo: 'prod', nome: 'Cabra',     f: 1, nivel: 7,  custo: 2000, racao: 60,  tempo: 8 * HOUR,  prod: 'leitecabra',  periodo: 45, xp: 4, repro: 2 },
+  { id: 'ovelha',    tipo: 'prod', nome: 'Ovelha',    f: 1, nivel: 8,  custo: 2500, racao: 80,  tempo: 10 * HOUR, prod: 'la',          periodo: 45, xp: 5, repro: 2 },
+  { id: 'vaca',      tipo: 'prod', nome: 'Vaca',      f: 1, nivel: 10, custo: 4000, racao: 120, tempo: 8 * HOUR,  prod: 'leite',       periodo: 45, xp: 5, repro: 3 },
+  { id: 'porca',     tipo: 'prod', nome: 'Porca',     f: 1, nivel: 15, custo: 5000, racao: 150, tempo: 24 * HOUR, prod: 'leitao',      periodo: 45, xp: 5, desenho: 'porco', escala: 1.15, repro: 2 },
+  { id: 'bufala',    tipo: 'prod', nome: 'Búfala',    f: 1, nivel: 18, custo: 8000, racao: 250, tempo: 12 * HOUR, prod: 'leitebufala', periodo: 60, xp: 7, repro: 3 },
+  { id: 'porco',     tipo: 'prod', nome: 'Porquinho', f: 0, nivel: 3,  custo: 1000, racao: 50,  tempo: 12 * HOUR, prod: 'bacon',       periodo: 45, xp: 4 },
+  { id: 'bezerro',   tipo: 'prod', nome: 'Bezerro',   f: 0, nivel: 6,  custo: 2000, racao: 80,  tempo: 12 * HOUR, prod: 'esterco',     periodo: 45, xp: 4, desenho: 'vaca', escala: 0.8 },
+  { id: 'potro',     tipo: 'prod', nome: 'Potro',     f: 0, nivel: 12, custo: 5000, racao: 120, tempo: 16 * HOUR, prod: 'crina',       periodo: 60, xp: 6, desenho: 'cavalo', repro: 3 },
+  { id: 'burro',     tipo: 'prod', nome: 'Burro',     f: 0, nivel: 14, custo: 3500, racao: 100, tempo: 14 * HOUR, prod: 'leitejumenta', periodo: 60, xp: 6, desenho: 'jumento', repro: 3 },
+  { id: 'avestruz',  tipo: 'prod', nome: 'Avestruz',  f: 1, nivel: 20, custo: 8000, racao: 200, tempo: 24 * HOUR, prod: 'penaavestruz', periodo: 60, xp: 8, repro: 3 },
+  { id: 'onca',      tipo: 'prod', nome: 'Onça-pintada', f: 1, nivel: 35, custo: 30000, racao: 500, tempo: 24 * HOUR, prod: 'peloonca', periodo: 90, xp: 15, repro: 5 },
   { id: 'gato',      tipo: 'pet',  nome: 'Gato',      f: 0, nivel: 4,  custo: 800,  lugar: 'casa' },
   { id: 'arara',     tipo: 'pet',  nome: 'Arara',     f: 1, nivel: 22, custo: 8000, lugar: 'casa', fixo: true },
 ];
@@ -220,9 +233,13 @@ const FILHOTES = {
   vaca: 'bezerro',      // vaca gera bezerro
   porca: 'porco',       // porca gera porquinho
   bufala: 'bufala',
+  potro: 'potro',
+  burro: 'burro',
+  avestruz: 'avestruz',
+  onca: 'onca',
 };
-const AVES = ['galinha', 'angola', 'pato']; // só aves botam ovos; mamíferos têm o filhote direto
-const TEMPO_REPRODUCAO = 7 * DAY; // 7 dias entre reproduções da mesma espécie
+const AVES = ['galinha', 'angola', 'pato', 'avestruz']; // só aves botam ovos; mamíferos têm o filhote direto
+const tempoRepro = k => ((ANIMAL[k] && ANIMAL[k].repro) || 3) * DAY; // cada espécie tem o seu intervalo (1 a 5 dias)
 // Animais não se compram: vêm de missões, de amigos, de chocar/reproduzir e de subir de nível.
 // Cada um vira um "crédito" (state.animalCred) que se resgata em Loja › Animais, no abrigo certo.
 const darAnimal = (k, n = 1) => { const c = state.animalCred || (state.animalCred = {}); c[k] = (c[k] || 0) + n; };
@@ -246,7 +263,7 @@ const ABRIGOS = [
   { id: 'chiqueiro',    nome: 'Chiqueiro',         o: 'o', nivel: 3,  precos: [1500, 3000, 6000],  bichos: ['porco', 'porca'] },
   { id: 'cocheira',     nome: 'Cocheira de Cavalo', o: 'a', nivel: 10, precos: [6000, 9000, 18000], bichos: ['potro'] },
   { id: 'jumentaria',   nome: 'Jumentaria',        o: 'a', nivel: 14, precos: [4000, 6000, 12000], bichos: ['burro'] },
-  { id: 'cercado',      nome: 'Viveiro de Avestruz', o: 'o', nivel: 15, precos: [8000, 12000, 24000], bichos: ['avestruz'] },
+  { id: 'cercado',      nome: 'Viveiro Exótico', o: 'o', nivel: 15, precos: [8000, 12000, 24000], bichos: ['avestruz', 'onca'] },
 ];
 const ABRIGO = Object.fromEntries(ABRIGOS.map(b => [b.id, b]));
 const ABRIGO_CAP = [0, 4, 6, 6];               // animais que cabem em cada nível
@@ -599,6 +616,10 @@ function migrate(s) {
   // animais não se compram mais: fica um casal de cada espécie, o resto é vendido e o valor vira moedas
   s.animalCred = s.animalCred && typeof s.animalCred === 'object' ? s.animalCred : {};
   s.animalNivel = s.animalNivel && typeof s.animalNivel === 'object' ? s.animalNivel : {};
+  if (!s.animaisProd && Array.isArray(s.animals)) {
+    s.animaisProd = 1;
+    for (const a of s.animals) if (a && ANIMAL[a.k] && ANIMAL[a.k].tipo === 'prod' && typeof a.fed !== 'boolean') Object.assign(a, { fed: true, g: 0, ready: false, n: a.n || 0 }); // antigos de criação: agora produzem
+  }
   if (!s.animaisReset && Array.isArray(s.animals)) {
     s.animaisReset = 1;
     s.animals = s.animals.filter(a => a && ANIMAL[a.k]);
@@ -1460,7 +1481,6 @@ function buyAnimal(k) {
   else if (d.lugar === 'casa' && state.animals.some(a => a.k === k)) return toast(`Você já tem ${d.f ? 'uma' : 'um'} ${d.nome.toLowerCase()} em casa.`);
   else if (d.tipo !== 'pet') {
     const qtd = state.animals.filter(a => a.k === k).length;
-    if (qtd >= 5) return toast(`Você já tem 5 ${d.nome.toLowerCase()}s! Venda um antes de resgatar mais.`, 'bad');
   }
   if (state.level < d.nivel) return toast(`${d.nome} libera no nível ${d.nivel}.`);
   const ab = d.lugar !== 'casa' && abrigoOf(k);
@@ -2262,13 +2282,13 @@ async function recuperarAmigos() {
 // ============================================================
 // Reprodução e chocadeira
 // ============================================================
-// Casal = 2 animais da mesma espécie. O relógio começa quando o casal se forma e, a cada TEMPO_REPRODUCAO,
+// Casal = 2 animais da mesma espécie. O relógio começa quando o casal se forma e, a cada tempoRepro(espécie),
 // se os dois estiverem alimentados, nasce um filhote (aves põem um ovo na chocadeira do rancho).
 const reproEspecies = () => Object.keys(FILHOTES).filter(k => ANIMAL[k] && ANIMAL[k].tipo === 'prod');
 function reproEstado(k) {
   const casal = state.animals.filter(a => a.k === k);
   const alim = casal.filter(a => a.fed || a.ready).length, ult = (state.ultima_reproducao || {})[k];
-  const falta = ult ? Math.max(0, ult + TEMPO_REPRODUCAO - Date.now()) : TEMPO_REPRODUCAO;
+  const falta = ult ? Math.max(0, ult + tempoRepro(k) - Date.now()) : tempoRepro(k);
   return { n: casal.length, alim, falta, par: casal.length >= 2 };
 }
 function reproTexto(k) {
@@ -2294,7 +2314,7 @@ function verificarReproducao() {
     const filhote = FILHOTES[k];
     if (!AVES.includes(k)) {
       const ab = abrigoOf(filhote);
-      if (!ab || vagas(state, ab.id) <= 0 || (ANIMAL[filhote].tipo !== 'cria' && state.animals.filter(x => x.k === filhote).length >= 5)) continue;
+      if (!ab || vagas(state, ab.id) <= 0) continue;
       state.animals.push(newAnimal(filhote));
       state.ultima_reproducao[k] = now;
       toast(`🐾 Nasceu ${ANIMAL[filhote].f ? 'uma' : 'um'} ${ANIMAL[filhote].nome.toLowerCase()}!`, 'good');
@@ -2342,7 +2362,7 @@ function tick(dt) {
   for (const p of state.plots) growPlot(p, dt, true);
   for (const a of state.animals) growAnimal(a, dt);
 
-  // Verificar reprodução a cada tick (mas controla com TEMPO_REPRODUCAO)
+  // Verificar reprodução a cada tick (cada espécie tem seu intervalo)
   verificarReproducao();
   hatcharOvos();
 }
@@ -3324,6 +3344,7 @@ function drawBug(x, y, s, t, k) {
 
 // Produtos dos animais, centrados em (x, y); s ≈ 1/10 do tamanho.
 function drawProduct(id, x, y, s) {
+  if (id === 'penaarara') id = 'pena'; else if (id === 'ovoarara') id = 'ovo';
   if (RECEITA[id]) return drawGood(id, x, y, s);
   if (PEIXE[id]) return drawPeixe(ctx, x, y, s * 0.85 * cabePeixe(PEIXE[id]), PEIXE[id]);
   if (FRUTA[id]) return drawFruta(id, x, y, s);
@@ -3340,10 +3361,10 @@ function drawProduct(id, x, y, s) {
     ctx.fillStyle = '#fff6df'; ctx.strokeStyle = '#cdb88c';
     ctx.beginPath(); ctx.ellipse(x, y + 1 * s, 4.6 * s, 6 * s, 0, 0, 7); ctx.fill(); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.ellipse(x - 1.6 * s, y - 1.5 * s, 1.1 * s, 1.8 * s, 0.3, 0, 7); ctx.fill();
-  } else if (id === 'leite' || id === 'leitecabra' || id === 'leitebufala') {
+  } else if (id === 'leite' || id === 'leitecabra' || id === 'leitebufala' || id === 'leitejumenta') {
     ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#9fb4c8';
     ctx.beginPath(); ctx.moveTo(x - 4 * s, y + 7 * s); ctx.lineTo(x - 4 * s, y - 1 * s); ctx.lineTo(x - 2 * s, y - 4 * s); ctx.lineTo(x + 2 * s, y - 4 * s); ctx.lineTo(x + 4 * s, y - 1 * s); ctx.lineTo(x + 4 * s, y + 7 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = { leite: '#3a7bd5', leitecabra: '#b07a44', leitebufala: '#3a3a3a' }[id]; ctx.fillRect(x - 2.3 * s, y - 6.5 * s, 4.6 * s, 2.6 * s);
+    ctx.fillStyle = { leite: '#3a7bd5', leitecabra: '#b07a44', leitebufala: '#3a3a3a', leitejumenta: '#8a6aa8' }[id]; ctx.fillRect(x - 2.3 * s, y - 6.5 * s, 4.6 * s, 2.6 * s);
     ctx.fillRect(x - 4 * s, y + 1.5 * s, 8 * s, 2.4 * s);
   } else if (id === 'la') {
     ctx.fillStyle = '#f3eee2'; ctx.strokeStyle = '#c8bda2';
@@ -3398,6 +3419,17 @@ function drawProduct(id, x, y, s) {
     for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(x + k * 0.6 * s, y - 6 * s); ctx.quadraticCurveTo(x + k * 1.2 * s, y, x + k * 1.6 * s + 1 * s, y + 6 * s); ctx.stroke(); }
     ctx.fillStyle = '#c8402f'; ctx.fillRect(x - 3 * s, y - 4 * s, 6 * s, 1.8 * s);
     ctx.lineCap = 'butt';
+  } else if (id === 'peloonca') {
+    ctx.fillStyle = '#e0a030'; ctx.strokeStyle = '#9a6a14';
+    for (const [dx, dy, r] of [[-2.5, 1, 3.8], [2.5, 1, 3.8], [0, -2, 4]]) { ctx.beginPath(); ctx.arc(x + dx * s, y + dy * s, r * s, 0, 7); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = '#3a2a14';
+    for (const [dx, dy] of [[-3, 1], [2.6, 1.6], [0, -2.4], [-0.5, 2.8]]) { ctx.beginPath(); ctx.arc(x + dx * s, y + dy * s, 0.9 * s, 0, 7); ctx.fill(); }
+  } else if (id === 'penaavestruz') {
+    line({ x: x + 3 * s, y: y + 7 * s }, { x: x - 2 * s, y: y - 7 * s }, '#8a7a5a', 0.8 * s);
+    ctx.save(); ctx.translate(x - 1 * s, y - 3 * s); ctx.rotate(-0.35);
+    ctx.fillStyle = '#f3f1ea'; ctx.strokeStyle = '#c9c3b3'; ctx.beginPath(); ctx.ellipse(0, 0, 3.8 * s, 6 * s, 0, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#d9d4c4'; ctx.beginPath(); ctx.ellipse(0, 1 * s, 2 * s, 3.4 * s, 0, 0, 7); ctx.fill();
+    ctx.restore();
   } else if (id === 'pena') {
     line({ x: x + 3 * s, y: y + 7 * s }, { x: x - 2 * s, y: y - 7 * s }, '#8a7a4a', 0.8 * s);
     ctx.save(); ctx.translate(x - 1 * s, y - 3 * s); ctx.rotate(-0.35);
@@ -3482,7 +3514,7 @@ function drawAnimal(k, x, y, s, t, dir, moving, cor) {
   const step = moving ? Math.sin(t / 90) : 0;
   ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1);
   ctx.fillStyle = 'rgba(0,0,0,.16)';
-  const shadow = { galinha: 9, vaca: 22, ovelha: 16, porco: 16, coelho: 9, angola: 9, pato: 10, jumento: 21, cavalo: 23, pavao: 12, cabra: 14, bufala: 23, abelha: 11, avestruz: 13, gato: 8, tartaruga: 9, arara: 7 }[k];
+  const shadow = { galinha: 9, vaca: 22, ovelha: 16, porco: 16, coelho: 9, angola: 9, pato: 10, jumento: 21, cavalo: 23, pavao: 12, cabra: 14, bufala: 23, abelha: 11, avestruz: 13, gato: 8, tartaruga: 9, arara: 7, onca: 17 }[k];
   ctx.beginPath(); ctx.ellipse(0, 0, shadow * s, shadow * 0.28 * s, 0, 0, 7); ctx.fill();
   const leg = (lx, len, col, w) => { ctx.fillStyle = col; ctx.fillRect(lx * s - w * s / 2, -len * s, w * s, len * s); };
   if (k === 'galinha') {
@@ -3689,6 +3721,21 @@ function drawAnimal(k, x, y, s, t, dir, moving, cor) {
     ctx.fillStyle = '#2f6e1e'; ctx.beginPath(); ctx.arc(8.4 * s, -11.6 * s, 0.75 * s, 0, 7); ctx.fill();
     ctx.fillStyle = '#e98a9a'; ctx.beginPath(); ctx.arc(10.3 * s, -10.4 * s, 0.6 * s, 0, 7); ctx.fill();
     ctx.lineCap = 'butt';
+  } else if (k === 'onca') {
+    const tail = Math.sin(t / 400) * 0.5, pel = '#e0a030', pintas = '#3a2a14';
+    ctx.strokeStyle = pel; ctx.lineWidth = 3 * s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-12 * s, -13 * s); ctx.quadraticCurveTo(-20 * s, -15 * s, -19 * s + tail * 5 * s, -24 * s); ctx.stroke(); ctx.lineCap = 'butt';
+    for (const [lx, ph] of [[-8, 1], [-4, -1], [6, -1], [10, 1]]) leg(lx + step * ph * 0.6, 8, '#c98a22', 2.8);
+    ctx.fillStyle = pel; ctx.beginPath(); ctx.ellipse(0, -12 * s, 14 * s, 6.4 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = pintas;
+    for (const [dx, dy] of [[-8, -14], [-3, -10], [2, -15], [7, -11], [-6, -9], [10, -14]]) { ctx.beginPath(); ctx.arc(dx * s, dy * s, 1.5 * s, 0, 7); ctx.fill(); }
+    ctx.fillStyle = pel; ctx.beginPath(); ctx.arc(14 * s, -17 * s, 5.6 * s, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(11 * s, -21 * s); ctx.lineTo(11.6 * s, -26 * s); ctx.lineTo(14.4 * s, -22 * s); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(15 * s, -22 * s); ctx.lineTo(17.4 * s, -25.6 * s); ctx.lineTo(18.4 * s, -20.4 * s); ctx.fill();
+    ctx.fillStyle = '#f3e3b8'; ctx.beginPath(); ctx.ellipse(17 * s, -15.4 * s, 2.6 * s, 2 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2f6e1e'; ctx.beginPath(); ctx.arc(15.6 * s, -18.2 * s, 0.9 * s, 0, 7); ctx.fill();
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(19 * s, -16.2 * s, 0.8 * s, 0, 7); ctx.fill();
+    ctx.fillStyle = pintas; for (const [dx, dy] of [[12, -20], [14, -14.6]]) { ctx.beginPath(); ctx.arc(dx * s, dy * s, 0.8 * s, 0, 7); ctx.fill(); }
   } else if (k === 'tartaruga') {
     const head = Math.sin(t / 900) * 0.8;
     ctx.fillStyle = '#8fae5a';
@@ -3717,7 +3764,7 @@ function drawAnimal(k, x, y, s, t, dir, moving, cor) {
   }
   ctx.restore();
 }
-const ANIMAL_H = { galinha: 24, vaca: 34, ovelha: 25, porco: 25, coelho: 22, angola: 23, pato: 22, jumento: 42, cavalo: 46, pavao: 30, cabra: 32, bufala: 36, abelha: 26, avestruz: 52, gato: 16, tartaruga: 9, arara: 46 };
+const ANIMAL_H = { galinha: 24, vaca: 34, ovelha: 25, porco: 25, coelho: 22, angola: 23, pato: 22, jumento: 42, cavalo: 46, pavao: 30, cabra: 32, bufala: 36, abelha: 26, avestruz: 52, gato: 16, tartaruga: 9, arara: 46, onca: 28 };
 const SMALL_ANIMALS = ['galinha', 'coelho', 'angola', 'pato', 'gato'];
 
 // ============================================================
@@ -5031,7 +5078,7 @@ function focusRow(id) {
 function chocadeiraHTML() {
   let html = '';
     html += `<h3>Chocadeira 🐣</h3>`;
-    html += `<p class="hint">Cada espécie precisa de um casal (2 animais) alimentado. Aves põem ovos aqui a cada ${TEMPO_REPRODUCAO / DAY} dias; mamíferos têm o filhote direto no abrigo.</p>`;
+    html += `<p class="hint">Cada espécie precisa de um casal (2 animais) alimentado. Aves (e avestruzes) põem ovos aqui; mamíferos têm o filhote direto no abrigo. O tempo depende da espécie: de 1 dia (galinhas, patos, coelhos…) a 5 dias (a rara onça-pintada).</p>`;
     for (const k of reproEspecies()) {
       if (!state.animals.some(a => a.k === k)) continue;
       html += `<div class="row"><img alt="" src="${animalIcon(k)}"><div><div class="name">${ANIMAL[k].nome}</div><div class="meta">${reproTexto(k)}</div></div><div></div></div>`;
@@ -5133,11 +5180,7 @@ function renderPane() {
       html += `<h3>Produção</h3>`;
       for (const d of visible('prod')) {
         const prodTxt = d.prod === 'leitao' ? 'leitões (viram porquinhos no chiqueiro)' : `${PRODUCT[d.prod].nome.toLowerCase()} (vende por ${PRODUCT[d.prod].preco})`;
-        html += row(d, `ração ${d.racao} por produção<br>${prodTxt} a cada ${fmt(d.tempo)}<br>vive ${d.periodo} dias · ${d.xp} XP por coleta`, buyBtn(d));
-      }
-      html += `<h3>Para criar e vender</h3>`;
-      for (const d of visible('cria')) {
-        html += row(d, `ração ${d.racao} por dia<br>cresce em ${fmt(d.tempo)} e vende por ${d.venda.toLocaleString('pt-BR')}<br>${d.xp} XP na venda`, buyBtn(d));
+        html += row(d, `ração ${d.racao} por produção<br>${prodTxt} a cada ${fmt(d.tempo)}<br>${d.repro ? `casal ${AVES.includes(d.id) ? 'bota ovo' : 'tem filhote'} a cada ${d.repro} dia${d.repro > 1 ? 's' : ''}` : 'nasce de outra espécie'} · vive ${d.periodo} dias · ${d.xp} XP por coleta`, buyBtn(d));
       }
       html += `<h3>Companhia</h3>`;
       for (const d of visible('pet')) html += row(d, `mora ${d.lugar === 'casa' ? 'dentro de casa' : (abrigoOf(d.id).o === 'a' ? 'na ' : 'no ') + abrigoOf(d.id).nome.toLowerCase()}<br>${PET_PRESENTES[d.id] ? `dá ${PET_PRESENTES[d.id][0].nomePl || PET_PRESENTES[d.id][0].nome.toLowerCase()} a cada ${fmt(GATO_PRESENTE_MS / 1000)} para vender · não come` : 'não come nem produz'} · carinho dá 2 XP por dia`, buyBtn(d));
@@ -5230,7 +5273,7 @@ function renderPane() {
     }
   } else if (tab === 'celeiro') {
     html += chaveAviso('celeiro', 'Mostrar a quantidade de itens no botão do Celeiro');
-    const items = [...Object.values(PRODUCE), ...PRODUCTS, ...PRODUTOS_CACA.map(p => PRODUCT[p.id]), ...PEIXES.map(p => PRODUCT[p.id]), ...FRUTAS.map(f => PRODUCT[f.id]), ...PRESENTES_GATO.map(p => PRODUCT[p.id]), ...PREMIOS_NIVEL.map(p => PRODUCT[p.id]), ...RECEITAS].filter(it => state.barn[it.id] > 0);
+    const items = [...Object.values(PRODUCE), ...PRODUCTS, ...PRODUTOS_CACA.map(p => PRODUCT[p.id]), ...PEIXES.map(p => PRODUCT[p.id]), ...FRUTAS.map(f => PRODUCT[f.id]), ...PRESENTES_GATO.map(p => PRODUCT[p.id]), ...PRESENTES_ARARA.map(p => PRODUCT[p.id]), ...PREMIOS_NIVEL.map(p => PRODUCT[p.id]), ...RECEITAS].filter(it => state.barn[it.id] > 0);
     let total = 0; for (const it of items) total += state.barn[it.id] * it.preco;
     html += `<h3>Celeiro</h3>`;
     if (!items.length) html += `<div class="empty">O celeiro está vazio.<br>Colha na roça e recolha ovos, leite, lã e trufas dos animais.</div>`;
