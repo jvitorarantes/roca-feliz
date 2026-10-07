@@ -1752,9 +1752,9 @@ function applyVisits(list) {
     if (v.t === 'help' && v.what === 'fruteira') {
       const sc = v.sc === 'animais' ? 'animais' : 'roca', l = objetosDe(state, sc);
       const o = l.find(x => v.fid && x.fid === v.fid) || (!v.fid && Number.isInteger(v.idx) ? l[v.idx] : null);
-      if (o && ENFEITE[o.id] && ENFEITE[o.id].fruteira && estadoFruteira(o).morta) {
-        o.colhidas = 0; o.ult = Date.now(); o.placa = 0; o.seca = 0;
-        note(`ajudou no seu pomar (${ENFEITE[o.id].nome.toLowerCase()} voltou a dar frutas)`); helpedBy(v.from, who);
+      if (o && ENFEITE[o.id] && ENFEITE[o.id].fruteira && estadoFruteira(o).morta && !o.ajudada) {
+        o.colhidas = Math.max(0, colheitasDe(ENFEITE[o.id]) - 1); o.ult = Date.now(); o.placa = 0; o.seca = 0; o.ajudada = 1;
+        note(`ajudou no seu pomar (${ENFEITE[o.id].nome.toLowerCase()} vai dar frutas mais uma vez)`); helpedBy(v.from, who);
       }
       continue;
     }
@@ -9880,7 +9880,7 @@ function colherFruteira(o) {
   for (let k = 0; k < rende; k++) collect(f.id, null);
   o.ult = Date.now(); o.colhidas = (o.colhidas || 0) + 1; state.stats.colheitas = (state.stats.colheitas || 0) + 1; track('colher');
   addXP(e.fruteira === 'arvore' ? 6 : 3, null);
-  if (o.colhidas >= colheitasDe(e)) o.seca = 1;
+  if (o.colhidas >= colheitasDe(e)) { o.seca = 1; if (!o.ajudada) avisarSecou(o); }
   ganharPomar(e.fruteira === 'arvore' ? 2 : 1);
   return rende;
 }
@@ -9888,26 +9888,34 @@ function colherFruteira(o) {
 const fruteirasProntas = () => ['roca', 'animais'].flatMap(sc => objetosDe(state, sc).filter(o => o && ENFEITE[o.id] && ENFEITE[o.id].fruteira && estadoFruteira(o).pronto));
 function estadoFruteira(o) {
   const e = ENFEITE[o.id], agora = Date.now(), t0 = o.t0 || agora, ult = o.ult || t0;
-  const restam = o.seca ? 0 : Math.max(0, colheitasDe(e) - (o.colhidas || 0)), morta = restam <= 0, pronto = !morta && agora - ult >= e.tempo * 1000;
+  const restam = o.seca ? 0 : Math.max(isHome() ? 0 : 1, colheitasDe(e) - (o.colhidas || 0)), morta = restam <= 0, pronto = !morta && agora - ult >= e.tempo * 1000;
   const falta = Math.max(0, ult + e.tempo * 1000 - agora);
   const f = FRUTA[e.fruta], resto = `${restam} colheita${restam > 1 ? 's' : ''} até secar`;
-  const txt = morta ? (o.placa ? 'Secou 🥀 · placa de ajuda posta: esperando um amigo ajudar 🤝'
-      : o.ajudada ? `Secou 🥀 de vez: já foi ajudada uma vez antes, não dá mais pra reviver. Derrube com ${e.fruteira === 'arvore' ? 'a motosserra' : 'a enxada de arrancar'}.`
-      : `Secou 🥀. Ponha a placa de ajuda para um amigo reviver, ou derrube com ${e.fruteira === 'arvore' ? 'a motosserra' : 'a enxada de arrancar'}.`)
+  const txt = morta ? (o.ajudada ? `Secou 🥀 de vez: já foi ajudada uma vez, não dá mais pra reviver. Derrube com ${e.fruteira === 'arvore' ? 'a motosserra' : 'a enxada de arrancar'}.`
+      : isHome() ? 'Secou 🥀 · seus amigos foram avisados: quando um ajudar, ela dá frutas mais uma vez 🤝'
+      : 'Secou 🥀 · precisa de ajuda! Toque para ajudar 🤝')
     : pronto ? `Pronta! ${rendeDe(e)} ${f.nome.toLowerCase()}s para colher · ${resto}`
     : `Próxima colheita em ${fmt(falta / 1000)} · ${resto}`;
   return { morta, pronto, falta, restam, txt };
 }
+// Frutífera seca pela primeira vez (ainda não ajudada): os amigos podem ajudar.
+const precisaAjuda = o => !!(o && o.seca && !o.ajudada && ENFEITE[o.id] && ENFEITE[o.id].fruteira);
 // Frutíferas dos amigos (na roça e no rancho) com a placa de ajuda.
-const pedidosAjuda = s => ['roca', 'animais'].reduce((n, sc) => n + (s && s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : []).filter(o => o && o.placa && ENFEITE[o.id] && ENFEITE[o.id].fruteira && (o.seca || (o.colhidas || 0) >= ENFEITE[o.id].colheitas)).length, 0);
+const pedidosAjuda = s => ['roca', 'animais'].reduce((n, sc) => n + (s && s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : []).filter(precisaAjuda).length, 0);
 // Põe a placa e avisa todos os amigos (aviso no celular e o botão "Precisa de ajuda" na lista de amigos).
 function pedirAjudaFruteira(sc, i) {
-  const o = objetosDe(state, sc)[i]; if (!o || !estadoFruteira(o).morta || o.placa || o.ajudada) return;
-  o.placa = Date.now(); o.seca = 1; o.fid = o.fid || newId();
+  const o = objetosDe(state, sc)[i]; if (!o || !estadoFruteira(o).morta || o.ajudada) return;
+  avisarSecou(o); sfx('buy');
   const e = ENFEITE[o.id];
+  done();
+  toast(state.friends.length ? `🔔 Seus amigos foram avisados de novo. Quando um ajudar, ${e.nome.toLowerCase()} dá frutas mais uma vez.` : 'Você ainda não tem amigos: adicione alguém em Amigos para ele poder ajudar.', 'good');
+}
+// Secou pela primeira vez: põe a placa AJUDA sozinha e avisa os amigos.
+function avisarSecou(o) {
+  const e = ENFEITE[o.id];
+  o.seca = 1; o.placa = o.placa || Date.now(); o.fid = o.fid || newId();
   for (const uid of state.friends) avisarAmigo(uid, 'ajuda', `${meuApelido()} precisa de ajuda: ${e.nome.toLowerCase()} secou no pomar 🥀 Passe lá para ajudar!`);
-  sfx('buy'); done(); if (user) cloudSave();
-  toast(state.friends.length ? `🪧 Placa posta! Seus amigos foram avisados. Quando um ajudar, ${e.nome.toLowerCase()} volta a dar frutas.` : '🪧 Placa posta! Mas você ainda não tem amigos: adicione alguém em Amigos para ele poder ajudar.', 'good');
+  if (user) cloudSave();
 }
 function derrubarFruteira(sc, i) {
   const o = objetosDe(state, sc)[i]; if (!o) return;
@@ -9920,9 +9928,8 @@ function derrubarFruteira(sc, i) {
 function menuFruteira(sc, i) {
   const o = objetosDe(state, sc)[i]; if (!o) return;
   const e = ENFEITE[o.id], fer = e.fruteira === 'arvore' ? 'motosserra' : 'enxada', F = FERR_DERRUBAR[fer], m = $('#ctxMenu'), q = iso(o.u, o.v);
-  m.innerHTML = `<b>${esc(e.nome)} secou 🥀</b>${o.placa ? '<span class="meta" style="display:block;margin:2px 0 6px">Placa posta: esperando um amigo ajudar</span>'
-    : o.ajudada ? '<span class="meta" style="display:block;margin:2px 0 6px">Já foi ajudada uma vez: não dá mais pra reviver</span>'
-    : '<button type="button" data-ctx="placa">🪧 Pedir ajuda aos amigos</button>'}<button type="button" data-ctx="derrubar">${ferrEmo(fer)} Derrubar (você tem ${derrubarDe()[fer]})</button><button type="button" data-ctx="fechar">Cancelar</button>`;
+  m.innerHTML = `<b>${esc(e.nome)} secou 🥀</b>${o.ajudada ? '<span class="meta" style="display:block;margin:2px 0 6px">Secou de vez: já foi ajudada uma vez</span>'
+    : '<span class="meta" style="display:block;margin:2px 0 6px">Esperando um amigo ajudar 🤝</span><button type="button" data-ctx="placa">🔔 Avisar os amigos de novo</button>'}<button type="button" data-ctx="derrubar">${ferrEmo(fer)} Derrubar (você tem ${derrubarDe()[fer]})</button><button type="button" data-ctx="fechar">Cancelar</button>`;
   m.dataset.key = 'enf:' + i; m.dataset.sc = sc; m.hidden = false;
   const w = m.offsetWidth, h = m.offsetHeight;
   m.style.left = `${clamp(q.x - w / 2, 6, L.cw - w - 6)}px`; m.style.top = `${clamp(q.y - L.W * 0.5 - h, 6, L.ch - h - 6)}px`;
@@ -9936,14 +9943,14 @@ function actFruteira(sc, i) {
   const o = objetosDe(S(), sc)[i]; if (!o) return;
   const e = ENFEITE[o.id], st = estadoFruteira(o), f = FRUTA[e.fruta];
   if (!isHome()) {
-    if (st.morta && o.placa && !o.ajudada && view.kind === 'friend') {
+    if (st.morta && !o.ajudada && view.kind === 'friend') {
       // ajudar a frutífera do amigo: não conta no limite do dia. Só pode ser ajudada uma vez na vida:
       // depois dessa, rende só mais 1 colheita e seca de vez (sem poder pedir ajuda de novo).
-      const key = visitKey('fr:' + (o.fid || i) + ':' + o.placa);
+      const key = visitKey('fr:' + (o.fid || i) + ':ajuda');
       if (state.log[key]) return toast('Você já ajudou esta. Obrigado! 🤝');
       state.log[key] = Date.now();
       const q = iso(o.u, o.v), pos = { x: q.x, y: q.y - L.W * 0.4 };
-      o.placa = 0; o.seca = 0; o.ajudada = 1; o.colhidas = Math.max(0, colheitasDe(e) - 1); o.ult = Date.now();
+      o.placa = 0; o.seca = 0; o.ajudada = 1; o.colhidas = Math.max(0, (o.colhidas || 0) - 1); o.ult = Date.now();
       help(pos); ganharPomar(1); addXP(3, pos); sfx('level'); popupAt(pos, 'Reviveu! 🌱', '#8fd16a');
       sendVisit({ t: 'help', what: 'fruteira', sc, fid: o.fid || '', idx: i });
       toast(`🤝 Você ajudou ${view.nome}: ${e.nome.toLowerCase()} vai dar fruta mais uma vez antes de secar de vez!`, 'good');
@@ -9961,12 +9968,12 @@ function actFruteira(sc, i) {
       toast(`🧺 Pegou 1 ${f.nome.toLowerCase()} do pomar de ${view.nome}!`, 'good');
       return done();
     }
-    return toast(`${e.nome} de ${view.nome}: ${st.morta ? (o.placa ? 'secou e está pedindo ajuda.' : 'secou.') : st.txt}`);
+    return toast(`${e.nome} de ${view.nome}: ${st.morta ? (o.ajudada ? 'secou de vez.' : 'secou e está pedindo ajuda.') : st.txt}`);
   }
   if (st.pronto) {
     const rende = colherFruteira(o); sfx('collect');
     const max = colheitasDe(e), acabou = !!o.seca, resta = max - o.colhidas;
-    toast(`🧺 +${rende} ${f.nome.toLowerCase()}s no celeiro!${acabou ? ` Foi a última: ${e.nome.toLowerCase()} secou. Toque nela para pedir ajuda aos amigos (ela volta a dar frutas) ou derrubar.` : ` Falta${resta > 1 ? 'm' : ''} ${resta} colheita${resta > 1 ? 's' : ''}.`}`, 'good');
+    toast(`🧺 +${rende} ${f.nome.toLowerCase()}s no celeiro!${acabou ? ` ${o.ajudada ? `Foi a última: ${e.nome.toLowerCase()} secou de vez. Agora é derrubar e plantar outra.` : `${e.nome} secou 🥀: seus amigos foram avisados. Se um ajudar, ela dá frutas mais uma vez.`}` : ` Falta${resta > 1 ? 'm' : ''} ${resta} colheita${resta > 1 ? 's' : ''}.`}`, 'good');
     return done();
   }
   if (st.morta) return menuFruteira(sc, i);
@@ -10002,7 +10009,7 @@ function drawFruta(id, x, y, s) {
 }
 // A frutífera no chão: arbusto redondinho ou árvore com tronco. Pronta = cheia de frutas; seca = galhos pelados.
 function drawFruteira(o, x, y, s, t, home) {
-  const e = ENFEITE[o.id], st = o.t0 ? estadoFruteira(o) : { pronto: true, morta: false }, f = FRUTA[e.fruta], arv = e.fruteira === 'arvore';
+  const e = ENFEITE[o.id], st = o.t0 || o.ult || o.seca || o.colhidas != null ? estadoFruteira(o) : { pronto: true, morta: false }, f = FRUTA[e.fruta], arv = e.fruteira === 'arvore';
   const seca = st.morta, pronto = st.pronto && !seca, sway = Math.sin(t / 900 + x * 0.03) * 0.6 * s;
   const bola = (cx, cy, r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + cx * s, y + cy * s, r * s, 0, 7); ctx.fill(); };
   const tronco = (pts, w, c) => { ctx.strokeStyle = c; ctx.lineWidth = w * s; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); pts.forEach(([px, py], k) => k ? ctx.lineTo(x + px * s, y + py * s) : ctx.moveTo(x + px * s, y + py * s)); ctx.stroke(); ctx.lineCap = 'butt'; };
@@ -10118,14 +10125,14 @@ function drawFruteira(o, x, y, s, t, home) {
   if (seca && arv && o.id !== 'jabuticabeira') for (const [dx, dy] of [[-16, -44], [16, -46], [3, -54]]) { ctx.strokeStyle = '#7a6a5a'; ctx.lineWidth = 1.2 * s; ctx.beginPath(); ctx.moveTo(x + dx * 0.7 * s, y + dy * 0.8 * s); ctx.lineTo(x + dx * s, y + dy * s - 5 * s); ctx.stroke(); }
   if (seca && !arv && o.id === 'framboeseira') { /* as hastes já ficam secas */ }
   // placa de ajuda fincada do lado
-  if (seca && o.placa) {
+  if (seca && !o.ajudada) {
     const px = x + (arv ? 22 : 18) * s, py = y + 2 * s;
     ctx.fillStyle = '#7a4a22'; ctx.fillRect(px - 1.5 * s, py - 24 * s, 3 * s, 24 * s);
     ctx.fillStyle = '#e8c07a'; ctx.strokeStyle = '#7a4a22'; ctx.lineWidth = 1.2 * s; ctx.beginPath(); ctx.roundRect(px - 13 * s, py - 32 * s, 26 * s, 12 * s, 2 * s); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#b3261e'; ctx.font = `800 ${Math.round(7 * s)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('AJUDA!', px, py - 25.6 * s); ctx.textBaseline = 'alphabetic';
   }
   // balãozinho em cima: pronta (cesta), seca (ferramenta) ou, na roça do amigo, pedindo ajuda (🤝)
-  if (!home && o.t0 && st.morta && o.placa && view.kind === 'friend') {
+  if (!home && st.morta && !o.ajudada && view.kind === 'friend') {
     const pu = 0.5 + 0.5 * Math.sin(t / 300);
     ctx.strokeStyle = `rgba(230,70,40,${0.5 + pu * 0.4})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y, (arv ? 34 : 26) * s * (1 + pu * 0.15), (arv ? 11 : 9) * s * (1 + pu * 0.15), 0, 0, 7); ctx.stroke();
     const by = y - (arv ? 72 : 36) * s + Math.sin(t / 250) * 3 * s, r = 10 * s;
@@ -10135,7 +10142,7 @@ function drawFruteira(o, x, y, s, t, home) {
   if (home && o.t0 && (st.pronto || st.morta)) {
     const by = y - (arv ? 72 : 36) * s + Math.sin(t / 300) * 2 * s, r = 9 * s;
     ctx.fillStyle = 'rgba(255,253,242,.95)'; ctx.strokeStyle = '#6b4220'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, by, r, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.font = `${Math.round(11 * s)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(st.morta ? (o.placa ? '🪧' : '🥀') : '🧺', x, by + 0.5); ctx.textBaseline = 'alphabetic';
+    ctx.font = `${Math.round(11 * s)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(st.morta ? (o.ajudada ? '🪓' : '🪧') : '🧺', x, by + 0.5); ctx.textBaseline = 'alphabetic';
   }
 }
 function pomarLojaHTML() {
