@@ -1335,6 +1335,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 266, txt: "Corrigido: o olho da raposa (e dos outros canídeos da caçada) aparecia lá em cima; agora fica na cabeça." },
   { v: 264, txt: "Atualização automática mais firme: ao abrir o jogo (e a cada poucos minutos com ele aberto) ele confere se há versão nova e se atualiza sozinho, avisando na tela. Se a primeira tentativa não pegar, tenta de novo com limpeza completa, sem precisar ir em Configurações › Atualizar." },
   { v: 263, txt: "Corrigido: o botão 🆘 Precisa de ajuda de um amigo continuava aceso mesmo depois de você ajudar a árvore dele. Agora ele apaga assim que você ajuda (e volta a acender se a ajuda não chegar em 12 horas)." },
   { v: 262, txt: "Corrigido: o menu do botão direito (Mover, Guardar…) e o segurar para mover tinham parado de funcionar em tudo (construções, itens, plantas e canteiros) por causa da entrada da mina, que não tinha área de clique. Voltou ao normal." },
@@ -11761,7 +11762,7 @@ function drawBicho(g, x, y, s, b, t, correndo) {
     g.beginPath(); g.moveTo(9 * k, cy - 7 * k); g.lineTo(9.5 * k, cy - 13.5 * k); g.lineTo(13 * k, cy - 8 * k); g.fill();
     g.beginPath(); g.moveTo(12.5 * k, cy - 8 * k); g.lineTo(15.5 * k, cy - 13 * k); g.lineTo(16.5 * k, cy - 7.5 * k); g.fill();
     g.fillStyle = '#222'; g.beginPath(); g.arc((14 + foc + 3.6) * k, cy - 3.6 * k, 1.1 * k, 0, 7); g.fill();
-    olho(13, cy - 5.5, 1.1);
+    olho(13, cy / k - 5.5, 1.1);
   } else if (b.forma === 'veado') {
     const leg = (px, d) => { g.strokeStyle = esc; g.lineWidth = 1.8 * k; g.beginPath(); g.moveTo(px * k, -13 * k); g.lineTo(px * k + d, 0); g.stroke(); };
     leg(-8, pe); leg(-4, -pe); leg(6, pe); leg(10, -pe);
