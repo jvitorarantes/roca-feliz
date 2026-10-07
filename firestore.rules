@@ -26,7 +26,7 @@ service cloud.firestore {
       match /visits/{visitId} {
         allow create: if signedIn() && me() != uid
                       && request.resource.data.from == me()
-                      && request.resource.data.t in ['help', 'steal', 'feed', 'stealA', 'gift', 'buy']
+                      && request.resource.data.t in ['help', 'steal', 'feed', 'stealA', 'stealF', 'gift', 'buy']
                       && request.resource.size() < 2000
                       && (me() in get(/databases/$(database)/documents/farms/$(uid)).data.get('friends', [])
                           || me() in get(/databases/$(database)/documents/farms/$(uid)).data.get('sent', [])

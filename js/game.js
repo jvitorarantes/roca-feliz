@@ -89,7 +89,7 @@ const PRODUCTS = [
 ];
 const PRODUCT = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
 // Mudas (a planta inteira, para replantar): ficam em state.plantas, não no celeiro. Dá para vender na banca e trocar com amigos.
-for (const c of CROPS) PRODUCT['p_' + c.id] = { id: 'p_' + c.id, nome: 'Muda de ' + c.nome.toLowerCase(), nomePl: 'mudas de ' + c.nome.toLowerCase(), preco: Math.max(20, Math.round(c.preco * c.rend * 0.4)), muda: c.id };
+for (const c of CROPS) PRODUCT['p_' + c.id] = { id: 'p_' + c.id, nome: 'Muda de ' + c.nome.toLowerCase(), nomePl: 'mudas de ' + c.nome.toLowerCase(), preco: Math.max(30, Math.round(c.preco * c.rend * 2)), muda: c.id };
 // Materiais que os bichos da caçada deixam ao serem pegos (além das moedas): usados na fábrica, vendidos ou entregues no caminhão.
 const PRODUTOS_CACA = [
   { id: 'carnejavali', nome: 'Carne de javali',      nomePl: 'carnes de javali',      preco: 60 },
@@ -361,9 +361,9 @@ const DOG_NAMES = ['Totó', 'Rex', 'Pipoca', 'Thor', 'Mel', 'Bidu', 'Paçoca', '
 const SLOT = { roca: { a: 'a roça', aSua: 'a sua roça', daSua: 'da sua roça', A: 'A roça' }, animais: { a: 'o rancho', aSua: 'o seu rancho', daSua: 'do seu rancho', A: 'O rancho' } };
 const STEAL_MAX = { roca: 4, animais: 3 }; // itens por amigo por dia (roca conta plantação e pomar juntos)
 function stealMaxForLevel(uid, slot) {
+  // sobe com os corações: roça de 4 a 6 itens (3 e 6 corações), animais de 3 a 5 (4 e 8 corações)
   const nivel = nivelAmizade(uid);
-  if (nivel >= 5) return slot === 'roca' ? 6 : 4;
-  return STEAL_MAX[slot];
+  return slot === 'roca' ? Math.min(6, 4 + (nivel >= 3) + (nivel >= 6)) : 3 + (nivel >= 4) + (nivel >= 8);
 }
 // Dia pelo relógio do aparelho: os limites voltam à meia-noite.
 const localDay = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / DAY);
@@ -1303,6 +1303,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 242, txt: "Amizade ❤️ mais útil: o limite de pegar coisas na roça do amigo sobe com os corações (roça de 4 a 6 itens, animais de 3 a 5) e o pomar agora segue o mesmo limite. Mudas ficaram mais caras e a ferramenta Semente virou Planta." },
   { v: 241, txt: "Aviso do milho 🌽: o milho do celeiro é a isca da pesca e das armadilhas. Quando tiver menos de 10, aparece um aviso vermelho para você não ficar sem." },
   { v: 240, txt: "Feira da vizinhança 🧺 (Negócios › Feira): 8 barracas com itens novos a cada 6 horas — plantas, rações, ovos, fertilizantes e mais. Clicar numa terra arada agora mostra as plantas que você tem para escolher, o Celeiro tem a lista de plantas com botão Plantar, e o aviso de poucas plantas ficou menor e não cobre mais a Loja." },
   { v: 239, txt: "Plantas sem semente 🌱: em Loja › Plantas você escolhe uma planta e clica em quantas terras aradas quiser. Ganhe mais plantas em missões diárias e semanais, nos pedidos do caminhão, de presente específico dos amigos (🎁 › Plantas) e comprando mudas na banca de amigos e vizinhos (e venda as suas na sua banca). Aviso vermelho quando uma planta tiver menos de 10. As fazendas dos vizinhos agora têm tudo que o nível deles permite." },
@@ -4771,7 +4772,7 @@ const TOOL_ICONS = {
 const GOOGLE_G = '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
 const TOOLS = [
   { id: 'hand', nome: 'Mão' }, { id: 'hoe', nome: 'Enxadão' }, { id: 'water', nome: 'Regar' },
-  { id: 'pest', nome: 'Inseticida' }, { id: 'seed', nome: 'Semente' },
+  { id: 'pest', nome: 'Inseticida' }, { id: 'seed', nome: 'Planta' },
   { id: 'fert', nome: 'Adubo' },
 ];
 const HOME_ONLY = ['seed', 'hoe', 'fert'];
@@ -5511,7 +5512,7 @@ function renderPane() {
         const armed = unfriendArmed === uid;
         html += `<div class="row ${here ? 'sel' : ''}">${avatar(f && f.photo, name, '#7aa35a', f && f.moldura)}
           <div><div class="name">${esc(name)}${owes(uid) ? '<span class="tag">ajudou você</span>' : ''}</div><div class="meta">${bolinhaStatus(uid)} · ${f && f.erro ? 'Não deu para ver a roça: toque em Reatar' : f ? `${esc(f.fazenda || 'Roça Feliz')} · nível ${f.level}` : 'Ainda não entrou no jogo'}${owes(uid) ? ` · ajude de volta: +${AJUDA_BONUS.moedas} moedas` : ''}</div>
-          <div class="meta" title="Amizade: ajude ou presenteie para subir">${'❤️'.repeat(nivelAmizade(uid))}${'🤍'.repeat(AMIZADE_NIVEL_MAX - nivelAmizade(uid))} · presentes ${nivelAmizade(uid) ? 'melhores' : 'melhoram com a amizade'}</div></div>
+          <div class="meta" title="Amizade: ajude ou presenteie para subir">${nivelAmizade(uid) > 5 ? `❤️ ${nivelAmizade(uid)}/${AMIZADE_NIVEL_MAX}` : '❤️'.repeat(nivelAmizade(uid)) + '🤍'.repeat(5 - nivelAmizade(uid))} · presentes ${nivelAmizade(uid) ? 'melhores' : 'melhoram com a amizade'}</div></div>
           <div class="stack">${here ? `<button class="btn ghost" data-home>Voltar</button>` : (f && f.erro ? `<button class="btn" data-reatar="${esc(uid)}">Reatar</button>` : `<button class="btn" data-visit-friend="${esc(uid)}" ${f ? '' : 'disabled'}>Visitar</button>`)}
           ${here ? '' : `<button class="btn ${pedeAjuda(uid) ? 'socorro' : 'ghost'}" data-ajudar-friend="${esc(uid)}" ${pedeAjuda(uid) ? '' : 'disabled title="Nenhuma frutífera pedindo ajuda agora"'}>🆘 Precisa de ajuda${pedeAjuda(uid) > 1 ? ` (${pedeAjuda(uid)})` : ''}</button>`}
           <button class="btn" data-chat="${esc(uid)}" ${f && !f.erro ? '' : 'disabled'}>💬 Conversar${naoLidas(uid) ? ` <span class="badge" aria-label="${naoLidas(uid)} mensagens novas">${naoLidas(uid)}</span>` : ''}</button>
@@ -5529,7 +5530,7 @@ function renderPane() {
         }
       }
     }
-    html += `<p class="hint">Hoje você já pegou coisas em ${farmsToday()} ${farmsToday() === 1 ? 'roça' : 'roças'} (sem limite de quantas). Em cada uma dá para pegar ${STEAL_MAX.roca} itens da plantação e do pomar, e ${STEAL_MAX.animais} dos animais. Tudo volta à meia-noite.</p>`;
+    html += `<p class="hint">Hoje você já pegou coisas em ${farmsToday()} ${farmsToday() === 1 ? 'roça' : 'roças'} (sem limite de quantas). Em cada uma dá para pegar ${STEAL_MAX.roca} itens da plantação e do pomar, e ${STEAL_MAX.animais} dos animais; com mais corações ❤️ de amizade o limite sobe (até 6 e 5). Tudo volta à meia-noite.</p>`;
     html += `<h3>Vizinhos da vila</h3><p class="hint">Sempre tem alguém em casa por aqui. Cada vizinho tem um cachorro de guarda.</p>`;
     for (const n of NEIGHBORS) {
       const here = view.kind === 'npc' && view.id === n.id;
@@ -9104,7 +9105,7 @@ function novaFeira() {
   const mudas = Math.min(cultivos.length, 3);
   while (slots.filter(x => x.t === 'item' && PRODUCT[x.id] && PRODUCT[x.id].muda).length < mudas) {
     const c = sorteia(cultivos); if (usadas.has(c.id)) continue; usadas.add(c.id);
-    const qtd = 3 + Math.floor(Math.random() * 6), id = 'p_' + c.id;
+    const qtd = 2 + Math.floor(Math.random() * 4), id = 'p_' + c.id;
     slots.push({ t: 'item', id, qtd, preco: pr(valorDe(id), qtd, 1.1) });
   }
   for (const lista of [FEIRA_OVOS, [...FEIRA_PRODUTOS, ...FEIRA_OVOS]]) {
@@ -10556,7 +10557,8 @@ function actFruteira(sc, i) {
     if (st.pronto) {
       const key = visitKey('fr:' + (o.fid || i)), lim = stealLimit();
       if (alreadyTook(o, key)) return toast('Você já pegou daqui. Não exagere!');
-      if (lim.roca >= STEAL_MAX.roca) return toast(`Você já pegou ${STEAL_MAX.roca} itens da plantação e do pomar de ${view.nome} hoje. À meia-noite libera de novo!`);
+      const maxRocaF = view.kind === 'friend' ? stealMaxForLevel(view.uid, 'roca') : STEAL_MAX.roca;
+      if (lim.roca >= maxRocaF) return toast(`Você já pegou ${maxRocaF} itens da plantação e do pomar de ${view.nome} hoje. À meia-noite libera de novo!`);
       const q = iso(o.u, o.v), pos = { x: q.x, y: q.y - L.W * 0.4 };
       lim.roca++; state.log[key] = Date.now();
       if (guarded(sc, pos, { t: 'stealF', sc, fid: o.fid || '', idx: i })) return done();
