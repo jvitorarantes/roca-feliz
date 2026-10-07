@@ -98,6 +98,18 @@ const PRODUTOS_CACA = [
   { id: 'presa',       nome: 'Presa de chupa-cabra', nomePl: 'presas de chupa-cabra', preco: 300 },
 ];
 for (const p of PRODUTOS_CACA) PRODUCT[p.id] = { ...p, caca: true };
+// Minérios da mina (os dados ficam aqui em cima porque as receitas da fábrica precisam do preço deles)
+const MINERIOS = [
+  { id: 'pedra',  nome: 'Pedra',  nomePl: 'pedras',  preco: 6,    nivel: 6,  hp: 2,  volta: 150e3,  peso: 40, qtd: [1, 3], xp: 1,  cor: ['#a8a8a8', '#6e6e72'], brilho: null },
+  { id: 'carvao', nome: 'Carvão', nomePl: 'carvões', preco: 14,   nivel: 6,  hp: 3,  volta: 240e3,  peso: 26, qtd: [1, 3], xp: 2,  cor: ['#4a4a52', '#222228'], brilho: '#8a8a96' },
+  { id: 'ferro',  nome: 'Minério de ferro', nomePl: 'minérios de ferro', preco: 45, nivel: 9, hp: 4, volta: 480e3, peso: 16, qtd: [1, 2], xp: 3, cor: ['#a58a78', '#6a5547'], brilho: '#d6a58a' },
+  { id: 'cobre',  nome: 'Cobre',  nomePl: 'cobres',  preco: 80,   nivel: 12, hp: 5,  volta: 900e3,  peso: 10, qtd: [1, 2], xp: 4,  cor: ['#a8785a', '#6e4a36'], brilho: '#e8883c' },
+  { id: 'prata',  nome: 'Prata',  nomePl: 'pratas',  preco: 170,  nivel: 17, hp: 7,  volta: 1800e3, peso: 6,  qtd: [1, 2], xp: 6,  cor: ['#9aa6b0', '#5e6a76'], brilho: '#eef4fa' },
+  { id: 'ouro',   nome: 'Ouro',   nomePl: 'ouros',   preco: 420,  nivel: 23, hp: 10, volta: 3600e3, peso: 3,  qtd: [1, 1], xp: 9,  cor: ['#9c8a5a', '#5e5232'], brilho: '#ffd84a' },
+  { id: 'gema',   nome: 'Gema',   nomePl: 'gemas',   preco: 1100, nivel: 30, hp: 14, volta: 7200e3, peso: 1,  qtd: [1, 1], xp: 14, cor: ['#6a8a9a', '#3a5260'], brilho: '#7bf0e0' },
+];
+const MINERIO = Object.fromEntries(MINERIOS.map(m => [m.id, m]));
+for (const m of MINERIOS) PRODUCT[m.id] = { id: m.id, nome: m.nome, nomePl: m.nomePl, preco: m.preco, mina: true };
 // Presentinhos que cada gato traz a cada 12h (hora certa, não é sorteio): vende no celeiro que nem qualquer produto.
 const GATO_PRESENTE_MS = 12 * 3600e3;
 const PRESENTES_GATO = [
@@ -1304,6 +1316,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 245, txt: "Forja & Joalheria ⚒️ (Negócios › Fábrica, a partir do nível 8): transforme os minérios da mina em tijolo, barras de ferro, cobre, prata e ouro, e depois em ferradura, panela de cobre, pingente de prata, aliança de ouro e anel de gema. As barras são ingredientes das peças, e tudo vale bem mais que o minério puro." },
   { v: 244, txt: "A janelinha que abre ao clicar na terra arada agora mostra o tempo de crescimento e quanto cada planta rende." },
   { v: 243, txt: "Mina ⛏️ (nível 6): a terceira área do jogo, ao lado da roça e do rancho. Quebre pedras, carvão, ferro, cobre, prata, ouro e gemas com a picareta (melhore na placa da mina). Os minérios vão para o celeiro, a banca e o caminhão, e tem missão de mina. Chocadeira com 5 níveis: choca mais rápido, cabe mais ovo, e dá chance de gêmeos, cor rara 🌈 e raça rara 💎 (produz mais). Mais jeitos de ganhar animal: missão diária (12%), pedidos do caminhão, top 3 do ranking, melhor vizinho, feira da vizinhança e Loja do Trevo. Corrigido: os ovos agora levam as horas de verdade para chocar." },
   { v: 242, txt: "Amizade ❤️ mais útil: o limite de pegar coisas na roça do amigo sobe com os corações (roça de 4 a 6 itens, animais de 3 a 5) e o pomar agora segue o mesmo limite. Mudas ficaram mais caras e a ferramenta Semente virou Planta." },
@@ -8887,6 +8900,17 @@ const RECEITAS = [
   { id: 'pintadoass',  nome: 'Pintado assado',      nivel: 10, in: { pintado: 1, molho: 1 },             tempo: HOUR,     forma: 'prato',  cor: '#c7c1b3', peixe: 'pintado' },
   { id: 'douradobr',   nome: 'Dourado na brasa',    nivel: 13, in: { dourado: 1, cebola: 2 },            tempo: 90 * MIN, forma: 'prato',  cor: '#f2b705', peixe: 'dourado' },
   { id: 'casaca',      nome: 'Pirarucu de casaca',  nivel: 18, in: { pirarucu: 1, farofa: 2, banana: 3 }, tempo: 2 * HOUR, forma: 'prato',  cor: '#6b5a4a', peixe: 'pirarucu' },
+  // forja e joalheria: transformam os minérios da mina (as barras vêm antes: outras receitas usam elas)
+  { id: 'tijolo',       nome: 'Tijolo',            nivel: 8,  in: { pedra: 4 },                       tempo: 20 * MIN, forma: 'tijolo',    cor: '#b5532f' },
+  { id: 'lingoteferro', nome: 'Barra de ferro',    nivel: 9,  in: { ferro: 3, carvao: 2 },            tempo: 40 * MIN, forma: 'lingote',   cor: '#9aa0a8' },
+  { id: 'ferradura',    nome: 'Ferradura',         nivel: 11, in: { lingoteferro: 1 },                tempo: 45 * MIN, forma: 'ferradura', cor: '#6e7480' },
+  { id: 'lingotecobre', nome: 'Barra de cobre',    nivel: 12, in: { cobre: 3, carvao: 2 },            tempo: HOUR,     forma: 'lingote',   cor: '#c8743a' },
+  { id: 'panelacobre',  nome: 'Panela de cobre',   nivel: 14, in: { lingotecobre: 2 },                tempo: 90 * MIN, forma: 'panela',    cor: '#c8743a' },
+  { id: 'lingoteprata', nome: 'Barra de prata',    nivel: 17, in: { prata: 3, carvao: 3 },            tempo: 2 * HOUR, forma: 'lingote',   cor: '#d6dde4' },
+  { id: 'pingente',     nome: 'Pingente de prata', nivel: 19, in: { lingoteprata: 1 },                tempo: 90 * MIN, forma: 'joia',      cor: '#d6dde4' },
+  { id: 'lingoteouro',  nome: 'Barra de ouro',     nivel: 23, in: { ouro: 2, carvao: 4 },             tempo: 3 * HOUR, forma: 'lingote',   cor: '#ffd84a' },
+  { id: 'alianca',      nome: 'Aliança de ouro',   nivel: 25, in: { lingoteouro: 1 },                 tempo: 2 * HOUR, forma: 'joia',      cor: '#ffd84a' },
+  { id: 'aneldegema',   nome: 'Anel de gema',      nivel: 30, in: { lingoteouro: 1, gema: 1 },        tempo: 4 * HOUR, forma: 'joia',      cor: '#7bf0e0' },
   // artesanato com o que a caçada deixa (pena, pata, presa)
   { id: 'cocar',    nome: 'Cocar de penas',       nivel: 10, in: { pena: 4 },                            tempo: 45 * MIN, forma: 'novelo',   cor: '#3f9a5a' },
   { id: 'amuleto',  nome: 'Amuleto de pata',      nivel: 10, in: { pata: 2 },                            tempo: HOUR,     forma: 'manteiga', cor: '#8a6234' },
@@ -8918,6 +8942,9 @@ const MAQUINAS = [
   { id: 'suqueira',   nome: 'Suqueira', emoji: '🧃',
     receitas: ['sucouva', 'sucolar'],
     slots: [{ nivel: 15, custo: 0 }, { nivel: 20, custo: 900 }, { nivel: 26, custo: 2000 }, { nivel: 34, custo: 4000 }, { nivel: 44, custo: 7200 }, { nivel: 56, custo: 12000 }] },
+  { id: 'forja',      nome: 'Forja & Joalheria', emoji: '⚒️',
+    receitas: ['tijolo', 'lingoteferro', 'ferradura', 'lingotecobre', 'panelacobre', 'lingoteprata', 'pingente', 'lingoteouro', 'alianca', 'aneldegema'],
+    slots: [{ nivel: 8, custo: 0 }, { nivel: 16, custo: 900 }, { nivel: 24, custo: 2000 }, { nivel: 32, custo: 4000 }, { nivel: 42, custo: 7500 }, { nivel: 54, custo: 13000 }] },
   { id: 'artesanato', nome: 'Artesanato da caçada', emoji: '🪶',
     receitas: ['cocar', 'amuleto', 'colar'],
     slots: [{ nivel: 10, custo: 0 }, { nivel: 20, custo: 800 }, { nivel: 28, custo: 1800 }, { nivel: 36, custo: 3600 }, { nivel: 46, custo: 7000 }, { nivel: 58, custo: 12000 }] },
@@ -9203,17 +9230,6 @@ function feiraHTML() {
 // Uma grade de pedras que você quebra com a picareta. Cada pedra volta depois de um tempo.
 // Pedra, carvão, ferro, cobre, prata, ouro e gemas vão para o celeiro e valem moedas, pedidos do caminhão e missões.
 const MINA_N = 7, MINA_NIVEL = 6;
-const MINERIOS = [
-  { id: 'pedra',  nome: 'Pedra',  nomePl: 'pedras',  preco: 6,    nivel: 6,  hp: 2,  volta: 150e3,  peso: 40, qtd: [1, 3], xp: 1,  cor: ['#a8a8a8', '#6e6e72'], brilho: null },
-  { id: 'carvao', nome: 'Carvão', nomePl: 'carvões', preco: 14,   nivel: 6,  hp: 3,  volta: 240e3,  peso: 26, qtd: [1, 3], xp: 2,  cor: ['#4a4a52', '#222228'], brilho: '#8a8a96' },
-  { id: 'ferro',  nome: 'Minério de ferro', nomePl: 'minérios de ferro', preco: 45, nivel: 9, hp: 4, volta: 480e3, peso: 16, qtd: [1, 2], xp: 3, cor: ['#a58a78', '#6a5547'], brilho: '#d6a58a' },
-  { id: 'cobre',  nome: 'Cobre',  nomePl: 'cobres',  preco: 80,   nivel: 12, hp: 5,  volta: 900e3,  peso: 10, qtd: [1, 2], xp: 4,  cor: ['#a8785a', '#6e4a36'], brilho: '#e8883c' },
-  { id: 'prata',  nome: 'Prata',  nomePl: 'pratas',  preco: 170,  nivel: 17, hp: 7,  volta: 1800e3, peso: 6,  qtd: [1, 2], xp: 6,  cor: ['#9aa6b0', '#5e6a76'], brilho: '#eef4fa' },
-  { id: 'ouro',   nome: 'Ouro',   nomePl: 'ouros',   preco: 420,  nivel: 23, hp: 10, volta: 3600e3, peso: 3,  qtd: [1, 1], xp: 9,  cor: ['#9c8a5a', '#5e5232'], brilho: '#ffd84a' },
-  { id: 'gema',   nome: 'Gema',   nomePl: 'gemas',   preco: 1100, nivel: 30, hp: 14, volta: 7200e3, peso: 1,  qtd: [1, 1], xp: 14, cor: ['#6a8a9a', '#3a5260'], brilho: '#7bf0e0' },
-];
-const MINERIO = Object.fromEntries(MINERIOS.map(m => [m.id, m]));
-for (const m of MINERIOS) PRODUCT[m.id] = { id: m.id, nome: m.nome, nomePl: m.nomePl, preco: m.preco, mina: true };
 // Picareta: cada nível quebra mais rápido (dano por batida) e dá mais chance de uma unidade extra.
 const PICARETA = { max: 5, custo: [0, 0, 1500, 6000, 20000, 60000], nivelJ: [0, 1, 8, 14, 20, 28] };
 const minaDe = () => {
@@ -9468,6 +9484,18 @@ function drawGood(id, x, y, s) {
     ctx.fillStyle = 'rgba(230,245,255,.9)'; ctx.fillRect(x - 3.5 * s, y - 3 * s, 7 * s, 10 * s); ctx.strokeRect(x - 3.5 * s, y - 3 * s, 7 * s, 10 * s);
     ctx.fillStyle = c; ctx.fillRect(x - 3 * s, y, 6 * s, 6.5 * s);
     ctx.fillStyle = 'rgba(230,245,255,.9)'; ctx.fillRect(x - 1.5 * s, y - 7 * s, 3 * s, 4 * s); ctx.fillStyle = '#4f9a2f'; ctx.fillRect(x - 1.8 * s, y - 8 * s, 3.6 * s, 1.6 * s);
+  } else if (f === 'tijolo') {
+    for (const [dx, dy] of [[-3.2, 1.5], [3.2, 1.5], [0, -2.6]]) { ctx.fillStyle = c; ctx.fillRect(x + (dx - 3) * s, y + (dy - 1.8) * s, 6 * s, 3.6 * s); ctx.strokeRect(x + (dx - 3) * s, y + (dy - 1.8) * s, 6 * s, 3.6 * s); }
+  } else if (f === 'lingote') {
+    ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x - 7 * s, y + 4 * s); ctx.lineTo(x + 7 * s, y + 4 * s); ctx.lineTo(x + 5 * s, y - 3 * s); ctx.lineTo(x - 5 * s, y - 3 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(x - 4 * s, y - 2 * s, 8 * s, 1.6 * s);
+  } else if (f === 'ferradura') {
+    ctx.strokeStyle = c; ctx.lineWidth = 2.4 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(x, y + 0.5 * s, 4.8 * s, -0.25 * Math.PI, 1.25 * Math.PI, false); ctx.stroke(); ctx.lineCap = 'butt';
+    ctx.fillStyle = '#e8ecf0'; for (const a of [0.1, 0.5, 0.9]) { ctx.beginPath(); ctx.arc(x + Math.cos(a * Math.PI) * 4.8 * s, y + 0.5 * s + Math.sin(a * Math.PI) * 4.8 * s, 0.6 * s, 0, 7); ctx.fill(); }
+  } else if (f === 'joia') {
+    ctx.strokeStyle = id === 'pingente' ? '#aab4bf' : '#e0a800'; ctx.lineWidth = 1.8 * s; ctx.beginPath(); ctx.arc(x, y + 2.5 * s, 4 * s, 0, 7); ctx.stroke();
+    ctx.fillStyle = id === 'aneldegema' ? c : id === 'pingente' ? '#e8f4ff' : '#fff2b0'; ctx.strokeStyle = 'rgba(60,30,10,.55)'; ctx.lineWidth = Math.max(1, 0.5 * s);
+    ctx.beginPath(); ctx.moveTo(x, y - 6.5 * s); ctx.lineTo(x + 2.8 * s, y - 3.6 * s); ctx.lineTo(x, y - 0.8 * s); ctx.lineTo(x - 2.8 * s, y - 3.6 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
   }
 }
 
