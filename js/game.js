@@ -436,6 +436,7 @@ function newState() {
     dogs: { roca: null, animais: null }, dogFood: 0, news: [], newsSeen: 0, limits: {},
     stats: { colheitas: 0, coletas: 0, vendido: 0, roubado: 0, ajudas: 0 },
     chocadeira: { ovos: [], level: 0 },
+    bloqueados: {},
   };
 }
 
@@ -1524,18 +1525,42 @@ function usarDecor(id) {
 function sell(id, qtd) {
   const it = item(id), q = state.barn[id] || 0; if (!q || !it) return;
   const n = qtd === true ? q : clamp(Math.round(qtd) || 1, 1, q);
+  const vai_zerar = (q - n === 0);
+  if (vai_zerar && PRODUCE[id]) {
+    const crop = PRODUCE[id].planta ? CROP[PRODUCE[id].planta] : null;
+    if (crop) {
+      const msg = `Vai vender todas as ${it.nome.toLowerCase()}. Deixar alguma quantidade para plantar?`;
+      if (!confirm(msg)) return;
+    }
+  }
   state.barn[id] = q - n; if (!state.barn[id]) delete state.barn[id];
   state.coins += n * it.preco; state.stats.vendido += n * it.preco; track('vender', n * it.preco);
   sfx('coin');
   done();
 }
 function sellAll() {
-  let total = 0;
-  for (const [id, q] of Object.entries(state.barn)) total += q * (item(id)?.preco || 0);
-  if (!total) return;
-  state.barn = {}; state.coins += total; state.stats.vendido += total; track('vender', total);
+  let total = 0, avisos = [];
+  for (const [id, q] of Object.entries(state.barn)) {
+    if (state.bloqueados && state.bloqueados[id]) continue;
+    const it = item(id);
+    if (!it) continue;
+    total += q * it.preco;
+    if (PRODUCE[id] && PRODUCE[id].planta) {
+      const crop = CROP[PRODUCE[id].planta];
+      if (crop) avisos.push(crop.nome);
+    }
+  }
+  if (!total) return toast('Nenhum produto desbloqueado para vender.', 'bad');
+  if (avisos.length > 0) {
+    const msg = `Vai vender tudo. Isso vai zerar as colheitas de:\n${avisos.join(', ')}\n\nTem certeza?`;
+    if (!confirm(msg)) return;
+  }
+  for (const [id] of Object.entries(state.barn)) {
+    if (!(state.bloqueados && state.bloqueados[id])) delete state.barn[id];
+  }
+  state.coins += total; state.stats.vendido += total; track('vender', total);
   sfx('coin');
-  toast(`Vendeu tudo por ${total} moedas`, 'good');
+  toast(`Vendeu ${moeda(total)}`, 'good');
   done();
 }
 
@@ -5043,9 +5068,10 @@ function renderPane() {
       html += `<div class="total"><span>Total: ${moeda(total)}</span><button class="btn gold" data-sellall>Vender tudo</button></div>`;
       for (const it of items) {
         const q = state.barn[it.id], key = 'sell:' + it.id, sel = q > 1 ? qtdSel[key] = clamp(qtdSel[key] || 1, 1, q) : 1;
+        const bloq = state.bloqueados && state.bloqueados[it.id];
         html += `<div class="row"><img alt="" src="${itemIcon(it.id)}">
-          <div><div class="name">${it.nome} × ${q}</div><div class="meta">${moeda(it.preco)} cada · ${moeda(q * it.preco)} no total${it.id === 'milho' ? '<br>também serve de comida para os animais' : ''}</div></div>
-          <div class="stack">${q > 1 ? qtdStep(key, q) : ''}<button class="btn" data-sell="${it.id}" data-qtd="${sel}">Vender ${sel} · ${moeda(sel * it.preco)}</button>${q > 1 ? `<button class="btn ghost" data-sellall-of="${it.id}">Todos</button>` : ''}</div></div>`;
+          <div><div class="name">${it.nome} × ${q}${bloq ? ' 🔒' : ''}</div><div class="meta">${moeda(it.preco)} cada · ${moeda(q * it.preco)} no total${it.id === 'milho' ? '<br>também serve de comida para os animais' : ''}</div></div>
+          <div class="stack"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" ${bloq ? 'checked' : ''} data-toggle-block="${it.id}"> Bloquear</label>${!bloq ? (q > 1 ? qtdStep(key, q) : '') + `<button class="btn" data-sell="${it.id}" data-qtd="${sel}">Vender ${sel} · ${moeda(sel * it.preco)}</button>${q > 1 ? `<button class="btn ghost" data-sellall-of="${it.id}">Todos</button>` : ''}` : '<button class="btn ghost" disabled>Bloqueado</button>'}</div></div>`;
       }
     }
   } else if (tab === 'terreno') {
@@ -5261,6 +5287,12 @@ $('#pane').addEventListener('click', e => {
   else if (d.sell) sell(d.sell, Number(d.qtd) || 1);
   else if (d.sellallOf) sell(d.sellallOf, true);
   else if ('sellall' in d) sellAll();
+  else if (d.toggleBlock) {
+    if (!state.bloqueados) state.bloqueados = {};
+    if (state.bloqueados[d.toggleBlock]) delete state.bloqueados[d.toggleBlock];
+    else state.bloqueados[d.toggleBlock] = true;
+    renderPane();
+  }
   else if ('seeLand' in d) { if (!isHome()) goHome(); setScene('roca'); closePanel(); toast('Clique num + encostado na sua terra para colocar um canteiro.'); }
   else if ('expand' in d) buyExpansion();
   else if (d.buyFert) buyFert(d.buyFert, Number(d.n) || 1);
