@@ -1334,7 +1334,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
-  { v: 258, txt: "Negócios: nas receitas, a quantidade de planta que você tem aparece em vermelho quando é menor que 10, e ao fazer um produto que deixa menos de 10 plantas para replantar aparece um aviso com Sim e Não." },
+  { v: 258, txt: "Negócios: nas receitas, a quantidade de planta que você tem aparece em vermelho quando, ao usar, ficaria menos de 10, e antes de fazer um produto, entregar no caminhão, atender a vila ou colocar na banca que deixe menos de 10 plantas para replantar aparece um aviso com Sim e Não." },
   { v: 257, txt: "Nova curva de XP para subir de nível: até o nível 20 continua rápida, e depois cada nível pede só um pouco mais que o anterior (por volta de 10 mil XP no nível 42), em vez de explodir. Você mantém seu nível e seu XP." },
   { v: 256, txt: "As 4 plantas que você ganha ao liberar cada cultura já chegam bloqueadas (🔒 4), então não são vendidas sem querer; desbloqueie quando quiser. Corrigido também: um jogo novo começa com as 4 plantas de cada cultura do nível 1 no Celeiro." },
   { v: 255, txt: "Vizinhos da vila renovados 🏘️: chegaram o Seu Bastião (Fazenda Santa Rita) e a Dona Véia (Cantinho da Véia), com pedidos e presentes próprios (porteira e cadeira de balanço). Cada vizinho agora tem a casa (skin), as cercas e o jeito de plantar dele (fileiras, quadras, anéis e tabuleiro), com tantas terras quanto o nível dele libera e todas as árvores do pomar que ele já pode ter. E mudas e colheita viraram uma coisa só: o que você colhe é a planta, tudo fica no Celeiro (suas mudas antigas já foram para lá)." },
@@ -8851,9 +8851,11 @@ function atualizarVila() {
 }
 const podeVila = p => Object.entries(p.itens).every(([id, q]) => (state.barn[id] || 0) >= q);
 const vilaProntos = () => state && state.vila ? NEIGHBORS.reduce((t, nb) => t + ((state.vila[nb.id] && state.vila[nb.id].pedidos) || []).filter(podeVila).length, 0) : 0;
-function entregarVila(npc, id) {
+function entregarVila(npc, id, confirmado) {
   const v = vilaDe(npc), p = v.pedidos.find(x => x.id === id), nb = NEIGHBORS.find(n => n.id === npc);
   if (!p || !podeVila(p)) return toast('Faltam itens no celeiro para esse pedido.', 'bad');
+  const sobras = sobrasPlantas(p.itens);
+  if (sobras.length && !confirmado) return perguntar(`Ao atender ${nb.nome} vão sobrar só: ${sobras.join(', ')} (o ideal é ter pelo menos ${PLANTAS_BAIXO} de cada para plantar).\n\nQuer prosseguir?`, () => entregarVila(npc, id, true));
   for (const [iid, q] of Object.entries(p.itens)) { state.barn[iid] -= q; if (!state.barn[iid]) delete state.barn[iid]; }
   v.pedidos = v.pedidos.filter(x => x.id !== id); if (!v.novoEm) v.novoEm = Date.now() + VILA_NOVO;
   const antes = coracoes(npc);
@@ -9103,6 +9105,10 @@ function comprarSlotFab(mid) {
   sfx('buy'); toast(`Novo espaço na ${M.nome}!`, 'good'); done();
 }
 const temIngredientes = (r, n = 1) => Object.entries(r.in).every(([id, q]) => (state.barn[id] || 0) >= q * n);
+// Plantas que ficariam com menos de 10 depois de gastar "consumo" ({ id: qtd }): ["8 trigo", ...]. Vazio = tudo bem.
+function sobrasPlantas(consumo) {
+  return Object.entries(consumo).filter(([iid, q]) => PRODUCE[iid] && (state.barn[iid] || 0) - q < PLANTAS_BAIXO).map(([iid, q]) => `${Math.max(0, (state.barn[iid] || 0) - q)} ${item(iid).nome.toLowerCase()}`);
+}
 function fabricar(id, confirmado) {
   const r = RECEITA[id], mid = MAQUINA_DE[id], M = MAQUINA[mid], m = filaDe(mid), max = slotsMax(mid);
   if (state.level < r.nivel) return toast(`${r.nome} libera no nível ${r.nivel}.`);
@@ -9110,7 +9116,7 @@ function fabricar(id, confirmado) {
   if (m.fila.length >= max) return toast(`Os ${max} espaços da ${M.nome} estão ocupados. Recolha o que ficou pronto ou compre mais espaço.`);
   if (!temIngredientes(r)) return toast(`Faltam ingredientes para ${r.nome.toLowerCase()}.`, 'bad');
   // plantas que ficariam com menos de 10 para replantar: pergunta antes
-  const sobras = Object.entries(r.in).filter(([iid, q]) => PRODUCE[iid] && (state.barn[iid] || 0) - q < PLANTAS_BAIXO).map(([iid, q]) => `${(state.barn[iid] || 0) - q} ${item(iid).nome.toLowerCase()}`);
+  const sobras = sobrasPlantas(r.in);
   if (sobras.length && !confirmado) return perguntar(`Ao fazer ${r.nome.toLowerCase()} vão sobrar só: ${sobras.join(', ')} (o ideal é ter pelo menos ${PLANTAS_BAIXO} de cada para plantar).\n\nQuer prosseguir?`, () => fabricar(id, true));
   for (const [iid, q] of Object.entries(r.in)) { state.barn[iid] -= q; if (!state.barn[iid]) delete state.barn[iid]; }
   // cada espaço trabalha sozinho: começa na hora
@@ -9148,12 +9154,14 @@ function mudaEstoque(id, q) {
   state.barn[k] = Math.max(0, (state.barn[k] || 0) + q); if (!state.barn[k]) delete state.barn[k];
 }
 const itensVendaveis = () => Object.keys(state.barn).filter(id => state.barn[id] > 0 && item(id));
-function bancaAdd(id, qtd, preco) {
+function bancaAdd(id, qtd, preco, confirmado) {
   state.banca = state.banca || [];
   const lim = bancaMax();
   if (state.banca.length >= lim) return toast(`A banca tem ${lim} lugares.`);
   qtd = clamp(Math.floor(qtd) || 1, 1, 10);
   if (estoqueDe(id) < qtd) return toast('Você não tem tudo isso.', 'bad');
+  const sobras = sobrasPlantas({ [id]: qtd });
+  if (sobras.length && !confirmado) return perguntar(`Ao colocar na banca vão sobrar só: ${sobras.join(', ')} (o ideal é ter pelo menos ${PLANTAS_BAIXO} para plantar).\n\nQuer prosseguir?`, () => bancaAdd(id, qtd, preco, true));
   const [min, max] = faixaPreco(id, qtd);
   preco = clamp(Math.round(preco) || 0, min, max);
   mudaEstoque(id, -qtd);
@@ -9291,9 +9299,11 @@ function rollCaminhao() {
 }
 const podeEntregar = p => !p.feito && Object.entries(p.itens).every(([id, q]) => (state.barn[id] || 0) >= q);
 const entregaveis = () => (state && state.truck ? state.truck.pedidos.filter(podeEntregar).length : 0);
-function entregar(k) {
+function entregar(k, confirmado) {
   const p = state.truck.pedidos[k];
   if (!p || !podeEntregar(p)) return toast('Faltam itens no celeiro para esse pedido.', 'bad');
+  const sobras = sobrasPlantas(p.itens);
+  if (sobras.length && !confirmado) return perguntar(`Ao entregar esse pedido vão sobrar só: ${sobras.join(', ')} (o ideal é ter pelo menos ${PLANTAS_BAIXO} de cada para plantar).\n\nQuer prosseguir?`, () => entregar(k, true));
   for (const [id, q] of Object.entries(p.itens)) { state.barn[id] -= q; if (!state.barn[id]) delete state.barn[id]; }
   p.feito = true;
   state.coins += p.moedas; addXP(p.xp, null); track('entregar');
@@ -9615,7 +9625,7 @@ function fabricaHTML() {
       const vis = receitasM.filter(r => r.nivel <= state.level), prox = receitasM.filter(r => r.nivel > state.level).slice(0, 1);
       for (const r of [...vis, ...prox]) {
         const locked = r.nivel > state.level, ok = !locked && temIngredientes(r) && m.fila.length < max;
-        const ing = Object.entries(r.in).map(([id, q]) => `<span class="${(state.barn[id] || 0) >= q ? '' : 'falta'}">${q} ${item(id) ? item(id).nome.toLowerCase() : id} (${PRODUCE[id] && (state.barn[id] || 0) < PLANTAS_BAIXO ? `<b class="falta">${state.barn[id] || 0}</b>` : (state.barn[id] || 0)})</span>`).join(' + ');
+        const ing = Object.entries(r.in).map(([id, q]) => `<span class="${(state.barn[id] || 0) >= q ? '' : 'falta'}">${q} ${item(id) ? item(id).nome.toLowerCase() : id} (${PRODUCE[id] && (state.barn[id] || 0) - q < PLANTAS_BAIXO ? `<b class="falta">${state.barn[id] || 0}</b>` : (state.barn[id] || 0)})</span>`).join(' + ');
         html += `<div class="row ${locked ? 'locked' : ''}"><img alt="" src="${productIcon(r.id)}"><div><div class="name">${r.nome}${state.barn[r.id] ? ` <span class="meta">(${state.barn[r.id]} no celeiro)</span>` : ''}</div>
           <div class="meta">${ing}<br>${fmt(r.tempo)} · vende por ${moeda(r.preco)}</div></div>
           ${locked ? `<button class="btn" disabled>Nível ${r.nivel}</button>` : `<button class="btn" data-fabricar="${r.id}" ${ok ? '' : 'disabled'}>Fazer</button>`}</div>`;
