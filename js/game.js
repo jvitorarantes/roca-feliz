@@ -433,10 +433,18 @@ const STAGE_NAMES = ['Semente', 'Broto', 'Crescendo', 'Quase lá', 'Maduro'];
 
 // Vizinhos da vila (não são amigos de verdade). "acima": quantos níveis a roça deles tem a mais que a sua.
 const NEIGHBORS = [
-  { id: 'ze',    nome: 'Seu Zé',     fazenda: 'Sítio Boa Vista',    cao: 'Rex',    casa: '#d9a441', pega: 0.16, acima: 2,
+  { id: 'ze',    nome: 'Seu Zé',      fazenda: 'Sítio Boa Vista',       cao: 'Rex',    casa: '#d9a441', pega: 0.16, acima: 2,
+    skin: 'chale', tema: 'classico', layout: 'fileiras', pos: {},
     avatar: { sexo: 'm', pele: 2, cabelo: 'curto', corCabelo: 4, chapeu: 'palha', camisa: 'xadrez', calca: 'macacao', sapato: 'bota', mao: 'enxada' } },
-  { id: 'maria', nome: 'Dona Maria', fazenda: 'Chácara das Flores', cao: 'Pipoca', casa: '#c7658f', pega: 0.08, acima: 5,
+  { id: 'maria', nome: 'Dona Maria',  fazenda: 'Chácara das Flores',    cao: 'Pipoca', casa: '#c7658f', pega: 0.08, acima: 5,
+    skin: 'vovo', tema: 'branca', layout: 'quadras', pos: B => ({ casa: [B.maxU - 3.2, -1.7], celeiro: [B.minU + 2, -2.4], canil: [B.maxU - 0.8, -1.1] }),
     avatar: { sexo: 'f', pele: 1, cabelo: 'rabo', corCabelo: 4, chapeu: 'palha', camisa: 'florida', calca: 'saia', sapato: 'sapatilha', mao: 'nada' } },
+  { id: 'bastiao', nome: 'Seu Bastião', fazenda: 'Fazenda Santa Rita',  cao: 'Trovão', casa: '#7a5a3a', pega: 0.22, acima: 9,
+    skin: 'colonial', tema: 'pedra', layout: 'aneis', pos: B => ({ casa: [B.minU - 2.6, B.minV + 0.6], celeiro: [B.minU - 2.6, B.minV + 3.6], canil: [B.minU - 3.6, B.minV + 2.1], pesqueiro: [B.maxU + 2.6, B.minV + 2] }),
+    avatar: { sexo: 'm', pele: 3, cabelo: 'curto', corCabelo: 4, chapeu: 'cowboy', camisa: 'xadrez', calca: 'jeans', sapato: 'bota', mao: 'laco' } },
+  { id: 'veia',  nome: 'Dona Véia',   fazenda: 'Cantinho da Véia',      cao: 'Mingau', casa: '#8a6aa8', pega: 0.1,  acima: 7,
+    skin: 'lavanda', tema: 'tropical', layout: 'xadrez', pos: B => ({ casa: [B.minU + 4.5, -2.3], celeiro: [B.maxU + 2.6, -1.4], canil: [B.minU + 6.5, -1.5], pesqueiro: [B.minU - 2.2, B.minV + 5] }),
+    avatar: { sexo: 'f', pele: 0, cabelo: 'rabo', corCabelo: 4, chapeu: 'sem', camisa: 'blusa', calca: 'saia', sapato: 'sapatilha', mao: 'regador' } },
 ];
 // Nomes escolhidos pelo jogador: da fazenda e do avatar. Quem visita vê "[fazenda] de [avatar]".
 const NOME_MAX = 24;
@@ -512,8 +520,8 @@ function newState() {
     stats: { colheitas: 0, coletas: 0, vendido: 0, roubado: 0, ajudas: 0 },
     chocadeira: { ovos: [], level: 0 },
     animalCred: {}, animalNivel: {},
-    bloqueados: {}, plantasInit: 1,
-    plantas: Object.fromEntries(CROPS.filter(c => c.nivel <= 1).map(c => [c.id, 4])),
+    bloqueados: {}, plantasInit: 1, plantasUno: 1,
+    plantasDado: Object.fromEntries(CROPS.filter(c => c.nivel <= 1).map(c => [c.id, 1])),
   };
 }
 
@@ -702,14 +710,19 @@ function migrate(s) {
   s.bloqueados = s.bloqueados && typeof s.bloqueados === 'object' ? s.bloqueados : {};
   s.chocadeira = s.chocadeira && typeof s.chocadeira === 'object' ? s.chocadeira : { ovos: [], level: 0 };
   s.ultima_reproducao = s.ultima_reproducao && typeof s.ultima_reproducao === 'object' ? s.ultima_reproducao : {};
-  // Plantações sem semente: quem já jogava ganha 4 plantas de cada uma que o nível já liberou
-  s.plantas = s.plantas && typeof s.plantas === 'object' && !Array.isArray(s.plantas) ? s.plantas : {};
+  // Plantações sem semente: quem já jogava ganha 4 plantas de cada uma que o nível já liberou (guardadas no celeiro)
+  s.plantasDado = s.plantasDado && typeof s.plantasDado === 'object' ? s.plantasDado : {};
   if (!s.plantasInit) {
     s.plantasInit = 1;
-    for (const c of CROPS) if (c.nivel <= s.level && s.plantas[c.id] === undefined) s.plantas[c.id] = 4;
+    for (const c of CROPS) if (c.nivel <= s.level && !s.plantasDado[c.id]) { s.plantasDado[c.id] = 1; s.barn[c.prod] = (s.barn[c.prod] || 0) + 4; }
     s.invNovos = (s.invNovos || 0) + 1;
-    s.news = [{ at: Date.now(), msg: 'Sem mais sementes 🌱: você ganhou 4 plantas de cada plantação que já liberou. Plante a própria planta, ela rende sempre! Mais plantas vêm em missões, no caminhão, de amigos e na banca deles.' }].concat(Array.isArray(s.news) ? s.news : []);
+    s.news = [{ at: Date.now(), msg: 'Sem mais sementes 🌱: você ganhou 4 plantas de cada plantação que já liberou, guardadas no Celeiro. A colheita é a própria planta: plante o que colheu! Mais plantas vêm em missões, no caminhão, de amigos e na feira.' }].concat(Array.isArray(s.news) ? s.news : []);
   }
+  // as mudas deixaram de ser um estoque à parte: entram no celeiro junto com a colheita
+  if (s.plantas && typeof s.plantas === 'object') {
+    for (const [id, n] of Object.entries(s.plantas)) { const c = CROP[id]; if (c && n > 0) { s.barn[c.prod] = (s.barn[c.prod] || 0) + n; } if (c) s.plantasDado[id] = 1; }
+  }
+  s.plantas = {};
   return s;
 }
 
@@ -928,9 +941,9 @@ function addXP(n, pos) {
     }
     // Plantação nova liberada neste nível: ganha 4 unidades
     for (const c of CROPS) {
-      const dado = state.plantas || (state.plantas = {});
-      if (c.nivel !== state.level || dado[c.id] !== undefined) continue;
-      dado[c.id] = 4;
+      const dado = state.plantasDado || (state.plantasDado = {});
+      if (c.nivel !== state.level || dado[c.id]) continue;
+      dado[c.id] = 1; darPlanta(c, 4);
       novas.push(`+4 ${c.nome.toLowerCase()} para plantar`);
     }
     toast(`Nível ${state.level}! +${bonus} moedas · +${trevos} 🍀 · +1 ${premio.nome.toLowerCase()}` + (novas.length ? ` · novidades: ${novas.join(', ')}` : ''), 'good');
@@ -994,12 +1007,10 @@ function usePotion(p, pos) {
   toast(`Poção usada: ${CROP[p.c].nome.toLowerCase()} voltou a ficar boa. Colha logo!`, 'good');
   done();
 }
-// O que dá para plantar de cada cultura: as mudas do inventário mais o que você colheu e guardou no celeiro.
-const plantaQtd = c => (state.plantas[c.id] || 0) + (state.barn[c.prod] || 0);
-function gastaPlanta(c) {
-  if ((state.plantas[c.id] || 0) > 0) state.plantas[c.id]--;
-  else if ((state.barn[c.prod] || 0) > 0) { state.barn[c.prod]--; if (!state.barn[c.prod]) delete state.barn[c.prod]; }
-}
+// O que dá para plantar de cada cultura: o que você colheu e guardou no celeiro (colheita e planta são a mesma coisa).
+const plantaQtd = c => state.barn[c.prod] || 0;
+function gastaPlanta(c) { if ((state.barn[c.prod] || 0) > 0) { state.barn[c.prod]--; if (!state.barn[c.prod]) delete state.barn[c.prod]; } }
+const darPlanta = (c, n) => { state.barn[c.prod] = (state.barn[c.prod] || 0) + n; };
 // Janelinha com as plantas que você tem: escolha uma e clique nas terras aradas.
 function abrirPlantPicker() {
   const l = CROPS.filter(c => c.nivel <= state.level && plantaQtd(c) > 0);
@@ -1323,6 +1334,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 255, txt: "Vizinhos da vila renovados 🏘️: chegaram o Seu Bastião (Fazenda Santa Rita) e a Dona Véia (Cantinho da Véia), com pedidos e presentes próprios (porteira e cadeira de balanço). Cada vizinho agora tem a casa (skin), as cercas e o jeito de plantar dele (fileiras, quadras, anéis e tabuleiro), com tantas terras quanto o nível dele libera e todas as árvores do pomar que ele já pode ter. E mudas e colheita viraram uma coisa só: o que você colhe é a planta, tudo fica no Celeiro (suas mudas antigas já foram para lá)." },
   { v: 254, txt: "Celeiro: botão Vender todas as plantas no topo da aba Plantas, e todos os botões de vender tudo (geral e o Todos de cada item) agora perguntam 'Você tem certeza que quer vender tudo?' com Sim e Não." },
   { v: 253, txt: "A janela da mina ganhou mais espaço nas laterais: os textos não encostam mais na borda." },
   { v: 252, txt: "Celeiro › Plantas: no − do mínimo a quantidade pula para o máximo (e no + do máximo volta para 1). O 🔒 Bloquear agora deixa escolher quantas plantas daquela cultura ficam guardadas, e elas não entram em nenhuma venda. A aba também ganhou o botão Vender tudo, que vende o que não está bloqueado." },
@@ -1740,7 +1752,7 @@ function sell(id, qtd) {
   const it = item(id), q = state.barn[id] || 0, vend = q - bloqQtd(id, q); if (!q || !it || vend <= 0) return;
   const n = qtd === true ? vend : clamp(Math.round(qtd) || 1, 1, vend);
   const crop = PRODUCE[id] && PRODUCE[id].planta ? CROP[PRODUCE[id].planta] : null;
-  const sobra = crop ? (q - n) + (state.plantas[crop.id] || 0) : Infinity;
+  const sobra = crop ? q - n : Infinity;
   const aviso = sobra < PLANTAS_BAIXO ? `\n\nCuidado: você vai ficar com ${sobra} ${it.nome.toLowerCase()} para plantar (o ideal é ter pelo menos ${PLANTAS_BAIXO}).` : '';
   const executa = () => {
     const q2 = state.barn[id] || 0; if (q2 < n) return;
@@ -1764,7 +1776,7 @@ function sellAll(escopo) {
     total += qv * it.preco;
     if (PRODUCE[id] && PRODUCE[id].planta) {
       const crop = CROP[PRODUCE[id].planta];
-      if (crop && (q - qv) + (state.plantas[crop.id] || 0) < PLANTAS_BAIXO) avisos.push(crop.nome);
+      if (crop && (q - qv) < PLANTAS_BAIXO) avisos.push(crop.nome);
     }
   }
   if (!total) return toast('Nada para vender agora (o que está bloqueado fica guardado).', 'bad');
@@ -1786,18 +1798,41 @@ function sellAll(escopo) {
 // ============================================================
 // Visitas (vizinhos da vila e amigos de verdade)
 // ============================================================
-function genNeighbor() {
-  const npcLevel = state.level + 3; // NPCs têm 3 níveis a mais que o jogador
+// Terras que o nível libera (a mesma tabela de expansões do jogador).
+const totalTerras = nivel => EXPANSOES.reduce((t, e) => nivel >= e.nivel ? e.total : t, EXPANSOES[0].total);
+// Cada vizinho tem um jeito de plantar: lista os cantos (u, v) onde cabem os canteiros, do mais importante para o menos.
+const NPC_LAYOUTS = {
+  fileiras: n => Array.from({ length: n * 2 }, (_, i) => [1 + (i % 7), 1 + Math.floor(i / 7) * 2]),            // fileiras com corredor entre elas
+  quadras: n => Array.from({ length: n * 2 }, (_, i) => { const b = Math.floor(i / 4), k = i % 4; return [1 + (b % 4) * 3 + (k % 2), 1 + Math.floor(b / 4) * 3 + Math.floor(k / 2)]; }), // quadras de 2×2 com ruas
+  aneis: n => { const l = []; for (let r = 2; r < 9 && l.length < n * 2; r++) for (let du = -r; du <= r; du++) for (let dv = -r; dv <= r; dv++) if (Math.max(Math.abs(du), Math.abs(dv)) === r) l.push([6 + du, 6 + dv]); return l; }, // anéis em volta do centro livre
+  xadrez: n => { const l = []; for (let u = 0; u < 16; u++) for (let v = 0; v < 16; v++) if ((u + v) % 2 === 0) l.push([1 + u, 1 + v]); return l.sort((a, b) => Math.hypot(a[0] - 8, a[1] - 8) - Math.hypot(b[0] - 8, b[1] - 8)); }, // tabuleiro
+};
+// Onde ficam as árvores do pomar de cada vizinho (fora dos canteiros).
+function npcArvores(layout, n, B) {
+  const pts = [], cu = (B.minU + B.maxU) / 2, cv = (B.minV + B.maxV) / 2, R = Math.max(B.maxU - B.minU, B.maxV - B.minV) / 2 + 2.2;
+  for (let k = 0; k < n; k++) {
+    if (layout === 'fileiras') pts.push([B.maxU + 2 + Math.floor(k / 5) * 1.7, B.minV + (k % 5) * 1.7]);
+    else if (layout === 'quadras') pts.push([B.minU + k * 1.7, B.maxV + 2.2 + (k % 2) * 0.9]);
+    else if (layout === 'aneis') { const a = k / n * Math.PI * 2; pts.push([cu + Math.cos(a) * R, cv + Math.sin(a) * R]); }
+    else pts.push([B.maxU + 2.4 + (k % 3) * 1.7, B.minV + 1 + Math.floor(k / 3) * 1.8]);
+  }
+  return pts.map(([u, v]) => [clamp(u, RU0 + 1, RU0 + COLS - 2), clamp(v, 0.5, RV0 + ROWS - 2)]);
+}
+function genNeighbor(nb) {
+  const npcLevel = state.level + nb.acima;
   const plots = Array.from({ length: N }, () => emptyPlot());
-
-  // Plantações: todas desbloqueadas até o nível do NPC
   const crops = CROPS.filter(c => c.nivel <= npcLevel);
-  let plotIdx = 0;
-
-  // Plantar uma de cada cultivo + alguns aleatórios para preencher
-  for (const crop of crops) {
-    if (plotIdx >= ORDER.length) break;
-    const i = ORDER[plotIdx++];
+  // canteiros: tantos quanto o nível dele libera, no jeito de plantar dele
+  const quer = totalTerras(npcLevel), usados = new Set(), celulas = [];
+  for (const [u, v] of NPC_LAYOUTS[nb.layout](quer)) {
+    const i = plotAt(u, v);
+    if (i < 0 || plotCeu(i) || usados.has(i)) continue;
+    usados.add(i); celulas.push(i);
+    if (celulas.length >= quer) break;
+  }
+  celulas.forEach((i, k) => {
+    if (k % 11 === 10) { plots[i] = emptyPlot('plowed'); return; }
+    const crop = crops[k % crops.length];   // passa por todas as plantas que o nível dele libera
     const mature = Math.random() < 0.5, bug = Math.random() < 0.08;
     plots[i] = Object.assign(emptyPlot('growing'), {
       c: crop.id, id: newId(),
@@ -1806,48 +1841,28 @@ function genNeighbor() {
       dry: !bug && !mature && Math.random() < 0.25,
       podre: mature && Math.random() < 0.2,
     });
-  }
-
-  // Preencher o resto com plantações aleatórias
-  const count = Math.max(plotIdx + 5, 12 + Math.floor(Math.random() * 8));
-  while (plotIdx < count && plotIdx < ORDER.length) {
-    const i = ORDER[plotIdx++];
-    if (Math.random() < 0.12) { plots[i] = emptyPlot('plowed'); continue; }
-    const crop = crops[Math.floor(Math.random() * crops.length)];
-    const mature = Math.random() < 0.5, bug = Math.random() < 0.08;
-    plots[i] = Object.assign(emptyPlot('growing'), {
-      c: crop.id, id: newId(),
-      g: mature ? crop.tempo : crop.tempo * rand(0.15, 0.95),
-      b: bug ? 1 : 0,
-      dry: !bug && !mature && Math.random() < 0.25,
-      podre: mature && Math.random() < 0.2,
-    });
-  }
-
-  // Animais: um de cada espécie de produção desbloqueada
+  });
+  // animais: um de cada espécie de produção liberada, mais alguns repetidos
   const animals = [];
   const prodAnimals = ANIMALS.filter(x => x.tipo === 'prod' && x.prod !== 'leitao' && x.nivel <= npcLevel);
-  for (const def of prodAnimals) {
+  const mkAnimal = def => {
     const a = newAnimal(def.id), r = Math.random();
     if (r < 0.45) { a.ready = true; a.fed = false; a.g = ANIMAL[a.k].tempo; }
     else if (r < 0.7) { a.fed = false; }
     else a.g = ANIMAL[a.k].tempo * rand(0.1, 0.9);
-    animals.push(a);
-  }
-
-  // Adicionar alguns aleatórios extras
-  const extraAnimals = 1 + Math.floor(Math.random() * 3);
-  for (let k = 0; k < extraAnimals && animals.length < 15; k++) {
-    const a = newAnimal(prodAnimals[Math.floor(Math.random() * prodAnimals.length)].id), r = Math.random();
-    if (r < 0.45) { a.ready = true; a.fed = false; a.g = ANIMAL[a.k].tempo; }
-    else if (r < 0.7) { a.fed = false; }
-    else a.g = ANIMAL[a.k].tempo * rand(0.1, 0.9);
-    animals.push(a);
-  }
-
+    return a;
+  };
+  for (const def of prodAnimals) animals.push(mkAnimal(def));
+  for (let k = 0, extra = 1 + Math.floor(Math.random() * 3); k < extra && animals.length < 15 && prodAnimals.length; k++) animals.push(mkAnimal(prodAnimals[Math.floor(Math.random() * prodAnimals.length)]));
+  // pomar: todas as frutíferas que o nível dele libera
+  const now = Date.now(), frutas = ENFEITES.filter(e => e.fruteira && e.nivel <= npcLevel);
+  const B = celulas.reduce((m, i) => ({ minU: Math.min(m.minU, plotU(i)), maxU: Math.max(m.maxU, plotU(i)), minV: Math.min(m.minV, plotV(i)), maxV: Math.max(m.maxV, plotV(i)) }), { minU: 99, maxU: -99, minV: 99, maxV: -99 });
+  const pts = npcArvores(nb.layout, frutas.length, B);
+  const arvores = frutas.map((e, k) => ({ id: e.id, u: Math.round(pts[k][0] * 20) / 20, v: Math.round(pts[k][1] * 20) / 20, t0: now - 3 * DAY, ult: now - rand(0, e.tempo * 1000 * 1.3), colhidas: Math.floor(Math.random() * 2), fid: newId() }));
   const decor = {};
   for (const d of DECOR) if (Math.random() < 0.55) decor[d.id] = true;
-  return ensureAbrigos({ plots, animals, decor, banca: npcBanca(), refreshAt: Date.now() + 4 * 60 * 1000 });
+  return ensureAbrigos({ plots, animals, decor, banca: npcBanca(), refreshAt: now + 4 * 60 * 1000, vNpc: 3,
+    skin: nb.skin, tema: nb.tema, pos: { roca: typeof nb.pos === 'function' ? nb.pos(B) : Object.assign({}, nb.pos) }, objetos: { roca: arvores, animais: [] } });
 }
 
 // Tela de carregamento de uns 3 segundos ao ir ou voltar da roça de alguém.
@@ -1871,7 +1886,7 @@ function visitNpc(id) {
   const nb = NEIGHBORS.find(n => n.id === id);
   telaCarregando(`Indo até ${nb.fazenda} de ${nb.nome}…`, CARREGA_MS, nb.fazenda);
   const cur = state.nb[id];
-  if (!cur || !Array.isArray(cur.plots) || cur.plots.length !== N || Date.now() > cur.refreshAt || !cur.animals || cur.animals.some(a => !a.born) || !cur.abrigos || cur.plots.some(p => p.w || (p.b && p.dry)) || !cur.plots.some(p => 'podre' in p) || !cur.banca) state.nb[id] = genNeighbor();
+  if (!cur || !Array.isArray(cur.plots) || cur.plots.length !== N || Date.now() > cur.refreshAt || !cur.animals || cur.animals.some(a => !a.born) || !cur.abrigos || cur.plots.some(p => p.w || (p.b && p.dry)) || !cur.plots.some(p => 'podre' in p) || !cur.banca || cur.vNpc !== 3) state.nb[id] = genNeighbor(nb);
   view = { kind: 'npc', id, nome: nb.nome, fazenda: nb.fazenda, cao: nb.cao, pega: nb.pega, casa: nb.casa, data: state.nb[id], nivel: state.level + nb.acima, avatar: avatarOk(nb.avatar) };
   afterVisit();
   save();
@@ -5358,7 +5373,7 @@ function renderPane() {
     const segs = [['sementes', 'Plantas'], ['pomar', 'Pomar'], ['adubo', 'Itens'], ['animais', 'Animais'], ['abrigos', 'Abrigos'], ['caes', 'Cães'], ['decor', 'Casa'], ['enfeites', 'Enfeites'], ['temas', 'Temas'], ['trevo', '🍀 Trevo']];
     html += `<div class="seg small" role="tablist">${segs.map(([id, n]) => `<button type="button" role="tab" data-seg="${id}" aria-selected="${shopSeg === id}">${n}</button>`).join('')}</div>`;
     if (shopSeg === 'sementes') {
-      html += `<p class="hint">Não tem mais semente: você planta a própria planta (as mudas e também o que colheu e guardou no celeiro), e ela rende quantas vezes quiser. Escolha uma, clique nas terras aradas (uma por canteiro) e ela fica na mão até acabar. Ganhe mais plantas em missões, no caminhão, de amigos ou na banca deles.</p>`;
+      html += `<p class="hint">Não tem mais semente: você planta a própria planta (o que colheu e guardou no celeiro), e ela rende quantas vezes quiser. Escolha uma, clique nas terras aradas (uma por canteiro) e ela fica na mão até acabar. Ganhe mais plantas em missões, no caminhão, de amigos ou na banca deles.</p>`;
       const shown = CROPS.filter(c => c.nivel <= state.level);
       const upcoming = CROPS.filter(c => c.nivel > state.level);
       for (const c of [...shown, ...upcoming.slice(0, 2)]) {
@@ -5511,7 +5526,7 @@ function renderPane() {
     html += chaveAviso('celeiro', 'Mostrar a quantidade de itens no botão do Celeiro');
     const items = [...Object.values(PRODUCE), ...PRODUCTS, ...PRODUTOS_CACA.map(p => PRODUCT[p.id]), ...PEIXES.map(p => PRODUCT[p.id]), ...FRUTAS.map(f => PRODUCT[f.id]), ...PRESENTES_GATO.map(p => PRODUCT[p.id]), ...PRESENTES_ARARA.map(p => PRODUCT[p.id]), ...PREMIOS_NIVEL.map(p => PRODUCT[p.id]), ...MINERIOS.map(m => PRODUCT[m.id]), ...RECEITAS].filter(it => state.barn[it.id] > 0);
     const dePlanta = it => !!PRODUCE[it.id], seg = celeiroSeg === 'plantas' ? 'plantas' : 'itens';
-    const nPl = CROPS.filter(c => plantaQtd(c) > 0).length, nIt = items.filter(it => !dePlanta(it)).length;
+    const nPl = items.filter(dePlanta).length, nIt = items.filter(it => !dePlanta(it)).length;
     html += `<div class="seg small" role="tablist"><button type="button" role="tab" data-cseg="itens" aria-selected="${seg === 'itens'}">Itens${nIt ? ` (${nIt})` : ''}</button><button type="button" role="tab" data-cseg="plantas" aria-selected="${seg === 'plantas'}">Plantas${nPl ? ` (${nPl})` : ''}</button></div>`;
     const lista = items.filter(it => dePlanta(it) === (seg === 'plantas'));
     let total = 0; for (const it of lista) total += (state.barn[it.id] - bloqQtd(it.id, state.barn[it.id])) * it.preco;
@@ -5530,18 +5545,14 @@ function renderPane() {
     };
     if (seg === 'plantas') {
       html += `<div class="total"><span>Para vender: ${moeda(total)}</span><button class="btn gold" data-sellall="plantas" ${total ? '' : 'disabled'}>Vender todas as plantas</button></div>`;
-      html += `<p class="hint">Aqui ficam as plantações: o que você colheu (também serve para plantar) e as mudas. Tenha pelo menos ${PLANTAS_BAIXO} de cada para replantar. Em 🔒 Bloquear escolha quantas de cada ficam guardadas: elas não entram em nenhuma venda.</p>`;
+      html += `<p class="hint">Aqui ficam as plantações: o que você colheu é a própria planta, serve para plantar e para vender. Tenha pelo menos ${PLANTAS_BAIXO} de cada para replantar. Em 🔒 Bloquear escolha quantas de cada ficam guardadas: elas não entram em nenhuma venda.</p>`;
       let algum = false;
       for (const c of CROPS) {
-        if (c.nivel > state.level) continue;
-        const q = state.barn[c.prod] || 0, m = state.plantas[c.id] || 0;
-        if (!q && !m) continue;
+        if (c.nivel > state.level || !(state.barn[c.prod] > 0)) continue;
         algum = true;
-        const it = PRODUCE[c.prod];
-        if (q) html += linha(it, m);
-        else html += `<div class="row"><img alt="" src="${cropIcon(c.id)}"><div><div class="name">${c.nome} × ${m} <span class="tag">muda</span>${m < PLANTAS_BAIXO ? ' <span class="tag bad">poucas</span>' : ''}</div><div class="meta">${fmt(c.tempo)} · rende ${faixa(c)} × ${c.preco}</div></div><div class="stack"><button class="btn gold" data-seed="${c.id}">Plantar</button></div></div>`;
+        html += linha(PRODUCE[c.prod]);
       }
-      if (!algum) html += `<div class="empty">Você não tem nenhuma planta. Ganhe mudas em missões, no caminhão, de amigos ou na feira.</div>`;
+      if (!algum) html += `<div class="empty">Você não tem nenhuma planta. Ganhe plantas em missões, no caminhão, de amigos ou na feira.</div>`;
     } else if (!lista.length) html += `<div class="empty">O celeiro está vazio.<br>Recolha ovos, leite, lã, pesque, cace e minere para guardar aqui.</div>`;
     else {
       html += `<div class="total"><span>Total: ${moeda(total)}</span><button class="btn gold" data-sellall="itens">Vender tudo</button></div>`;
@@ -6618,7 +6629,7 @@ function sortearMuda(n) {
   const l = CROPS.filter(c => c.nivel <= state.level), c = l[Math.floor(Math.random() * l.length)];
   return { id: c.id, n, nome: c.nome.toLowerCase() };
 }
-const darMuda = m => { state.plantas[m.id] = (state.plantas[m.id] || 0) + m.n; };
+const darMuda = m => darPlanta(CROP[m.id], m.n);
 const txtMuda = m => `${m.n} plantas de ${m.nome}`;
 function claimMission(tipo, k) {
   const m = state.missions[tipo][k];
@@ -6746,7 +6757,7 @@ const PRESENTE_AMIGO = [
 const plantasPresente = lvl => 2 + Math.floor(lvl / 2);
 const presenteDe = id => {
   const c = id.startsWith('planta:') && CROP[id.slice(7)];
-  if (c) return { id, nome: lvl => `${plantasPresente(lvl)} plantas de ${c.nome.toLowerCase()}`, dar: (st, lvl) => { st.plantas = st.plantas || {}; st.plantas[c.id] = (st.plantas[c.id] || 0) + plantasPresente(lvl); } };
+  if (c) return { id, nome: lvl => `${plantasPresente(lvl)} plantas de ${c.nome.toLowerCase()}`, dar: (st, lvl) => { st.barn = st.barn || {}; st.barn[c.prod] = (st.barn[c.prod] || 0) + plantasPresente(lvl); } };
   return PRESENTE_AMIGO.find(x => x.id === id);
 };
 const PRESENTE_MAX = 5;
@@ -7108,7 +7119,7 @@ function drawWeather(t) {
 const PLANTAS_BAIXO = 10;
 let plantasAvisoChave = '';
 function checkPlantasLow() {
-  if (!state || !state.plantas || isGated() || state.boasVindas || !$('#boasvindas').hidden || !$('#panel').hidden) return;
+  if (!state || isGated() || state.boasVindas || !$('#boasvindas').hidden || !$('#panel').hidden) return;
   const baixas = CROPS.filter(c => c.nivel <= state.level && plantaQtd(c) < PLANTAS_BAIXO);
   // o milho do celeiro é a isca da pesca e das armadilhas: avisa antes de acabar
   const milho = state.level >= CROP.milho.nivel ? (state.barn.milho || 0) : PLANTAS_BAIXO;
@@ -8788,12 +8799,14 @@ function comprarIscas() {
 const VILA_MAX = 2, VILA_PRAZO = 24 * 3600e3, VILA_NOVO = 2 * 3600e3, CORACAO = 5;
 const VILA_FALAS = {
   ze: ['Tô precisando de {itens} pra levar na feira. Me ajuda?', 'Minha patroa pediu {itens}. Cê tem aí?', 'Ô, vizinho! Me arruma {itens}? Te pago direitinho.'],
+  bastiao: ['Tô cuidando da boiada e preciso de {itens}. Cê me arruma?', 'Mandei o capataz buscar {itens}, mas ele esqueceu. Salva a pátria, vizinho!', 'Pago bem por {itens}, é pra festa do peão.'],
+  veia: ['Ai, meus joelhos… me traz {itens}, meu bem?', 'Tô fazendo uma receita da minha avó e faltou {itens}.', 'Menino(a), se tiver {itens} sobrando, a Véia agradece com carinho!'],
   maria: ['Vou fazer um bolo pros netos! Me arruma {itens}?', 'Querido(a), tem {itens} sobrando? É pra quermesse da igreja.', 'Ai, esqueci de comprar {itens}! Você me salva?'],
 };
 const VILA_MARCOS = [
   { c: 1, txt: '300 moedas', dar: () => { state.coins += 300; } },
   { c: 2, txt: '10 camarões para pescar', dar: () => { iscasDe().camarao = (iscasDe().camarao || 0) + 10; } },
-  { c: 3, txt: 'um enfeite exclusivo', dar: npc => { const id = npc === 'ze' ? 'carroca' : 'roseira'; state.enfeites[id] = (state.enfeites[id] || 0) + 1; state.invNovos = (state.invNovos || 0) + 1; } },
+  { c: 3, txt: 'um enfeite exclusivo', dar: npc => { const id = { ze: 'carroca', maria: 'roseira', bastiao: 'porteira', veia: 'cadeira' }[npc] || 'roseira'; state.enfeites[id] = (state.enfeites[id] || 0) + 1; state.invNovos = (state.invNovos || 0) + 1; } },
   { c: 4, txt: '+10% nas recompensas dos pedidos' , dar: () => {} },
   { c: 5, txt: '2.000 moedas, um animal surpresa e o título de melhor vizinho(a)', dar: () => { state.coins += 2000; sortearAnimalCred(); } },
 ];
@@ -9123,12 +9136,12 @@ const bancaNivelVaga = i => Math.max(1, BANCA_EXTRA[i] - bancaDesconto());
 const bancaMax = () => BANCA_BASE + BANCA_EXTRA.filter((_, i) => state.level >= bancaNivelVaga(i)).length;
 const valorDe = id => (item(id) || {}).preco || 0;
 // Estoque de um item: mudas ficam em state.plantas; o resto, no celeiro.
-const estoqueDe = id => PRODUCT[id] && PRODUCT[id].muda ? (state.plantas[PRODUCT[id].muda] || 0) : (state.barn[id] || 0);
+const estoqueDe = id => PRODUCT[id] && PRODUCT[id].muda ? (state.barn[CROP[PRODUCT[id].muda].prod] || 0) : (state.barn[id] || 0);
 function mudaEstoque(id, q) {
-  const m = PRODUCT[id] && PRODUCT[id].muda, alvo = m ? state.plantas : state.barn, k = m || id;
-  alvo[k] = Math.max(0, (alvo[k] || 0) + q); if (!alvo[k] && !m) delete alvo[k];
+  const m = PRODUCT[id] && PRODUCT[id].muda, k = m ? CROP[m].prod : id;
+  state.barn[k] = Math.max(0, (state.barn[k] || 0) + q); if (!state.barn[k]) delete state.barn[k];
 }
-const itensVendaveis = () => [...Object.keys(state.barn).filter(id => state.barn[id] > 0 && item(id)), ...CROPS.filter(c => (state.plantas[c.id] || 0) > 0).map(c => 'p_' + c.id)];
+const itensVendaveis = () => Object.keys(state.barn).filter(id => state.barn[id] > 0 && item(id));
 function bancaAdd(id, qtd, preco) {
   state.banca = state.banca || [];
   const lim = bancaMax();
@@ -9235,7 +9248,7 @@ function bancaComprar(sid) {
   done();
 }
 function npcBanca() {
-  const pool = [...CROPS.filter(c => c.nivel <= state.level + 2).map(c => c.prod), ...CROPS.filter(c => c.nivel <= state.level + 2).map(c => 'p_' + c.id), 'ovo', 'leite', ...RECEITAS.filter(r => r.nivel <= state.level + 2).map(r => r.id)];
+  const pool = [...CROPS.filter(c => c.nivel <= state.level + 2).map(c => c.prod), 'ovo', 'leite', ...RECEITAS.filter(r => r.nivel <= state.level + 2).map(r => r.id)];
   return Array.from({ length: 3 }, () => {
     const it = pool[Math.floor(Math.random() * pool.length)], qtd = 1 + Math.floor(Math.random() * 5);
     return { id: newId(), item: it, qtd, preco: Math.round(valorDe(it) * qtd * (1 + Math.random() * 0.3)), at: Date.now() };
@@ -9295,10 +9308,10 @@ function novaFeira() {
   const nivel = state.level, cultivos = CROPS.filter(c => c.nivel <= nivel);
   const pr = (un, q, f = 1.3) => Math.max(1, Math.round(un * q * f));
   const mudas = Math.min(cultivos.length, 3);
-  while (slots.filter(x => x.t === 'item' && PRODUCT[x.id] && PRODUCT[x.id].muda).length < mudas) {
+  while (slots.filter(x => x.planta).length < mudas) {
     const c = sorteia(cultivos); if (usadas.has(c.id)) continue; usadas.add(c.id);
-    const qtd = 2 + Math.floor(Math.random() * 4), id = 'p_' + c.id;
-    slots.push({ t: 'item', id, qtd, preco: pr(valorDe(id), qtd, 1.1) });
+    const qtd = 4 + Math.floor(Math.random() * 7), id = c.prod;
+    slots.push({ t: 'item', id, qtd, preco: pr(valorDe(id), qtd, 1.2), planta: true });
   }
   for (const lista of [FEIRA_OVOS, [...FEIRA_PRODUTOS, ...FEIRA_OVOS]]) {
     const id = sorteia(lista), qtd = 2 + Math.floor(Math.random() * 5);
@@ -9738,6 +9751,8 @@ const ENFEITES = [
   { id: 'bolo',       nome: 'Bolo de boas-vindas',    especial: true, conforto: 2 },
   { id: 'carroca',    nome: 'Carroça de feno do Seu Zé',    especial: true, vila: true, conforto: 3 },
   { id: 'roseira',    nome: 'Roseira da Dona Maria',         especial: true, vila: true, conforto: 3 },
+  { id: 'porteira',   nome: 'Porteira do Seu Bastião',       especial: true, vila: true, conforto: 3 },
+  { id: 'cadeira',    nome: 'Cadeira de balanço da Dona Véia', especial: true, vila: true, conforto: 3 },
   { id: 'peixedourado', nome: 'Estátua do Peixe Dourado', especial: true, trevo: true, conforto: 3 },
   // Pomar: frutíferas. Dão frutas de tempos em tempos e secam depois da última colheita.
   // Seca: um amigo ajuda (volta a dar frutas) ou sai com enxada (arbusto) / motosserra (árvore).
@@ -10657,6 +10672,28 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.strokeStyle = 'rgba(107,63,31,.6)'; ctx.beginPath(); ctx.moveTo(x - 20 * s, y - 17.5 * s); ctx.lineTo(x + 16 * s, y - 17.5 * s); ctx.stroke();
     for (const wx of [-11, 8]) { ctx.strokeStyle = '#4a2c14'; ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.arc(x + wx * s, y - 7 * s, 7 * s, 0, 7); ctx.stroke();
       ctx.lineWidth = 1 * s; for (let k = 0; k < 4; k++) { const a = k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(x + wx * s - Math.cos(a) * 6 * s, y - 7 * s - Math.sin(a) * 6 * s); ctx.lineTo(x + wx * s + Math.cos(a) * 6 * s, y - 7 * s + Math.sin(a) * 6 * s); ctx.stroke(); } }
+    return;
+  }
+  if (id === 'porteira') {
+    // porteira de madeira com porta de tábuas (presente do Seu Bastião)
+    ctx.fillStyle = '#5a3a20'; ctx.fillRect(x - 24 * s, y - 34 * s, 5 * s, 34 * s); ctx.fillRect(x + 19 * s, y - 34 * s, 5 * s, 34 * s);
+    ctx.fillStyle = '#b98050'; ctx.strokeStyle = '#6b3f1f'; ctx.lineWidth = 1.2 * s;
+    for (const dy of [-30, -21, -12]) { ctx.beginPath(); ctx.roundRect(x - 19 * s, y + dy * s, 38 * s, 5 * s, 1 * s); ctx.fill(); ctx.stroke(); }
+    ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = 2.4 * s; ctx.beginPath(); ctx.moveTo(x - 19 * s, y - 9 * s); ctx.lineTo(x + 19 * s, y - 29 * s); ctx.stroke();
+    ctx.fillStyle = '#c9a04a'; ctx.beginPath(); ctx.arc(x + 17 * s, y - 20 * s, 1.8 * s, 0, 7); ctx.fill();
+    return;
+  }
+  if (id === 'cadeira') {
+    // cadeira de balanço com manta de crochê e um novelo (presente da Dona Véia)
+    const bal = Math.sin(t / 700) * 0.06;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(bal);
+    ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = 2.6 * s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-14 * s, -2 * s); ctx.quadraticCurveTo(0, 6 * s, 14 * s, -2 * s); ctx.stroke();
+    ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.moveTo(-9 * s, -3 * s); ctx.lineTo(-9 * s, -18 * s); ctx.moveTo(9 * s, -3 * s); ctx.lineTo(9 * s, -13 * s); ctx.stroke();
+    ctx.fillStyle = '#c9966a'; ctx.beginPath(); ctx.roundRect(-11 * s, -16 * s, 22 * s, 4 * s, 1.5 * s); ctx.fill(); ctx.fillRect(-9 * s, -34 * s, 4 * s, 20 * s); ctx.fillRect(-1 * s, -34 * s, 4 * s, 20 * s);
+    ctx.fillStyle = '#b86a9a'; ctx.beginPath(); ctx.moveTo(-9 * s, -14 * s); ctx.lineTo(9 * s, -14 * s); ctx.lineTo(7 * s, -7 * s); ctx.lineTo(-7 * s, -7 * s); ctx.closePath(); ctx.fill();
+    ctx.lineCap = 'butt'; ctx.restore();
+    ctx.fillStyle = '#e8e0f2'; ctx.beginPath(); ctx.arc(x + 20 * s, y - 3 * s, 3.4 * s, 0, 7); ctx.fill(); ctx.strokeStyle = '#8a6aa8'; ctx.lineWidth = 0.8 * s; ctx.beginPath(); ctx.arc(x + 20 * s, y - 3 * s, 2 * s, 0.4, 3); ctx.stroke();
     return;
   }
   if (id === 'roseira') {
