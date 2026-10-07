@@ -1334,6 +1334,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 264, txt: "Atualização automática mais firme: ao abrir o jogo (e a cada poucos minutos com ele aberto) ele confere se há versão nova e se atualiza sozinho, avisando na tela. Se a primeira tentativa não pegar, tenta de novo com limpeza completa, sem precisar ir em Configurações › Atualizar." },
   { v: 263, txt: "Corrigido: o botão 🆘 Precisa de ajuda de um amigo continuava aceso mesmo depois de você ajudar a árvore dele. Agora ele apaga assim que você ajuda (e volta a acender se a ajuda não chegar em 12 horas)." },
   { v: 262, txt: "Corrigido: o menu do botão direito (Mover, Guardar…) e o segurar para mover tinham parado de funcionar em tudo (construções, itens, plantas e canteiros) por causa da entrada da mina, que não tinha área de clique. Voltou ao normal." },
   { v: 261, txt: "Quando você ajuda uma frutífera seca de um amigo, ela agora aparece revivida para você ao visitar de novo, mesmo que o dono ainda não tenha aberto o jogo (para ele, ela volta quando abrir)." },
@@ -6465,16 +6466,26 @@ async function autoUpdate() {
     const r = await fetch(`${location.pathname.replace(/[^/]*$/, '')}index.html?t=${Date.now()}`, { cache: 'no-store' });
     if (r.ok) remote = ((await r.text()).match(/name="rf-version" content="([^"]+)"/) || [])[1] || null;
   } catch (e) { return; } // sem internet: joga com o que tem
-  if (!remote || remote === VERSION) return;
-  try { if (sessionStorage.getItem('rf-auto') === remote) return; sessionStorage.setItem('rf-auto', remote); } catch (e) { return; }
+  if (!remote || remote === VERSION) { try { localStorage.removeItem('rf-auto'); } catch (e) { /* sem armazenamento */ } return; }
+  // Guarda (no aparelho, não só na aba) quantas vezes já tentou chegar nessa versão: até 3 tentativas, 1 a cada 2 minutos,
+  // para nunca ficar recarregando sem parar. Da 2ª tentativa em diante faz a limpeza completa (como o botão Atualizar).
+  let g = { v: '', n: 0, t: 0 };
+  try { g = JSON.parse(localStorage.getItem('rf-auto')) || g; } catch (e) { /* sem registro */ }
+  if (g.v !== remote) g = { v: remote, n: 0, t: 0 };
+  if (g.n >= 3 || Date.now() - g.t < 2 * 60 * 1000) return;
+  g.n++; g.t = Date.now();
+  try { localStorage.setItem('rf-auto', JSON.stringify(g)); } catch (e) { /* sem armazenamento */ }
+  toast(`Nova versão ${remote} encontrada! Atualizando…`, 'good');
   if (state) save();
   try { if (user && dirty) await cloudSave(); } catch (e) { /* já está salvo no aparelho */ }
   try { if (window.caches) for (const k of await caches.keys()) await caches.delete(k); } catch (e) { /* sem cache */ }
+  if (g.n >= 2) { try { if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch (e) { /* sem service worker */ } }
   try { sessionStorage.setItem('rf-updated', VERSION); } catch (e) { /* sem armazenamento */ }
   location.replace(`${location.pathname}?atualizar=${Date.now()}${location.hash}`);
 }
 let ultimaChecagem = 0;
-document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - ultimaChecagem > 30 * 60 * 1000) { ultimaChecagem = Date.now(); autoUpdate(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - ultimaChecagem > 3 * 60 * 1000) { ultimaChecagem = Date.now(); autoUpdate(); } });
+setInterval(() => { if (!document.hidden && Date.now() - ultimaChecagem > 10 * 60 * 1000) { ultimaChecagem = Date.now(); autoUpdate(); } }, 60 * 1000);
 function openSettings() { if ($('#verTxt')) $('#verTxt').textContent = `Versão ${VERSION}`; if ($('#updStatus')) $('#updStatus').textContent = ''; if ($('#checkUpdate')) $('#checkUpdate').disabled = false; limparEdicaoNomes(); renderSettings(); $('#settings').hidden = false; $('#settings [data-close]').focus(); }
 function closeSettings() { $('#settings').hidden = true; $('#openSettings').focus(); }
 $('#openSettings').addEventListener('click', openSettings);
