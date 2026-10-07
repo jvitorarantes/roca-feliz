@@ -585,6 +585,7 @@ function migrate(s) {
     }
   }
   if (s.truck && !Array.isArray(s.truck.pedidos)) s.truck = null;
+  if (s.feira && !Array.isArray(s.feira.slots)) s.feira = null;
   const dogs = s.dogs && typeof s.dogs === 'object' ? s.dogs : {};
   s.dogs = {};
   for (const slot of ['roca', 'animais']) { const d = dogs[slot]; s.dogs[slot] = d && DOG[d.raca] ? d : null; }
@@ -961,7 +962,7 @@ function actPlot(i) {
   }
   if (p.s === 'plowed' && tool === 'seed') return plant(p, pos);
   // Terra vazia sem semente na mão: abre a Loja para escolher o que plantar (nada é plantado sozinho).
-  if (p.s === 'plowed' && tool === 'hand') { openPanel('loja', 'sementes'); return toast('Escolha uma planta e clique nas terras aradas para plantar.'); }
+  if (p.s === 'plowed' && tool === 'hand') return abrirPlantPicker();
   const hints = {
     hoe: 'O enxadão limpa plantas secas e arranca plantações.', water: 'Essa terra não precisa de água.',
     pest: 'Não há pragas aqui.', weed: 'Não há mato aqui.', seed: 'Só dá para plantar em terra arada.',
@@ -979,6 +980,27 @@ function usePotion(p, pos) {
   sfx('level'); useFx('pocao', pos); popupAt(pos, 'Novinha de novo!', '#c9a6ff');
   toast(`Poção usada: ${CROP[p.c].nome.toLowerCase()} voltou a ficar boa. Colha logo!`, 'good');
   done();
+}
+// Janelinha com as plantas que você tem: escolha uma e clique nas terras aradas.
+function abrirPlantPicker() {
+  const l = CROPS.filter(c => c.nivel <= state.level && (state.plantas[c.id] || 0) > 0);
+  if (!l.length) return toast('Você não tem plantas. Veja a Feira da vizinhança, as missões, o caminhão ou peça aos amigos!', 'bad');
+  let el = $('#plantPicker');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'plantPicker'; el.className = 'plantpicker';
+    el.addEventListener('click', e => {
+      const b = e.target.closest('[data-pick-seed]');
+      if (b) {
+        state.seed = b.dataset.pickSeed; state.tool = 'seed'; el.hidden = true; save(); renderTools();
+        return toast(`${CROP[state.seed].nome} na mão: clique nas terras aradas (${state.plantas[state.seed] || 0} plantas).`);
+      }
+      if (e.target.closest('[data-pick-close]')) el.hidden = true;
+    });
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<div class="pp-head"><b>🌱 O que plantar?</b><button type="button" class="btn ghost tiny" data-pick-close>✕</button></div>
+    <div class="pp-list">${l.map(c => `<button type="button" class="pp-item" data-pick-seed="${c.id}"><img alt="" src="${cropIcon(c.id)}"><span>${c.nome}</span><small>${state.plantas[c.id]}</small></button>`).join('')}</div>`;
+  el.hidden = false;
 }
 function plant(p, pos) {
   const crop = CROP[state.seed];
@@ -1281,6 +1303,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 240, txt: "Feira da vizinhança 🧺 (Negócios › Feira): 8 barracas com itens novos a cada 6 horas — plantas, rações, ovos, fertilizantes e mais. Clicar numa terra arada agora mostra as plantas que você tem para escolher, o Celeiro tem a lista de plantas com botão Plantar, e o aviso de poucas plantas ficou menor e não cobre mais a Loja." },
   { v: 239, txt: "Plantas sem semente 🌱: em Loja › Plantas você escolhe uma planta e clica em quantas terras aradas quiser. Ganhe mais plantas em missões diárias e semanais, nos pedidos do caminhão, de presente específico dos amigos (🎁 › Plantas) e comprando mudas na banca de amigos e vizinhos (e venda as suas na sua banca). Aviso vermelho quando uma planta tiver menos de 10. As fazendas dos vizinhos agora têm tudo que o nível deles permite." },
   { v: 238, txt: "Amizade ❤️ agora é do par: você e seu amigo veem sempre a mesma quantidade de corações (os pontos de quem ajuda e de quem presenteia se somam)." },
   { v: 237, txt: "Sistema de plantações renovado (Hay Day style) 🌱: sem mais sementes, você recebe 4 plantas ao desbloquear cada nível. Replante a planta inteira quantas vezes quiser — ela produz infinitamente. Alerta quando uma plantação tiver menos de 10 unidades. Amizade agora vai até 10 corações ❤️, e roubos diários aumentam com a amizade (6+ itens com 5+ corações)." },
@@ -5391,6 +5414,15 @@ function renderPane() {
     html += chaveAviso('celeiro', 'Mostrar a quantidade de itens no botão do Celeiro');
     const items = [...Object.values(PRODUCE), ...PRODUCTS, ...PRODUTOS_CACA.map(p => PRODUCT[p.id]), ...PEIXES.map(p => PRODUCT[p.id]), ...FRUTAS.map(f => PRODUCT[f.id]), ...PRESENTES_GATO.map(p => PRODUCT[p.id]), ...PRESENTES_ARARA.map(p => PRODUCT[p.id]), ...PREMIOS_NIVEL.map(p => PRODUCT[p.id]), ...RECEITAS].filter(it => state.barn[it.id] > 0);
     let total = 0; for (const it of items) total += state.barn[it.id] * it.preco;
+    const minhasPlantas = CROPS.filter(c => (state.plantas[c.id] || 0) > 0);
+    if (minhasPlantas.length) {
+      html += `<h3>🌱 Plantas</h3>`;
+      for (const c of minhasPlantas) {
+        const q = state.plantas[c.id];
+        html += `<div class="row"><img alt="" src="${cropIcon(c.id)}"><div><div class="name">${c.nome} × ${q}${q < PLANTAS_BAIXO ? ' <span class="tag bad">poucas</span>' : ''}</div><div class="meta">${fmt(c.tempo)} · rende ${faixa(c)} × ${c.preco}</div></div>
+          <button class="btn gold" data-seed="${c.id}">Plantar</button></div>`;
+      }
+    }
     html += `<h3>Celeiro</h3>`;
     if (!items.length) html += `<div class="empty">O celeiro está vazio.<br>Colha na roça e recolha ovos, leite, lã e trufas dos animais.</div>`;
     else {
@@ -5545,6 +5577,7 @@ $('#pane').addEventListener('click', e => {
   if (d.fabRecolher) return recolherFab(d.fabRecolher);
   if (d.fabSlot) return comprarSlotFab(d.fabSlot);
   if (d.bancaRem) return bancaRemove(d.bancaRem);
+  if (d.feiraComprar) return comprarFeira(Number(d.feiraComprar));
   if ('bancaNovo' in d) return abrirBancaModal();
   if (d.bancaComprar) return bancaComprar(d.bancaComprar);
   if (d.entregar) return entregar(Number(d.entregar));
@@ -6949,21 +6982,21 @@ function drawWeather(t) {
 const PLANTAS_BAIXO = 10;
 let plantasAvisoChave = '';
 function checkPlantasLow() {
-  if (!state || !state.plantas || isGated() || state.boasVindas || !$("#boasvindas").hidden) return;
+  if (!state || !state.plantas || isGated() || state.boasVindas || !$('#boasvindas').hidden || !$('#panel').hidden) return;
   const baixas = CROPS.filter(c => c.nivel <= state.level && (state.plantas[c.id] || 0) < PLANTAS_BAIXO);
   const chave = baixas.map(c => c.id).join(',');
   if (chave === plantasAvisoChave) return;
   plantasAvisoChave = chave;
   if (!baixas.length) return;
-  const ver = baixas.slice(0, 4).map(c => `${c.nome} (${state.plantas[c.id] || 0})`).join(', ') + (baixas.length > 4 ? ` e mais ${baixas.length - 4}` : '');
-  plantaAlerta(`⚠️ Poucas plantas: ${ver}. Ganhe mais com amigos, missões ou no caminhão!`);
+  const ver = baixas.slice(0, 3).map(c => `${c.nome} (${state.plantas[c.id] || 0})`).join(', ') + (baixas.length > 3 ? ` +${baixas.length - 3}` : '');
+  plantaAlerta(`⚠️ Poucas plantas: ${ver}`);
 }
 // Aviso vermelho que fica um pouco mais na tela que um toast comum.
 function plantaAlerta(msg) {
   const el = document.createElement('div');
   el.className = 'toast bad'; el.textContent = msg;
   sfx('error'); $('#toasts').appendChild(el);
-  setTimeout(() => el.remove(), 6000);
+  setTimeout(() => el.remove(), 4500);
 }
 
 // ---------- Borboletas, sapos, porquinhos-da-índia, grilos e vaga-lumes ----------
@@ -9053,10 +9086,70 @@ function entregar(k) {
   mostrarEntrega(`O caminhão levou o pedido! +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.muda ? ` e ${txtMuda(p.muda)}` : ''}.`);
 }
 
+// ---------- Feira da vizinhança: 8 barracas, itens novos a cada 6 horas ----------
+const FEIRA_BLOCO = 6 * 3600e3, FEIRA_N = 8;
+const blocoFeira = () => Math.floor(Date.now() / FEIRA_BLOCO);
+const FEIRA_OVOS = ['ovo', 'ovoangola', 'ovopata', 'ovocodorna', 'ovoperu'];
+const FEIRA_PRODUTOS = ['leite', 'leitecabra', 'la', 'pelo', 'mel', 'plumaganso'];
+function novaFeira() {
+  const slots = [], usadas = new Set();
+  const nivel = state.level, cultivos = CROPS.filter(c => c.nivel <= nivel);
+  const pr = (un, q, f = 1.3) => Math.max(1, Math.round(un * q * f));
+  const mudas = Math.min(cultivos.length, 3);
+  while (slots.filter(x => x.t === 'item' && PRODUCT[x.id] && PRODUCT[x.id].muda).length < mudas) {
+    const c = sorteia(cultivos); if (usadas.has(c.id)) continue; usadas.add(c.id);
+    const qtd = 3 + Math.floor(Math.random() * 6), id = 'p_' + c.id;
+    slots.push({ t: 'item', id, qtd, preco: pr(valorDe(id), qtd, 1.1) });
+  }
+  for (const lista of [FEIRA_OVOS, [...FEIRA_PRODUTOS, ...FEIRA_OVOS]]) {
+    const id = sorteia(lista), qtd = 2 + Math.floor(Math.random() * 5);
+    slots.push({ t: 'item', id, qtd, preco: pr(valorDe(id), qtd, 1.5) });
+  }
+  const rq = 1 + Math.floor(Math.random() * 3);
+  slots.push({ t: 'racao', qtd: rq, preco: Math.round(RACAO_ESP * rq * 0.8) });
+  const dq = 2 + Math.floor(Math.random() * 3);
+  slots.push({ t: 'racaoCao', qtd: dq, preco: Math.round(DOG_FOOD.custo * dq * 0.8) });
+  const f = sorteia(FERTS.filter(x => x.nivel <= nivel)), fq = 2 + Math.floor(Math.random() * 4);
+  slots.push({ t: 'fert', id: f.id, qtd: fq, preco: Math.round(f.custo * fq * 0.8) });
+  for (let i = slots.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]]; }
+  return slots.slice(0, FEIRA_N).map(x => Object.assign(x, { vendido: false }));
+}
+function rollFeira() {
+  const b = blocoFeira();
+  if (state.feira && state.feira.b === b && Array.isArray(state.feira.slots)) return;
+  state.feira = { b, slots: novaFeira() };
+}
+const feiraNome = x => x.t === 'racao' ? 'ração especial' : x.t === 'racaoCao' ? 'ração de cachorro' : x.t === 'fert' ? FERT[x.id].nome.toLowerCase() : item(x.id).nome.toLowerCase();
+const feiraIcone = x => x.t === 'racao' ? bowlIcon() : x.t === 'racaoCao' ? dogIcon('caramelo') : x.t === 'fert' ? fertIcon(x.id) : itemIcon(x.id);
+function comprarFeira(k) {
+  const x = state.feira && state.feira.slots[k];
+  if (!x || x.vendido) return toast('Esse já foi levado.');
+  if (state.coins < x.preco) return toast(`Faltam moedas: custa ${x.preco.toLocaleString('pt-BR')}.`, 'bad');
+  state.coins -= x.preco; x.vendido = true;
+  if (x.t === 'racao') state.racaoEsp += x.qtd;
+  else if (x.t === 'racaoCao') state.dogFood += x.qtd;
+  else if (x.t === 'fert') state.fert[x.id] = (state.fert[x.id] || 0) + x.qtd;
+  else mudaEstoque(x.id, x.qtd);
+  sfx('coin'); toast(`Comprou ${x.qtd} ${feiraNome(x)} na feira!`, 'good');
+  done();
+}
+function feiraHTML() {
+  rollFeira();
+  const falta = (state.feira.b + 1) * FEIRA_BLOCO - Date.now();
+  let html = `<p class="hint">A feira da vizinhança traz itens novos a cada 6 horas: plantas, rações, ovos e mais. Novidades em <b>${fmt(falta / 1000)}</b>. Cada barraca vende uma vez só.</p><div class="banca">`;
+  state.feira.slots.forEach((x, k) => {
+    html += x.vendido
+      ? `<div class="bslot" style="opacity:.5"><img alt="" src="${feiraIcone(x)}"><b>${x.qtd}× ${esc(feiraNome(x))}</b><span>Vendido</span></div>`
+      : `<div class="bslot"><img alt="" src="${feiraIcone(x)}"><b>${x.qtd}× ${esc(feiraNome(x))}</b><span>${moeda(x.preco)}</span>
+        <button class="btn gold tiny" data-feira-comprar="${k}" ${state.coins < x.preco ? 'disabled' : ''}>Comprar</button></div>`;
+  });
+  return html + '</div>';
+}
+
 // ---------- Tela da fábrica (com a banca e o caminhão) ----------
 let fabSeg = 'fabrica';
 function fabricaHTML() {
-  const segs = [['fabrica', 'Fábrica', prontosFab()], ['banca', 'Banca', 0], ['caminhao', 'Caminhão', entregaveis()]];
+  const segs = [['fabrica', 'Fábrica', prontosFab()], ['banca', 'Banca', 0], ['caminhao', 'Caminhão', entregaveis()], ['feira', 'Feira', 0]];
   if (!isHome()) return bancaVisitaHTML();
   rollCaminhao();
   let html = `<div class="seg small" role="tablist">${segs.map(([id, n, c]) => `<button type="button" role="tab" data-fseg="${id}" aria-selected="${fabSeg === id}">${n}${c ? `<span class="badge ready">${c}</span>` : ''}</button>`).join('')}</div>`;
@@ -9085,6 +9178,8 @@ function fabricaHTML() {
           ${locked ? `<button class="btn" disabled>Nível ${r.nivel}</button>` : `<button class="btn" data-fabricar="${r.id}" ${ok ? '' : 'disabled'}>Fazer</button>`}</div>`;
       }
     }
+  } else if (fabSeg === 'feira') {
+    html += feiraHTML();
   } else if (fabSeg === 'banca') {
     const banca = state.banca || [], max = bancaMax(), desc = bancaDesconto();
     html += `<p class="hint">Coloque coisas do celeiro à venda. Os amigos compram quando visitam a sua roça, e os vizinhos da vila passam de vez em quando (se o preço for justo). O dinheiro chega sozinho.${max < BANCA_TOPO ? ` Cada amigo de verdade adianta 1 nível pra liberar mais lugares (até ${BANCA_DESC_MAX})${desc ? ` — você já tem ${desc}` : ''}.` : ''}</p>`;
