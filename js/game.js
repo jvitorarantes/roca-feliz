@@ -598,7 +598,7 @@ function migrate(s) {
   }
   if (s.truck && !Array.isArray(s.truck.pedidos)) s.truck = null;
   if (s.feira && !Array.isArray(s.feira.slots)) s.feira = null;
-  if (s.mina && !Array.isArray(s.mina.cel)) s.mina = null;
+  if (s.mina && !Array.isArray(s.mina.vs)) s.mina = null; // a mina antiga (cena à parte) virou entrada na roça
   const dogs = s.dogs && typeof s.dogs === 'object' ? s.dogs : {};
   s.dogs = {};
   for (const slot of ['roca', 'animais']) { const d = dogs[slot]; s.dogs[slot] = d && DOG[d.raca] ? d : null; }
@@ -1316,6 +1316,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 246, txt: "A mina mudou ⛏️ (nível 6): agora é uma entrada de caverna lá na sua roça, com 4 depósitos de minério na frente. Toque na entrada para escolher a ferramenta e toque num depósito: o avatar vai até lá e bate com a picareta (faíscas!), acende a dinamite (quebra 5 batidas de uma vez) ou explode tudo com TNT. As ferramentas se gastam: você começa com 25 picaretas e 2 dinamites, e ganha mais em missões diárias e semanais, no caminhão, de presente de amigos, na feira da vizinhança e na Loja do Trevo. Cada depósito volta depois de um tempo, e dá para mover a mina no modo Mover." },
   { v: 245, txt: "Forja & Joalheria ⚒️ (Negócios › Fábrica, a partir do nível 8): transforme os minérios da mina em tijolo, barras de ferro, cobre, prata e ouro, e depois em ferradura, panela de cobre, pingente de prata, aliança de ouro e anel de gema. As barras são ingredientes das peças, e tudo vale bem mais que o minério puro." },
   { v: 244, txt: "A janelinha que abre ao clicar na terra arada agora mostra o tempo de crescimento e quanto cada planta rende." },
   { v: 243, txt: "Mina ⛏️ (nível 6): a terceira área do jogo, ao lado da roça e do rancho. Quebre pedras, carvão, ferro, cobre, prata, ouro e gemas com a picareta (melhore na placa da mina). Os minérios vão para o celeiro, a banca e o caminhão, e tem missão de mina. Chocadeira com 5 níveis: choca mais rápido, cabe mais ovo, e dá chance de gêmeos, cor rara 🌈 e raça rara 💎 (produz mais). Mais jeitos de ganhar animal: missão diária (12%), pedidos do caminhão, top 3 do ranking, melhor vizinho, feira da vizinhança e Loja do Trevo. Corrigido: os ovos agora levam as horas de verdade para chocar." },
@@ -2704,10 +2705,6 @@ function layout(sc) {
     L.ox = cx - ((u0 + u1) - (v0 + v1)) * L.W / 4 + 0.1 * L.W;
     L.oy = I.t + ah / 2 - (((u0 + u1) + (v0 + v1)) / 8 - 0.55) * L.W;
     box = { w: bw * L.W, h: bh * L.W };
-  } else if (sc === 'mina') {
-    L.W = Math.min(aw / (MINA_N + 1.6), ah / (MINA_N / 2 + 2.4));
-    L.ox = cx; L.oy = cy - MINA_N * L.W / 4 + 0.15 * L.W;
-    box = { w: (MINA_N + 1) * L.W, h: (MINA_N / 2 + 1.5) * L.W };
   } else {
     L.W = Math.min(aw / 5.9, ah / 4.35);
     L.ox = cx;
@@ -4710,7 +4707,6 @@ function draw(t, dt) {
   const s = S(), home = isHome();
   if (scene === 'roca') drawRoca(s, t, home);
   else if (scene === 'animais') drawPen(s, t, home, dt);
-  else if (scene === 'mina') drawMina(s, t, home);
   else drawRoom(s, t, home);
   drawFx(t);
   drawPopups(t); drawFalas(t);
@@ -4865,7 +4861,7 @@ function renderTools() {
   const box = $('#tools'), hint = $('#sceneHint');
   box.hidden = scene !== 'roca';
   hint.hidden = scene === 'roca';
-  hint.textContent = scene === 'mina' ? 'Clique nas pedras para quebrar com a picareta. Cada pedra volta depois de um tempo. Clique na placa para melhorar a picareta.' : scene === 'animais'
+  hint.textContent = scene === 'animais'
     ? (isHome() ? 'Clique num animal para alimentar, recolher ou vender. Clique num abrigo para aumentar ou para construir um novo. No Modo Mover dá para arrastar os abrigos para outro canto do rancho.' : 'Dê comida aos animais com fome para ajudar. Produto pronto dá para pegar um pouquinho.')
     : (isHome() ? 'Os espaços com + são lugares para decoração. Cada peça dá conforto, e conforto aumenta o XP que você ganha. Gato, tartaruga e arara moram aqui: clique neles para fazer carinho.' : 'Esta é a casa do seu vizinho.');
   box.innerHTML = '';
@@ -4938,13 +4934,9 @@ function setTool(id) {
   state.tool = id; renderTools(); renderPane();
 }
 function setScene(sc) {
-  if (sc === 'mina') {
-    if (!isHome()) return toast('A mina fica na sua roça: volte para casa para minerar.');
-    if (state.level < MINA_NIVEL) return toast(`A mina libera no nível ${MINA_NIVEL}.`);
-  }
   if (sc !== scene) { L.pan = { x: 0, y: 0 }; if (moving && !moving.novo) moving = null; }
   scene = sc; hover = null; renderZoom();
-  if ((sc === 'casa' || sc === 'mina') && moveMode) { moveMode = false; moving = null; }
+  if (sc === 'casa' && moveMode) { moveMode = false; moving = null; }
   renderMoveBtn();
   document.querySelectorAll('#scenes button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.scene === sc)));
   renderTools(); renderSceneInfo(); pedirFitHud();
@@ -5103,7 +5095,6 @@ function renderSceneInfo() {
     const cap = ABRIGOS.reduce((t, b) => t + ABRIGO_CAP[abrigoLv(s, b.id)], 0);
     el.textContent = owner + `${s.animals.filter(inPen).length}${isHome() ? ` de ${cap}` : ''} animais`;
   }
-  else if (scene === 'mina') el.textContent = owner + `Mina · picareta nível ${picNivel()}`;
   else el.textContent = owner + `Conforto ${comfort(s)} · +${comfort(s)}% de XP`;
 }
 
@@ -5622,7 +5613,6 @@ $('#pane').addEventListener('click', e => {
   if (d.fabricar) return fabricar(d.fabricar);
   if (d.fabRecolher) return recolherFab(d.fabRecolher);
   if (d.chocUp) return melhorarChocadeira();
-  if (d.picUp) return melhorarPicareta();
   if (d.fabSlot) return comprarSlotFab(d.fabSlot);
   if (d.bancaRem) return bancaRemove(d.bancaRem);
   if (d.feiraComprar) return comprarFeira(Number(d.feiraComprar));
@@ -5787,7 +5777,7 @@ const MENU_ICONS = {
 };
 function paintMenuIcons() {
   document.querySelectorAll('.tab .ic').forEach(el => { el.innerHTML = MENU_ICONS[el.parentNode.dataset.tab]; });
-  const sc = { roca: `<img alt="" src="${cropIcon('milho')}">`, animais: `<img alt="" src="${animalIcon('vaca')}">`, casa: MENU_ICONS.casa, mina: `<img alt="" src="${minerioIcon('ouro')}">` };
+  const sc = { roca: `<img alt="" src="${cropIcon('milho')}">`, animais: `<img alt="" src="${animalIcon('vaca')}">`, casa: MENU_ICONS.casa };
   document.querySelectorAll('#scenes .ic').forEach(el => { el.innerHTML = sc[el.parentNode.dataset.scene]; });
   const g = document.querySelector('#giftBtn .ic'); if (g) g.innerHTML = MENU_ICONS.presente;
   const m = document.querySelector('#moveBtn .ic'); if (m) m.innerHTML = MENU_ICONS.mover;
@@ -5889,7 +5879,7 @@ function tipDecor(id) {
 let lastTip = '';
 function updateTip() {
   const show = hover && $('#ctxMenu').hidden && (pointer.inside && !pointer.touch || performance.now() < pointer.tipUntil);
-  const html = !show ? null : hover.kind === 'plot' ? tipPlot(hover.i) : hover.kind === 'mina' ? tipMina(hover.i) : hover.kind === 'minaplaca' ? '<b>⛏️ Placa da mina</b><br>Clique para ver a picareta e os minérios.' : hover.kind === 'animal' ? tipAnimal(hover.id) : hover.kind === 'dog' ? tipDog(hover.slot) : hover.kind === 'canil' ? tipCanil(hover.slot) : hover.kind === 'caminha' ? tipCaminha(hover.id) : hover.kind === 'abrigo' ? tipAbrigo(hover.id) : hover.kind === 'land' ? tipLand() : hover.kind === 'caca' ? (state.level >= CACA_NIVEL ? '<b>🎯 Trilha da caçada</b><br>Clique para caçar pragas com o estilingue ou a espingarda, e armar a arapuca.' : `<b>🎯 Trilha da caçada</b><br>Libera no nível ${CACA_NIVEL}.`) : hover.kind === 'bicho' ? tipBicho(hover.i) : hover.kind === 'avatar' ? (hover.quem === 'dono' ? `<b>${esc(view.nome)}</b><br>${view.avatar && view.avatar.sexo === 'f' ? 'Dona' : 'Dono'} de ${esc(view.fazenda || 'Roça Feliz')}. Clique para dar um oi.` : `<b>${esc(meuApelido())}</b>${meuApelido() === 'Você' ? '' : ' (você)'}<br>Clique para dar um oi.`) : hover.kind === 'invasor' ? `<b>${invasor ? (invasor.tipo === 'javali' ? '🐗 Javali' : '🐀 Rato') : 'Praga'} na plantação!</b><br>Clique para espantar antes que ele coma.` : hover.kind === 'armadilha' ? `<b>🪤 Armadilha de pragas</b><br>${armadilhaPronta() ? 'Carregada: pega a próxima praga que invadir a plantação.' : `Recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`}` : hover.kind === 'mural' ? `<b>📷 Mural da caçada</b><br>${hover.n} foto${hover.n === 1 ? '' : 's'} de bichos. ${isHome() ? 'Clique para abrir o Livro da caçada.' : ''}` : hover.kind === 'folhas' ? '<b>🍂 Monte de folhas</b><br>Clique e o avatar vai rastelar (+XP e umas moedinhas).' : hover.kind === 'lago' ? `<b>🎣 Lago</b><br>Clique para pescar (🪱 ${iscasDe().minhoca || 0} minhocas).` : hover.kind === 'enfeite' ? tipEnfeite(hover.id, hover.key, hover.sc) : hover.kind === 'obj' ? null : hover.kind === 'celeiro' ? `<b>${isHome() ? 'Seu celeiro' : 'Celeiro de ' + esc(view.nome)}</b>${isHome() ? '<br>Clique para ver o que está guardado.' : ''}` : hover.kind === 'casa' ? `<b>${isHome() ? 'Sua casa' : 'Casa de ' + esc(view.nome)}</b><br>${isHome() ? 'Clique para entrar ou trocar o tema.' : 'Clique para entrar.'}` : tipDecor(hover.id);
+  const html = !show ? null : hover.kind === 'plot' ? tipPlot(hover.i) : hover.kind === 'veia' ? tipVeia(hover.i) : hover.kind === 'minaentrada' ? `<b>⛏️ Mina</b><br>Clique para escolher a ferramenta (${MINA_FERR[minaDe().sel].emoji} ${MINA_FERR[minaDe().sel].nome}: ${minaDe().ferr[minaDe().sel]}).` : hover.kind === 'animal' ? tipAnimal(hover.id) : hover.kind === 'dog' ? tipDog(hover.slot) : hover.kind === 'canil' ? tipCanil(hover.slot) : hover.kind === 'caminha' ? tipCaminha(hover.id) : hover.kind === 'abrigo' ? tipAbrigo(hover.id) : hover.kind === 'land' ? tipLand() : hover.kind === 'caca' ? (state.level >= CACA_NIVEL ? '<b>🎯 Trilha da caçada</b><br>Clique para caçar pragas com o estilingue ou a espingarda, e armar a arapuca.' : `<b>🎯 Trilha da caçada</b><br>Libera no nível ${CACA_NIVEL}.`) : hover.kind === 'bicho' ? tipBicho(hover.i) : hover.kind === 'avatar' ? (hover.quem === 'dono' ? `<b>${esc(view.nome)}</b><br>${view.avatar && view.avatar.sexo === 'f' ? 'Dona' : 'Dono'} de ${esc(view.fazenda || 'Roça Feliz')}. Clique para dar um oi.` : `<b>${esc(meuApelido())}</b>${meuApelido() === 'Você' ? '' : ' (você)'}<br>Clique para dar um oi.`) : hover.kind === 'invasor' ? `<b>${invasor ? (invasor.tipo === 'javali' ? '🐗 Javali' : '🐀 Rato') : 'Praga'} na plantação!</b><br>Clique para espantar antes que ele coma.` : hover.kind === 'armadilha' ? `<b>🪤 Armadilha de pragas</b><br>${armadilhaPronta() ? 'Carregada: pega a próxima praga que invadir a plantação.' : `Recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`}` : hover.kind === 'mural' ? `<b>📷 Mural da caçada</b><br>${hover.n} foto${hover.n === 1 ? '' : 's'} de bichos. ${isHome() ? 'Clique para abrir o Livro da caçada.' : ''}` : hover.kind === 'folhas' ? '<b>🍂 Monte de folhas</b><br>Clique e o avatar vai rastelar (+XP e umas moedinhas).' : hover.kind === 'lago' ? `<b>🎣 Lago</b><br>Clique para pescar (🪱 ${iscasDe().minhoca || 0} minhocas).` : hover.kind === 'enfeite' ? tipEnfeite(hover.id, hover.key, hover.sc) : hover.kind === 'obj' ? null : hover.kind === 'celeiro' ? `<b>${isHome() ? 'Seu celeiro' : 'Celeiro de ' + esc(view.nome)}</b>${isHome() ? '<br>Clique para ver o que está guardado.' : ''}` : hover.kind === 'casa' ? `<b>${isHome() ? 'Sua casa' : 'Casa de ' + esc(view.nome)}</b><br>${isHome() ? 'Clique para entrar ou trocar o tema.' : 'Clique para entrar.'}` : tipDecor(hover.id);
   if (!html) { tip.hidden = true; lastTip = ''; return; }
   if (html !== lastTip) { tip.innerHTML = html; lastTip = html; }
   tip.hidden = false;
@@ -6066,8 +6056,8 @@ cv.addEventListener('click', e => {
   if (pointer.touch) pointer.tipUntil = performance.now() + 2200;
   if (!target) return;
   if (target.kind === 'plot') actPlot(target.i);
-  else if (target.kind === 'mina') minaBater(target.i);
-  else if (target.kind === 'minaplaca') openPanel('mina');
+  else if (target.kind === 'veia') minaAgir(target.i);
+  else if (target.kind === 'minaentrada') { if (minaDe().sel === 'tnt' && minaDe().ferr.tnt > 0) minaAgir(0); else abrirMinaPicker(); }
   else if (target.kind === 'animal') actAnimal(target.id);
   else if (target.kind === 'decor') actDecor(target.id);
   else if (target.kind === 'dog') actDog(target.slot);
@@ -6561,7 +6551,9 @@ function claimMission(tipo, k) {
   sfx('coin');
   const bicho = tipo === 'semana' || Math.random() < 0.12 ? sortearAnimalCred() : null;
   const muda = sortearMuda(tipo === 'semana' ? 6 : 3); darMuda(muda);
-  toast(`Prêmio: +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.racao ? ' e 1 ração especial' : ''} e ${txtMuda(muda)}${bicho ? ` e ${bicho.f ? 'uma' : 'um'} ${bicho.nome.toLowerCase()} para resgatar (Loja › Animais)` : ''}!`, 'good');
+  const ferrM = state.level >= MINA_NIVEL ? (tipo === 'semana' ? { pic: 10, din: 1 } : { pic: 5 }) : null;
+  if (ferrM) for (const [f, n] of Object.entries(ferrM)) darFerr(f, n);
+  toast(`Prêmio: +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.racao ? ' e 1 ração especial' : ''} e ${txtMuda(muda)}${ferrM ? ` e ${txtFerr(ferrM)}` : ''}${bicho ? ` e ${bicho.f ? 'uma' : 'um'} ${bicho.nome.toLowerCase()} para resgatar (Loja › Animais)` : ''}!`, 'good');
   // completou todas do dia (ou da semana)? ganha trevos, uma vez por dia / por semana
   const ms = state.missions, marca = tipo === 'dia' ? 'd' : 'w';
   if (ms[tipo].every(x => x.pego) && ms['trevo_' + tipo] !== ms[marca]) {
@@ -6666,6 +6658,8 @@ const PRESENTE_AMIGO = [
   { id: 'racao', nome: lvl => { const n = 1 + Math.floor(lvl / 2); return n > 1 ? `${n} rações especiais` : '1 ração especial'; }, dar: (s, lvl) => { s.racaoEsp += 1 + Math.floor(lvl / 2); } },
   { id: 'racaoCao', nome: lvl => `${2 + lvl} rações de cachorro`, dar: (s, lvl) => { s.dogFood += 2 + lvl; } },
   { id: 'animal', minLvl: 2, nome: () => '1 animal surpresa', dar: s => { const l = animaisLiberados(s); if (!l.length) { s.coins += 100; return; } const d = l[Math.floor(Math.random() * l.length)]; (s.animalCred = s.animalCred || {})[d.id] = (s.animalCred[d.id] || 0) + 1; } },
+  { id: 'picaretas', nome: lvl => `${4 + Math.floor(lvl / 2)} picaretas (mina)`, dar: (s, lvl) => { s.ferrPend = s.ferrPend || {}; s.ferrPend.pic = (s.ferrPend.pic || 0) + 4 + Math.floor(lvl / 2); } },
+  { id: 'dinamite', minLvl: 3, nome: lvl => `${1 + Math.floor(lvl / 4)} dinamite${lvl >= 4 ? 's' : ''} (mina)`, dar: (s, lvl) => { s.ferrPend = s.ferrPend || {}; s.ferrPend.din = (s.ferrPend.din || 0) + 1 + Math.floor(lvl / 4); } },
   { id: 'enxada', nome: () => '1 enxada de arrancar', dar: s => { (s.derrubar = s.derrubar || {}).enxada = (s.derrubar.enxada || 0) + 1; } },
   { id: 'motosserra', nome: () => '1 motosserra', dar: s => { (s.derrubar = s.derrubar || {}).motosserra = (s.derrubar.motosserra || 0) + 1; } },
 ];
@@ -6690,7 +6684,7 @@ function escolherPresente(uid, volta) {
   presenteParaUid = uid;
   const f = friendInfo[uid], lvl = nivelAmizade(uid);
   $('#presTxt').textContent = `Escolha o presente para ${firstName(f && f.name ? f.name : 'seu amigo')}. Não custa nada!${lvl ? ` Amizade nível ${lvl}: presentes melhores!` : ''}`;
-  const icon = { animal: animalIcon('galinha'), basico: fertIcon('basico'), racao: bowlIcon(), racaoCao: dogIcon('caramelo'), enxada: ferramentaIcon('enxada'), motosserra: ferramentaIcon('motosserra') };
+  const icon = { animal: animalIcon('galinha'), basico: fertIcon('basico'), racao: bowlIcon(), racaoCao: dogIcon('caramelo'), enxada: ferramentaIcon('enxada'), picaretas: ferrIcon('pic'), dinamite: ferrIcon('din'), motosserra: ferramentaIcon('motosserra') };
   $('#presOpcoes').innerHTML = PRESENTE_AMIGO.filter(p => !p.minLvl || lvl >= p.minLvl).map(p => `<button type="button" class="presopt" data-pres="${p.id}"><img alt="" src="${p.id === 'moedas' ? giftIcon({ moedas: 100 + lvl * 50 }) : icon[p.id]}"><span>${p.nome(lvl)}</span></button>`).join('')
     + `<button type="button" class="presopt" data-pres="plantas"><img alt="" src="${cropIcon('milho')}"><span>🌱 Plantas (${plantasPresente(lvl)} da que escolher)</span></button>`;
   $('#presente').hidden = false;
@@ -7249,7 +7243,7 @@ function drawChapeu(g, tipo) {
   }
 }
 // O que o avatar leva na mão direita (desenhado a partir da mão, que fica em (0, 17) do braço).
-function drawNaMao(g, tipo, t) {
+function drawNaMao(g, tipo, t, agir) {
   if (tipo === 'vara') {
     g.strokeStyle = '#7a4a24'; g.lineWidth = 1.8; g.lineCap = 'round';
     g.beginPath(); g.moveTo(0, 18); g.lineTo(16, -26); g.stroke();
@@ -7333,6 +7327,29 @@ function drawNaMao(g, tipo, t) {
     g.beginPath(); g.moveTo(-1, 26); g.lineTo(3, -16); g.stroke();
     g.fillStyle = '#8f9aa3'; g.beginPath(); g.moveTo(2, -17); g.lineTo(10, -21); g.quadraticCurveTo(12.5, -15, 10, -8); g.lineTo(2.6, -11); g.fill();
     g.fillStyle = '#d9e0e6'; g.beginPath(); g.moveTo(10, -21); g.quadraticCurveTo(12.5, -15, 10, -8); g.lineTo(9, -9); g.quadraticCurveTo(11, -15, 9, -20); g.fill();
+  } else if (tipo === 'picareta') {
+    g.save();
+    if (agir) { g.translate(0, 16.5); g.rotate(Math.sin(t / 110) * 0.85 - 0.45); g.translate(0, -16.5); }
+    g.strokeStyle = '#a4703f'; g.lineWidth = 2.2; g.lineCap = 'round'; g.beginPath(); g.moveTo(-1, 26); g.lineTo(3, -18); g.stroke(); g.lineCap = 'butt';
+    g.fillStyle = '#8f9aa3'; g.beginPath(); g.moveTo(-9, -12); g.quadraticCurveTo(3, -24, 15, -12); g.lineTo(13, -11); g.quadraticCurveTo(3, -19, -7, -10.5); g.closePath(); g.fill();
+    g.strokeStyle = '#4a525a'; g.lineWidth = 0.8; g.stroke();
+    g.restore();
+  } else if (tipo === 'dinamite') {
+    g.save(); g.translate(0, 18); g.rotate(-0.2);
+    g.fillStyle = '#d63a2a'; g.strokeStyle = '#7a1d10'; g.lineWidth = 0.8;
+    for (const dx of [-3.6, 0, 3.6]) { g.fillRect(dx - 1.7, -2, 3.4, 15); g.strokeRect(dx - 1.7, -2, 3.4, 15); }
+    g.fillStyle = '#e8d8a8'; g.fillRect(-6, 3, 12, 3);
+    g.strokeStyle = '#3a2a1a'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, -2); g.quadraticCurveTo(2, -7, 5, -8); g.stroke();
+    g.fillStyle = Math.sin(t / 60) > 0 ? '#ffd84a' : '#ff7a1a'; g.beginPath(); g.arc(5.4, -8.6, 1.8, 0, 7); g.fill();
+    g.restore();
+  } else if (tipo === 'tnt') {
+    g.save(); g.translate(0, 19); g.rotate(-0.12);
+    g.fillStyle = '#c8301f'; g.strokeStyle = '#6a1608'; g.lineWidth = 0.9; g.fillRect(-7, -2, 14, 13); g.strokeRect(-7, -2, 14, 13);
+    g.fillStyle = '#f4e7c0'; g.fillRect(-7, 2.5, 14, 4.5);
+    g.fillStyle = '#3a2410'; g.font = 'bold 4.2px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('TNT', 0, 4.9);
+    g.strokeStyle = '#3a2a1a'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, -2); g.quadraticCurveTo(3, -6, 6, -7); g.stroke();
+    g.fillStyle = Math.sin(t / 60) > 0 ? '#ffd84a' : '#ff7a1a'; g.beginPath(); g.arc(6.4, -7.6, 1.8, 0, 7); g.fill();
+    g.restore();
   } else if (tipo === 'enxada') {
     g.strokeStyle = '#a4703f'; g.lineWidth = 2; g.lineCap = 'round';
     g.beginPath(); g.moveTo(-1, 26); g.lineTo(3, -18); g.stroke();
@@ -7476,7 +7493,7 @@ function drawAvatar(g, x, y, s, av, t, andando, dir = 1) {
   }
   if (av.mao !== 'nada') {
     g.save(); g.translate(ombro, -41); g.rotate(angMao);
-    drawNaMao(g, av.mao, t);
+    drawNaMao(g, av.mao, t, av.agir);
     g.fillStyle = pele; g.beginPath(); g.arc(0, 16.5, 2.6, 0, 7); g.fill(); // a mão segurando
     g.restore();
   }
@@ -7505,7 +7522,7 @@ function drawAvatarWalk(sc, t, quem = 'eu') {
     w = avWalk[chave] = { dono: view.kind + (view.id || view.uid || ''), fu: u, fv: v, tu: u, tv: v, t0: t, dur: 0, wait: 1500, dir: 1 };
   }
   let k = w.dur ? Math.min(1, (t - w.t0) / w.dur) : 1;
-  if (quem === 'eu' && w.tarefa && k >= 1) return rastelando(w, sc, t);
+  if (quem === 'eu' && w.tarefa && k >= 1) return w.tarefa.tipo === 'mina' ? minerando(w, sc, t) : rastelando(w, sc, t);
   if (k >= 1 && t - w.t0 > w.dur + w.wait && !w.tarefa) {
     w.fu = w.tu; w.fv = w.tv;
     w.tu = clamp(w.fu + (Math.random() - 0.5) * 4, a.u0, a.u1); w.tv = clamp(w.fv + (Math.random() - 0.5) * 4, a.v0, a.v1);
@@ -7520,7 +7537,7 @@ function drawAvatarWalk(sc, t, quem = 'eu') {
   if (hover && hover.kind === 'avatar' && (hover.quem || 'eu') === quem) { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.17, W * 0.06, 0, 0, 7); ctx.stroke(); }
   ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.13, W * 0.045, 0, 0, 7); ctx.fill();
   // Indo rastelar um monte de folhas: já mostra o rastelo na mão no caminho, não só ao chegar.
-  const avTarefa = quem === 'eu' && w.tarefa ? Object.assign({}, state.avatar, { mao: 'rastelo' }) : state.avatar;
+  const avTarefa = quem === 'eu' && w.tarefa ? Object.assign({}, state.avatar, { mao: w.tarefa.tipo === 'mina' ? MINA_FERR[w.tarefa.f].mao : 'rastelo' }) : state.avatar;
   drawAvatar(ctx, q.x, q.y, esc, quem === 'dono' ? view.avatar : avTarefa, t, k < 1, w.dir);
   if (quem === 'eu') drawAraras(u, v, esc, t);
 }
@@ -8861,7 +8878,7 @@ function missoesHTML() {
     return html + '</div>';
   }
   const tipo = missSeg, lista = state.missions[tipo], p = tipo === 'dia' ? premioDia() : premioSemana();
-  html += `<p class="hint">${tipo === 'dia' ? 'Missões novas todo dia à meia-noite.' : 'Missões novas toda segunda-feira à meia-noite.'} Cada uma dá ${p.moedas.toLocaleString('pt-BR')} moedas, ${p.xp} XP${p.racao ? ', 1 ração especial' : ''} e ${tipo === 'dia' ? '3 plantas sorteadas (e 12% de chance de um animal)' : '6 plantas sorteadas e 1 animal'}. ${state.missions['trevo_' + tipo] === state.missions[tipo === 'dia' ? 'd' : 'w'] ? `<b>🍀 +${TREVO_MISSOES[tipo]} trevos já ganhos!</b>` : `Pegue o prêmio de todas e ganhe <b>🍀 ${TREVO_MISSOES[tipo]} trevos</b> e ${tipo === 'dia' ? '<img class="emo" alt="" src="' + ferramentaIcon('enxada') + '"> 1 enxada de arrancar' : '<img class="emo" alt="" src="' + ferramentaIcon('motosserra') + '"> 1 motosserra'}.`}</p>`;
+  html += `<p class="hint">${tipo === 'dia' ? 'Missões novas todo dia à meia-noite.' : 'Missões novas toda segunda-feira à meia-noite.'} Cada uma dá ${p.moedas.toLocaleString('pt-BR')} moedas, ${p.xp} XP${p.racao ? ', 1 ração especial' : ''} e ${tipo === 'dia' ? '3 plantas sorteadas (e 12% de chance de um animal)' : '6 plantas sorteadas e 1 animal'}. Com a mina liberada, também ${tipo === 'dia' ? '5 picaretas' : '10 picaretas e 1 dinamite'}. ${state.missions['trevo_' + tipo] === state.missions[tipo === 'dia' ? 'd' : 'w'] ? `<b>🍀 +${TREVO_MISSOES[tipo]} trevos já ganhos!</b>` : `Pegue o prêmio de todas e ganhe <b>🍀 ${TREVO_MISSOES[tipo]} trevos</b> e ${tipo === 'dia' ? '<img class="emo" alt="" src="' + ferramentaIcon('enxada') + '"> 1 enxada de arrancar' : '<img class="emo" alt="" src="' + ferramentaIcon('motosserra') + '"> 1 motosserra'}.`}</p>`;
   lista.forEach((m, k) => {
     const ok = m.feito >= m.alvo;
     html += `<div class="row ${m.pego ? 'locked' : ok ? 'sel' : ''}"><div class="avatar" style="background:${ok ? '#4f9a2f' : '#d39a5c'}">${ok ? '✓' : k + 1}</div>
@@ -9140,6 +9157,7 @@ function novoPedido() {
   const ped = { itens, moedas: Math.round(valor * 1.6 / 5) * 5, xp: Math.max(3, Math.round(valor / 25)), feito: false };
   if (Math.random() < 0.5) ped.muda = sortearMuda(2 + Math.floor(Math.random() * 4));
   if (Math.random() < 0.12) ped.animal = true;
+  if (state.level >= MINA_NIVEL) { const r = Math.random(); ped.ferr = r < 0.3 ? { pic: 6 } : r < 0.45 ? { din: 1 } : r < 0.5 ? { tnt: 1 } : null; if (!ped.ferr) delete ped.ferr; }
   return ped;
 }
 function rollCaminhao() {
@@ -9156,9 +9174,10 @@ function entregar(k) {
   p.feito = true;
   state.coins += p.moedas; addXP(p.xp, null); track('entregar');
   if (p.muda) darMuda(p.muda);
+  if (p.ferr) for (const [f, n] of Object.entries(p.ferr)) darFerr(f, n);
   const bichoC = p.animal ? sortearAnimalCred() : null;
   done();
-  mostrarEntrega(`O caminhão levou o pedido! +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.muda ? ` e ${txtMuda(p.muda)}` : ''}${bichoC ? ` e ${bichoC.f ? 'uma' : 'um'} ${bichoC.nome.toLowerCase()} para resgatar (Loja › Animais)` : ''}.`);
+  mostrarEntrega(`O caminhão levou o pedido! +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.muda ? ` e ${txtMuda(p.muda)}` : ''}${p.ferr ? ` e ${txtFerr(p.ferr)}` : ''}${bichoC ? ` e ${bichoC.f ? 'uma' : 'um'} ${bichoC.nome.toLowerCase()} para resgatar (Loja › Animais)` : ''}.`);
 }
 
 // ---------- Feira da vizinhança: 8 barracas, itens novos a cada 6 horas ----------
@@ -9186,6 +9205,10 @@ function novaFeira() {
   slots.push({ t: 'racaoCao', qtd: dq, preco: Math.round(DOG_FOOD.custo * dq * 0.8) });
   const f = sorteia(FERTS.filter(x => x.nivel <= nivel)), fq = 2 + Math.floor(Math.random() * 4);
   slots.push({ t: 'fert', id: f.id, qtd: fq, preco: Math.round(f.custo * fq * 0.8) });
+  if (nivel >= MINA_NIVEL && Math.random() < 0.65) {
+    const f = sorteia(['pic', 'pic', 'din', 'din', 'tnt']), qtd = f === 'pic' ? 8 + Math.floor(Math.random() * 5) : f === 'din' ? 1 + Math.floor(Math.random() * 3) : 1, un = { pic: 14, din: 110, tnt: 420 }[f];
+    slots[3] = { t: 'ferr', id: f, qtd, preco: un * qtd };
+  }
   if (Math.random() < 0.5) {
     const d = sorteia(animaisLiberados(state).filter(a => a.nivel >= Math.max(1, nivel - 12)));
     if (d) slots[Math.floor(Math.random() * 3)] = { t: 'animal', id: d.id, qtd: 1, preco: Math.round(d.custo * 1.5) };
@@ -9198,14 +9221,15 @@ function rollFeira() {
   if (state.feira && state.feira.b === b && Array.isArray(state.feira.slots)) return;
   state.feira = { b, slots: novaFeira() };
 }
-const feiraNome = x => x.t === 'animal' ? ANIMAL[x.id].nome.toLowerCase() + ' (resgatar na Loja)' : x.t === 'racao' ? 'ração especial' : x.t === 'racaoCao' ? 'ração de cachorro' : x.t === 'fert' ? FERT[x.id].nome.toLowerCase() : item(x.id).nome.toLowerCase();
-const feiraIcone = x => x.t === 'animal' ? animalIcon(x.id) : x.t === 'racao' ? bowlIcon() : x.t === 'racaoCao' ? dogIcon('caramelo') : x.t === 'fert' ? fertIcon(x.id) : itemIcon(x.id);
+const feiraNome = x => x.t === 'ferr' ? (x.qtd > 1 ? MINA_FERR[x.id].nomePl : MINA_FERR[x.id].nome.toLowerCase()) : x.t === 'animal' ? ANIMAL[x.id].nome.toLowerCase() + ' (resgatar na Loja)' : x.t === 'racao' ? 'ração especial' : x.t === 'racaoCao' ? 'ração de cachorro' : x.t === 'fert' ? FERT[x.id].nome.toLowerCase() : item(x.id).nome.toLowerCase();
+const feiraIcone = x => x.t === 'ferr' ? ferrIcon(x.id) : x.t === 'animal' ? animalIcon(x.id) : x.t === 'racao' ? bowlIcon() : x.t === 'racaoCao' ? dogIcon('caramelo') : x.t === 'fert' ? fertIcon(x.id) : itemIcon(x.id);
 function comprarFeira(k) {
   const x = state.feira && state.feira.slots[k];
   if (!x || x.vendido) return toast('Esse já foi levado.');
   if (state.coins < x.preco) return toast(`Faltam moedas: custa ${x.preco.toLocaleString('pt-BR')}.`, 'bad');
   state.coins -= x.preco; x.vendido = true;
-  if (x.t === 'animal') darAnimal(x.id);
+  if (x.t === 'ferr') darFerr(x.id, x.qtd);
+  else if (x.t === 'animal') darAnimal(x.id);
   else if (x.t === 'racao') state.racaoEsp += x.qtd;
   else if (x.t === 'racaoCao') state.dogFood += x.qtd;
   else if (x.t === 'fert') state.fert[x.id] = (state.fert[x.id] || 0) + x.qtd;
@@ -9226,19 +9250,31 @@ function feiraHTML() {
   return html + '</div>';
 }
 
-// ---------- Mina: a terceira área (roça, rancho e mina) ----------
-// Uma grade de pedras que você quebra com a picareta. Cada pedra volta depois de um tempo.
-// Pedra, carvão, ferro, cobre, prata, ouro e gemas vão para o celeiro e valem moedas, pedidos do caminhão e missões.
-const MINA_N = 7, MINA_NIVEL = 6;
-// Picareta: cada nível quebra mais rápido (dano por batida) e dá mais chance de uma unidade extra.
-const PICARETA = { max: 5, custo: [0, 0, 1500, 6000, 20000, 60000], nivelJ: [0, 1, 8, 14, 20, 28] };
-const minaDe = () => {
-  if (!state.mina || !Array.isArray(state.mina.cel) || state.mina.cel.length !== MINA_N * MINA_N) {
-    state.mina = { pic: 1, cel: Array.from({ length: MINA_N * MINA_N }, () => minaNova()) };
-  }
-  return state.mina;
+// ---------- Mina: uma entrada de caverna na roça ----------
+// Quatro depósitos de minério na frente da caverna. O avatar vai até lá e bate com a ferramenta que você escolher.
+// Picareta (1 batida), dinamite (5 de uma vez) e TNT (explode todos os depósitos) se gastam: ganhe em missões,
+// no caminhão, de amigos, na feira e na Loja do Trevo. Cada depósito volta depois de um tempo.
+const MINA_NIVEL = 6, MINA_VEIAS = 4;
+const MINA_FERR = {
+  pic: { nome: 'Picareta',  nomePl: 'picaretas', dano: 1, mao: 'picareta', desc: 'Uma batida num depósito.', emoji: '⛏️', dur: 1500 },
+  din: { nome: 'Dinamite',  nomePl: 'dinamites', dano: 5,         mao: 'dinamite', desc: 'Quebra até 5 batidas de um depósito de uma vez.', emoji: '🧨', dur: 2200 },
+  tnt: { nome: 'TNT',       nomePl: 'TNTs',      dano: 99,        mao: 'tnt',      desc: 'Explode todos os depósitos e ainda rende 1 minério extra em cada.', emoji: '💥', dur: 2600 },
 };
-const picNivel = () => clamp((state.mina && state.mina.pic) || 1, 1, PICARETA.max);
+const MINA_KIT = { pic: 25, din: 2, tnt: 0 };
+const MINA_OFF = [[-0.58, 0.2], [-0.2, 0.42], [0.24, 0.42], [0.6, 0.18]]; // onde cada depósito fica, em frente à caverna (múltiplos de W)
+const minaLiberada = s => (s.level || 1) >= MINA_NIVEL;
+const minaDe = () => {
+  if (!state.mina || !Array.isArray(state.mina.vs) || state.mina.vs.length !== MINA_VEIAS) {
+    state.mina = { vs: Array.from({ length: MINA_VEIAS }, () => minaNova()), ferr: Object.assign({}, MINA_KIT), sel: 'pic' };
+  }
+  const M = state.mina;
+  M.ferr = Object.assign({ pic: 0, din: 0, tnt: 0 }, M.ferr);
+  if (state.ferrPend) { for (const [k, n] of Object.entries(state.ferrPend)) if (M.ferr[k] !== undefined) M.ferr[k] += n; state.ferrPend = null; } // presentes de amigos que chegaram antes da mina
+  if (!MINA_FERR[M.sel]) M.sel = 'pic';
+  return M;
+};
+const darFerr = (k, n) => { minaDe().ferr[k] += n; };
+const txtFerr = o => Object.entries(o).map(([f, n]) => `${n} ${n > 1 ? MINA_FERR[f].nomePl : MINA_FERR[f].nome.toLowerCase()}`).join(' e ');
 function minaNova() {
   const l = MINERIOS.filter(m => m.nivel <= state.level), tot = l.reduce((t, m) => t + m.peso, 0);
   let r = Math.random() * tot, m = l[0];
@@ -9246,38 +9282,88 @@ function minaNova() {
   return { t: m.id, hp: m.hp };
 }
 function minaTick() {
-  if (!state || !state.mina) return;
+  if (!state || !state.mina || !Array.isArray(state.mina.vs)) return;
   const agora = Date.now();
-  for (let i = 0; i < state.mina.cel.length; i++) { const c = state.mina.cel[i]; if (!c.t && agora >= c.volta) state.mina.cel[i] = minaNova(); }
+  state.mina.vs.forEach((v, i) => { if (!v.t && agora >= v.volta) state.mina.vs[i] = minaNova(); });
 }
 const minaHitAt = {};
-function minaBater(i) {
-  const M = minaDe(), c = M.cel[i];
-  if (!c) return;
-  if (!c.t) return toast(`Aqui a pedra volta em ${fmt(Math.max(0, c.volta - Date.now()) / 1000)}.`);
-  const m = MINERIO[c.t], pos = minaPos(i), dano = picNivel();
-  minaHitAt[i] = performance.now();
-  c.hp -= dano; sfx('weed');
-  if (c.hp > 0) { popupAt(pos, `${c.hp}/${m.hp}`, '#ffe9b0'); return save(); }
-  const extra = Math.random() < 0.08 * (picNivel() - 1) ? 1 : 0, qty = m.qtd[0] + Math.floor(Math.random() * (m.qtd[1] - m.qtd[0] + 1)) + extra;
-  M.cel[i] = { t: null, volta: Date.now() + m.volta };
-  sfx('harvest'); gain(m.id, qty, pos); addXP(m.xp, pos); track('minerar'); state.stats.minerado = (state.stats.minerado || 0) + 1;
+let minaTela = null; // onde a mina foi desenhada neste quadro (para o avatar e os efeitos)
+const minaVeiaTela = i => minaTela ? { x: minaTela.x + MINA_OFF[i][0] * minaTela.W, y: minaTela.y + MINA_OFF[i][1] * minaTela.W - minaTela.W * 0.12 } : null;
+const minaVeiaMundo = i => { const [u, v] = posOf(state, 'roca', 'mina'), [ox, oy] = MINA_OFF[i]; return [u + ox + 2 * oy, v + 2 * oy - ox]; };
+function minaQuebrar(i, extra) {
+  const M = minaDe(), v = M.vs[i], m = MINERIO[v.t], pos = minaVeiaTela(i);
+  const qty = m.qtd[0] + Math.floor(Math.random() * (m.qtd[1] - m.qtd[0] + 1)) + (extra || 0);
+  M.vs[i] = { t: null, volta: Date.now() + m.volta };
+  gain(m.id, qty, pos); addXP(m.xp, pos); track('minerar'); state.stats.minerado = (state.stats.minerado || 0) + 1;
+}
+// O que acontece quando a ferramenta termina de bater (depois da animação do avatar).
+function minaConcluir(i, f) {
+  const M = minaDe(), F = MINA_FERR[f];
+  if (M.ferr[f] <= 0) return;
+  M.ferr[f]--;
+  if (f === 'tnt') {
+    sfx('harvest'); let n = 0;
+    M.vs.forEach((v, k) => { if (v.t) { minaQuebrar(k, 1); n++; } });
+    if (!n) toast('Não tinha nada para explodir… o TNT foi gasto.', 'bad');
+  } else {
+    const v = M.vs[i];
+    if (!v || !v.t) return done();
+    minaHitAt[i] = performance.now();
+    v.hp -= F.dano;
+    if (v.hp > 0) { sfx('weed'); popupAt(minaVeiaTela(i), `${v.hp}/${MINERIO[v.t].hp}`, '#ffe9b0'); } else { sfx('harvest'); minaQuebrar(i, 0); }
+  }
   done();
 }
-function melhorarPicareta() {
-  const M = minaDe(), n = picNivel() + 1;
-  if (n > PICARETA.max) return;
-  if (state.level < PICARETA.nivelJ[n]) return toast(`Essa picareta libera no nível ${PICARETA.nivelJ[n]}.`);
-  if (state.coins < PICARETA.custo[n]) return toast(`Faltam moedas: custa ${PICARETA.custo[n].toLocaleString('pt-BR')}.`, 'bad');
-  state.coins -= PICARETA.custo[n]; M.pic = n; sfx('level');
-  toast(`⛏️ Picareta nível ${n}: quebra mais rápido e dá mais minério!`, 'good'); done();
+function minaAgir(i) {
+  if (!isHome()) return;
+  const M = minaDe(), f = M.sel, F = MINA_FERR[f];
+  if (f !== 'tnt') {
+    const v = M.vs[i];
+    if (!v || !v.t) return toast(`Aqui o próximo minério chega em ${fmt(Math.max(0, ((v && v.volta) || 0) - Date.now()) / 1000)}.`);
+  }
+  if (M.ferr[f] <= 0) { abrirMinaPicker(); return toast(`Você está sem ${F.nomePl}. Ganhe mais em missões, no caminhão, de amigos ou na feira.`, 'bad'); }
+  const w = avWalk['roca:eu'];
+  if (scene !== 'roca' || !w || w.dono !== 'home') return minaConcluir(i, f);
+  if (w.tarefa) return toast('Calma: o avatar ainda está ocupado!');
+  const t = performance.now(), k = w.dur ? Math.min(1, (t - w.t0) / w.dur) : 1;
+  w.fu = w.fu + (w.tu - w.fu) * k; w.fv = w.fv + (w.tv - w.fv) * k;
+  const alvo = f === 'tnt' ? [posOf(state, 'roca', 'mina')[0] + 0.1, posOf(state, 'roca', 'mina')[1] + 1.4] : minaVeiaMundo(i);
+  w.tu = alvo[0] + (f === 'tnt' ? 0 : 0.55); w.tv = alvo[1] + (f === 'tnt' ? 0 : 0.5);
+  const dist = Math.hypot(w.tu - w.fu, w.tv - w.fv), sx = (w.tu - w.fu) - (w.tv - w.fv);
+  w.dir = sx > 0 ? 1 : -1; w.t0 = t; w.dur = dist / 1.4 * 1000; w.tarefa = { tipo: 'mina', i, f, ini: 0 };
+  sfx('click');
 }
-const minaPos = i => { const q = iso(i % MINA_N + 0.5, Math.floor(i / MINA_N) + 0.5); return { x: q.x, y: q.y - L.W * 0.25 }; };
-function tipMina(i) {
-  const c = minaDe().cel[i]; if (!c) return null;
-  if (!c.t) return `<b>Pedregulho</b><br>Uma pedra nova nasce em ${fmt(Math.max(0, c.volta - Date.now()) / 1000)}.`;
-  const m = MINERIO[c.t];
-  return `<b>${m.nome}</b><br>Resistência ${c.hp}/${m.hp} · rende ${m.qtd[0] === m.qtd[1] ? m.qtd[0] : m.qtd[0] + ' a ' + m.qtd[1]} · vale ${m.preco.toLocaleString('pt-BR')}<br>Clique para bater com a picareta.`;
+// Chegou na mina: bate com a ferramenta (faíscas), ou acende a dinamite/TNT e foge um passinho antes da explosão.
+function minerando(w, sc, t) {
+  const tf = w.tarefa, F = MINA_FERR[tf.f];
+  if (!tf.ini) { tf.ini = t; if (tf.f === 'pic') sfx('hoe'); else sfx('click'); }
+  const q = iso(w.tu, w.tv), W = L.W, esc = W / 95, ke = (t - tf.ini) / F.dur;
+  const alvo = tf.f === 'tnt' ? (minaTela ? { x: minaTela.x, y: minaTela.y - W * 0.2 } : q) : (minaVeiaTela(tf.i) || q);
+  w.dir = alvo.x < q.x ? -1 : 1; w.tela = { x: q.x, y: q.y - 70 * esc };
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.13, W * 0.045, 0, 0, 7); ctx.fill();
+  drawAvatar(ctx, q.x, q.y, esc, Object.assign({}, state.avatar, { mao: F.mao, agir: tf.f === 'pic' || ke < 0.55 }), t, false, w.dir);
+  if (tf.f === 'pic') {
+    // faíscas a cada batida (a picareta bate a ~9 vezes por segundo no pico do balanço)
+    const fase = (t / 110) % (Math.PI * 2);
+    if (Math.sin(fase) > 0.8) { ctx.fillStyle = '#ffe9a0'; for (let k = 0; k < 6; k++) { const a = k * 1.05 + t / 70; ctx.beginPath(); ctx.arc(alvo.x + Math.cos(a) * W * 0.07, alvo.y + Math.sin(a) * W * 0.05 - W * 0.04, Math.max(1, W * 0.012), 0, 7); ctx.fill(); } }
+  } else if (ke > 0.6) {
+    const p = Math.min(1, (ke - 0.6) / 0.4), r = W * (tf.f === 'tnt' ? 0.75 : 0.34) * (0.35 + p), c = alvo;
+    ctx.globalAlpha = 1 - p; const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, r); g.addColorStop(0, '#fff6c0'); g.addColorStop(0.45, '#ff9a2a'); g.addColorStop(1, 'rgba(180,40,10,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, 7); ctx.fill();
+    ctx.fillStyle = '#6a5a48'; for (let k = 0; k < 9; k++) { const a = k * 0.7 + 0.3, d = r * (0.5 + p * 0.9); ctx.beginPath(); ctx.arc(c.x + Math.cos(a) * d, c.y + Math.sin(a) * d * 0.7 - p * W * 0.2 + p * p * W * 0.25, Math.max(1.5, W * 0.016), 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  } else {
+    // pavio aceso voando até o alvo
+    ctx.fillStyle = Math.sin(t / 60) > 0 ? '#ffd84a' : '#ff7a1a'; ctx.beginPath(); ctx.arc(q.x + (alvo.x - q.x) * ke * 1.4, q.y - 60 * esc + (alvo.y - (q.y - 60 * esc)) * ke * 1.4 - Math.sin(ke * 3.14) * W * 0.25, Math.max(2, W * 0.02), 0, 7); ctx.fill();
+  }
+  if (ke >= 1) { minaConcluir(tf.i, tf.f); w.tarefa = null; w.fu = w.tu; w.fv = w.tv; w.t0 = t; w.dur = 0; w.wait = 1200; }
+}
+function tipVeia(i) {
+  const M = minaDe(), v = M.vs[i], F = MINA_FERR[M.sel];
+  if (!v) return null;
+  if (!v.t) return `<b>Pedregulho</b><br>Chega minério novo em ${fmt(Math.max(0, v.volta - Date.now()) / 1000)}.`;
+  const m = MINERIO[v.t];
+  return `<b>${m.nome}</b><br>Resistência ${v.hp}/${m.hp} · rende ${m.qtd[0] === m.qtd[1] ? m.qtd[0] : m.qtd[0] + ' a ' + m.qtd[1]} · vale ${m.preco.toLocaleString('pt-BR')}<br>Clique para usar ${F.emoji} ${F.nome.toLowerCase()} (você tem ${M.ferr[M.sel]}).`;
 }
 function drawRocha(x, y, W, m, frac, shake) {
   const [c1, c2] = m.cor, h = W * (0.2 + 0.18 * frac), dx = shake || 0;
@@ -9301,56 +9387,77 @@ function drawRocha(x, y, W, m, frac, shake) {
     for (let k = 0; k < n; k++) { ctx.beginPath(); ctx.moveTo(x - W * 0.05 + k * W * 0.07, y - h * 0.95); ctx.lineTo(x - W * 0.01 + k * W * 0.05, y - h * 0.6); ctx.lineTo(x - W * 0.07 + k * W * 0.08, y - h * 0.25); ctx.stroke(); }
   }
 }
-function drawMina(s, t, home) {
-  const { cw, ch } = L, W = L.W, M = minaDe();
-  minaTick();
-  const g = ctx.createLinearGradient(0, 0, 0, ch); g.addColorStop(0, '#16110d'); g.addColorStop(1, '#2b2118');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, cw, ch);
-  // paredes de rocha e estalactites lá no fundo
-  ctx.fillStyle = '#0e0a07';
-  for (let k = 0; k < 9; k++) { const x = (k + 0.5) / 9 * cw; ctx.beginPath(); ctx.moveTo(x - cw / 18, 0); ctx.lineTo(x, ch * (0.1 + 0.07 * ((k * 7) % 3))); ctx.lineTo(x + cw / 18, 0); ctx.fill(); }
-  const n = MINA_N, A = iso(0, 0), B = iso(n, 0), C = iso(n, n), D = iso(0, n);
-  ctx.fillStyle = '#0c0805'; poly([{ x: A.x, y: A.y - W * 0.1 }, { x: B.x + W * 0.25, y: B.y }, { x: C.x, y: C.y + W * 0.3 }, { x: D.x - W * 0.25, y: D.y }]); ctx.fill();
-  for (let i = 0; i < n * n; i++) {
-    const u = i % n, v = Math.floor(i / n), a = iso(u, v), b = iso(u + 1, v), c = iso(u + 1, v + 1), d = iso(u, v + 1);
-    quad(a, b, c, d, (u + v) % 2 ? '#4a3b2c' : '#54432f', 'rgba(0,0,0,.35)', 1);
-  }
-  for (let i = 0; i < n * n; i++) {
-    const c = M.cel[i], p = iso(i % n + 0.5, Math.floor(i / n) + 0.5);
-    if (hover && hover.kind === 'mina' && hover.i === i) {
-      const u = i % n, v = Math.floor(i / n);
-      poly([iso(u, v), iso(u + 1, v), iso(u + 1, v + 1), iso(u, v + 1)]); ctx.strokeStyle = 'rgba(255,230,160,.9)'; ctx.lineWidth = 2.5; ctx.stroke();
-    }
-    if (c.t) {
-      const m = MINERIO[c.t], sh = minaHitAt[i] && performance.now() - minaHitAt[i] < 180 ? Math.sin((performance.now() - minaHitAt[i]) * 0.09) * W * 0.03 : 0;
-      drawRocha(p.x, p.y + W * 0.06, W * 1.1, m, c.hp / m.hp, sh);
-      hits.push({ kind: 'mina', i, x: p.x, y: p.y - W * 0.12, r: W * 0.32 });
+// A entrada da mina na roça: morro de pedra com a boca da caverna, vigas de madeira, lampião e os depósitos na frente.
+function drawMinaRoca(x, y, W, s, t, home, ghost) {
+  const dados = ghost ? null : home ? minaDe() : (s.mina && Array.isArray(s.mina.vs) ? s.mina : null);
+  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, y + W * 0.03, W * 0.85, W * 0.27, 0, 0, 7); ctx.fill();
+  const mound = ctx.createLinearGradient(x - W * 0.7, y - W, x + W * 0.7, y);
+  mound.addColorStop(0, '#9b9487'); mound.addColorStop(1, '#5d584f');
+  ctx.fillStyle = mound; ctx.beginPath();
+  [[-0.8, 0], [-0.76, -0.32], [-0.5, -0.7], [-0.15, -0.98], [0.28, -0.88], [0.62, -0.5], [0.8, -0.12], [0.82, 0]].forEach(([a, b], k) => k ? ctx.lineTo(x + a * W, y + b * W) : ctx.moveTo(x + a * W, y + b * W));
+  ctx.closePath(); ctx.fill(); ctx.strokeStyle = 'rgba(30,22,14,.75)'; ctx.lineWidth = Math.max(1.5, W * 0.022); ctx.stroke();
+  ctx.strokeStyle = 'rgba(30,22,14,.4)'; ctx.lineWidth = Math.max(1, W * 0.014);
+  for (const [a, b, c, d] of [[-0.55, -0.4, -0.4, -0.2], [0.25, -0.75, 0.38, -0.5], [0.5, -0.3, 0.6, -0.1], [-0.3, -0.8, -0.2, -0.62]]) { ctx.beginPath(); ctx.moveTo(x + a * W, y + b * W); ctx.lineTo(x + c * W, y + d * W); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.beginPath(); ctx.moveTo(x - 0.5 * W, y - 0.7 * W); ctx.lineTo(x - 0.15 * W, y - 0.98 * W); ctx.lineTo(x + 0.1 * W, y - 0.82 * W); ctx.lineTo(x - 0.3 * W, y - 0.55 * W); ctx.closePath(); ctx.fill();
+  // boca da caverna
+  const cx = x, cy = y - W * 0.02;
+  ctx.fillStyle = '#0e0905'; ctx.beginPath(); ctx.moveTo(cx - W * 0.24, cy); ctx.lineTo(cx - W * 0.24, cy - W * 0.34); ctx.quadraticCurveTo(cx, cy - W * 0.66, cx + W * 0.24, cy - W * 0.34); ctx.lineTo(cx + W * 0.24, cy); ctx.closePath(); ctx.fill();
+  const lz = ctx.createRadialGradient(cx, cy - W * 0.08, 0, cx, cy - W * 0.08, W * 0.3); lz.addColorStop(0, 'rgba(255,170,60,.38)'); lz.addColorStop(1, 'rgba(255,170,60,0)');
+  ctx.fillStyle = lz; ctx.fillRect(cx - W * 0.3, cy - W * 0.5, W * 0.6, W * 0.5);
+  ctx.fillStyle = '#6b4a2a'; ctx.strokeStyle = '#3a2410'; ctx.lineWidth = Math.max(1, W * 0.014);
+  for (const px of [cx - W * 0.27, cx + W * 0.2]) { ctx.fillRect(px, cy - W * 0.42, W * 0.07, W * 0.42); ctx.strokeRect(px, cy - W * 0.42, W * 0.07, W * 0.42); }
+  ctx.fillRect(cx - W * 0.3, cy - W * 0.46, W * 0.6, W * 0.07); ctx.strokeRect(cx - W * 0.3, cy - W * 0.46, W * 0.6, W * 0.07);
+  // lampião pendurado na viga, com brilho que pulsa
+  const bril = 0.5 + Math.sin(t / 320) * 0.15; ctx.fillStyle = `rgba(255,200,80,${bril * 0.5})`; ctx.beginPath(); ctx.arc(cx + W * 0.2, cy - W * 0.34, W * 0.1, 0, 7); ctx.fill();
+  ctx.fillStyle = '#ffd36a'; ctx.beginPath(); ctx.roundRect(cx + W * 0.175, cy - W * 0.4, W * 0.05, W * 0.075, W * 0.01); ctx.fill();
+  // placa
+  ctx.fillStyle = '#c9a06a'; ctx.fillRect(cx - W * 0.14, cy - W * 0.62, W * 0.28, W * 0.12); ctx.strokeRect(cx - W * 0.14, cy - W * 0.62, W * 0.28, W * 0.12);
+  ctx.fillStyle = '#3a2410'; ctx.font = `800 ${Math.round(W * 0.085)}px 'Baloo 2', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('MINA', cx, cy - W * 0.56);
+  minaTela = home ? { x, y, W } : minaTela;
+  // depósitos na frente
+  for (let i = 0; i < MINA_VEIAS; i++) {
+    const px = x + MINA_OFF[i][0] * W, py = y + MINA_OFF[i][1] * W, v = dados && dados.vs[i];
+    if (v && v.t) {
+      const m = MINERIO[v.t], hitAt = minaHitAt[i], sh = hitAt && performance.now() - hitAt < 220 ? Math.sin((performance.now() - hitAt) * 0.1) * W * 0.03 : 0;
+      if (home && !moveMode && hover && hover.kind === 'veia' && hover.i === i) { ctx.strokeStyle = 'rgba(255,240,170,.95)'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.ellipse(px, py, W * 0.2, W * 0.07, 0, 0, 7); ctx.stroke(); }
+      drawRocha(px, py, W * 0.62, m, v.hp / m.hp, sh);
     } else {
-      ctx.fillStyle = '#6a5a48';
-      for (const [a, b, r] of [[-0.12, 0, 0.035], [0.08, 0.04, 0.04], [0.0, -0.05, 0.025]]) { ctx.beginPath(); ctx.ellipse(p.x + a * W, p.y + b * W, r * W, r * W * 0.6, 0, 0, 7); ctx.fill(); }
-      hits.push({ kind: 'mina', i, x: p.x, y: p.y, r: W * 0.25 });
+      ctx.fillStyle = '#7a6a56';
+      for (const [a, b, r] of [[-0.07, 0, 0.022], [0.05, 0.03, 0.026], [0, -0.03, 0.016]]) { ctx.beginPath(); ctx.ellipse(px + a * W, py + b * W, r * W, r * W * 0.6, 0, 0, 7); ctx.fill(); }
     }
+    if (home && !moveMode) hits.push({ kind: 'veia', i, x: px, y: py - W * 0.1, r: W * 0.17 });
   }
-  // placa da mina: abre o painel da picareta
-  const pl = iso(-0.15, n * 0.5);
-  ctx.fillStyle = '#6b4a2a'; ctx.fillRect(pl.x - W * 0.025, pl.y - W * 0.5, W * 0.05, W * 0.5);
-  ctx.fillStyle = '#c9a06a'; ctx.strokeStyle = '#3a2410'; ctx.lineWidth = 2;
-  ctx.fillRect(pl.x - W * 0.3, pl.y - W * 0.78, W * 0.6, W * 0.34); ctx.strokeRect(pl.x - W * 0.3, pl.y - W * 0.78, W * 0.6, W * 0.34);
-  ctx.fillStyle = '#3a2410'; ctx.font = `800 ${Math.round(W * 0.14)}px 'Baloo 2', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(`⛏️ Nv ${picNivel()}`, pl.x, pl.y - W * 0.61);
-  hits.push({ kind: 'minaplaca', x: pl.x, y: pl.y - W * 0.6, r: W * 0.38 });
-  // luz de lampião: escurece as bordas
-  const vg = ctx.createRadialGradient(cw / 2, ch * 0.5, Math.min(cw, ch) * 0.25, cw / 2, ch * 0.5, Math.max(cw, ch) * 0.75);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, cw, ch);
+  if (home && !moveMode) hits.push({ kind: 'minaentrada', x: cx, y: cy - W * 0.3, r: W * 0.3 });
 }
 const minerioIcon = id => makeIcon('min:' + id, () => drawRocha(48, 76, 150, MINERIO[id], 1, 0));
+const ferrIcon = f => makeIcon('mferr3:' + f, () => {
+  const c = { pic: [3, 1], din: [0, 11], tnt: [0, 12] }[f], k = f === 'pic' ? 1.9 : 2.2; ctx.save(); ctx.translate(48 - c[0] * k, 48 - c[1] * k); ctx.scale(k, k); drawNaMao(ctx, MINA_FERR[f].mao, 0, false); ctx.restore();
+});
+// Janelinha das ferramentas da mina (abre ao clicar na entrada): escolha o que usar nos depósitos.
+function abrirMinaPicker() {
+  const M = minaDe();
+  let el = $('#minaPicker');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'minaPicker'; el.className = 'plantpicker';
+    el.addEventListener('click', e => {
+      const b = e.target.closest('[data-mina-ferr]');
+      if (b) { const f = b.dataset.minaFerr; if (minaDe().ferr[f] <= 0) return toast(`Você está sem ${MINA_FERR[f].nomePl}.`, 'bad'); minaDe().sel = f; el.hidden = true; save(); return toast(`${MINA_FERR[f].emoji} ${MINA_FERR[f].nome} escolhida: clique num depósito${f === 'tnt' ? ' (ou na entrada)' : ''}.`); }
+      if (e.target.closest('[data-mina-info]')) { el.hidden = true; return openPanel('mina'); }
+      if (e.target.closest('[data-pick-close]')) el.hidden = true;
+    });
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<div class="pp-head"><b>⛏️ Mina: escolha a ferramenta</b><button type="button" class="btn ghost tiny" data-pick-close>✕</button></div>
+    <div class="pp-list">${Object.entries(MINA_FERR).map(([f, F]) => `<button type="button" class="pp-item" data-mina-ferr="${f}" style="${M.sel === f ? 'border-color:var(--gold);background:var(--sel)' : ''}"><img alt="" src="${ferrIcon(f)}"><span>${F.nome}</span><em>${F.desc}</em><small>${M.ferr[f]}</small></button>`).join('')}
+    <button type="button" class="pp-item" data-mina-info="1"><span style="font-size:26px">ℹ️</span><span>Minérios</span><em>o que cada um vale</em></button></div>`;
+  el.hidden = false;
+}
 function minaHTML() {
-  const L2 = picNivel(), N = L2 < PICARETA.max ? L2 + 1 : 0;
-  let html = `<h3>Mina ⛏️</h3><p class="hint">Clique nas pedras da mina para quebrar com a picareta. Cada pedra volta depois de um tempo, e quanto mais raro o minério, mais resistente e mais demorado para voltar. Venda no Celeiro, na banca ou entregue no caminhão.</p>`;
-  html += `<div class="row sel"><div class="avatar" style="background:#6b4a2a">⛏️</div><div><div class="name">Picareta nível ${L2} de ${PICARETA.max}</div>
-    <div class="meta">Bate com força ${L2} · ${Math.round(8 * (L2 - 1))}% de chance de 1 minério extra</div></div>
-    ${N ? (state.level < PICARETA.nivelJ[N] ? `<button class="btn" disabled>Nível ${PICARETA.nivelJ[N]}</button>` : `<button class="btn gold" data-pic-up="1" ${state.coins < PICARETA.custo[N] ? 'disabled' : ''}>${moeda(PICARETA.custo[N])}</button>`) : '<button class="btn ghost" disabled>Máximo</button>'}</div>`;
+  const M = minaDe();
+  let html = `<h3>Mina ⛏️</h3><p class="hint">A mina fica na sua roça (toque na entrada da caverna). O avatar vai até lá e bate nos depósitos. As ferramentas se gastam: ganhe mais em missões diárias e semanais, no caminhão, de presente de amigos, na feira da vizinhança e na Loja do Trevo. Cada depósito quebrado volta depois de um tempo.</p>`;
+  for (const [f, F] of Object.entries(MINA_FERR)) {
+    html += `<div class="row ${M.sel === f ? 'sel' : ''}"><img alt="" src="${ferrIcon(f)}"><div><div class="name">${F.nome} <span class="tag ${M.ferr[f] < 5 && f === 'pic' ? 'bad' : ''}">${M.ferr[f]}</span></div><div class="meta">${F.desc}</div></div></div>`;
+  }
   html += `<h3>Minérios</h3>`;
   for (const m of MINERIOS) {
     const trav = m.nivel > state.level;
@@ -9414,7 +9521,7 @@ function fabricaHTML() {
       const ok = podeEntregar(p);
       const lista = Object.entries(p.itens).map(([id, q]) => `<span class="${(state.barn[id] || 0) >= q ? '' : 'falta'}"><img alt="" src="${itemIcon(id)}">${q} ${esc(item(id).nome.toLowerCase())} (${state.barn[id] || 0})</span>`).join('');
       html += `<div class="row ${p.feito ? 'locked' : ok ? 'sel' : ''}"><div class="avatar" style="background:${p.feito ? '#4f9a2f' : '#3f6fa8'}">${p.feito ? '✓' : k + 1}</div>
-        <div><div class="pedido">${lista}</div><div class="meta">${p.moedas.toLocaleString('pt-BR')} moedas · ${p.xp} XP${p.muda ? ` · 🌱 ${txtMuda(p.muda)}` : ''}${p.animal ? ' · 🐾 animal surpresa' : ''}</div></div>
+        <div><div class="pedido">${lista}</div><div class="meta">${p.moedas.toLocaleString('pt-BR')} moedas · ${p.xp} XP${p.muda ? ` · 🌱 ${txtMuda(p.muda)}` : ''}${p.animal ? ' · 🐾 animal surpresa' : ''}${p.ferr ? ` · ⛏️ ${txtFerr(p.ferr)}` : ''}</div></div>
         ${p.feito ? '<button class="btn ghost" disabled>Entregue</button>' : `<button class="btn gold" data-entregar="${k}" ${ok ? '' : 'disabled'}>Entregar</button>`}</div>`;
     });
   }
@@ -9567,11 +9674,11 @@ const LUGARES = {
 // Posição padrão de cada coisa, em coordenadas da grade da cena.
 const POS_PADRAO = {
   // (as árvores de enfeite saíram: agora as árvores são as frutíferas do Pomar, compradas na Loja)
-  roca: { casa: [1.25, -1.45], celeiro: [-0.95, 2.15], canil: [-1.65, 3.65], pesqueiro: [-1.05, 4.85], placa: [-0.1, 1.1], mata: [1.6, 6.9], armadilha: [3.3, -0.6] },
+  roca: { casa: [1.25, -1.45], celeiro: [-0.95, 2.15], canil: [-1.65, 3.65], pesqueiro: [-1.05, 4.85], placa: [-0.1, 1.1], mata: [1.6, 6.9], armadilha: [3.3, -0.6], mina: [4.7, -2.8] },
   animais: { canil: [-1.65, 3.65] },
 };
 const LAGO_POS = [3.55, -1.95];
-const OBJ_INFO = { casa: { nome: 'Casa', r: 1.1 }, celeiro: { nome: 'Celeiro', r: 1.2 }, canil: { nome: 'Casinha do cachorro', r: 0.8 }, arv1: { nome: 'Árvore', r: 0.7 }, arv2: { nome: 'Árvore', r: 0.7 }, pesqueiro: { nome: 'Pesqueiro', r: 0.9 }, placa: { nome: 'Placa de terras', r: 0.45 }, mata: { nome: 'Trilha da caçada', r: 1.0 }, armadilha: { nome: 'Armadilha de pragas', r: 0.45 } };
+const OBJ_INFO = { casa: { nome: 'Casa', r: 1.1 }, celeiro: { nome: 'Celeiro', r: 1.2 }, canil: { nome: 'Casinha do cachorro', r: 0.8 }, arv1: { nome: 'Árvore', r: 0.7 }, arv2: { nome: 'Árvore', r: 0.7 }, pesqueiro: { nome: 'Pesqueiro', r: 0.9 }, placa: { nome: 'Placa de terras', r: 0.45 }, mata: { nome: 'Trilha da caçada', r: 1.0 }, armadilha: { nome: 'Armadilha de pragas', r: 0.45 }, mina: { nome: 'Mina', r: 1.0 } };
 // Giro de 90° em 90° (rot 0..3, sentido contrário ao relógio visto de cima): os desenhos são 2,5D, vistos
 // de um ângulo só. Nos giros ímpares a imagem fica espelhada (as faces trocam de lado); nos giros 2 e 3
 // as construções (casa, celeiro, casinha) mostram os fundos, sem porta nem janelas da frente. Itens sem
@@ -9581,7 +9688,7 @@ const comGiro = (x, rot, fn) => {
   ctx.save(); ctx.translate(x, 0); ctx.scale(-1, 1); ctx.translate(-x, 0);
   try { fn(); } finally { ctx.restore(); }
 };
-const giravel = key => !!key && !['placa', 'mata', 'armadilha'].includes(key);
+const giravel = key => !!key && !['placa', 'mata', 'armadilha', 'mina'].includes(key);
 function posOf(s, sc, key) {
   const p = s.pos && s.pos[sc] && s.pos[sc][key];
   if (Array.isArray(p)) return p;
@@ -9590,7 +9697,7 @@ function posOf(s, sc, key) {
 }
 const objetosDe = (s, sc) => (s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : []).filter(o => o && ENFEITE[o.id]);
 function objList(s, sc) {
-  const l = Object.keys(POS_PADRAO[sc]).filter(key => key !== 'armadilha' || s.armadilha).map(key => { const [u, v] = posOf(s, sc, key); return { key, u, v, r: OBJ_INFO[key].r, rot: (s.rotPos && s.rotPos[sc] && s.rotPos[sc][key]) | 0 }; });
+  const l = Object.keys(POS_PADRAO[sc]).filter(key => (key !== 'armadilha' || s.armadilha) && (key !== 'mina' || minaLiberada(s))).map(key => { const [u, v] = posOf(s, sc, key); return { key, u, v, r: OBJ_INFO[key].r, rot: (s.rotPos && s.rotPos[sc] && s.rotPos[sc][key]) | 0 }; });
   objetosDe(s, sc).forEach((o, i) => l.push(ehCerca(o.id) ? { key: 'enf:' + i, id: o.id, u: o.u, v: o.v, r: 0.3, obj: o, cerca: true, rot: o.rot ? 1 : 0 }
     : { key: 'enf:' + i, id: o.id, u: o.u, v: o.v, r: ['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.65 : o.id === 'chocadeira' ? 0.75 : 0.55, obj: o, rot: (o.rot | 0) % 4 }));
   return l;
@@ -9785,7 +9892,7 @@ function setMoveMode(on) {
 function renderMoveBtn() {
   renderMoveBar();
   const b = $('#moveBtn'); if (!b) return;
-  b.hidden = !isHome() || scene === 'casa' || scene === 'mina';
+  b.hidden = !isHome() || scene === 'casa';
   b.setAttribute('aria-pressed', String(moveMode));
 }
 // No computador o item segue o mouse e um clique solta. No celular (ou tocando), o item fica
@@ -9968,6 +10075,7 @@ function drawObjetos(s, sc, t, home, stage, d0 = -Infinity, d1 = Infinity) {
       if (!moveMode && home) hits.push({ kind: 'armadilha', x: q.x, y: q.y - W * 0.12, r: W * 0.25 });
       continue;
     }
+    if (o.key === 'mina') { drawMinaRoca(q.x, q.y, W, s, t, home); continue; }
     if (o.key === 'mata') {
       drawMataCaca(q.x, q.y, W);
       if (home && cacaPronta()) drawBubbleAt(q.x, q.y - W * 0.75, 'caca', null, t, 99);
@@ -10089,6 +10197,7 @@ function drawMoving(sc, t) {
   else if (k === 'pesqueiro') comGiro(q.x, gr, () => drawLake(q.x, q.y, W * 0.48, t));
   else if (k === 'placa') drawLandSign(q.x, q.y, true);
   else if (k === 'mata') drawMataCaca(q.x, q.y, W);
+  else if (k === 'mina') drawMinaRoca(q.x, q.y, W, s, t, false, true);
   else if (k === 'armadilha') drawArmadilha(q.x, q.y, W, true, t);
   else comGiro(q.x, gr, () => drawTree(q.x, q.y, W * 0.9, t, sc === 'roca' && temaDe(s).coqueiro));
   ctx.globalAlpha = 1;
@@ -11971,6 +12080,9 @@ const TREVO_LOJA = [
   { id: 'util:tarrafa',   nome: 'Tarrafa pronta agora',     tipo: 'Útil', preco: 8,  repete: true, desc: 'Seca a tarrafa deste pesqueiro na hora: pode jogar de novo.', pode: () => faltaTarrafa() > 0, naoPode: 'A tarrafa já está pronta!', usar: () => { tarrafaObj()[pontoSel()] = 0; } },
   { id: 'util:enxada',    nome: 'Enxada de arrancar',       tipo: 'Útil', preco: 3,  repete: true, desc: 'Tira um arbusto seco do pomar.', usar: () => { derrubarDe().enxada++; } },
   { id: 'util:motosserra', nome: 'Motosserra',              tipo: 'Útil', preco: 6,  repete: true, desc: 'Derruba uma árvore seca do pomar.', usar: () => { derrubarDe().motosserra++; } },
+  { id: 'util:picaretas', nome: '15 picaretas',             tipo: 'Útil', preco: 4,  repete: true, desc: 'Para a mina (precisa do nível 6).', usar: () => { darFerr('pic', 15); } },
+  { id: 'util:dinamite',  nome: '3 dinamites',              tipo: 'Útil', preco: 8,  repete: true, desc: 'Cada uma quebra até 5 batidas de um depósito de uma vez.', usar: () => { darFerr('din', 3); } },
+  { id: 'util:tnt',       nome: '1 TNT',                    tipo: 'Útil', preco: 12, repete: true, desc: 'Explode todos os depósitos da mina de uma vez.', usar: () => { darFerr('tnt', 1); } },
   { id: 'util:animal',    nome: 'Animal surpresa',          tipo: 'Útil', preco: 20, repete: true, desc: 'Um animal sorteado entre os que você já liberou, para resgatar em Loja › Animais.', usar: () => { const d = sortearAnimalCred(); if (d) toast(`🐾 ${d.nome} para resgatar em Loja › Animais!`, 'good'); } },
   { id: 'util:animalraro', nome: 'Animal raro',             tipo: 'Útil', preco: 45, repete: true, desc: 'Um dos 3 animais mais raros que você já liberou (se tiver só comuns, vem um comum).', usar: () => { const l = animaisLiberados(state).sort((a, b) => b.nivel - a.nivel).slice(0, 3); const d = l[Math.floor(Math.random() * l.length)]; if (d) { darAnimal(d.id); toast(`🐾 ${d.nome} para resgatar em Loja › Animais!`, 'good'); } } },
   { id: 'util:racao',     nome: '3 rações especiais',       tipo: 'Útil', preco: 6,  repete: true, desc: 'Cada uma faz um animal produzir em dobro.', usar: () => { state.racaoEsp = (state.racaoEsp || 0) + 3; } },
@@ -12110,7 +12222,7 @@ function frame(now) {
     if (!isGated() && L.cw > 20 && now - lastDraw >= DRAW_MS) { draw(now, dt); lastDraw = now; }
     if (now - lastUI > 250) { updateTip(); lastUI = now; }
     if (now - lastInfo > 2000) {
-      tickLife(); rollPeriods(); weatherTick(); bancaTick(); rollCaminhao(); folhasTick(); invasaoTick(); petsTick(); checkPlantasLow();
+      tickLife(); rollPeriods(); weatherTick(); bancaTick(); rollCaminhao(); folhasTick(); invasaoTick(); petsTick(); checkPlantasLow(); minaTick();
       // a fábrica e o caminhão têm relógio: atualiza a janela (menos a banca, que tem formulário)
       if (!$('#panel').hidden && tab === 'fabrica' && fabSeg !== 'banca' && isHome()) { const y = $('#pane').scrollTop; renderPane(); $('#pane').scrollTop = y; } renderTabs(); renderSceneInfo(); root.dataset.tema = timeOfDay() === 'noite' ? 'noite' : 'dia'; lastInfo = now; }
   }
