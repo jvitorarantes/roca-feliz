@@ -575,6 +575,8 @@ function migrate(s) {
   for (const sc of ['roca', 'animais']) for (const o of (s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : [])) if (o && ENFEITE[o.id] && ENFEITE[o.id].fruteira) { if (!o.fid) o.fid = newId(); if (typeof o.colhidas !== 'number') o.colhidas = 0; }
   // a cerca em volta da roça saiu: quem já jogava ganha 40 pedaços de cerca para pôr onde quiser
   if (!s.cercaDada) { s.cercaDada = 1; s.enfeites = s.enfeites && typeof s.enfeites === 'object' ? s.enfeites : {}; s.enfeites.cerca = (s.enfeites.cerca || 0) + 40; s.invNovos = (s.invNovos || 0) + 1; }
+  s.bloqueados = s.bloqueados && typeof s.bloqueados === 'object' ? s.bloqueados : {};
+  s.chocadeira = s.chocadeira && typeof s.chocadeira === 'object' ? s.chocadeira : { ovos: [], level: 0 };
   return s;
 }
 
@@ -5194,6 +5196,17 @@ function explicarBloqueado(e) {
 }
 $('#pane').addEventListener('click', e => { if (e.target.closest('#pane') && !e.target.closest('button:not(:disabled)')) explicarBloqueado(e); }, true);
 $('#pane').addEventListener('click', e => {
+  const inp = e.target.closest('input[data-toggle-block]');
+  if (inp) {
+    const d = inp.dataset;
+    if (d.toggleBlock) {
+      if (!state.bloqueados) state.bloqueados = {};
+      if (state.bloqueados[d.toggleBlock]) delete state.bloqueados[d.toggleBlock];
+      else state.bloqueados[d.toggleBlock] = true;
+      renderPane();
+      return;
+    }
+  }
   const b = e.target.closest('button'); if (!b) return;
   const d = b.dataset;
   if (d.renomear) return trocarNome({ animal: d.renomear });
@@ -5287,12 +5300,6 @@ $('#pane').addEventListener('click', e => {
   else if (d.sell) sell(d.sell, Number(d.qtd) || 1);
   else if (d.sellallOf) sell(d.sellallOf, true);
   else if ('sellall' in d) sellAll();
-  else if (d.toggleBlock) {
-    if (!state.bloqueados) state.bloqueados = {};
-    if (state.bloqueados[d.toggleBlock]) delete state.bloqueados[d.toggleBlock];
-    else state.bloqueados[d.toggleBlock] = true;
-    renderPane();
-  }
   else if ('seeLand' in d) { if (!isHome()) goHome(); setScene('roca'); closePanel(); toast('Clique num + encostado na sua terra para colocar um canteiro.'); }
   else if ('expand' in d) buyExpansion();
   else if (d.buyFert) buyFert(d.buyFert, Number(d.n) || 1);
