@@ -1334,6 +1334,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 261, txt: "Quando você ajuda uma frutífera seca de um amigo, ela agora aparece revivida para você ao visitar de novo, mesmo que o dono ainda não tenha aberto o jogo (para ele, ela volta quando abrir)." },
   { v: 260, txt: "Corrigido: ajuda numa frutífera seca de um amigo. Se o envio da ajuda falhava, o jogo marcava 'Você já ajudou esta' e a árvore não voltava nunca. Agora, se não conseguir enviar, dá para tentar de novo na hora, e depois de 12 horas sem a árvore voltar a ajuda pode ser refeita. A regra de uma ajuda por árvore (depois ela seca de vez) continua igual." },
   { v: 258, txt: "Negócios: nas receitas, a quantidade de planta que você tem aparece em vermelho quando, ao usar, ficaria menos de 10, e antes de fazer um produto, entregar no caminhão, atender a vila ou colocar na banca que deixe menos de 10 plantas para replantar aparece um aviso com Sim e Não." },
   { v: 257, txt: "Nova curva de XP para subir de nível: até o nível 20 continua rápida, e depois cada nível pede só um pouco mais que o anterior (por volta de 10 mil XP no nível 42), em vez de explodir. Você mantém seu nível e seu XP." },
@@ -1906,6 +1907,13 @@ async function visitFriend(uid, ajudar) {
     const data = f && f.stateJson ? migrate(JSON.parse(f.stateJson)) : null;
     if (!data) return toast('Essa roça ainda não existe na nuvem.', 'bad');
     catchUp(data, (Date.now() - (f.updatedAt || Date.now())) / 1000);
+    // frutíferas que você ajudou e o dono ainda não viu (ele não abriu o jogo): aparecem revividas para você também
+    for (const sc of ['roca', 'animais']) for (const o of (data.objetos && Array.isArray(data.objetos[sc]) ? data.objetos[sc] : [])) {
+      if (!o || !o.fid || !ENFEITE[o.id] || !ENFEITE[o.id].fruteira || o.ajudada || !secaDe(o, data)) continue;
+      const feito = state.log[uid + ':fr:' + o.fid + ':ajuda'];
+      if (!feito || Date.now() - feito > 12 * 3600e3) continue;
+      o.placa = 0; o.seca = 0; o.ajudada = 1; o.colhidas = Math.max(0, (o.colhidas || 0) - 1); o.ult = feito;
+    }
     const nome = limpaNome(f.apelido || data.apelido) || (firstName(f.name) === 'Você' ? 'Amigo' : firstName(f.name));
     view = { kind: 'friend', uid, nome, fazenda: limpaNome(f.fazenda || data.fazenda) || 'Roça Feliz', cao: 'Bidu', pega: 0.12, casa: '#7aa35a', data, nivel: data.level || f.level || 1, avatar: avatarOk(data.avatar) };
     afterVisit();
