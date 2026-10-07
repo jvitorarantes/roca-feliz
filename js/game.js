@@ -586,6 +586,7 @@ function migrate(s) {
   }
   if (s.truck && !Array.isArray(s.truck.pedidos)) s.truck = null;
   if (s.feira && !Array.isArray(s.feira.slots)) s.feira = null;
+  if (s.mina && !Array.isArray(s.mina.cel)) s.mina = null;
   const dogs = s.dogs && typeof s.dogs === 'object' ? s.dogs : {};
   s.dogs = {};
   for (const slot of ['roca', 'animais']) { const d = dogs[slot]; s.dogs[slot] = d && DOG[d.raca] ? d : null; }
@@ -1170,7 +1171,7 @@ function confirmTwice(key, msg, fn) {
   toast(msg);
 }
 function collectAnimal(a, pos) {
-  const d = ANIMAL[a.k], qty = a.dobro ? 2 : 1;
+  const d = ANIMAL[a.k], qty = (a.dobro ? 2 : 1) * (a.raro ? 2 : 1) + (a.cor && Math.random() < 0.3 ? 1 : 0);
   a.ready = false; a.g = 0; a.n++; a.dobro = false;
   sfx('collect');
   if (d.prod === 'leitao') {
@@ -1303,6 +1304,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 243, txt: "Mina ⛏️ (nível 6): a terceira área do jogo, ao lado da roça e do rancho. Quebre pedras, carvão, ferro, cobre, prata, ouro e gemas com a picareta (melhore na placa da mina). Os minérios vão para o celeiro, a banca e o caminhão, e tem missão de mina. Chocadeira com 5 níveis: choca mais rápido, cabe mais ovo, e dá chance de gêmeos, cor rara 🌈 e raça rara 💎 (produz mais). Mais jeitos de ganhar animal: missão diária (12%), pedidos do caminhão, top 3 do ranking, melhor vizinho, feira da vizinhança e Loja do Trevo. Corrigido: os ovos agora levam as horas de verdade para chocar." },
   { v: 242, txt: "Amizade ❤️ mais útil: o limite de pegar coisas na roça do amigo sobe com os corações (roça de 4 a 6 itens, animais de 3 a 5) e o pomar agora segue o mesmo limite. Mudas ficaram mais caras e a ferramenta Semente virou Planta." },
   { v: 241, txt: "Aviso do milho 🌽: o milho do celeiro é a isca da pesca e das armadilhas. Quando tiver menos de 10, aparece um aviso vermelho para você não ficar sem." },
   { v: 240, txt: "Feira da vizinhança 🧺 (Negócios › Feira): 8 barracas com itens novos a cada 6 horas — plantas, rações, ovos, fertilizantes e mais. Clicar numa terra arada agora mostra as plantas que você tem para escolher, o Celeiro tem a lista de plantas com botão Plantar, e o aviso de poucas plantas ficou menor e não cobre mais a Loja." },
@@ -2422,6 +2424,20 @@ async function recuperarAmigos() {
 // ============================================================
 // Casal = 2 animais da mesma espécie. O relógio começa quando o casal se forma e, a cada tempoRepro(espécie),
 // se os dois estiverem alimentados, nasce um filhote (aves põem um ovo na chocadeira do rancho).
+// Níveis da chocadeira (0 a 5): choca mais rápido, cabe mais ovo e aparecem filhotes especiais.
+const CHOC = { max: 5, custo: [0, 3000, 8000, 20000, 50000, 120000], nivelJ: [0, 8, 14, 20, 28, 36] };
+const chocNivel = () => clamp((state.chocadeira && state.chocadeira.level) || 0, 0, CHOC.max);
+const chocInfo = L => ({ cap: 20 + 5 * L, horas: Math.round(24 * (1 - 0.12 * L) * 10) / 10, gemeos: 5 * L, cor: 3 * L, raro: 2 * L });
+const chocCap = () => chocInfo(chocNivel()).cap;
+const CHOC_HUES = [0, 70, 150, 215];
+function melhorarChocadeira() {
+  const L = chocNivel(), n = L + 1;
+  if (L >= CHOC.max) return;
+  if (state.level < CHOC.nivelJ[n]) return toast(`Melhorar a chocadeira libera no nível ${CHOC.nivelJ[n]}.`);
+  if (state.coins < CHOC.custo[n]) return toast(`Faltam moedas: custa ${CHOC.custo[n].toLocaleString('pt-BR')}.`, 'bad');
+  state.coins -= CHOC.custo[n]; state.chocadeira.level = n; sfx('level');
+  toast(`🥚 Chocadeira nível ${n}! Mais rápida, cabe mais ovos e com mais chance de filhotes especiais.`, 'good'); done();
+}
 const temChocadeira = () => objetosDe(state, 'animais').some(o => o.id === 'chocadeira');
 const reproEspecies = () => Object.keys(FILHOTES).filter(k => ANIMAL[k] && ANIMAL[k].tipo === 'prod');
 function reproEstado(k) {
@@ -2437,7 +2453,7 @@ function reproTexto(k) {
   if (ave && !temChocadeira()) return '🥚 Ponha a chocadeira no rancho (Inventário) para as aves botarem ovos.';
   if (r.falta > 0) return `${ave ? '🥚' : '🐾'} Próximo ${oQue} em ${fmt(r.falta / 1000)}${r.alim < 2 ? ' (alimente o casal)' : ''}`;
   if (r.alim < 2) return `${ave ? '🥚' : '🐾'} Pronto para ter ${oQue}, mas o casal precisa estar alimentado.`;
-  if (ave && state.chocadeira.ovos.length >= 20) return '🥚 A chocadeira está cheia.';
+  if (ave && state.chocadeira.ovos.length >= chocCap()) return '🥚 A chocadeira está cheia.';
   if (!ave) { const ab = abrigoOf(FILHOTES[k]); if (!ab || vagas(state, ab.id) <= 0) return '🐾 Pronto para ter filhote, mas o abrigo está cheio.'; }
   return `${ave ? '🥚' : '🐾'} Prestes a ter ${oQue}!`;
 }
@@ -2459,8 +2475,9 @@ function verificarReproducao() {
       state.ultima_reproducao[k] = now;
       toast(`🐾 Nasceu ${ANIMAL[filhote].f ? 'uma' : 'um'} ${ANIMAL[filhote].nome.toLowerCase()}!`, 'good');
       done();
-    } else if (temChocadeira() && state.chocadeira.ovos.length < 20) {
-      state.chocadeira.ovos.push({ especie: filhote, nascimento: now + 24 * HOUR });
+    } else if (temChocadeira() && state.chocadeira.ovos.length < chocCap()) {
+      const dur = chocInfo(chocNivel()).horas * 3600e3;
+      state.chocadeira.ovos.push({ especie: filhote, nascimento: now + dur, dur });
       state.ultima_reproducao[k] = now;
       toast(`🥚 Ovo de ${ANIMAL[filhote].nome.toLowerCase()} colocado na chocadeira!`, 'good');
       done();
@@ -2470,29 +2487,23 @@ function verificarReproducao() {
 
 function hatcharOvos() {
   if (!isHome() || !state.chocadeira || !state.chocadeira.ovos.length) return;
-
-  const agora = Date.now();
-  const ovosHatched = [];
-
+  const agora = Date.now(), L = chocNivel(), info = chocInfo(L), nasceu = [];
   for (let i = state.chocadeira.ovos.length - 1; i >= 0; i--) {
     const ovo = state.chocadeira.ovos[i];
-    if (agora >= ovo.nascimento) {
-      const filhote = ovo.especie;
-      const abrigo = abrigoOf(filhote);
-
-      // Verificar se há vaga no abrigo
-      if (abrigo && vagas(state, abrigo.id) > 0) {
-        state.animals.push(newAnimal(filhote));
-        ovosHatched.push(ANIMAL[filhote].nome.toLowerCase());
-        state.chocadeira.ovos.splice(i, 1);
-      }
+    if (agora < ovo.nascimento) continue;
+    const abrigo = abrigoOf(ovo.especie), vaga = abrigo ? vagas(state, abrigo.id) : 0;
+    if (vaga <= 0) continue;
+    const n = Math.min(vaga, Math.random() * 100 < info.gemeos ? 2 : 1);
+    for (let k = 0; k < n; k++) {
+      const a = newAnimal(ovo.especie);
+      if (Math.random() * 100 < info.cor) a.cor = 1 + Math.floor(Math.random() * 3);
+      if (Math.random() * 100 < info.raro) a.raro = 1;
+      state.animals.push(a);
+      nasceu.push(`${ANIMAL[ovo.especie].nome.toLowerCase()}${a.raro ? ' de raça rara 💎' : ''}${a.cor ? ' de cor rara 🌈' : ''}`);
     }
+    state.chocadeira.ovos.splice(i, 1);
   }
-
-  if (ovosHatched.length) {
-    toast(`🐣 ${ovosHatched.length} filhote${ovosHatched.length > 1 ? 's' : ''} nasceu${ovosHatched.length > 1 ? 'ram' : ''}!`, 'good');
-    done();
-  }
+  if (nasceu.length) { toast(`🐣 Nasceu: ${nasceu.join(', ')}!`, 'good'); done(); }
 }
 
 // ============================================================
@@ -2554,8 +2565,11 @@ function drawAnimalAt(a, m, base, t) {
     ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.ellipse(p.x, p.y, W * 0.26, W * 0.09, 0, 0, 7); ctx.stroke();
   }
+  if (a.cor) { ctx.save(); try { ctx.filter = `hue-rotate(${CHOC_HUES[a.cor] || 70}deg) saturate(1.15)`; } catch (e) { /* sem filtro */ } }
   drawAnimal(kind, p.x, p.y, sc, t, m.dir, m.moving, kind === 'gato' ? corGato(a) : undefined);
+  if (a.cor) ctx.restore();
   const h = ANIMAL_H[kind] * sc;
+  if (a.raro) { ctx.font = `${Math.round(W * 0.14)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('✨', p.x + W * 0.12, p.y - h - W * 0.02 + Math.sin(t / 300) * 2); }
   m.topo = { x: p.x, y: p.y - h - W * 0.05 };
   hits.push({ kind: 'animal', id: a.id, x: p.x, y: p.y - h * 0.5, r: Math.max(W * 0.3, h * 0.85) });
 }
@@ -2676,6 +2690,10 @@ function layout(sc) {
     L.ox = cx - ((u0 + u1) - (v0 + v1)) * L.W / 4 + 0.1 * L.W;
     L.oy = I.t + ah / 2 - (((u0 + u1) + (v0 + v1)) / 8 - 0.55) * L.W;
     box = { w: bw * L.W, h: bh * L.W };
+  } else if (sc === 'mina') {
+    L.W = Math.min(aw / (MINA_N + 1.6), ah / (MINA_N / 2 + 2.4));
+    L.ox = cx; L.oy = cy - MINA_N * L.W / 4 + 0.15 * L.W;
+    box = { w: (MINA_N + 1) * L.W, h: (MINA_N / 2 + 1.5) * L.W };
   } else {
     L.W = Math.min(aw / 5.9, ah / 4.35);
     L.ox = cx;
@@ -4678,6 +4696,7 @@ function draw(t, dt) {
   const s = S(), home = isHome();
   if (scene === 'roca') drawRoca(s, t, home);
   else if (scene === 'animais') drawPen(s, t, home, dt);
+  else if (scene === 'mina') drawMina(s, t, home);
   else drawRoom(s, t, home);
   drawFx(t);
   drawPopups(t); drawFalas(t);
@@ -4736,7 +4755,7 @@ const potionIcon = () => makeIcon('pocao', () => {
   ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(38, 50, 5, 8, -0.5, 0, 7); ctx.fill();
   ctx.fillStyle = '#e0d4f5'; ctx.fillRect(40, 22, 16, 16); ctx.fillStyle = '#8a5a2b'; ctx.fillRect(38, 14, 20, 9);
 });
-const itemIcon = id => PRODUCE[id] ? cropIcon(PRODUCE[id].planta) : PRODUCT[id] && PRODUCT[id].muda ? cropIcon(PRODUCT[id].muda) : productIcon(id);
+const itemIcon = id => PRODUCT[id] && PRODUCT[id].mina ? minerioIcon(id) : PRODUCE[id] ? cropIcon(PRODUCE[id].planta) : PRODUCT[id] && PRODUCT[id].muda ? cropIcon(PRODUCT[id].muda) : productIcon(id);
 const dogIcon = raca => makeIcon('dog:' + raca, () => drawDog(50, 88, 118, 0, raca, false));
 const bowlIcon = () => makeIcon('bowl', () => {
   ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.beginPath(); ctx.ellipse(48, 74, 32, 7, 0, 0, 7); ctx.fill();
@@ -4832,7 +4851,7 @@ function renderTools() {
   const box = $('#tools'), hint = $('#sceneHint');
   box.hidden = scene !== 'roca';
   hint.hidden = scene === 'roca';
-  hint.textContent = scene === 'animais'
+  hint.textContent = scene === 'mina' ? 'Clique nas pedras para quebrar com a picareta. Cada pedra volta depois de um tempo. Clique na placa para melhorar a picareta.' : scene === 'animais'
     ? (isHome() ? 'Clique num animal para alimentar, recolher ou vender. Clique num abrigo para aumentar ou para construir um novo. No Modo Mover dá para arrastar os abrigos para outro canto do rancho.' : 'Dê comida aos animais com fome para ajudar. Produto pronto dá para pegar um pouquinho.')
     : (isHome() ? 'Os espaços com + são lugares para decoração. Cada peça dá conforto, e conforto aumenta o XP que você ganha. Gato, tartaruga e arara moram aqui: clique neles para fazer carinho.' : 'Esta é a casa do seu vizinho.');
   box.innerHTML = '';
@@ -4905,9 +4924,13 @@ function setTool(id) {
   state.tool = id; renderTools(); renderPane();
 }
 function setScene(sc) {
+  if (sc === 'mina') {
+    if (!isHome()) return toast('A mina fica na sua roça: volte para casa para minerar.');
+    if (state.level < MINA_NIVEL) return toast(`A mina libera no nível ${MINA_NIVEL}.`);
+  }
   if (sc !== scene) { L.pan = { x: 0, y: 0 }; if (moving && !moving.novo) moving = null; }
   scene = sc; hover = null; renderZoom();
-  if (sc === 'casa' && moveMode) { moveMode = false; moving = null; }
+  if ((sc === 'casa' || sc === 'mina') && moveMode) { moveMode = false; moving = null; }
   renderMoveBtn();
   document.querySelectorAll('#scenes button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.scene === sc)));
   renderTools(); renderSceneInfo(); pedirFitHud();
@@ -5066,6 +5089,7 @@ function renderSceneInfo() {
     const cap = ABRIGOS.reduce((t, b) => t + ABRIGO_CAP[abrigoLv(s, b.id)], 0);
     el.textContent = owner + `${s.animals.filter(inPen).length}${isHome() ? ` de ${cap}` : ''} animais`;
   }
+  else if (scene === 'mina') el.textContent = owner + `Mina · picareta nível ${picNivel()}`;
   else el.textContent = owner + `Conforto ${comfort(s)} · +${comfort(s)}% de XP`;
 }
 
@@ -5201,7 +5225,7 @@ function usarCasaTema(id) {
   state.skin = id === 'classico' ? null : id; sfx('click');
   toast(`🏡 Tema ${t.nome} na casa e no celeiro!`, 'good'); done(); renderPane();
 }
-const TAB_NAMES = { casaTemas: 'Sua casa', canil: 'Casinha do cachorro',  loja: 'Loja', celeiro: 'Celeiro', terreno: 'Terreno', amigos: 'Amigos', missoes: 'Missões', correio: 'Correio', fabrica: 'Negócios', inventario: 'Inventário', chocadeira: 'Chocadeira' };
+const TAB_NAMES = { casaTemas: 'Sua casa', canil: 'Casinha do cachorro',  loja: 'Loja', celeiro: 'Celeiro', terreno: 'Terreno', amigos: 'Amigos', missoes: 'Missões', correio: 'Correio', fabrica: 'Negócios', inventario: 'Inventário', chocadeira: 'Chocadeira', mina: 'Mina' };
 // A janela abre por cima do jogo. Clicar de novo no mesmo botão fecha.
 function openPanel(t, seg, focus) {
   tab = t; if (seg) shopSeg = seg;
@@ -5218,6 +5242,10 @@ function focusRow(id) {
 function chocadeiraHTML() {
   let html = '';
     html += `<h3>Chocadeira 🐣</h3>`;
+    { const L = chocNivel(), I = chocInfo(L), N = L < CHOC.max ? chocInfo(L + 1) : null;
+      html += `<div class="row sel"><div class="avatar" style="background:#c9a86a">🥚</div><div><div class="name">Nível ${L} de ${CHOC.max}</div>
+        <div class="meta">Choca em ${I.horas}h · cabe ${I.cap} ovos · gêmeos ${I.gemeos}% · cor rara 🌈 ${I.cor}% · raça rara 💎 ${I.raro}%${N ? `<br>Próximo nível: ${N.horas}h · ${N.cap} ovos · ${N.gemeos}% · ${N.cor}% · ${N.raro}%` : ''}</div></div>
+        ${N ? (state.level < CHOC.nivelJ[L + 1] ? `<button class="btn" disabled>Nível ${CHOC.nivelJ[L + 1]}</button>` : `<button class="btn gold" data-choc-up="1" ${state.coins < CHOC.custo[L + 1] ? 'disabled' : ''}>${moeda(CHOC.custo[L + 1])}</button>`) : '<button class="btn ghost" disabled>Máximo</button>'}</div>`; }
     if (!temChocadeira()) html += `<div class="empty">Sua chocadeira está no Inventário: ponha no rancho onde quiser para as aves botarem ovos.</div>`;
     html += `<p class="hint">Cada espécie precisa de um casal (2 animais) alimentado. Aves (e avestruzes) põem ovos aqui; mamíferos têm o filhote direto no abrigo. O tempo depende da espécie: de 1 dia (galinhas, patos, coelhos…) a 5 dias (a rara onça-pintada).</p>`;
     for (const k of reproEspecies()) {
@@ -5227,11 +5255,11 @@ function chocadeiraHTML() {
     if (!state.chocadeira || !state.chocadeira.ovos || !state.chocadeira.ovos.length) {
       html += `<div class="empty">A chocadeira está vazia.<br>Aves bem-alimentadas botam ovos para incubar. Mamíferos têm o filhote direto, sem ovo.</div>`;
     } else {
-      html += `<p class="hint">Ovos levam 24 horas para incubar. Filhotes nascem automaticamente se houver vaga no abrigo.</p>`;
+      html += `<p class="hint">Os ovos levam ${chocInfo(chocNivel()).horas} horas para incubar. Filhotes nascem automaticamente se houver vaga no abrigo (de gêmeos, se couber os dois).</p>`;
       const agora = Date.now();
       for (const ovo of state.chocadeira.ovos) {
         const tempoRestante = ovo.nascimento - agora;
-        const porcentagem = Math.max(0, Math.min(100, 100 - (tempoRestante / (24 * HOUR)) * 100));
+        const porcentagem = Math.max(0, Math.min(100, 100 - (tempoRestante / (ovo.dur || 24 * 3600e3)) * 100));
         const animalData = ANIMAL[ovo.especie];
 
         html += `<div class="row"><img alt="" src="${animalIcon(ovo.especie)}">
@@ -5241,7 +5269,7 @@ function chocadeiraHTML() {
           <div></div></div>`;
       }
       html += `<div class="row"><div class="avatar" style="background:#5a646c">🥚</div>
-        <div><div class="name">Total de ovos</div><div class="meta">${state.chocadeira.ovos.length} de 20</div></div></div>`;
+        <div><div class="name">Total de ovos</div><div class="meta">${state.chocadeira.ovos.length} de ${chocCap()}</div></div></div>`;
     }
   return html;
 }
@@ -5414,7 +5442,7 @@ function renderPane() {
     }
   } else if (tab === 'celeiro') {
     html += chaveAviso('celeiro', 'Mostrar a quantidade de itens no botão do Celeiro');
-    const items = [...Object.values(PRODUCE), ...PRODUCTS, ...PRODUTOS_CACA.map(p => PRODUCT[p.id]), ...PEIXES.map(p => PRODUCT[p.id]), ...FRUTAS.map(f => PRODUCT[f.id]), ...PRESENTES_GATO.map(p => PRODUCT[p.id]), ...PRESENTES_ARARA.map(p => PRODUCT[p.id]), ...PREMIOS_NIVEL.map(p => PRODUCT[p.id]), ...RECEITAS].filter(it => state.barn[it.id] > 0);
+    const items = [...Object.values(PRODUCE), ...PRODUCTS, ...PRODUTOS_CACA.map(p => PRODUCT[p.id]), ...PEIXES.map(p => PRODUCT[p.id]), ...FRUTAS.map(f => PRODUCT[f.id]), ...PRESENTES_GATO.map(p => PRODUCT[p.id]), ...PRESENTES_ARARA.map(p => PRODUCT[p.id]), ...PREMIOS_NIVEL.map(p => PRODUCT[p.id]), ...MINERIOS.map(m => PRODUCT[m.id]), ...RECEITAS].filter(it => state.barn[it.id] > 0);
     let total = 0; for (const it of items) total += state.barn[it.id] * it.preco;
     const minhasPlantas = CROPS.filter(c => (state.plantas[c.id] || 0) > 0);
     if (minhasPlantas.length) {
@@ -5460,6 +5488,8 @@ function renderPane() {
         ${have ? '<button class="btn ghost" disabled>Comprada</button>' : next ? `<button class="btn gold" data-expand ${state.level >= e.nivel && state.coins >= e.preco ? '' : 'disabled'}>${moeda(e.preco)}</button>` : `<button class="btn" disabled>Nível ${e.nivel}</button>`}</div>`;
     });
     html += `<p class="hint">Pragas comem parte da colheita enquanto ficam lá. Terra seca faz a planta crescer mais devagar. Nunca acontecem os dois juntos. Cada planta dá XP em até ${XP_CAP} colheitas por dia.</p>`;
+  } else if (tab === 'mina') {
+    html += minaHTML();
   } else if (tab === 'chocadeira') {
     html += chocadeiraHTML();
   } else if (tab === 'correio') {
@@ -5577,6 +5607,8 @@ $('#pane').addEventListener('click', e => {
   if (d.fseg) { fabSeg = d.fseg; renderPane(); $('#pane').scrollTop = 0; return; }
   if (d.fabricar) return fabricar(d.fabricar);
   if (d.fabRecolher) return recolherFab(d.fabRecolher);
+  if (d.chocUp) return melhorarChocadeira();
+  if (d.picUp) return melhorarPicareta();
   if (d.fabSlot) return comprarSlotFab(d.fabSlot);
   if (d.bancaRem) return bancaRemove(d.bancaRem);
   if (d.feiraComprar) return comprarFeira(Number(d.feiraComprar));
@@ -5741,7 +5773,7 @@ const MENU_ICONS = {
 };
 function paintMenuIcons() {
   document.querySelectorAll('.tab .ic').forEach(el => { el.innerHTML = MENU_ICONS[el.parentNode.dataset.tab]; });
-  const sc = { roca: `<img alt="" src="${cropIcon('milho')}">`, animais: `<img alt="" src="${animalIcon('vaca')}">`, casa: MENU_ICONS.casa };
+  const sc = { roca: `<img alt="" src="${cropIcon('milho')}">`, animais: `<img alt="" src="${animalIcon('vaca')}">`, casa: MENU_ICONS.casa, mina: `<img alt="" src="${minerioIcon('ouro')}">` };
   document.querySelectorAll('#scenes .ic').forEach(el => { el.innerHTML = sc[el.parentNode.dataset.scene]; });
   const g = document.querySelector('#giftBtn .ic'); if (g) g.innerHTML = MENU_ICONS.presente;
   const m = document.querySelector('#moveBtn .ic'); if (m) m.innerHTML = MENU_ICONS.mover;
@@ -5791,6 +5823,7 @@ function tipAnimal(id) {
     h += `Crescendo: falta ${fmt(d.tempo - a.g)}<div class="bar"><i style="width:${a.g / d.tempo * 100}%"></i></div>`;
     return h + (a.food > 0 ? `Comida por mais ${fmt(a.food)}` : `<span class="warn">Com fome, parou de crescer.</span>${home ? ` Clique para dar ração (${d.racao}).` : ''}`);
   }
+  if (a.raro || a.cor) h += `${a.raro ? '💎 Raça rara: produz em dobro. ' : ''}${a.cor ? '🌈 Cor rara: às vezes produz um a mais.' : ''}<br>`;
   const prod = PRODUCT[d.prod];
   if (a.ready) h += `${prod.nome} pronto${a.dobro ? ' (em dobro!)' : ''}! Clique para recolher.`;
   else if (!a.fed) h += `Com fome. ${home ? `Clique para dar ração (${d.racao} moedas${state.racaoEsp ? ', usa 1 ração especial' : ''}).` : 'Clique para dar comida e ajudar.'}`;
@@ -5842,7 +5875,7 @@ function tipDecor(id) {
 let lastTip = '';
 function updateTip() {
   const show = hover && $('#ctxMenu').hidden && (pointer.inside && !pointer.touch || performance.now() < pointer.tipUntil);
-  const html = !show ? null : hover.kind === 'plot' ? tipPlot(hover.i) : hover.kind === 'animal' ? tipAnimal(hover.id) : hover.kind === 'dog' ? tipDog(hover.slot) : hover.kind === 'canil' ? tipCanil(hover.slot) : hover.kind === 'caminha' ? tipCaminha(hover.id) : hover.kind === 'abrigo' ? tipAbrigo(hover.id) : hover.kind === 'land' ? tipLand() : hover.kind === 'caca' ? (state.level >= CACA_NIVEL ? '<b>🎯 Trilha da caçada</b><br>Clique para caçar pragas com o estilingue ou a espingarda, e armar a arapuca.' : `<b>🎯 Trilha da caçada</b><br>Libera no nível ${CACA_NIVEL}.`) : hover.kind === 'bicho' ? tipBicho(hover.i) : hover.kind === 'avatar' ? (hover.quem === 'dono' ? `<b>${esc(view.nome)}</b><br>${view.avatar && view.avatar.sexo === 'f' ? 'Dona' : 'Dono'} de ${esc(view.fazenda || 'Roça Feliz')}. Clique para dar um oi.` : `<b>${esc(meuApelido())}</b>${meuApelido() === 'Você' ? '' : ' (você)'}<br>Clique para dar um oi.`) : hover.kind === 'invasor' ? `<b>${invasor ? (invasor.tipo === 'javali' ? '🐗 Javali' : '🐀 Rato') : 'Praga'} na plantação!</b><br>Clique para espantar antes que ele coma.` : hover.kind === 'armadilha' ? `<b>🪤 Armadilha de pragas</b><br>${armadilhaPronta() ? 'Carregada: pega a próxima praga que invadir a plantação.' : `Recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`}` : hover.kind === 'mural' ? `<b>📷 Mural da caçada</b><br>${hover.n} foto${hover.n === 1 ? '' : 's'} de bichos. ${isHome() ? 'Clique para abrir o Livro da caçada.' : ''}` : hover.kind === 'folhas' ? '<b>🍂 Monte de folhas</b><br>Clique e o avatar vai rastelar (+XP e umas moedinhas).' : hover.kind === 'lago' ? `<b>🎣 Lago</b><br>Clique para pescar (🪱 ${iscasDe().minhoca || 0} minhocas).` : hover.kind === 'enfeite' ? tipEnfeite(hover.id, hover.key, hover.sc) : hover.kind === 'obj' ? null : hover.kind === 'celeiro' ? `<b>${isHome() ? 'Seu celeiro' : 'Celeiro de ' + esc(view.nome)}</b>${isHome() ? '<br>Clique para ver o que está guardado.' : ''}` : hover.kind === 'casa' ? `<b>${isHome() ? 'Sua casa' : 'Casa de ' + esc(view.nome)}</b><br>${isHome() ? 'Clique para entrar ou trocar o tema.' : 'Clique para entrar.'}` : tipDecor(hover.id);
+  const html = !show ? null : hover.kind === 'plot' ? tipPlot(hover.i) : hover.kind === 'mina' ? tipMina(hover.i) : hover.kind === 'minaplaca' ? '<b>⛏️ Placa da mina</b><br>Clique para ver a picareta e os minérios.' : hover.kind === 'animal' ? tipAnimal(hover.id) : hover.kind === 'dog' ? tipDog(hover.slot) : hover.kind === 'canil' ? tipCanil(hover.slot) : hover.kind === 'caminha' ? tipCaminha(hover.id) : hover.kind === 'abrigo' ? tipAbrigo(hover.id) : hover.kind === 'land' ? tipLand() : hover.kind === 'caca' ? (state.level >= CACA_NIVEL ? '<b>🎯 Trilha da caçada</b><br>Clique para caçar pragas com o estilingue ou a espingarda, e armar a arapuca.' : `<b>🎯 Trilha da caçada</b><br>Libera no nível ${CACA_NIVEL}.`) : hover.kind === 'bicho' ? tipBicho(hover.i) : hover.kind === 'avatar' ? (hover.quem === 'dono' ? `<b>${esc(view.nome)}</b><br>${view.avatar && view.avatar.sexo === 'f' ? 'Dona' : 'Dono'} de ${esc(view.fazenda || 'Roça Feliz')}. Clique para dar um oi.` : `<b>${esc(meuApelido())}</b>${meuApelido() === 'Você' ? '' : ' (você)'}<br>Clique para dar um oi.`) : hover.kind === 'invasor' ? `<b>${invasor ? (invasor.tipo === 'javali' ? '🐗 Javali' : '🐀 Rato') : 'Praga'} na plantação!</b><br>Clique para espantar antes que ele coma.` : hover.kind === 'armadilha' ? `<b>🪤 Armadilha de pragas</b><br>${armadilhaPronta() ? 'Carregada: pega a próxima praga que invadir a plantação.' : `Recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`}` : hover.kind === 'mural' ? `<b>📷 Mural da caçada</b><br>${hover.n} foto${hover.n === 1 ? '' : 's'} de bichos. ${isHome() ? 'Clique para abrir o Livro da caçada.' : ''}` : hover.kind === 'folhas' ? '<b>🍂 Monte de folhas</b><br>Clique e o avatar vai rastelar (+XP e umas moedinhas).' : hover.kind === 'lago' ? `<b>🎣 Lago</b><br>Clique para pescar (🪱 ${iscasDe().minhoca || 0} minhocas).` : hover.kind === 'enfeite' ? tipEnfeite(hover.id, hover.key, hover.sc) : hover.kind === 'obj' ? null : hover.kind === 'celeiro' ? `<b>${isHome() ? 'Seu celeiro' : 'Celeiro de ' + esc(view.nome)}</b>${isHome() ? '<br>Clique para ver o que está guardado.' : ''}` : hover.kind === 'casa' ? `<b>${isHome() ? 'Sua casa' : 'Casa de ' + esc(view.nome)}</b><br>${isHome() ? 'Clique para entrar ou trocar o tema.' : 'Clique para entrar.'}` : tipDecor(hover.id);
   if (!html) { tip.hidden = true; lastTip = ''; return; }
   if (html !== lastTip) { tip.innerHTML = html; lastTip = html; }
   tip.hidden = false;
@@ -6019,6 +6052,8 @@ cv.addEventListener('click', e => {
   if (pointer.touch) pointer.tipUntil = performance.now() + 2200;
   if (!target) return;
   if (target.kind === 'plot') actPlot(target.i);
+  else if (target.kind === 'mina') minaBater(target.i);
+  else if (target.kind === 'minaplaca') openPanel('mina');
   else if (target.kind === 'animal') actAnimal(target.id);
   else if (target.kind === 'decor') actDecor(target.id);
   else if (target.kind === 'dog') actDog(target.slot);
@@ -6422,6 +6457,7 @@ const temProd = () => state.animals.some(a => ANIMAL[a.k].tipo === 'prod');
 const MISSOES_DIA = [
   { ev: 'colher', txt: 'Colha {n} vezes', alvo: [10, 20, 30] },
   { ev: 'plantar', txt: 'Plante {n} plantas', alvo: [10, 20, 30] },
+  { ev: 'minerar', txt: 'Quebre {n} pedras na mina', alvo: [6, 10, 16], need: () => state.level >= MINA_NIVEL },
   { ev: 'regar', txt: 'Regue {n} canteiros (seus ou dos vizinhos)', alvo: [3, 5, 8] },
   { ev: 'coletar', txt: 'Recolha {n} produtos dos animais', alvo: [4, 8, 12], need: temProd },
   { ev: 'alimentar', txt: 'Alimente {n} animais', alvo: [4, 8, 12], need: temProd },
@@ -6446,6 +6482,7 @@ const MISSOES_DIARIAS_N = 5;
 const MISSOES_SEMANA = [
   { ev: 'colher', txt: 'Colha {n} vezes', alvo: [100, 200, 350] },
   { ev: 'plantar', txt: 'Plante {n} plantas', alvo: [100, 200, 350] },
+  { ev: 'minerar', txt: 'Quebre {n} pedras na mina', alvo: [50, 90, 150], need: () => state.level >= MINA_NIVEL },
   { ev: 'coletar', txt: 'Recolha {n} produtos dos animais', alvo: [30, 60, 100], need: temProd },
   { ev: 'vender', txt: 'Venda {n} moedas no celeiro', alvo: [4000, 20000, 60000] },
   { ev: 'ajudar', txt: 'Ajude os vizinhos {n} vezes', alvo: [20, 35, 50] },
@@ -6508,7 +6545,7 @@ function claimMission(tipo, k) {
   state.coins += p.moedas; addXP(p.xp, null);
   if (p.racao) state.racaoEsp += p.racao;
   sfx('coin');
-  const bicho = tipo === 'semana' ? sortearAnimalCred() : null;
+  const bicho = tipo === 'semana' || Math.random() < 0.12 ? sortearAnimalCred() : null;
   const muda = sortearMuda(tipo === 'semana' ? 6 : 3); darMuda(muda);
   toast(`Prêmio: +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.racao ? ' e 1 ração especial' : ''} e ${txtMuda(muda)}${bicho ? ` e ${bicho.f ? 'uma' : 'um'} ${bicho.nome.toLowerCase()} para resgatar (Loja › Animais)` : ''}!`, 'good');
   // completou todas do dia (ou da semana)? ganha trevos, uma vez por dia / por semana
@@ -8622,7 +8659,7 @@ const VILA_MARCOS = [
   { c: 2, txt: '10 camarões para pescar', dar: () => { iscasDe().camarao = (iscasDe().camarao || 0) + 10; } },
   { c: 3, txt: 'um enfeite exclusivo', dar: npc => { const id = npc === 'ze' ? 'carroca' : 'roseira'; state.enfeites[id] = (state.enfeites[id] || 0) + 1; state.invNovos = (state.invNovos || 0) + 1; } },
   { c: 4, txt: '+10% nas recompensas dos pedidos' , dar: () => {} },
-  { c: 5, txt: '2.000 moedas e o título de melhor vizinho(a)', dar: () => { state.coins += 2000; } },
+  { c: 5, txt: '2.000 moedas, um animal surpresa e o título de melhor vizinho(a)', dar: () => { state.coins += 2000; sortearAnimalCred(); } },
 ];
 const coracoes = npc => Math.min(VILA_MARCOS.length, Math.floor(((state.vila && state.vila[npc] && state.vila[npc].amz) || 0) / CORACAO));
 function vilaDe(npc) {
@@ -8743,8 +8780,9 @@ async function premioRanking() {
   r.premiado = w;
   if (meus <= 0) return done();
   const pr = PREMIO_RANK[pos - 1] || { moedas: 100, xp: 5 };
-  state.coins += pr.moedas; addXP(pr.xp, null); sfx('level'); done();
-  toast(`🏆 Ranking da semana passada: você ficou em ${pos}º lugar com ${meus} pontos! +${pr.moedas.toLocaleString('pt-BR')} moedas e +${pr.xp} XP.`, 'good');
+  state.coins += pr.moedas; addXP(pr.xp, null); sfx('level');
+  const bichoR = pos <= 3 ? sortearAnimalCred() : null; done();
+  toast(`🏆 Ranking da semana passada: você ficou em ${pos}º lugar com ${meus} pontos! +${pr.moedas.toLocaleString('pt-BR')} moedas e +${pr.xp} XP${bichoR ? ` e ${bichoR.f ? 'uma' : 'um'} ${bichoR.nome.toLowerCase()} para resgatar (Loja › Animais)` : ''}.`, 'good');
 }
 let rankHTMLcache = '', rankHTMLcacheGlobal = '';
 function rankingHTML() {
@@ -8758,7 +8796,7 @@ function rankingHTML() {
     lerRanking().then(docs => { if (docs && tab === 'amigos' && rankModo === 'amigos') { const novo = listaRank(docs, r); if (novo !== rankHTMLcache) { rankHTMLcache = novo; const el = $('#rankLista'); if (el) el.innerHTML = novo; } } });
   }
   const lista = global ? (rankHTMLcacheGlobal || listaRankGlobal(rankGlobalCache || {}, r)) : (rankHTMLcache || listaRank(rankCache || {}, r));
-  return `<h3>🏆 Ranking da semana</h3><p class="hint">Pontos por colher (1), recolher dos animais (1), fábrica (2), pescar (2), ajudar amigos (3), presentear (3), caminhão (5), pedidos da vila (8). Termina ${dias <= 1 ? 'hoje à meia-noite' : `em ${dias} dias`} (segunda 0h). Prêmios: 🥇 ${PREMIO_RANK[0].moedas} · 🥈 ${PREMIO_RANK[1].moedas} · 🥉 ${PREMIO_RANK[2].moedas} moedas.</p>
+  return `<h3>🏆 Ranking da semana</h3><p class="hint">Pontos por colher (1), recolher dos animais (1), fábrica (2), pescar (2), ajudar amigos (3), presentear (3), caminhão (5), pedidos da vila (8). Termina ${dias <= 1 ? 'hoje à meia-noite' : `em ${dias} dias`} (segunda 0h). Prêmios: 🥇 ${PREMIO_RANK[0].moedas} · 🥈 ${PREMIO_RANK[1].moedas} · 🥉 ${PREMIO_RANK[2].moedas} moedas, e um animal surpresa para o top 3.</p>
     <div class="rankmodo"><button type="button" class="btn tiny ${global ? 'ghost' : 'gold'}" data-rank-modo="amigos">Amigos</button><button type="button" class="btn tiny ${global ? 'gold' : 'ghost'}" data-rank-modo="global">🌎 Todos os jogadores</button></div>
     <div id="rankLista">${lista}</div>`;
 }
@@ -8809,7 +8847,7 @@ function missoesHTML() {
     return html + '</div>';
   }
   const tipo = missSeg, lista = state.missions[tipo], p = tipo === 'dia' ? premioDia() : premioSemana();
-  html += `<p class="hint">${tipo === 'dia' ? 'Missões novas todo dia à meia-noite.' : 'Missões novas toda segunda-feira à meia-noite.'} Cada uma dá ${p.moedas.toLocaleString('pt-BR')} moedas, ${p.xp} XP${p.racao ? ', 1 ração especial' : ''} e ${tipo === 'dia' ? 3 : 6} plantas sorteadas. ${state.missions['trevo_' + tipo] === state.missions[tipo === 'dia' ? 'd' : 'w'] ? `<b>🍀 +${TREVO_MISSOES[tipo]} trevos já ganhos!</b>` : `Pegue o prêmio de todas e ganhe <b>🍀 ${TREVO_MISSOES[tipo]} trevos</b> e ${tipo === 'dia' ? '<img class="emo" alt="" src="' + ferramentaIcon('enxada') + '"> 1 enxada de arrancar' : '<img class="emo" alt="" src="' + ferramentaIcon('motosserra') + '"> 1 motosserra'}.`}</p>`;
+  html += `<p class="hint">${tipo === 'dia' ? 'Missões novas todo dia à meia-noite.' : 'Missões novas toda segunda-feira à meia-noite.'} Cada uma dá ${p.moedas.toLocaleString('pt-BR')} moedas, ${p.xp} XP${p.racao ? ', 1 ração especial' : ''} e ${tipo === 'dia' ? '3 plantas sorteadas (e 12% de chance de um animal)' : '6 plantas sorteadas e 1 animal'}. ${state.missions['trevo_' + tipo] === state.missions[tipo === 'dia' ? 'd' : 'w'] ? `<b>🍀 +${TREVO_MISSOES[tipo]} trevos já ganhos!</b>` : `Pegue o prêmio de todas e ganhe <b>🍀 ${TREVO_MISSOES[tipo]} trevos</b> e ${tipo === 'dia' ? '<img class="emo" alt="" src="' + ferramentaIcon('enxada') + '"> 1 enxada de arrancar' : '<img class="emo" alt="" src="' + ferramentaIcon('motosserra') + '"> 1 motosserra'}.`}</p>`;
   lista.forEach((m, k) => {
     const ok = m.feito >= m.alvo;
     html += `<div class="row ${m.pego ? 'locked' : ok ? 'sel' : ''}"><div class="avatar" style="background:${ok ? '#4f9a2f' : '#d39a5c'}">${ok ? '✓' : k + 1}</div>
@@ -9061,7 +9099,7 @@ function itensPossiveis() {
   const l = CROPS.filter(c => c.nivel <= state.level).map(c => c.prod);
   const bichos = new Set(state.animals.filter(a => ANIMAL[a.k].tipo === 'prod' && ANIMAL[a.k].prod !== 'leitao').map(a => ANIMAL[a.k].prod));
   const caca = PRODUTOS_CACA.filter(p => jaCacou(p.id)).map(p => p.id);
-  return [...l, ...bichos, ...caca, ...RECEITAS.filter(r => r.nivel <= state.level && receitaPossivel(r)).map(r => r.id)];
+  return [...l, ...bichos, ...caca, ...MINERIOS.filter(m => m.nivel <= state.level && state.level >= MINA_NIVEL).map(m => m.id), ...RECEITAS.filter(r => r.nivel <= state.level && receitaPossivel(r)).map(r => r.id)];
 }
 function novoPedido() {
   const pool = itensPossiveis(), n = 1 + Math.floor(Math.random() * Math.min(3, 1 + state.level / 6)), itens = {};
@@ -9073,6 +9111,7 @@ function novoPedido() {
   const valor = Object.entries(itens).reduce((t, [id, q]) => t + valorDe(id) * q, 0);
   const ped = { itens, moedas: Math.round(valor * 1.6 / 5) * 5, xp: Math.max(3, Math.round(valor / 25)), feito: false };
   if (Math.random() < 0.5) ped.muda = sortearMuda(2 + Math.floor(Math.random() * 4));
+  if (Math.random() < 0.12) ped.animal = true;
   return ped;
 }
 function rollCaminhao() {
@@ -9089,8 +9128,9 @@ function entregar(k) {
   p.feito = true;
   state.coins += p.moedas; addXP(p.xp, null); track('entregar');
   if (p.muda) darMuda(p.muda);
+  const bichoC = p.animal ? sortearAnimalCred() : null;
   done();
-  mostrarEntrega(`O caminhão levou o pedido! +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.muda ? ` e ${txtMuda(p.muda)}` : ''}.`);
+  mostrarEntrega(`O caminhão levou o pedido! +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.muda ? ` e ${txtMuda(p.muda)}` : ''}${bichoC ? ` e ${bichoC.f ? 'uma' : 'um'} ${bichoC.nome.toLowerCase()} para resgatar (Loja › Animais)` : ''}.`);
 }
 
 // ---------- Feira da vizinhança: 8 barracas, itens novos a cada 6 horas ----------
@@ -9118,6 +9158,10 @@ function novaFeira() {
   slots.push({ t: 'racaoCao', qtd: dq, preco: Math.round(DOG_FOOD.custo * dq * 0.8) });
   const f = sorteia(FERTS.filter(x => x.nivel <= nivel)), fq = 2 + Math.floor(Math.random() * 4);
   slots.push({ t: 'fert', id: f.id, qtd: fq, preco: Math.round(f.custo * fq * 0.8) });
+  if (Math.random() < 0.5) {
+    const d = sorteia(animaisLiberados(state).filter(a => a.nivel >= Math.max(1, nivel - 12)));
+    if (d) slots[Math.floor(Math.random() * 3)] = { t: 'animal', id: d.id, qtd: 1, preco: Math.round(d.custo * 1.5) };
+  }
   for (let i = slots.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]]; }
   return slots.slice(0, FEIRA_N).map(x => Object.assign(x, { vendido: false }));
 }
@@ -9126,14 +9170,15 @@ function rollFeira() {
   if (state.feira && state.feira.b === b && Array.isArray(state.feira.slots)) return;
   state.feira = { b, slots: novaFeira() };
 }
-const feiraNome = x => x.t === 'racao' ? 'ração especial' : x.t === 'racaoCao' ? 'ração de cachorro' : x.t === 'fert' ? FERT[x.id].nome.toLowerCase() : item(x.id).nome.toLowerCase();
-const feiraIcone = x => x.t === 'racao' ? bowlIcon() : x.t === 'racaoCao' ? dogIcon('caramelo') : x.t === 'fert' ? fertIcon(x.id) : itemIcon(x.id);
+const feiraNome = x => x.t === 'animal' ? ANIMAL[x.id].nome.toLowerCase() + ' (resgatar na Loja)' : x.t === 'racao' ? 'ração especial' : x.t === 'racaoCao' ? 'ração de cachorro' : x.t === 'fert' ? FERT[x.id].nome.toLowerCase() : item(x.id).nome.toLowerCase();
+const feiraIcone = x => x.t === 'animal' ? animalIcon(x.id) : x.t === 'racao' ? bowlIcon() : x.t === 'racaoCao' ? dogIcon('caramelo') : x.t === 'fert' ? fertIcon(x.id) : itemIcon(x.id);
 function comprarFeira(k) {
   const x = state.feira && state.feira.slots[k];
   if (!x || x.vendido) return toast('Esse já foi levado.');
   if (state.coins < x.preco) return toast(`Faltam moedas: custa ${x.preco.toLocaleString('pt-BR')}.`, 'bad');
   state.coins -= x.preco; x.vendido = true;
-  if (x.t === 'racao') state.racaoEsp += x.qtd;
+  if (x.t === 'animal') darAnimal(x.id);
+  else if (x.t === 'racao') state.racaoEsp += x.qtd;
   else if (x.t === 'racaoCao') state.dogFood += x.qtd;
   else if (x.t === 'fert') state.fert[x.id] = (state.fert[x.id] || 0) + x.qtd;
   else mudaEstoque(x.id, x.qtd);
@@ -9151,6 +9196,151 @@ function feiraHTML() {
         <button class="btn gold tiny" data-feira-comprar="${k}" ${state.coins < x.preco ? 'disabled' : ''}>Comprar</button></div>`;
   });
   return html + '</div>';
+}
+
+// ---------- Mina: a terceira área (roça, rancho e mina) ----------
+// Uma grade de pedras que você quebra com a picareta. Cada pedra volta depois de um tempo.
+// Pedra, carvão, ferro, cobre, prata, ouro e gemas vão para o celeiro e valem moedas, pedidos do caminhão e missões.
+const MINA_N = 7, MINA_NIVEL = 6;
+const MINERIOS = [
+  { id: 'pedra',  nome: 'Pedra',  nomePl: 'pedras',  preco: 6,    nivel: 6,  hp: 2,  volta: 150e3,  peso: 40, qtd: [1, 3], xp: 1,  cor: ['#a8a8a8', '#6e6e72'], brilho: null },
+  { id: 'carvao', nome: 'Carvão', nomePl: 'carvões', preco: 14,   nivel: 6,  hp: 3,  volta: 240e3,  peso: 26, qtd: [1, 3], xp: 2,  cor: ['#4a4a52', '#222228'], brilho: '#8a8a96' },
+  { id: 'ferro',  nome: 'Minério de ferro', nomePl: 'minérios de ferro', preco: 45, nivel: 9, hp: 4, volta: 480e3, peso: 16, qtd: [1, 2], xp: 3, cor: ['#a58a78', '#6a5547'], brilho: '#d6a58a' },
+  { id: 'cobre',  nome: 'Cobre',  nomePl: 'cobres',  preco: 80,   nivel: 12, hp: 5,  volta: 900e3,  peso: 10, qtd: [1, 2], xp: 4,  cor: ['#a8785a', '#6e4a36'], brilho: '#e8883c' },
+  { id: 'prata',  nome: 'Prata',  nomePl: 'pratas',  preco: 170,  nivel: 17, hp: 7,  volta: 1800e3, peso: 6,  qtd: [1, 2], xp: 6,  cor: ['#9aa6b0', '#5e6a76'], brilho: '#eef4fa' },
+  { id: 'ouro',   nome: 'Ouro',   nomePl: 'ouros',   preco: 420,  nivel: 23, hp: 10, volta: 3600e3, peso: 3,  qtd: [1, 1], xp: 9,  cor: ['#9c8a5a', '#5e5232'], brilho: '#ffd84a' },
+  { id: 'gema',   nome: 'Gema',   nomePl: 'gemas',   preco: 1100, nivel: 30, hp: 14, volta: 7200e3, peso: 1,  qtd: [1, 1], xp: 14, cor: ['#6a8a9a', '#3a5260'], brilho: '#7bf0e0' },
+];
+const MINERIO = Object.fromEntries(MINERIOS.map(m => [m.id, m]));
+for (const m of MINERIOS) PRODUCT[m.id] = { id: m.id, nome: m.nome, nomePl: m.nomePl, preco: m.preco, mina: true };
+// Picareta: cada nível quebra mais rápido (dano por batida) e dá mais chance de uma unidade extra.
+const PICARETA = { max: 5, custo: [0, 0, 1500, 6000, 20000, 60000], nivelJ: [0, 1, 8, 14, 20, 28] };
+const minaDe = () => {
+  if (!state.mina || !Array.isArray(state.mina.cel) || state.mina.cel.length !== MINA_N * MINA_N) {
+    state.mina = { pic: 1, cel: Array.from({ length: MINA_N * MINA_N }, () => minaNova()) };
+  }
+  return state.mina;
+};
+const picNivel = () => clamp((state.mina && state.mina.pic) || 1, 1, PICARETA.max);
+function minaNova() {
+  const l = MINERIOS.filter(m => m.nivel <= state.level), tot = l.reduce((t, m) => t + m.peso, 0);
+  let r = Math.random() * tot, m = l[0];
+  for (const x of l) { r -= x.peso; if (r <= 0) { m = x; break; } }
+  return { t: m.id, hp: m.hp };
+}
+function minaTick() {
+  if (!state || !state.mina) return;
+  const agora = Date.now();
+  for (let i = 0; i < state.mina.cel.length; i++) { const c = state.mina.cel[i]; if (!c.t && agora >= c.volta) state.mina.cel[i] = minaNova(); }
+}
+const minaHitAt = {};
+function minaBater(i) {
+  const M = minaDe(), c = M.cel[i];
+  if (!c) return;
+  if (!c.t) return toast(`Aqui a pedra volta em ${fmt(Math.max(0, c.volta - Date.now()) / 1000)}.`);
+  const m = MINERIO[c.t], pos = minaPos(i), dano = picNivel();
+  minaHitAt[i] = performance.now();
+  c.hp -= dano; sfx('weed');
+  if (c.hp > 0) { popupAt(pos, `${c.hp}/${m.hp}`, '#ffe9b0'); return save(); }
+  const extra = Math.random() < 0.08 * (picNivel() - 1) ? 1 : 0, qty = m.qtd[0] + Math.floor(Math.random() * (m.qtd[1] - m.qtd[0] + 1)) + extra;
+  M.cel[i] = { t: null, volta: Date.now() + m.volta };
+  sfx('harvest'); gain(m.id, qty, pos); addXP(m.xp, pos); track('minerar'); state.stats.minerado = (state.stats.minerado || 0) + 1;
+  done();
+}
+function melhorarPicareta() {
+  const M = minaDe(), n = picNivel() + 1;
+  if (n > PICARETA.max) return;
+  if (state.level < PICARETA.nivelJ[n]) return toast(`Essa picareta libera no nível ${PICARETA.nivelJ[n]}.`);
+  if (state.coins < PICARETA.custo[n]) return toast(`Faltam moedas: custa ${PICARETA.custo[n].toLocaleString('pt-BR')}.`, 'bad');
+  state.coins -= PICARETA.custo[n]; M.pic = n; sfx('level');
+  toast(`⛏️ Picareta nível ${n}: quebra mais rápido e dá mais minério!`, 'good'); done();
+}
+const minaPos = i => { const q = iso(i % MINA_N + 0.5, Math.floor(i / MINA_N) + 0.5); return { x: q.x, y: q.y - L.W * 0.25 }; };
+function tipMina(i) {
+  const c = minaDe().cel[i]; if (!c) return null;
+  if (!c.t) return `<b>Pedregulho</b><br>Uma pedra nova nasce em ${fmt(Math.max(0, c.volta - Date.now()) / 1000)}.`;
+  const m = MINERIO[c.t];
+  return `<b>${m.nome}</b><br>Resistência ${c.hp}/${m.hp} · rende ${m.qtd[0] === m.qtd[1] ? m.qtd[0] : m.qtd[0] + ' a ' + m.qtd[1]} · vale ${m.preco.toLocaleString('pt-BR')}<br>Clique para bater com a picareta.`;
+}
+function drawRocha(x, y, W, m, frac, shake) {
+  const [c1, c2] = m.cor, h = W * (0.2 + 0.18 * frac), dx = shake || 0;
+  x += dx;
+  ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(x, y + W * 0.02, W * 0.27, W * 0.09, 0, 0, 7); ctx.fill();
+  const pts = [[-0.24, 0], [-0.2, -0.65], [-0.07, -1], [0.1, -0.92], [0.22, -0.55], [0.24, 0]];
+  ctx.beginPath(); pts.forEach(([a, b], k) => { const px = x + a * W, py = y + b * h; k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.closePath();
+  const g = ctx.createLinearGradient(x - W * 0.2, y - h, x + W * 0.2, y);
+  g.addColorStop(0, c1); g.addColorStop(1, c2); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = 'rgba(20,14,8,.7)'; ctx.lineWidth = Math.max(1, W * 0.02); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.moveTo(x - W * 0.2, y - h * 0.65); ctx.lineTo(x - W * 0.07, y - h); ctx.lineTo(x + W * 0.02, y - h * 0.8); ctx.lineTo(x - W * 0.08, y - h * 0.4); ctx.closePath(); ctx.fill();
+  if (m.brilho) {
+    ctx.fillStyle = m.brilho;
+    for (const [a, b, r] of [[-0.12, -0.55, 0.045], [0.06, -0.7, 0.05], [0.13, -0.3, 0.04], [-0.04, -0.28, 0.035], [-0.15, -0.2, 0.03]]) {
+      ctx.beginPath(); ctx.moveTo(x + a * W, y + b * h - r * W); ctx.lineTo(x + a * W + r * W, y + b * h); ctx.lineTo(x + a * W, y + b * h + r * W); ctx.lineTo(x + a * W - r * W, y + b * h); ctx.closePath(); ctx.fill();
+    }
+  }
+  if (frac < 1) {
+    ctx.strokeStyle = 'rgba(20,14,8,.8)'; ctx.lineWidth = Math.max(1, W * 0.018);
+    const n = Math.ceil((1 - frac) * 3);
+    for (let k = 0; k < n; k++) { ctx.beginPath(); ctx.moveTo(x - W * 0.05 + k * W * 0.07, y - h * 0.95); ctx.lineTo(x - W * 0.01 + k * W * 0.05, y - h * 0.6); ctx.lineTo(x - W * 0.07 + k * W * 0.08, y - h * 0.25); ctx.stroke(); }
+  }
+}
+function drawMina(s, t, home) {
+  const { cw, ch } = L, W = L.W, M = minaDe();
+  minaTick();
+  const g = ctx.createLinearGradient(0, 0, 0, ch); g.addColorStop(0, '#16110d'); g.addColorStop(1, '#2b2118');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, cw, ch);
+  // paredes de rocha e estalactites lá no fundo
+  ctx.fillStyle = '#0e0a07';
+  for (let k = 0; k < 9; k++) { const x = (k + 0.5) / 9 * cw; ctx.beginPath(); ctx.moveTo(x - cw / 18, 0); ctx.lineTo(x, ch * (0.1 + 0.07 * ((k * 7) % 3))); ctx.lineTo(x + cw / 18, 0); ctx.fill(); }
+  const n = MINA_N, A = iso(0, 0), B = iso(n, 0), C = iso(n, n), D = iso(0, n);
+  ctx.fillStyle = '#0c0805'; poly([{ x: A.x, y: A.y - W * 0.1 }, { x: B.x + W * 0.25, y: B.y }, { x: C.x, y: C.y + W * 0.3 }, { x: D.x - W * 0.25, y: D.y }]); ctx.fill();
+  for (let i = 0; i < n * n; i++) {
+    const u = i % n, v = Math.floor(i / n), a = iso(u, v), b = iso(u + 1, v), c = iso(u + 1, v + 1), d = iso(u, v + 1);
+    quad(a, b, c, d, (u + v) % 2 ? '#4a3b2c' : '#54432f', 'rgba(0,0,0,.35)', 1);
+  }
+  for (let i = 0; i < n * n; i++) {
+    const c = M.cel[i], p = iso(i % n + 0.5, Math.floor(i / n) + 0.5);
+    if (hover && hover.kind === 'mina' && hover.i === i) {
+      const u = i % n, v = Math.floor(i / n);
+      poly([iso(u, v), iso(u + 1, v), iso(u + 1, v + 1), iso(u, v + 1)]); ctx.strokeStyle = 'rgba(255,230,160,.9)'; ctx.lineWidth = 2.5; ctx.stroke();
+    }
+    if (c.t) {
+      const m = MINERIO[c.t], sh = minaHitAt[i] && performance.now() - minaHitAt[i] < 180 ? Math.sin((performance.now() - minaHitAt[i]) * 0.09) * W * 0.03 : 0;
+      drawRocha(p.x, p.y + W * 0.06, W * 1.1, m, c.hp / m.hp, sh);
+      hits.push({ kind: 'mina', i, x: p.x, y: p.y - W * 0.12, r: W * 0.32 });
+    } else {
+      ctx.fillStyle = '#6a5a48';
+      for (const [a, b, r] of [[-0.12, 0, 0.035], [0.08, 0.04, 0.04], [0.0, -0.05, 0.025]]) { ctx.beginPath(); ctx.ellipse(p.x + a * W, p.y + b * W, r * W, r * W * 0.6, 0, 0, 7); ctx.fill(); }
+      hits.push({ kind: 'mina', i, x: p.x, y: p.y, r: W * 0.25 });
+    }
+  }
+  // placa da mina: abre o painel da picareta
+  const pl = iso(-0.15, n * 0.5);
+  ctx.fillStyle = '#6b4a2a'; ctx.fillRect(pl.x - W * 0.025, pl.y - W * 0.5, W * 0.05, W * 0.5);
+  ctx.fillStyle = '#c9a06a'; ctx.strokeStyle = '#3a2410'; ctx.lineWidth = 2;
+  ctx.fillRect(pl.x - W * 0.3, pl.y - W * 0.78, W * 0.6, W * 0.34); ctx.strokeRect(pl.x - W * 0.3, pl.y - W * 0.78, W * 0.6, W * 0.34);
+  ctx.fillStyle = '#3a2410'; ctx.font = `800 ${Math.round(W * 0.14)}px 'Baloo 2', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(`⛏️ Nv ${picNivel()}`, pl.x, pl.y - W * 0.61);
+  hits.push({ kind: 'minaplaca', x: pl.x, y: pl.y - W * 0.6, r: W * 0.38 });
+  // luz de lampião: escurece as bordas
+  const vg = ctx.createRadialGradient(cw / 2, ch * 0.5, Math.min(cw, ch) * 0.25, cw / 2, ch * 0.5, Math.max(cw, ch) * 0.75);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, cw, ch);
+}
+const minerioIcon = id => makeIcon('min:' + id, () => drawRocha(48, 76, 150, MINERIO[id], 1, 0));
+function minaHTML() {
+  const L2 = picNivel(), N = L2 < PICARETA.max ? L2 + 1 : 0;
+  let html = `<h3>Mina ⛏️</h3><p class="hint">Clique nas pedras da mina para quebrar com a picareta. Cada pedra volta depois de um tempo, e quanto mais raro o minério, mais resistente e mais demorado para voltar. Venda no Celeiro, na banca ou entregue no caminhão.</p>`;
+  html += `<div class="row sel"><div class="avatar" style="background:#6b4a2a">⛏️</div><div><div class="name">Picareta nível ${L2} de ${PICARETA.max}</div>
+    <div class="meta">Bate com força ${L2} · ${Math.round(8 * (L2 - 1))}% de chance de 1 minério extra</div></div>
+    ${N ? (state.level < PICARETA.nivelJ[N] ? `<button class="btn" disabled>Nível ${PICARETA.nivelJ[N]}</button>` : `<button class="btn gold" data-pic-up="1" ${state.coins < PICARETA.custo[N] ? 'disabled' : ''}>${moeda(PICARETA.custo[N])}</button>`) : '<button class="btn ghost" disabled>Máximo</button>'}</div>`;
+  html += `<h3>Minérios</h3>`;
+  for (const m of MINERIOS) {
+    const trav = m.nivel > state.level;
+    html += `<div class="row ${trav ? 'locked' : ''}"><img alt="" src="${minerioIcon(m.id)}"><div><div class="name">${m.nome}${state.barn[m.id] ? ` <span class="tag">${state.barn[m.id]} no celeiro</span>` : ''}</div>
+      <div class="meta">vale ${moeda(m.preco)} · ${m.hp} batidas · volta em ${fmt(m.volta / 1000)}</div></div>${trav ? `<button class="btn" disabled>Nível ${m.nivel}</button>` : '<div></div>'}</div>`;
+  }
+  return html;
 }
 
 // ---------- Tela da fábrica (com a banca e o caminhão) ----------
@@ -9207,7 +9397,7 @@ function fabricaHTML() {
       const ok = podeEntregar(p);
       const lista = Object.entries(p.itens).map(([id, q]) => `<span class="${(state.barn[id] || 0) >= q ? '' : 'falta'}"><img alt="" src="${itemIcon(id)}">${q} ${esc(item(id).nome.toLowerCase())} (${state.barn[id] || 0})</span>`).join('');
       html += `<div class="row ${p.feito ? 'locked' : ok ? 'sel' : ''}"><div class="avatar" style="background:${p.feito ? '#4f9a2f' : '#3f6fa8'}">${p.feito ? '✓' : k + 1}</div>
-        <div><div class="pedido">${lista}</div><div class="meta">${p.moedas.toLocaleString('pt-BR')} moedas · ${p.xp} XP${p.muda ? ` · 🌱 ${txtMuda(p.muda)}` : ''}</div></div>
+        <div><div class="pedido">${lista}</div><div class="meta">${p.moedas.toLocaleString('pt-BR')} moedas · ${p.xp} XP${p.muda ? ` · 🌱 ${txtMuda(p.muda)}` : ''}${p.animal ? ' · 🐾 animal surpresa' : ''}</div></div>
         ${p.feito ? '<button class="btn ghost" disabled>Entregue</button>' : `<button class="btn gold" data-entregar="${k}" ${ok ? '' : 'disabled'}>Entregar</button>`}</div>`;
     });
   }
@@ -9566,7 +9756,7 @@ function setMoveMode(on) {
 function renderMoveBtn() {
   renderMoveBar();
   const b = $('#moveBtn'); if (!b) return;
-  b.hidden = !isHome() || scene === 'casa';
+  b.hidden = !isHome() || scene === 'casa' || scene === 'mina';
   b.setAttribute('aria-pressed', String(moveMode));
 }
 // No computador o item segue o mouse e um clique solta. No celular (ou tocando), o item fica
@@ -11752,6 +11942,8 @@ const TREVO_LOJA = [
   { id: 'util:tarrafa',   nome: 'Tarrafa pronta agora',     tipo: 'Útil', preco: 8,  repete: true, desc: 'Seca a tarrafa deste pesqueiro na hora: pode jogar de novo.', pode: () => faltaTarrafa() > 0, naoPode: 'A tarrafa já está pronta!', usar: () => { tarrafaObj()[pontoSel()] = 0; } },
   { id: 'util:enxada',    nome: 'Enxada de arrancar',       tipo: 'Útil', preco: 3,  repete: true, desc: 'Tira um arbusto seco do pomar.', usar: () => { derrubarDe().enxada++; } },
   { id: 'util:motosserra', nome: 'Motosserra',              tipo: 'Útil', preco: 6,  repete: true, desc: 'Derruba uma árvore seca do pomar.', usar: () => { derrubarDe().motosserra++; } },
+  { id: 'util:animal',    nome: 'Animal surpresa',          tipo: 'Útil', preco: 20, repete: true, desc: 'Um animal sorteado entre os que você já liberou, para resgatar em Loja › Animais.', usar: () => { const d = sortearAnimalCred(); if (d) toast(`🐾 ${d.nome} para resgatar em Loja › Animais!`, 'good'); } },
+  { id: 'util:animalraro', nome: 'Animal raro',             tipo: 'Útil', preco: 45, repete: true, desc: 'Um dos 3 animais mais raros que você já liberou (se tiver só comuns, vem um comum).', usar: () => { const l = animaisLiberados(state).sort((a, b) => b.nivel - a.nivel).slice(0, 3); const d = l[Math.floor(Math.random() * l.length)]; if (d) { darAnimal(d.id); toast(`🐾 ${d.nome} para resgatar em Loja › Animais!`, 'good'); } } },
   { id: 'util:racao',     nome: '3 rações especiais',       tipo: 'Útil', preco: 6,  repete: true, desc: 'Cada uma faz um animal produzir em dobro.', usar: () => { state.racaoEsp = (state.racaoEsp || 0) + 3; } },
   { id: 'util:pontos',    nome: 'Pontos de pesca descansados', tipo: 'Útil', preco: 10, repete: true, desc: 'Todos os seus pontos de pesca voltam a ter 3 pescarias.', pode: () => PONTOS.some(p => faltaPonto(p.id) > 0), naoPode: 'Seus pontos de pesca já estão prontos!', usar: () => { const pp = pontosDe(); pp.prox = {}; pp.usos = {}; } },
 ];
