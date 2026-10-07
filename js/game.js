@@ -209,6 +209,20 @@ const RACAO_ESP = 100; // ração especial: a próxima produção rende em dobro
 const vetCost = d => Math.round(d.custo * 0.25);
 const inPen = a => ANIMAL[a.k].tipo !== 'pet' || ANIMAL[a.k].lugar === 'curral';
 
+// Mapeamento de qual filhote cada espécie adulta gera (reprodução)
+const FILHOTES = {
+  galinha: 'galinha',   // filhote é galinha (mesma espécie)
+  angola: 'angola',
+  pato: 'pato',
+  coelho: 'coelho',
+  cabra: 'cabra',
+  ovelha: 'ovelha',
+  vaca: 'bezerro',      // vaca gera bezerro
+  porca: 'porco',       // porca gera porquinho
+  bufala: 'bufala',
+};
+const TEMPO_REPRODUCAO = 7 * DAY; // 7 dias entre reproduções da mesma espécie
+
 // Abrigos do rancho: cada bicho mora no seu. Cada nível aumenta quantos cabem.
 // precos: construir (nível 1), depois aumentar para o nível 2 e o 3.
 const ABRIGOS = [
@@ -577,6 +591,7 @@ function migrate(s) {
   if (!s.cercaDada) { s.cercaDada = 1; s.enfeites = s.enfeites && typeof s.enfeites === 'object' ? s.enfeites : {}; s.enfeites.cerca = (s.enfeites.cerca || 0) + 40; s.invNovos = (s.invNovos || 0) + 1; }
   s.bloqueados = s.bloqueados && typeof s.bloqueados === 'object' ? s.bloqueados : {};
   s.chocadeira = s.chocadeira && typeof s.chocadeira === 'object' ? s.chocadeira : { ovos: [], level: 0 };
+  s.ultima_reproducao = s.ultima_reproducao && typeof s.ultima_reproducao === 'object' ? s.ultima_reproducao : {};
   return s;
 }
 
@@ -2214,11 +2229,89 @@ async function recuperarAmigos() {
 }
 
 // ============================================================
+// Reprodução e chocadeira
+// ============================================================
+function verificarReproducao() {
+  if (!isHome()) return; // Reprodução só acontece na sua roça
+
+  if (!state.chocadeira) state.chocadeira = { ovos: [], level: 0 };
+  if (!state.ultima_reproducao) state.ultima_reproducao = {};
+
+  // Agrupar animais de produção por espécie
+  const animaisPorEspecie = {};
+  for (const a of state.animals) {
+    const d = ANIMAL[a.k];
+    if (d.tipo !== 'prod' || !FILHOTES[a.k]) continue; // Apenas produção que podem reproduzir
+
+    const especie = a.k;
+    if (!animaisPorEspecie[especie]) animaisPorEspecie[especie] = [];
+    animaisPorEspecie[especie].push(a);
+  }
+
+  const now = Date.now();
+  // Checar cada espécie se pode reproduzir
+  for (const [especie, animais] of Object.entries(animaisPorEspecie)) {
+    if (animais.length < 1) continue; // Precisa de pelo menos 1 animal alimentado
+
+    // Contar quantos animais estão bem alimentados (prontos para produzir)
+    const alimentados = animais.filter(a => a.fed || a.ready);
+    if (alimentados.length < 1) continue;
+
+    // Ver se já reproduziram recentemente
+    const ultima = state.ultima_reproducao[especie] || 0;
+    if (now - ultima < TEMPO_REPRODUCAO) continue;
+
+    // Gerar um ovo a cada ciclo de reprodução
+    const filhote = FILHOTES[especie];
+    if (state.chocadeira.ovos.length < 20) { // Limite de 20 ovos no incubador
+      state.chocadeira.ovos.push({
+        especie: filhote,
+        nascimento: now + 24 * HOUR // 24 horas de incubação
+      });
+      state.ultima_reproducao[especie] = now;
+      toast(`🥚 Ovo de ${ANIMAL[filhote].nome.toLowerCase()} colocado na chocadeira!`, 'good');
+      done();
+    }
+  }
+}
+
+function hatcharOvos() {
+  if (!isHome() || !state.chocadeira || !state.chocadeira.ovos.length) return;
+
+  const agora = Date.now();
+  const ovosHatched = [];
+
+  for (let i = state.chocadeira.ovos.length - 1; i >= 0; i--) {
+    const ovo = state.chocadeira.ovos[i];
+    if (agora >= ovo.nascimento) {
+      const filhote = ovo.especie;
+      const abrigo = abrigoOf(filhote);
+
+      // Verificar se há vaga no abrigo
+      if (abrigo && vagas(state, abrigo.id) > 0) {
+        state.animals.push(newAnimal(filhote));
+        ovosHatched.push(ANIMAL[filhote].nome.toLowerCase());
+        state.chocadeira.ovos.splice(i, 1);
+      }
+    }
+  }
+
+  if (ovosHatched.length) {
+    toast(`🐣 ${ovosHatched.length} filhote${ovosHatched.length > 1 ? 's' : ''} nasceu${ovosHatched.length > 1 ? 'ram' : ''}!`, 'good');
+    done();
+  }
+}
+
+// ============================================================
 // Simulação
 // ============================================================
 function tick(dt) {
   for (const p of state.plots) growPlot(p, dt, true);
   for (const a of state.animals) growAnimal(a, dt);
+
+  // Verificar reprodução a cada tick (mas controla com TEMPO_REPRODUCAO)
+  verificarReproducao();
+  hatcharOvos();
 }
 
 // Faz os bichos passearem dentro de uma área (cercado ou sala). Os com fome vão para o cocho.
@@ -4876,7 +4969,7 @@ function usarCasaTema(id) {
   state.skin = id === 'classico' ? null : id; sfx('click');
   toast(`🏡 Tema ${t.nome} na casa e no celeiro!`, 'good'); done(); renderPane();
 }
-const TAB_NAMES = { casaTemas: 'Sua casa', canil: 'Casinha do cachorro',  loja: 'Loja', celeiro: 'Celeiro', terreno: 'Terreno', amigos: 'Amigos', missoes: 'Missões', correio: 'Correio', fabrica: 'Negócios', inventario: 'Inventário' };
+const TAB_NAMES = { casaTemas: 'Sua casa', canil: 'Casinha do cachorro',  loja: 'Loja', celeiro: 'Celeiro', terreno: 'Terreno', amigos: 'Amigos', missoes: 'Missões', correio: 'Correio', fabrica: 'Negócios', inventario: 'Inventário', chocadeira: 'Chocadeira' };
 // A janela abre por cima do jogo. Clicar de novo no mesmo botão fecha.
 function openPanel(t, seg, focus) {
   tab = t; if (seg) shopSeg = seg;
@@ -5099,6 +5192,27 @@ function renderPane() {
         ${have ? '<button class="btn ghost" disabled>Comprada</button>' : next ? `<button class="btn gold" data-expand ${state.level >= e.nivel && state.coins >= e.preco ? '' : 'disabled'}>${moeda(e.preco)}</button>` : `<button class="btn" disabled>Nível ${e.nivel}</button>`}</div>`;
     });
     html += `<p class="hint">Pragas comem parte da colheita enquanto ficam lá. Terra seca faz a planta crescer mais devagar. Nunca acontecem os dois juntos. Cada planta dá XP em até ${XP_CAP} colheitas por dia.</p>`;
+  } else if (tab === 'chocadeira') {
+    html += `<h3>Chocadeira 🐣</h3>`;
+    if (!state.chocadeira || !state.chocadeira.ovos || !state.chocadeira.ovos.length) {
+      html += `<div class="empty">A chocadeira está vazia.<br>Animais bem-alimentados se reproduzem automaticamente e colocam ovos para incubar.</div>`;
+    } else {
+      html += `<p class="hint">Ovos levam 24 horas para incubar. Filhotes nascem automaticamente se houver vaga no abrigo.</p>`;
+      const agora = Date.now();
+      for (const ovo of state.chocadeira.ovos) {
+        const tempoRestante = ovo.nascimento - agora;
+        const porcentagem = Math.max(0, Math.min(100, 100 - (tempoRestante / (24 * HOUR)) * 100));
+        const animalData = ANIMAL[ovo.especie];
+
+        html += `<div class="row"><img alt="" src="${animalIcon(ovo.especie)}">
+          <div><div class="name">Ovo de ${animalData.nome.toLowerCase()}</div>
+          <div class="meta">${tempoRestante > 0 ? `Nasce em ${fmt(tempoRestante / 1000)}` : '<b>Pronto para nascer!</b>'}</div>
+          <div class="mbar"><i style="width:${porcentagem}%"></i></div></div>
+          <div></div></div>`;
+      }
+      html += `<div class="row"><div class="avatar" style="background:#5a646c">🥚</div>
+        <div><div class="name">Total de ovos</div><div class="meta">${state.chocadeira.ovos.length} de 20</div></div></div>`;
+    }
   } else if (tab === 'correio') {
     // Caixa de correio: as novidades da sua roça (visitas, presentes, cachorro, animais…)
     podarNews();
@@ -5367,6 +5481,7 @@ const MENU_ICONS = {
   amigos: '<svg viewBox="0 0 32 32"><circle cx="11" cy="12" r="5" fill="#ffd9b0" stroke="#6b4220" stroke-width="1.5"/><path d="M3 27c0-5 3.5-8 8-8s8 3 8 8z" fill="#4aa3df" stroke="#1d5f8f" stroke-width="1.5"/><circle cx="22" cy="13" r="4.5" fill="#f3c08e" stroke="#6b4220" stroke-width="1.5"/><path d="M15 27c0-4.5 3-7.5 7-7.5s7 3 7 7.5z" fill="#e9a800" stroke="#a87400" stroke-width="1.5"/></svg>',
   missoes: '<svg viewBox="0 0 32 32"><path d="M8 4h16a2 2 0 0 1 2 2v22l-4-2-3 2-3-2-3 2-3-2-4 2V6a2 2 0 0 1 2-2z" fill="#fff4e0" stroke="#7a4a22" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 11l2 2 3-4M10 18l2 2 3-4" fill="none" stroke="#4f9a2f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 11h5M18 18h5" stroke="#a86b38" stroke-width="2" stroke-linecap="round"/></svg>',
   inventario: '<svg viewBox="0 0 32 32"><path d="M4 12h24v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" fill="#a86b38" stroke="#5a3614" stroke-width="1.6"/><path d="M3 8h26v5H3z" fill="#c98a4b" stroke="#5a3614" stroke-width="1.6"/><path d="M13 16h6v4h-6z" fill="#ffd54a" stroke="#a87400" stroke-width="1.2"/><path d="M4 12h24" stroke="#5a3614" stroke-width="1.6"/></svg>',
+  chocadeira: '<svg viewBox="0 0 32 32"><path d="M4 10h24v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" fill="#c9a86a" stroke="#7a4a22" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="16" r="3.5" fill="#f5e6c8" stroke="#8a5a33" stroke-width="1.2"/><circle cx="16" cy="16" r="3.5" fill="#f5e6c8" stroke="#8a5a33" stroke-width="1.2"/><circle cx="22" cy="16" r="3.5" fill="#f5e6c8" stroke="#8a5a33" stroke-width="1.2"/><path d="M4 10h24v2H4z" fill="#a86b38" stroke="#7a4a22" stroke-width="1.2"/><path d="M9 12l1.5 1M15 12l1.5 1M21 12l1.5 1" stroke="#8a5a33" stroke-width="1.2" stroke-linecap="round"/></svg>',
   mover: '<svg viewBox="0 0 32 32" fill="none" stroke="#7a4a22" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4v24M4 16h24M16 4l-4 4M16 4l4 4M16 28l-4-4M16 28l4-4M4 16l4-4M4 16l4 4M28 16l-4-4M28 16l-4 4"/></svg>',
   // Negócios: barraquinha com toldo listrado (fábrica, banca e caminhão ficam aqui dentro)
   fabrica: '<svg viewBox="0 0 32 32"><path d="M6 14h20v14H6z" fill="#c98a4b" stroke="#6b3f1f" stroke-width="1.5"/><path d="M10 19h12v9H10z" fill="#7a4a24"/><path d="M11 20h4v3h-4zM17 20h4v3h-4z" fill="#ffe08a"/><path d="M3 14l3-9h20l3 9z" fill="#fff" stroke="#6b1f14" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 5l-2 9h4l1-9zM17 5v9h4l-1-9z" fill="#d8402f"/><path d="M3 14q2.5 3 5 0q2.5 3 5 0q2.5 3 5 0q2.5 3 5 0q2.5 3 6 0" fill="#d8402f" stroke="#6b1f14" stroke-width="1.2"/><circle cx="24" cy="25" r="2.4" fill="#e8b04a" stroke="#8a5a1f"/></svg>',
