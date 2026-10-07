@@ -1334,6 +1334,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 260, txt: "Corrigido: ajuda numa frutífera seca de um amigo. Se o envio da ajuda falhava, o jogo marcava 'Você já ajudou esta' e a árvore não voltava nunca. Agora, se não conseguir enviar, dá para tentar de novo na hora, e depois de 12 horas sem a árvore voltar a ajuda pode ser refeita. A regra de uma ajuda por árvore (depois ela seca de vez) continua igual." },
   { v: 258, txt: "Negócios: nas receitas, a quantidade de planta que você tem aparece em vermelho quando, ao usar, ficaria menos de 10, e antes de fazer um produto, entregar no caminhão, atender a vila ou colocar na banca que deixe menos de 10 plantas para replantar aparece um aviso com Sim e Não." },
   { v: 257, txt: "Nova curva de XP para subir de nível: até o nível 20 continua rápida, e depois cada nível pede só um pouco mais que o anterior (por volta de 10 mil XP no nível 42), em vez de explodir. Você mantém seu nível e seu XP." },
   { v: 256, txt: "As 4 plantas que você ganha ao liberar cada cultura já chegam bloqueadas (🔒 4), então não são vendidas sem querer; desbloqueie quando quiser. Corrigido também: um jogo novo começa com as 4 plantas de cada cultura do nível 1 no Celeiro." },
@@ -1978,9 +1979,10 @@ function guarded(slot, pos, visit) {
 }
 function sendVisit(v) {
   if (view.kind !== 'friend' || !user) return;
-  Cloud.sendVisit(view.uid, Object.assign({ from: user.uid, fromName: meuApelido(), at: Date.now() }, v))
-    .catch(e => console.warn('visita não enviada:', e));
+  const envio = Cloud.sendVisit(view.uid, Object.assign({ from: user.uid, fromName: meuApelido(), at: Date.now() }, v))
+    .then(() => true).catch(e => { console.warn('visita não enviada:', e); return false; });
   if (v.t !== 'gift') avisarAmigo(view.uid, 'visita', `${meuApelido()} passou na sua roça!`);
+  return envio; // true se chegou; false se falhou
 }
 function alreadyTook(obj, key) {
   return obj.stolen || state.log[key] || (user && Array.isArray(obj.th) && obj.th.includes(user.uid));
@@ -11029,12 +11031,14 @@ function actFruteira(sc, i) {
       // ajudar a frutífera do amigo: não conta no limite do dia. Só pode ser ajudada uma vez na vida:
       // depois dessa, rende só mais 1 colheita e seca de vez (sem poder pedir ajuda de novo).
       const key = visitKey('fr:' + (o.fid || i) + ':ajuda');
-      if (state.log[key]) return toast('Você já ajudou esta. Obrigado! 🤝');
+      // já ajudou há pouco? a árvore só volta quando o dono abre o jogo; passadas 12h sem voltar, a ajuda pode ter se perdido e dá para ajudar de novo
+      if (state.log[key] && Date.now() - state.log[key] < 12 * 3600e3) return toast('Você já ajudou esta. Ela volta assim que o dono abrir o jogo 🤝');
       state.log[key] = Date.now();
       const q = iso(o.u, o.v), pos = { x: q.x, y: q.y - L.W * 0.4 };
       o.placa = 0; o.seca = 0; o.ajudada = 1; o.colhidas = Math.max(0, (o.colhidas || 0) - 1); o.ult = Date.now();
       help(pos); ganharPomar(1); addXP(3, pos); sfx('level'); popupAt(pos, 'Reviveu! 🌱', '#8fd16a');
-      sendVisit({ t: 'help', what: 'fruteira', sc, fid: o.fid || '', idx: i });
+      const envio = sendVisit({ t: 'help', what: 'fruteira', sc, fid: o.fid || '', idx: i });
+      if (envio) envio.then(ok => { if (!ok) { delete state.log[key]; toast('Não consegui enviar a ajuda agora. Toque na árvore de novo para tentar outra vez.', 'bad'); } });
       toast(`🤝 Você ajudou ${view.nome}: ${e.nome.toLowerCase()} vai dar fruta mais uma vez antes de secar de vez!`, 'good');
       return done();
     }
