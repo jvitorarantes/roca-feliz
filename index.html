@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="253">
+<meta name="rf-version" content="254">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -987,6 +987,15 @@
   </div>
 </div>
 
+<div class="modal" id="confirmaModal" hidden role="alertdialog" aria-modal="true" aria-labelledby="confirmaTxt">
+  <div class="modal-card" style="width:min(100%,380px)">
+    <section>
+      <p id="confirmaTxt" style="margin:0;font-weight:700;font-size:16px;white-space:pre-line"></p>
+      <div class="setrow" style="justify-content:flex-end;gap:10px"><button class="btn ghost" type="button" id="confirmaNao">Não</button><button class="btn gold" type="button" id="confirmaSim">Sim</button></div>
+    </section>
+  </div>
+</div>
+
 <div class="modal" id="boasvindas" hidden role="dialog" aria-modal="true" aria-labelledby="bvTitulo">
   <div class="modal-card bvcard">
     <div class="modal-head"><h2 id="bvTitulo">Bem-vindo à Roça Feliz! 🌻</h2></div>
@@ -1088,6 +1097,6 @@
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
 <script src="js/audio.js?v=236"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=253"></script>
+<script src="js/game.js?v=254"></script>
 </body>
 </html>

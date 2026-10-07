@@ -1323,6 +1323,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 254, txt: "Celeiro: botão Vender todas as plantas no topo da aba Plantas, e todos os botões de vender tudo (geral e o Todos de cada item) agora perguntam 'Você tem certeza que quer vender tudo?' com Sim e Não." },
   { v: 253, txt: "A janela da mina ganhou mais espaço nas laterais: os textos não encostam mais na borda." },
   { v: 252, txt: "Celeiro › Plantas: no − do mínimo a quantidade pula para o máximo (e no + do máximo volta para 1). O 🔒 Bloquear agora deixa escolher quantas plantas daquela cultura ficam guardadas, e elas não entram em nenhuma venda. A aba também ganhou o botão Vender tudo, que vende o que não está bloqueado." },
   { v: 251, txt: "Mina nova ⛏️: a porta da mina não mostra mais minérios e o avatar não precisa ir lá. Toque na mina para abrir a pedreira, arraste a picareta, a dinamite ou o TNT até a pedra e veja a animação de bater ou explodir (uns 2 segundos) com o que você ganhou. Picareta rende 1 a 2 minérios comuns, dinamite 2 a 4 com mais chance dos raros, e TNT 4 a 7 muito mais raros. Também dá para tocar na ferramenta e depois na pedra." },
@@ -1728,18 +1729,29 @@ function bloqQtd(id, q) {
   const v = state.bloqueados && state.bloqueados[id];
   return v === true ? q : clamp(Math.floor(Number(v)) || 0, 0, q);
 }
+// Pergunta Sim/Não antes de uma ação (vender tudo etc.).
+function perguntar(msg, sim) {
+  $('#confirmaTxt').textContent = msg; $('#confirmaModal').hidden = false;
+  confirmaSim = sim; $('#confirmaNao').focus();
+}
+let confirmaSim = null;
+function fecharConfirma(ok) { const f = confirmaSim; confirmaSim = null; $('#confirmaModal').hidden = true; if (ok && f) f(); }
 function sell(id, qtd) {
   const it = item(id), q = state.barn[id] || 0, vend = q - bloqQtd(id, q); if (!q || !it || vend <= 0) return;
   const n = qtd === true ? vend : clamp(Math.round(qtd) || 1, 1, vend);
   const crop = PRODUCE[id] && PRODUCE[id].planta ? CROP[PRODUCE[id].planta] : null;
-  if (crop) {
-    const sobra = (q - n) + (state.plantas[crop.id] || 0);
-    if (sobra < PLANTAS_BAIXO && !confirm(`Cuidado: vendendo ${n} você fica com ${sobra} ${it.nome.toLowerCase()} para plantar (o ideal é ter pelo menos ${PLANTAS_BAIXO}). Vender mesmo assim?`)) return;
-  }
-  state.barn[id] = q - n; if (!state.barn[id]) delete state.barn[id];
-  state.coins += n * it.preco; state.stats.vendido += n * it.preco; track('vender', n * it.preco);
-  sfx('coin');
-  done();
+  const sobra = crop ? (q - n) + (state.plantas[crop.id] || 0) : Infinity;
+  const aviso = sobra < PLANTAS_BAIXO ? `\n\nCuidado: você vai ficar com ${sobra} ${it.nome.toLowerCase()} para plantar (o ideal é ter pelo menos ${PLANTAS_BAIXO}).` : '';
+  const executa = () => {
+    const q2 = state.barn[id] || 0; if (q2 < n) return;
+    state.barn[id] = q2 - n; if (!state.barn[id]) delete state.barn[id];
+    state.coins += n * it.preco; state.stats.vendido += n * it.preco; track('vender', n * it.preco);
+    sfx('coin');
+    done();
+  };
+  if (qtd === true) return perguntar(`Você tem certeza que quer vender tudo? (${n} ${it.nome.toLowerCase()} por ${(n * it.preco).toLocaleString('pt-BR')} moedas)${aviso}`, executa);
+  if (aviso) return perguntar(`Vender ${n} ${it.nome.toLowerCase()}?${aviso}`, executa);
+  executa();
 }
 function sellAll(escopo) {
   let total = 0, avisos = [];
@@ -1755,20 +1767,20 @@ function sellAll(escopo) {
       if (crop && (q - qv) + (state.plantas[crop.id] || 0) < PLANTAS_BAIXO) avisos.push(crop.nome);
     }
   }
-  if (!total) return toast('Nenhum produto desbloqueado para vender.', 'bad');
-  if (avisos.length > 0) {
-    const msg = `Vai vender tudo. Isso deixa menos de ${PLANTAS_BAIXO} para plantar de:\n${avisos.join(', ')}\n\nTem certeza? (dica: use 🔒 Bloquear nos que quer guardar)`;
-    if (!confirm(msg)) return;
-  }
-  for (const [id, q] of Object.entries(state.barn)) {
-    if (!doEscopo(id) || !item(id)) continue;
-    const qv = q - bloqQtd(id, q);
-    if (qv > 0) { state.barn[id] = q - qv; if (!state.barn[id]) delete state.barn[id]; }
-  }
-  state.coins += total; state.stats.vendido += total; track('vender', total);
-  sfx('coin');
-  toast(`Vendeu ${moeda(total)}`, 'good');
-  done();
+  if (!total) return toast('Nada para vender agora (o que está bloqueado fica guardado).', 'bad');
+  const executa = () => {
+    let t2 = 0;
+    for (const [id, q] of Object.entries(state.barn)) {
+      if (!doEscopo(id) || !item(id)) continue;
+      const qv = q - bloqQtd(id, q);
+      if (qv > 0) { t2 += qv * item(id).preco; state.barn[id] = q - qv; if (!state.barn[id]) delete state.barn[id]; }
+    }
+    state.coins += t2; state.stats.vendido += t2; track('vender', t2);
+    sfx('coin');
+    toast(`Vendeu ${moeda(t2)}`, 'good');
+    done();
+  };
+  perguntar(`Você tem certeza que quer vender tudo? (por ${total.toLocaleString('pt-BR')} moedas)${avisos.length ? `\n\nIsso deixa menos de ${PLANTAS_BAIXO} para plantar de: ${avisos.join(', ')}. Dica: use 🔒 Bloquear nos que quer guardar.` : ''}`, executa);
 }
 
 // ============================================================
@@ -5517,6 +5529,7 @@ function renderPane() {
           <div class="stack">${ehPlanta && CROP[PRODUCE[it.id].planta].nivel <= state.level ? `<button class="btn gold" data-seed="${PRODUCE[it.id].planta}">Plantar</button>` : ''}${trava}${venda}</div></div>`;
     };
     if (seg === 'plantas') {
+      html += `<div class="total"><span>Para vender: ${moeda(total)}</span><button class="btn gold" data-sellall="plantas" ${total ? '' : 'disabled'}>Vender todas as plantas</button></div>`;
       html += `<p class="hint">Aqui ficam as plantações: o que você colheu (também serve para plantar) e as mudas. Tenha pelo menos ${PLANTAS_BAIXO} de cada para replantar. Em 🔒 Bloquear escolha quantas de cada ficam guardadas: elas não entram em nenhuma venda.</p>`;
       let algum = false;
       for (const c of CROPS) {
@@ -5529,7 +5542,6 @@ function renderPane() {
         else html += `<div class="row"><img alt="" src="${cropIcon(c.id)}"><div><div class="name">${c.nome} × ${m} <span class="tag">muda</span>${m < PLANTAS_BAIXO ? ' <span class="tag bad">poucas</span>' : ''}</div><div class="meta">${fmt(c.tempo)} · rende ${faixa(c)} × ${c.preco}</div></div><div class="stack"><button class="btn gold" data-seed="${c.id}">Plantar</button></div></div>`;
       }
       if (!algum) html += `<div class="empty">Você não tem nenhuma planta. Ganhe mudas em missões, no caminhão, de amigos ou na feira.</div>`;
-      else html += `<div class="total"><span>Para vender: ${moeda(total)}</span><button class="btn gold" data-sellall="plantas" ${total ? '' : 'disabled'}>Vender tudo</button></div>`;
     } else if (!lista.length) html += `<div class="empty">O celeiro está vazio.<br>Recolha ovos, leite, lã, pesque, cace e minere para guardar aqui.</div>`;
     else {
       html += `<div class="total"><span>Total: ${moeda(total)}</span><button class="btn gold" data-sellall="itens">Vender tudo</button></div>`;
@@ -9536,6 +9548,9 @@ window.addEventListener('pointerup', e => {
 });
 window.addEventListener('pointercancel', () => { if (minaDrag) { minaDrag.ghost.remove(); minaDrag = null; $('#minaCampo').classList.remove('alvo'); } });
 $('#minaCampo').addEventListener('click', () => { if (!minaAnim) minaIniciar(minaDe().sel); });
+$('#confirmaSim').addEventListener('click', () => fecharConfirma(true));
+$('#confirmaNao').addEventListener('click', () => fecharConfirma(false));
+$('#confirmaModal').addEventListener('click', e => { if (e.target === $('#confirmaModal')) fecharConfirma(false); });
 $('#minaModal').addEventListener('click', e => {
   if (e.target === $('#minaModal') || e.target.closest('[data-close]')) return fecharMinaModal();
   if (e.target.closest('[data-mina-info]')) { fecharMinaModal(); openPanel('mina'); }
