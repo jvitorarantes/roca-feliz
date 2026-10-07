@@ -770,7 +770,7 @@ let kicked = null, unsubFarm = null, staleLocal = false;
 let state;
 let view = { kind: 'home' };        // home | npc | friend
 let scene = 'roca';                 // roca | animais | casa
-let tab = 'loja', shopSeg = 'sementes';
+let tab = 'loja', shopSeg = 'sementes', celeiroSeg = 'itens';
 let hover = null;
 const pointer = { x: 0, y: 0, inside: false, touch: false, tipUntil: 0 };
 const popups = [];
@@ -1323,6 +1323,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 249, txt: "O Celeiro agora tem duas abas: Itens (ovos, leite, minérios, peixes…) e Plantas (o que você colheu, que também serve para plantar, e as mudas), cada uma com seu botão de vender tudo. Nas plantas dá para plantar e vender direto, e aparece 'poucas' quando tem menos de 10." },
   { v: 248, txt: "Corrigido: o que você colhe e guarda no celeiro (feijão, arroz…) agora também serve para plantar. A janela ao clicar na terra e a aba Plantas contam as mudas mais o celeiro, e o celeiro ganhou o botão Plantar. Vender deixando menos de 10 avisa para não ficar sem plantas. Mina: cada ferramenta tem sua chance de achar um minério extra (picareta 10%, dinamite 30% com mais chance de raros, TNT 60% bem raros) e o kit inicial agora é 10 picaretas, 4 dinamites e 1 TNT." },
   { v: 247, txt: "Folhas e chocadeira 🍂🥚: a colheita automática (🚜) agora também limpa todos os montes de folhas sem o avatar ir, e cada monte pode render ferramentas da mina (picareta, dinamite, às vezes TNT). Aparecem até 5 montes por dia. A chocadeira ficou rústica, cabe de 2 a 6 ovos (melhore até o nível 4) e mostra os espaços ao clicar. Cada ave tem seu tempo para botar e para chocar (codorna 14h/8h, galinha 22h/12h, d'angola 26h/14h, pato 34h/16h, peru, ganso, pavão e avestruz mais longos). Mamíferos não usam a chocadeira: o filhote nasce direto no abrigo, junto dos pais. Todo filhote recém-nascido tem nome de graça ao tocar nele. E os animais da mesma espécie se encontram: um sobe no outro, com corações 💕." },
   { v: 246, txt: "A mina mudou ⛏️ (nível 6): agora é uma entrada de caverna lá na sua roça, com 4 depósitos de minério na frente. Toque na entrada para escolher a ferramenta e toque num depósito: o avatar vai até lá e bate com a picareta (faíscas!), acende a dinamite (quebra 5 batidas de uma vez) ou explode tudo com TNT. As ferramentas se gastam: você começa com 25 picaretas e 2 dinamites, e ganha mais em missões diárias e semanais, no caminhão, de presente de amigos, na feira da vizinhança e na Loja do Trevo. Cada depósito volta depois de um tempo, e dá para mover a mina no modo Mover." },
@@ -1731,10 +1732,12 @@ function sell(id, qtd) {
   sfx('coin');
   done();
 }
-function sellAll() {
+function sellAll(escopo) {
   let total = 0, avisos = [];
+  const doEscopo = id => !escopo || (escopo === 'plantas') === !!PRODUCE[id];
   for (const [id, q] of Object.entries(state.barn)) {
     if (state.bloqueados && state.bloqueados[id]) continue;
+    if (!doEscopo(id)) continue;
     const it = item(id);
     if (!it) continue;
     total += q * it.preco;
@@ -1749,7 +1752,7 @@ function sellAll() {
     if (!confirm(msg)) return;
   }
   for (const [id] of Object.entries(state.barn)) {
-    if (!(state.bloqueados && state.bloqueados[id])) delete state.barn[id];
+    if (doEscopo(id) && !(state.bloqueados && state.bloqueados[id])) delete state.barn[id];
   }
   state.coins += total; state.stats.vendido += total; track('vender', total);
   sfx('coin');
@@ -5484,27 +5487,38 @@ function renderPane() {
   } else if (tab === 'celeiro') {
     html += chaveAviso('celeiro', 'Mostrar a quantidade de itens no botão do Celeiro');
     const items = [...Object.values(PRODUCE), ...PRODUCTS, ...PRODUTOS_CACA.map(p => PRODUCT[p.id]), ...PEIXES.map(p => PRODUCT[p.id]), ...FRUTAS.map(f => PRODUCT[f.id]), ...PRESENTES_GATO.map(p => PRODUCT[p.id]), ...PRESENTES_ARARA.map(p => PRODUCT[p.id]), ...PREMIOS_NIVEL.map(p => PRODUCT[p.id]), ...MINERIOS.map(m => PRODUCT[m.id]), ...RECEITAS].filter(it => state.barn[it.id] > 0);
-    let total = 0; for (const it of items) total += state.barn[it.id] * it.preco;
-    const minhasPlantas = CROPS.filter(c => (state.plantas[c.id] || 0) > 0);
-    if (minhasPlantas.length) {
-      html += `<h3>🌱 Mudas</h3>`;
-      for (const c of minhasPlantas) {
-        const q = state.plantas[c.id];
-        html += `<div class="row"><img alt="" src="${cropIcon(c.id)}"><div><div class="name">${c.nome} × ${q}${q < PLANTAS_BAIXO ? ' <span class="tag bad">poucas</span>' : ''}</div><div class="meta">${fmt(c.tempo)} · rende ${faixa(c)} × ${c.preco}</div></div>
-          <button class="btn gold" data-seed="${c.id}">Plantar</button></div>`;
-      }
-    }
-    html += `<h3>Celeiro</h3>`;
-    if (!items.length) html += `<div class="empty">O celeiro está vazio.<br>Colha na roça e recolha ovos, leite, lã e trufas dos animais.</div>`;
-    else {
-      html += `<div class="total"><span>Total: ${moeda(total)}</span><button class="btn gold" data-sellall>Vender tudo</button></div>`;
-      for (const it of items) {
+    const dePlanta = it => !!PRODUCE[it.id], seg = celeiroSeg === 'plantas' ? 'plantas' : 'itens';
+    const nPl = CROPS.filter(c => plantaQtd(c) > 0).length, nIt = items.filter(it => !dePlanta(it)).length;
+    html += `<div class="seg small" role="tablist"><button type="button" role="tab" data-cseg="itens" aria-selected="${seg === 'itens'}">Itens${nIt ? ` (${nIt})` : ''}</button><button type="button" role="tab" data-cseg="plantas" aria-selected="${seg === 'plantas'}">Plantas${nPl ? ` (${nPl})` : ''}</button></div>`;
+    const lista = items.filter(it => dePlanta(it) === (seg === 'plantas'));
+    let total = 0; for (const it of lista) total += state.barn[it.id] * it.preco;
+    const linha = (it, m) => {
+      let h = '';
         const q = state.barn[it.id], key = 'sell:' + it.id, sel = q > 1 ? qtdSel[key] = clamp(qtdSel[key] || 1, 1, q) : 1;
         const bloq = state.bloqueados && state.bloqueados[it.id];
-        html += `<div class="row"><img alt="" src="${itemIcon(it.id)}">
-          <div><div class="name">${it.nome} × ${q}${bloq ? ' 🔒' : ''}</div><div class="meta">${moeda(it.preco)} cada · ${moeda(q * it.preco)} no total${it.id === 'milho' ? '<br>também serve de comida para os animais' : ''}</div></div>
+        h += `<div class="row"><img alt="" src="${itemIcon(it.id)}">
+          <div><div class="name">${it.nome} × ${q}${bloq ? ' 🔒' : ''}${m ? ` <span class="tag">+${m} mudas</span>` : ''}${PRODUCE[it.id] && q + (m || 0) < PLANTAS_BAIXO ? ' <span class="tag bad">poucas</span>' : ''}</div><div class="meta">${moeda(it.preco)} cada · ${moeda(q * it.preco)} no total${it.id === 'milho' ? '<br>também serve de comida para os animais' : ''}</div></div>
           <div class="stack">${PRODUCE[it.id] && PRODUCE[it.id].planta && CROP[PRODUCE[it.id].planta].nivel <= state.level ? `<button class="btn gold" data-seed="${PRODUCE[it.id].planta}">Plantar</button>` : ''}<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" ${bloq ? 'checked' : ''} data-toggle-block="${it.id}"> Bloquear</label>${!bloq ? (q > 1 ? qtdStep(key, q) : '') + `<button class="btn" data-sell="${it.id}" data-qtd="${sel}">Vender ${sel} · ${moeda(sel * it.preco)}</button>${q > 1 ? `<button class="btn ghost" data-sellall-of="${it.id}">Todos</button>` : ''}` : '<button class="btn ghost" disabled>Bloqueado</button>'}</div></div>`;
+      return h;
+    };
+    if (seg === 'plantas') {
+      html += `<p class="hint">Aqui ficam as plantações: o que você colheu (também serve para plantar) e as mudas. Tenha pelo menos ${PLANTAS_BAIXO} de cada para replantar.</p>`;
+      let algum = false;
+      for (const c of CROPS) {
+        if (c.nivel > state.level) continue;
+        const q = state.barn[c.prod] || 0, m = state.plantas[c.id] || 0;
+        if (!q && !m) continue;
+        algum = true;
+        const it = PRODUCE[c.prod];
+        if (q) html += linha(it, m);
+        else html += `<div class="row"><img alt="" src="${cropIcon(c.id)}"><div><div class="name">${c.nome} × ${m} <span class="tag">muda</span>${m < PLANTAS_BAIXO ? ' <span class="tag bad">poucas</span>' : ''}</div><div class="meta">${fmt(c.tempo)} · rende ${faixa(c)} × ${c.preco}</div></div><div class="stack"><button class="btn gold" data-seed="${c.id}">Plantar</button></div></div>`;
       }
+      if (!algum) html += `<div class="empty">Você não tem nenhuma planta. Ganhe mudas em missões, no caminhão, de amigos ou na feira.</div>`;
+      else html += `<div class="total"><span>Colhidas: ${moeda(total)}</span><button class="btn gold" data-sellall="plantas" ${total ? '' : 'disabled'}>Vender colheitas</button></div>`;
+    } else if (!lista.length) html += `<div class="empty">O celeiro está vazio.<br>Recolha ovos, leite, lã, pesque, cace e minere para guardar aqui.</div>`;
+    else {
+      html += `<div class="total"><span>Total: ${moeda(total)}</span><button class="btn gold" data-sellall="itens">Vender tudo</button></div>`;
+      for (const it of lista) html += linha(it);
     }
   } else if (tab === 'terreno') {
     html += `<h3>Terreno</h3><div class="kv">
@@ -5735,7 +5749,8 @@ $('#pane').addEventListener('click', e => {
   else if ('seeHouse' in d) { if (!isHome()) goHome(); setScene('casa'); closePanel(); }
   else if (d.sell) sell(d.sell, Number(d.qtd) || 1);
   else if (d.sellallOf) sell(d.sellallOf, true);
-  else if ('sellall' in d) sellAll();
+  else if ('sellall' in d) sellAll(d.sellall || undefined);
+  else if (d.cseg) { celeiroSeg = d.cseg; renderPane(); $('#pane').scrollTop = 0; }
   else if ('seeLand' in d) { if (!isHome()) goHome(); setScene('roca'); closePanel(); toast('Clique num + encostado na sua terra para colocar um canteiro.'); }
   else if ('expand' in d) buyExpansion();
   else if (d.buyFert) buyFert(d.buyFert, Number(d.n) || 1);
