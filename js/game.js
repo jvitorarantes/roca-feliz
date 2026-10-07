@@ -1713,31 +1713,64 @@ function sellAll() {
 // Visitas (vizinhos da vila e amigos de verdade)
 // ============================================================
 function genNeighbor() {
+  const npcLevel = state.level + 3; // NPCs têm 3 níveis a mais que o jogador
   const plots = Array.from({ length: N }, () => emptyPlot());
-  const count = 12 + Math.floor(Math.random() * 16);
-  for (const i of ORDER.slice(0, count)) {
-    const pool = CROPS.filter(c => c.nivel <= Math.max(5, state.level + 3));
-    const crop = pool[Math.floor(Math.random() * pool.length)];
-    if (Math.random() < 0.12) { plots[i] = emptyPlot('plowed'); continue; }
+
+  // Plantações: todas desbloqueadas até o nível do NPC
+  const crops = CROPS.filter(c => c.nivel <= npcLevel);
+  let plotIdx = 0;
+
+  // Plantar uma de cada cultivo + alguns aleatórios para preencher
+  for (const crop of crops) {
+    if (plotIdx >= ORDER.length) break;
+    const i = ORDER[plotIdx++];
     const mature = Math.random() < 0.5, bug = Math.random() < 0.08;
     plots[i] = Object.assign(emptyPlot('growing'), {
       c: crop.id, id: newId(),
       g: mature ? crop.tempo : crop.tempo * rand(0.15, 0.95),
       b: bug ? 1 : 0,
       dry: !bug && !mature && Math.random() < 0.25,
-      podre: mature && Math.random() < 0.2, // algumas esquecidas: dá para ajudar a salvar
+      podre: mature && Math.random() < 0.2,
     });
   }
+
+  // Preencher o resto com plantações aleatórias
+  const count = Math.max(plotIdx + 5, 12 + Math.floor(Math.random() * 8));
+  while (plotIdx < count && plotIdx < ORDER.length) {
+    const i = ORDER[plotIdx++];
+    if (Math.random() < 0.12) { plots[i] = emptyPlot('plowed'); continue; }
+    const crop = crops[Math.floor(Math.random() * crops.length)];
+    const mature = Math.random() < 0.5, bug = Math.random() < 0.08;
+    plots[i] = Object.assign(emptyPlot('growing'), {
+      c: crop.id, id: newId(),
+      g: mature ? crop.tempo : crop.tempo * rand(0.15, 0.95),
+      b: bug ? 1 : 0,
+      dry: !bug && !mature && Math.random() < 0.25,
+      podre: mature && Math.random() < 0.2,
+    });
+  }
+
+  // Animais: um de cada espécie de produção desbloqueada
   const animals = [];
-  const nA = 3 + Math.floor(Math.random() * 5);
-  for (let k = 0; k < nA; k++) {
-    const pool = ANIMALS.filter(x => x.tipo === 'prod' && x.prod !== 'leitao');
-    const a = newAnimal(pool[Math.floor(Math.random() * pool.length)].id), r = Math.random();
+  const prodAnimals = ANIMALS.filter(x => x.tipo === 'prod' && x.prod !== 'leitao' && x.nivel <= npcLevel);
+  for (const def of prodAnimals) {
+    const a = newAnimal(def.id), r = Math.random();
     if (r < 0.45) { a.ready = true; a.fed = false; a.g = ANIMAL[a.k].tempo; }
     else if (r < 0.7) { a.fed = false; }
     else a.g = ANIMAL[a.k].tempo * rand(0.1, 0.9);
     animals.push(a);
   }
+
+  // Adicionar alguns aleatórios extras
+  const extraAnimals = 1 + Math.floor(Math.random() * 3);
+  for (let k = 0; k < extraAnimals && animals.length < 15; k++) {
+    const a = newAnimal(prodAnimals[Math.floor(Math.random() * prodAnimals.length)].id), r = Math.random();
+    if (r < 0.45) { a.ready = true; a.fed = false; a.g = ANIMAL[a.k].tempo; }
+    else if (r < 0.7) { a.fed = false; }
+    else a.g = ANIMAL[a.k].tempo * rand(0.1, 0.9);
+    animals.push(a);
+  }
+
   const decor = {};
   for (const d of DECOR) if (Math.random() < 0.55) decor[d.id] = true;
   return ensureAbrigos({ plots, animals, decor, banca: npcBanca(), refreshAt: Date.now() + 4 * 60 * 1000 });
