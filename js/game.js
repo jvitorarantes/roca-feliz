@@ -223,6 +223,7 @@ const FILHOTES = {
 };
 const AVES = ['galinha', 'angola', 'pato']; // só aves botam ovos; mamíferos têm o filhote direto
 const TEMPO_REPRODUCAO = 7 * DAY; // 7 dias entre reproduções da mesma espécie
+const MAX_COMPRA_PAR = 2; // só dá para comprar um casal de cada espécie que se reproduz
 
 // Abrigos do rancho: cada bicho mora no seu. Cada nível aumenta quantos cabem.
 // precos: construir (nível 1), depois aumentar para o nível 2 e o 3.
@@ -1031,7 +1032,8 @@ function actAnimal(id) {
   }
   if (a.ready) { collectAnimal(a, pos); return done(); }
   if (!a.fed) return feedAnimal(a, pos, true) && done();
-  toast(`${d.nome} está produzindo ${PRODUCT[d.prod].nome.toLowerCase()}: falta ${fmt((d.tempo - a.g) / acelera(S(), d.prod))}.`);
+  const rt = reproTexto(a.k);
+  toast(`${d.nome} está produzindo ${PRODUCT[d.prod].nome.toLowerCase()}: falta ${fmt((d.tempo - a.g) / acelera(S(), d.prod))}.${rt ? ' ' + rt : ''}`);
 }
 // Ações que pedem um segundo clique para confirmar.
 function confirmTwice(key, msg, fn) {
@@ -1428,6 +1430,7 @@ function buyAnimal(k) {
   else if (d.lugar === 'casa' && state.animals.some(a => a.k === k)) return toast(`Você já tem ${d.f ? 'uma' : 'um'} ${d.nome.toLowerCase()} em casa.`);
   else if (d.tipo !== 'pet') {
     const qtd = state.animals.filter(a => a.k === k).length;
+    if (FILHOTES[k] && d.tipo === 'prod' && qtd >= MAX_COMPRA_PAR) return toast(`Você já tem ${MAX_COMPRA_PAR} ${d.nome.toLowerCase()}s: um casal basta, o resto vem da reprodução!`, 'bad');
     if (qtd >= 5) return toast(`Você já tem 5 ${d.nome.toLowerCase()}s! Venda, coloque na banca ou dê para um amigo antes de comprar mais.`, 'bad');
   }
   if (state.level < d.nivel) return toast(`${d.nome} libera no nível ${d.nivel}.`);
@@ -2231,52 +2234,46 @@ async function recuperarAmigos() {
 // ============================================================
 // Reprodução e chocadeira
 // ============================================================
+// Casal = 2 animais da mesma espécie. O relógio começa quando o casal se forma e, a cada TEMPO_REPRODUCAO,
+// se os dois estiverem alimentados, nasce um filhote (aves põem um ovo na chocadeira do rancho).
+const reproEspecies = () => Object.keys(FILHOTES).filter(k => ANIMAL[k] && ANIMAL[k].tipo === 'prod');
+function reproEstado(k) {
+  const casal = state.animals.filter(a => a.k === k);
+  const alim = casal.filter(a => a.fed || a.ready).length, ult = (state.ultima_reproducao || {})[k];
+  const falta = ult ? Math.max(0, ult + TEMPO_REPRODUCAO - Date.now()) : TEMPO_REPRODUCAO;
+  return { n: casal.length, alim, falta, par: casal.length >= 2 };
+}
+function reproTexto(k) {
+  if (!FILHOTES[k] || !isHome()) return '';
+  const d = ANIMAL[k], ave = AVES.includes(k), r = reproEstado(k), oQue = ave ? 'ovo na chocadeira' : 'filhote';
+  if (!r.par) return `💞 Falta um par para ter ${ave ? 'ovos' : 'filhotes'}: compre mais ${d.f ? 'uma' : 'um'} ${d.nome.toLowerCase()}.`;
+  if (r.falta > 0) return `${ave ? '🥚' : '🐾'} Próximo ${oQue} em ${fmt(r.falta / 1000)}${r.alim < 2 ? ' (alimente o casal)' : ''}`;
+  if (r.alim < 2) return `${ave ? '🥚' : '🐾'} Pronto para ter ${oQue}, mas o casal precisa estar alimentado.`;
+  if (ave && state.chocadeira.ovos.length >= 20) return '🥚 A chocadeira está cheia.';
+  if (!ave) { const ab = abrigoOf(FILHOTES[k]); if (!ab || vagas(state, ab.id) <= 0) return '🐾 Pronto para ter filhote, mas o abrigo está cheio.'; }
+  return `${ave ? '🥚' : '🐾'} Prestes a ter ${oQue}!`;
+}
 function verificarReproducao() {
   if (!isHome()) return; // Reprodução só acontece na sua roça
-
-  if (!state.chocadeira) state.chocadeira = { ovos: [], level: 0 };
+  if (!state.chocadeira || !Array.isArray(state.chocadeira.ovos)) state.chocadeira = { ovos: [], level: 0 };
   if (!state.ultima_reproducao) state.ultima_reproducao = {};
-
-  // Agrupar animais de produção por espécie
-  const animaisPorEspecie = {};
-  for (const a of state.animals) {
-    const d = ANIMAL[a.k];
-    if (d.tipo !== 'prod' || !FILHOTES[a.k]) continue; // Apenas produção que podem reproduzir
-
-    const especie = a.k;
-    if (!animaisPorEspecie[especie]) animaisPorEspecie[especie] = [];
-    animaisPorEspecie[especie].push(a);
-  }
-
   const now = Date.now();
-  // Checar cada espécie se pode reproduzir
-  for (const [especie, animais] of Object.entries(animaisPorEspecie)) {
-    if (animais.length < 1) continue; // Precisa de pelo menos 1 animal alimentado
-
-    // Contar quantos animais estão bem alimentados (prontos para produzir)
-    const alimentados = animais.filter(a => a.fed || a.ready);
-    if (alimentados.length < 1) continue;
-
-    // Ver se já reproduziram recentemente
-    const ultima = state.ultima_reproducao[especie] || 0;
-    if (now - ultima < TEMPO_REPRODUCAO) continue;
-
-    const filhote = FILHOTES[especie];
-    if (!AVES.includes(especie)) {
+  for (const k of reproEspecies()) {
+    const r = reproEstado(k);
+    if (!r.par) { delete state.ultima_reproducao[k]; continue; }
+    if (!state.ultima_reproducao[k]) { state.ultima_reproducao[k] = now; continue; }
+    if (r.falta > 0 || r.alim < 2) continue;
+    const filhote = FILHOTES[k];
+    if (!AVES.includes(k)) {
       const ab = abrigoOf(filhote);
       if (!ab || vagas(state, ab.id) <= 0 || (ANIMAL[filhote].tipo !== 'cria' && state.animals.filter(x => x.k === filhote).length >= 5)) continue;
       state.animals.push(newAnimal(filhote));
-      state.ultima_reproducao[especie] = now;
+      state.ultima_reproducao[k] = now;
       toast(`🐾 Nasceu ${ANIMAL[filhote].f ? 'uma' : 'um'} ${ANIMAL[filhote].nome.toLowerCase()}!`, 'good');
       done();
-      continue;
-    }
-    if (state.chocadeira.ovos.length < 20) { // Limite de 20 ovos no incubador
-      state.chocadeira.ovos.push({
-        especie: filhote,
-        nascimento: now + 24 * HOUR // 24 horas de incubação
-      });
-      state.ultima_reproducao[especie] = now;
+    } else if (state.chocadeira.ovos.length < 20) {
+      state.chocadeira.ovos.push({ especie: filhote, nascimento: now + 24 * HOUR });
+      state.ultima_reproducao[k] = now;
       toast(`🥚 Ovo de ${ANIMAL[filhote].nome.toLowerCase()} colocado na chocadeira!`, 'good');
       done();
     }
@@ -5006,6 +5003,11 @@ function focusRow(id) {
 function chocadeiraHTML() {
   let html = '';
     html += `<h3>Chocadeira 🐣</h3>`;
+    html += `<p class="hint">Cada espécie precisa de um casal (2 animais) alimentado. Aves põem ovos aqui a cada ${TEMPO_REPRODUCAO / DAY} dias; mamíferos têm o filhote direto no abrigo.</p>`;
+    for (const k of reproEspecies()) {
+      if (!state.animals.some(a => a.k === k)) continue;
+      html += `<div class="row"><img alt="" src="${animalIcon(k)}"><div><div class="name">${ANIMAL[k].nome}</div><div class="meta">${reproTexto(k)}</div></div><div></div></div>`;
+    }
     if (!state.chocadeira || !state.chocadeira.ovos || !state.chocadeira.ovos.length) {
       html += `<div class="empty">A chocadeira está vazia.<br>Aves bem-alimentadas botam ovos para incubar. Mamíferos têm o filhote direto, sem ovo.</div>`;
     } else {
@@ -5093,6 +5095,7 @@ function renderPane() {
       const buyBtn = d => {
         if (d.nivel > state.level) return `<button class="btn" disabled>Nível ${d.nivel}</button>`;
         if (d.id === 'gato' && state.animals.filter(x => x.k === 'gato').length >= GATO_MAX) return `<button class="btn ghost" disabled>Máximo (${GATO_MAX})</button>`;
+        if (FILHOTES[d.id] && d.tipo === 'prod' && state.animals.filter(x => x.k === d.id).length >= MAX_COMPRA_PAR) return `<button class="btn ghost" disabled>Casal completo (${MAX_COMPRA_PAR})</button>`;
         const ab = d.lugar !== 'casa' && abrigoOf(d.id);
         if (ab && !abrigoLv(state, ab.id)) return `<button class="btn ghost" data-seg="abrigos" data-focus="${ab.id}">Precisa ${ab.o === 'a' ? 'da' : 'do'} ${ab.nome.toLowerCase()}</button>`;
         if (ab && vagas(state, ab.id) <= 0) return `<button class="btn ghost" data-seg="abrigos" data-focus="${ab.id}">${ab.nome} ${ab.o === 'a' ? 'cheia' : 'cheio'}</button>`;
@@ -5226,7 +5229,6 @@ function renderPane() {
       <span>Ajudas aos amigos</span><span>${state.stats.ajudas}</span></div>`;
     if (freeLots()) html += `<div class="row sel"><div></div><div><div class="name">${freeLots()} ${freeLots() > 1 ? 'canteiros' : 'canteiro'} para colocar</div><div class="meta">Clique num + encostado na sua terra (duas vezes) para escolher o lugar.</div></div>
         <button class="btn gold" data-see-land>Ver na roça</button></div>`;
-    html += chocadeiraHTML();
     html += `<h3>Expansões</h3>`;
     EXPANSOES.forEach((e, k) => {
       if (k === 0) return;
@@ -5571,6 +5573,7 @@ function tipAnimal(id) {
   if (a.ready) h += `${prod.nome} pronto${a.dobro ? ' (em dobro!)' : ''}! Clique para recolher.`;
   else if (!a.fed) h += `Com fome. ${home ? `Clique para dar ração (${d.racao} moedas${state.racaoEsp ? ', usa 1 ração especial' : ''}).` : 'Clique para dar comida e ajudar.'}`;
   else h += `Produzindo ${prod.nome.toLowerCase()}${a.dobro ? ' em dobro' : ''}: falta ${fmt((d.tempo - a.g) / acelera(S(), d.prod))}<div class="bar"><i style="width:${a.g / d.tempo * 100}%"></i></div>`;
+  { const rt = reproTexto(a.k); if (rt) h += `<br>${rt}`; }
   h += `<br>Vive mais ${vida(lifeLeft(a))}`;
   if (home) h += ` · vende por ${sellPrice(a).toLocaleString('pt-BR')} (na Loja › Animais)`;
   return h;
@@ -5616,7 +5619,7 @@ function tipDecor(id) {
 let lastTip = '';
 function updateTip() {
   const show = hover && $('#ctxMenu').hidden && (pointer.inside && !pointer.touch || performance.now() < pointer.tipUntil);
-  const html = !show ? null : hover.kind === 'plot' ? tipPlot(hover.i) : hover.kind === 'animal' ? tipAnimal(hover.id) : hover.kind === 'dog' ? tipDog(hover.slot) : hover.kind === 'canil' ? tipCanil(hover.slot) : hover.kind === 'caminha' ? tipCaminha(hover.id) : hover.kind === 'abrigo' ? tipAbrigo(hover.id) : hover.kind === 'land' ? tipLand() : hover.kind === 'caca' ? (state.level >= CACA_NIVEL ? '<b>🎯 Trilha da caçada</b><br>Clique para caçar pragas com o estilingue ou a espingarda, e armar a arapuca.' : `<b>🎯 Trilha da caçada</b><br>Libera no nível ${CACA_NIVEL}.`) : hover.kind === 'bicho' ? tipBicho(hover.i) : hover.kind === 'avatar' ? (hover.quem === 'dono' ? `<b>${esc(view.nome)}</b><br>${view.avatar && view.avatar.sexo === 'f' ? 'Dona' : 'Dono'} de ${esc(view.fazenda || 'Roça Feliz')}. Clique para dar um oi.` : `<b>${esc(meuApelido())}</b>${meuApelido() === 'Você' ? '' : ' (você)'}<br>Clique para dar um oi.`) : hover.kind === 'invasor' ? `<b>${invasor ? (invasor.tipo === 'javali' ? '🐗 Javali' : '🐀 Rato') : 'Praga'} na plantação!</b><br>Clique para espantar antes que ele coma.` : hover.kind === 'armadilha' ? `<b>🪤 Armadilha de pragas</b><br>${armadilhaPronta() ? 'Carregada: pega a próxima praga que invadir a plantação.' : `Recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`}` : hover.kind === 'mural' ? `<b>📷 Mural da caçada</b><br>${hover.n} foto${hover.n === 1 ? '' : 's'} de bichos. ${isHome() ? 'Clique para abrir o Livro da caçada.' : ''}` : hover.kind === 'folhas' ? '<b>🍂 Monte de folhas</b><br>Clique e o avatar vai rastelar (+XP e umas moedinhas).' : hover.kind === 'lago' ? `<b>🎣 Lago</b><br>Clique para pescar (🪱 ${iscasDe().minhoca || 0} minhocas).` : hover.kind === 'enfeite' ? tipEnfeite(hover.id, hover.key, hover.sc) : hover.kind === 'obj' ? null : hover.kind === 'celeiro' ? `<b>${isHome() ? 'Seu celeiro' : 'Celeiro de ' + esc(view.nome)}</b>${isHome() ? '<br>Clique para ver o que está guardado.' : ''}` : hover.kind === 'casa' ? `<b>${isHome() ? 'Sua casa' : 'Casa de ' + esc(view.nome)}</b><br>${isHome() ? 'Clique para entrar ou trocar o tema.' : 'Clique para entrar.'}` : tipDecor(hover.id);
+  const html = !show ? null : hover.kind === 'plot' ? tipPlot(hover.i) : hover.kind === 'animal' ? tipAnimal(hover.id) : hover.kind === 'dog' ? tipDog(hover.slot) : hover.kind === 'canil' ? tipCanil(hover.slot) : hover.kind === 'caminha' ? tipCaminha(hover.id) : hover.kind === 'abrigo' ? tipAbrigo(hover.id) : hover.kind === 'land' ? tipLand() : hover.kind === 'caca' ? (state.level >= CACA_NIVEL ? '<b>🎯 Trilha da caçada</b><br>Clique para caçar pragas com o estilingue ou a espingarda, e armar a arapuca.' : `<b>🎯 Trilha da caçada</b><br>Libera no nível ${CACA_NIVEL}.`) : hover.kind === 'bicho' ? tipBicho(hover.i) : hover.kind === 'avatar' ? (hover.quem === 'dono' ? `<b>${esc(view.nome)}</b><br>${view.avatar && view.avatar.sexo === 'f' ? 'Dona' : 'Dono'} de ${esc(view.fazenda || 'Roça Feliz')}. Clique para dar um oi.` : `<b>${esc(meuApelido())}</b>${meuApelido() === 'Você' ? '' : ' (você)'}<br>Clique para dar um oi.`) : hover.kind === 'invasor' ? `<b>${invasor ? (invasor.tipo === 'javali' ? '🐗 Javali' : '🐀 Rato') : 'Praga'} na plantação!</b><br>Clique para espantar antes que ele coma.` : hover.kind === 'chocadeira' ? tipChocadeira() : hover.kind === 'armadilha' ? `<b>🪤 Armadilha de pragas</b><br>${armadilhaPronta() ? 'Carregada: pega a próxima praga que invadir a plantação.' : `Recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`}` : hover.kind === 'mural' ? `<b>📷 Mural da caçada</b><br>${hover.n} foto${hover.n === 1 ? '' : 's'} de bichos. ${isHome() ? 'Clique para abrir o Livro da caçada.' : ''}` : hover.kind === 'folhas' ? '<b>🍂 Monte de folhas</b><br>Clique e o avatar vai rastelar (+XP e umas moedinhas).' : hover.kind === 'lago' ? `<b>🎣 Lago</b><br>Clique para pescar (🪱 ${iscasDe().minhoca || 0} minhocas).` : hover.kind === 'enfeite' ? tipEnfeite(hover.id, hover.key, hover.sc) : hover.kind === 'obj' ? null : hover.kind === 'celeiro' ? `<b>${isHome() ? 'Seu celeiro' : 'Celeiro de ' + esc(view.nome)}</b>${isHome() ? '<br>Clique para ver o que está guardado.' : ''}` : hover.kind === 'casa' ? `<b>${isHome() ? 'Sua casa' : 'Casa de ' + esc(view.nome)}</b><br>${isHome() ? 'Clique para entrar ou trocar o tema.' : 'Clique para entrar.'}` : tipDecor(hover.id);
   if (!html) { tip.hidden = true; lastTip = ''; return; }
   if (html !== lastTip) { tip.innerHTML = html; lastTip = html; }
   tip.hidden = false;
@@ -5695,7 +5698,7 @@ let holdTimer = null, holdFired = false;
 function objAt(x, y) {
   if (!isHome() || scene === 'casa') return null;
   // a área de clique cobre o desenho inteiro (largura para cada lado e altura, em casas da grade)
-  const CAIXA = { armadilha: [0.25, 0.35], mata: [0.6, 0.8], placa: [0.5, 0.95], casa: [0.55, 1.0], celeiro: [0.62, 1.15], canil: [0.4, 0.65], arv1: [0.4, 1.05], arv2: [0.4, 1.05], pesqueiro: [0.5, 0.3] };
+  const CAIXA = { armadilha: [0.25, 0.35], mata: [0.6, 0.8], placa: [0.5, 0.95], casa: [0.55, 1.0], celeiro: [0.62, 1.15], canil: [0.4, 0.65], chocadeira: [0.35, 0.55], arv1: [0.4, 1.05], arv2: [0.4, 1.05], pesqueiro: [0.5, 0.3] };
   let best = null, bd = Infinity;
   for (const o of objList(state, scene)) {
     if (o.key === 'placa' && !landSignText()) continue;
@@ -5805,6 +5808,7 @@ cv.addEventListener('click', e => {
   else if (target.kind === 'lago') abrirPesca();
   else if (target.kind === 'folhas') rastelarFolhas(target.id);
   else if (target.kind === 'invasor') espantarInvasor();
+  else if (target.kind === 'chocadeira') openPanel('chocadeira');
   else if (target.kind === 'armadilha') toast(armadilhaPronta() ? '🪤 Armadilha carregada: pega a próxima praga que invadir a plantação.' : `🪤 Armadilha recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`);
   else if (target.kind === 'mural') { abrirCaca(); if (caca) { cacaLivro = true; renderCaca(); } }
   else if (target.kind === 'avatar' && target.quem === 'dono') { falar('avatar:dono', view.nome, sorteia(FALAS_DONO.concat(FALAS_AVATAR))); sfx('fala'); }
@@ -8947,10 +8951,10 @@ const LUGARES = {
 const POS_PADRAO = {
   // (as árvores de enfeite saíram: agora as árvores são as frutíferas do Pomar, compradas na Loja)
   roca: { casa: [1.25, -1.45], celeiro: [-0.95, 2.15], canil: [-1.65, 3.65], pesqueiro: [-1.05, 4.85], placa: [-0.1, 1.1], mata: [1.6, 6.9], armadilha: [3.3, -0.6] },
-  animais: { canil: [-1.65, 3.65] },
+  animais: { canil: [-1.65, 3.65], chocadeira: [-1.3, 5.6] },
 };
 const LAGO_POS = [3.55, -1.95];
-const OBJ_INFO = { casa: { nome: 'Casa', r: 1.1 }, celeiro: { nome: 'Celeiro', r: 1.2 }, canil: { nome: 'Casinha do cachorro', r: 0.8 }, arv1: { nome: 'Árvore', r: 0.7 }, arv2: { nome: 'Árvore', r: 0.7 }, pesqueiro: { nome: 'Pesqueiro', r: 0.9 }, placa: { nome: 'Placa de terras', r: 0.45 }, mata: { nome: 'Trilha da caçada', r: 1.0 }, armadilha: { nome: 'Armadilha de pragas', r: 0.45 } };
+const OBJ_INFO = { casa: { nome: 'Casa', r: 1.1 }, celeiro: { nome: 'Celeiro', r: 1.2 }, canil: { nome: 'Casinha do cachorro', r: 0.8 }, arv1: { nome: 'Árvore', r: 0.7 }, arv2: { nome: 'Árvore', r: 0.7 }, pesqueiro: { nome: 'Pesqueiro', r: 0.9 }, placa: { nome: 'Placa de terras', r: 0.45 }, mata: { nome: 'Trilha da caçada', r: 1.0 }, armadilha: { nome: 'Armadilha de pragas', r: 0.45 }, chocadeira: { nome: 'Chocadeira', r: 0.5 } };
 // Giro de 90° em 90° (rot 0..3, sentido contrário ao relógio visto de cima): os desenhos são 2,5D, vistos
 // de um ângulo só. Nos giros ímpares a imagem fica espelhada (as faces trocam de lado); nos giros 2 e 3
 // as construções (casa, celeiro, casinha) mostram os fundos, sem porta nem janelas da frente. Itens sem
@@ -8960,7 +8964,7 @@ const comGiro = (x, rot, fn) => {
   ctx.save(); ctx.translate(x, 0); ctx.scale(-1, 1); ctx.translate(-x, 0);
   try { fn(); } finally { ctx.restore(); }
 };
-const giravel = key => !!key && !['placa', 'mata', 'armadilha'].includes(key);
+const giravel = key => !!key && !['placa', 'mata', 'armadilha', 'chocadeira'].includes(key);
 function posOf(s, sc, key) {
   const p = s.pos && s.pos[sc] && s.pos[sc][key];
   if (Array.isArray(p)) return p;
@@ -9347,6 +9351,14 @@ function drawObjetos(s, sc, t, home, stage, d0 = -Infinity, d1 = Infinity) {
       if (!moveMode && home) hits.push({ kind: 'armadilha', x: q.x, y: q.y - W * 0.12, r: W * 0.25 });
       continue;
     }
+    if (o.key === 'chocadeira') {
+      drawChocadeira(q.x, q.y, W, (s.chocadeira && s.chocadeira.ovos) || [], t);
+      if (!moveMode && home) {
+        if (hover && hover.kind === 'chocadeira') { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.3, W * 0.1, 0, 0, 7); ctx.stroke(); }
+        hits.push({ kind: 'chocadeira', x: q.x, y: q.y - W * 0.2, r: W * 0.28 });
+      }
+      continue;
+    }
     if (o.key === 'mata') {
       drawMataCaca(q.x, q.y, W);
       if (home && cacaPronta()) drawBubbleAt(q.x, q.y - W * 0.75, 'caca', null, t, 99);
@@ -9469,6 +9481,7 @@ function drawMoving(sc, t) {
   else if (k === 'placa') drawLandSign(q.x, q.y, true);
   else if (k === 'mata') drawMataCaca(q.x, q.y, W);
   else if (k === 'armadilha') drawArmadilha(q.x, q.y, W, true, t);
+  else if (k === 'chocadeira') drawChocadeira(q.x, q.y, W, [], t);
   else comGiro(q.x, gr, () => drawTree(q.x, q.y, W * 0.9, t, sc === 'roca' && temaDe(s).coqueiro));
   ctx.globalAlpha = 1;
 }
@@ -11095,6 +11108,22 @@ function comprarArmadilha() {
   if (state.coins < ARMADILHA.custo) return toast(`A armadilha custa ${ARMADILHA.custo.toLocaleString('pt-BR')} moedas.`, 'bad');
   state.coins -= ARMADILHA.custo; state.armadilha = { pronta: 0 }; sfx('buy');
   toast('🪤 Armadilha comprada! Ela fica perto da plantação e pega a próxima praga que aparecer (dá para mudar de lugar no Mover).', 'good'); done();
+}
+function tipChocadeira() {
+  const ovos = (state.chocadeira && state.chocadeira.ovos) || [];
+  if (!ovos.length) return '<b>🥚 Chocadeira</b><br>Vazia. Quando um casal de aves estiver alimentado, o ovo vem para cá.<br>Clique para abrir.';
+  const prox = Math.min(...ovos.map(o => o.nascimento)) - Date.now();
+  return `<b>🥚 Chocadeira</b><br>${ovos.length} ovo${ovos.length > 1 ? 's' : ''} · ${prox > 0 ? `o próximo nasce em ${fmt(prox / 1000)}` : 'esperando vaga no abrigo'}<br>Clique para abrir.`;
+}
+function drawChocadeira(x, y, W, ovos, t) {
+  const s = W / 100, quente = ovos.length > 0;
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(x, y, 24 * s, 7 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#8a5a33'; ctx.fillRect(x - 20 * s, y - 10 * s, 40 * s, 10 * s);
+  ctx.fillStyle = '#6b4220'; ctx.fillRect(x - 20 * s, y - 3 * s, 40 * s, 3 * s);
+  ctx.fillStyle = quente ? 'rgba(255,200,90,.45)' : 'rgba(190,225,240,.4)'; ctx.strokeStyle = '#5a646c'; ctx.lineWidth = 1.6 * s;
+  ctx.beginPath(); ctx.moveTo(x - 17 * s, y - 10 * s); ctx.quadraticCurveTo(x - 17 * s, y - 34 * s, x, y - 34 * s); ctx.quadraticCurveTo(x + 17 * s, y - 34 * s, x + 17 * s, y - 10 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+  for (let k = 0; k < Math.min(4, ovos.length || 0); k++) { ctx.fillStyle = '#f6efe0'; ctx.beginPath(); ctx.ellipse(x + (k - 1.5) * 8 * s, y - 14 * s, 3.4 * s, 4.4 * s, 0, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 0.8 * s; ctx.stroke(); }
+  if (quente) { const pu = 0.5 + 0.5 * Math.sin(t / 400); ctx.fillStyle = `rgba(255,150,40,${0.55 + pu * 0.4})`; ctx.beginPath(); ctx.arc(x, y - 27 * s, 2.6 * s, 0, 7); ctx.fill(); }
 }
 function drawArmadilha(x, y, W, pronta, t) {
   const s = W / 100;
