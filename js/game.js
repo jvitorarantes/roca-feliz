@@ -223,7 +223,14 @@ const FILHOTES = {
 };
 const AVES = ['galinha', 'angola', 'pato']; // só aves botam ovos; mamíferos têm o filhote direto
 const TEMPO_REPRODUCAO = 7 * DAY; // 7 dias entre reproduções da mesma espécie
-const MAX_COMPRA_PAR = 2; // só dá para comprar um casal de cada espécie que se reproduz
+// Animais não se compram: vêm de missões, de amigos, de chocar/reproduzir e de subir de nível.
+// Cada um vira um "crédito" (state.animalCred) que se resgata em Loja › Animais, no abrigo certo.
+const darAnimal = (k, n = 1) => { const c = state.animalCred || (state.animalCred = {}); c[k] = (c[k] || 0) + n; };
+const animaisLiberados = s => ANIMALS.filter(d => d.tipo !== 'pet' && d.nivel <= (s.level || 1));
+function sortearAnimalCred() {
+  const l = animaisLiberados(state); if (!l.length) return null;
+  const d = l[Math.floor(Math.random() * l.length)]; darAnimal(d.id); return d;
+}
 
 // Abrigos do rancho: cada bicho mora no seu. Cada nível aumenta quantos cabem.
 // precos: construir (nível 1), depois aumentar para o nível 2 e o 3.
@@ -282,7 +289,7 @@ function ensureAbrigos(s) {
   return s;
 }
 const drawKind = a => ANIMAL[a.k].desenho || a.k;
-// Animais de produção vivem "periodo" dias. Depois vão embora e é preciso comprar outro.
+// Animais de produção vivem "periodo" dias. Depois vão embora e é preciso resgatar ou chocar outro.
 const lifeLeft = a => ANIMAL[a.k].tipo === 'prod' ? a.born + ANIMAL[a.k].periodo * DAY - Date.now() : Infinity;
 const isTired = () => false;
 // Vender um animal vale bem menos que a compra, e cai um pouco a cada dia que passa.
@@ -451,6 +458,7 @@ function newState() {
     dogs: { roca: null, animais: null }, dogFood: 0, news: [], newsSeen: 0, limits: {},
     stats: { colheitas: 0, coletas: 0, vendido: 0, roubado: 0, ajudas: 0 },
     chocadeira: { ovos: [], level: 0 },
+    animalCred: {}, animalNivel: {},
     bloqueados: {},
   };
 }
@@ -588,6 +596,31 @@ function migrate(s) {
   if (!s.tool || s.tool === 'weed') s.tool = 'hand';
   // frutíferas ganham um id (para os amigos ajudarem) e passam a viver por colheitas
   for (const sc of ['roca', 'animais']) for (const o of (s.objetos && Array.isArray(s.objetos[sc]) ? s.objetos[sc] : [])) if (o && ENFEITE[o.id] && ENFEITE[o.id].fruteira) { if (!o.fid) o.fid = newId(); if (typeof o.colhidas !== 'number') o.colhidas = 0; if (!o.seca && secaDe(o, s)) { o.seca = 1; if (!o.ajudada && !o.placa) o.placa = Date.now(); } }
+  // animais não se compram mais: fica um casal de cada espécie, o resto é vendido e o valor vira moedas
+  s.animalCred = s.animalCred && typeof s.animalCred === 'object' ? s.animalCred : {};
+  s.animalNivel = s.animalNivel && typeof s.animalNivel === 'object' ? s.animalNivel : {};
+  if (!s.animaisReset && Array.isArray(s.animals)) {
+    s.animaisReset = 1;
+    s.animals = s.animals.filter(a => a && ANIMAL[a.k]);
+    let moedas = 0, vendidos = 0;
+    for (const d of ANIMALS) {
+      if (d.tipo === 'pet') continue;
+      const meus = s.animals.filter(a => a.k === d.id).sort((x, y) => precoVenda(y) - precoVenda(x));
+      if (meus.length <= 2) continue;
+      const fora = new Set(meus.slice(2));
+      for (const a of fora) { moedas += precoVenda(a); vendidos++; }
+      s.animals = s.animals.filter(a => !fora.has(a));
+    }
+    s.coins = (s.coins || 0) + moedas;
+    let creditos = 0;
+    for (const d of ANIMALS) {
+      if (d.nivel > (s.level || 1)) continue;
+      s.animalNivel[d.id] = 1;
+      const meta = d.tipo === 'prod' ? 2 : 1, falta = meta - s.animals.filter(a => a.k === d.id).length;
+      if (falta > 0) { s.animalCred[d.id] = (s.animalCred[d.id] || 0) + falta; creditos += falta; }
+    }
+    if (vendidos || creditos) s.news = [{ at: Date.now(), msg: `Animais não se compram mais! ${vendidos ? `Ficou um casal de cada espécie: ${vendidos} animai${vendidos > 1 ? 's' : ''} a mais foram vendidos e você recebeu ${moedas.toLocaleString('pt-BR')} moedas. ` : ''}${creditos ? `Você tem ${creditos} animal${creditos > 1 ? 'is' : ''} para resgatar em Loja › Animais. ` : ''}Agora eles vêm de nível, missões da semana, amigos e reprodução.` }].concat(Array.isArray(s.news) ? s.news : []);
+  }
   // a cerca em volta da roça saiu: quem já jogava ganha 40 pedaços de cerca para pôr onde quiser
   if (!s.cercaDada) { s.cercaDada = 1; s.enfeites = s.enfeites && typeof s.enfeites === 'object' ? s.enfeites : {}; s.enfeites.cerca = (s.enfeites.cerca || 0) + 40; s.invNovos = (s.invNovos || 0) + 1; }
   s.bloqueados = s.bloqueados && typeof s.bloqueados === 'object' ? s.bloqueados : {};
@@ -802,17 +835,12 @@ function addXP(n, pos) {
     const novas = [...CROPS, ...ANIMALS, ...DECOR].filter(c => c.nivel === state.level).map(c => c.nome);
     for (const M of MAQUINAS) if (M.slots[0].nivel === state.level) novas.push(`${M.nome} (fábrica)`);
     for (const [id, n] of AV_OPC.mao) if (AV_NIVEL[id] === state.level) { novas.push(`${n.toLowerCase()} para o avatar (⚙️ › Seu avatar)`); addNews(`🎁 Item novo para o avatar: ${n}! Coloque na mão dele em ⚙️ › Seu avatar.`); }
-    // Dar 2 animais de cada abrigo que já tem quando sobe de nível
-    for (const abrigo of ABRIGOS) {
-      if (state.abrigos && state.abrigos[abrigo.id]) {
-        for (const k of abrigo.bichos) {
-          const animal = ANIMAL[k];
-          if (animal.tipo === 'prod') {
-            for (let i = 0; i < 2; i++) state.animals.push(newAnimal(k));
-            novas.push(`+2 ${animal.nome.toLowerCase()}`);
-          }
-        }
-      }
+    // Animal novo liberado neste nível: ganha para resgatar (casal para os de produção, 1 para os demais)
+    for (const d of ANIMALS) {
+      const dado = state.animalNivel || (state.animalNivel = {});
+      if (d.nivel !== state.level || dado[d.id]) continue;
+      dado[d.id] = 1; const n = d.tipo === 'prod' ? 2 : 1; darAnimal(d.id, n);
+      novas.push(`+${n} ${d.nome.toLowerCase()} para resgatar (Loja › Animais)`);
     }
     toast(`Nível ${state.level}! +${bonus} moedas · +${trevos} 🍀 · +1 ${premio.nome.toLowerCase()}` + (novas.length ? ` · novidades: ${novas.join(', ')}` : ''), 'good');
   }
@@ -1387,6 +1415,7 @@ function actAbrigo(id) {
   abrigoSel = id;
   openPanel('abrigo');
 }
+const credBtn = k => { const c = (state.animalCred || {})[k] || 0; return c > 0 ? `<button class="btn gold" data-buy-animal="${k}">Resgatar${c > 1 ? ` (${c})` : ''}</button>` : '<button class="btn ghost" disabled>Não se compra</button>'; };
 function abrigoHTML() {
   const b = ABRIGO[abrigoSel], lv = abrigoLv(state, b.id);
   if (!lv) return `<div class="row"><img alt="" src="${abrigoIcon(b.id)}"><div><div class="name">${b.nome}</div><div class="meta">Ainda não foi construíd${b.o}. Para: ${b.bichos.map(k => ANIMAL[k].nome.toLowerCase()).join(', ')}.</div></div>
@@ -1395,7 +1424,7 @@ function abrigoHTML() {
   let html = `<div class="row sel"><img alt="" src="${abrigoIcon(b.id)}"><div><div class="name">${b.nome} · nível ${lv}</div><div class="meta">${moram.length} de ${cap} animais${lv < 3 ? ` · nível ${lv + 1} cabe ${ABRIGO_CAP[lv + 1]}` : ' · nível máximo'}</div></div>
     ${lv >= 3 ? '<div></div>' : state.level < nivelUp ? `<button class="btn" disabled>Nível ${nivelUp}</button>` : `<button class="btn" data-abrigo="${b.id}" ${state.coins < b.precos[lv] ? 'disabled' : ''}>Aumentar<br><small>${b.precos[lv].toLocaleString('pt-BR')}</small></button>`}</div>`;
   html += `<h3>Quem mora aqui</h3>`;
-  if (!moram.length) html += `<div class="empty">Ninguém ainda. Compre aqui embaixo!</div>`;
+  if (!moram.length) html += `<div class="empty">Ninguém ainda. Resgate um animal aqui embaixo!</div>`;
   for (const a of moram) {
     const d = ANIMAL[a.k];
     const st = d.tipo === 'prod' ? (a.ready ? 'produto pronto!' : a.fed ? 'produzindo' : 'com fome') + ` · vive mais ${vida(lifeLeft(a))}`
@@ -1406,14 +1435,14 @@ function abrigoHTML() {
       <div class="stack"><button class="btn ghost" data-renomear="${a.id}">Nome<br><small>${moeda(CUSTO_NOME_BICHO)}</small></button>
       <button class="btn ${armed ? 'danger' : isAdult(a) ? 'gold' : 'ghost'}" data-sell-animal="${a.id}" title="Vender">${armed ? 'Confirmar' : 'Vender ' + moeda(precoVenda(a))}</button></div></div>`;
   }
-  html += `<h3>Comprar para ${b.o === 'a' ? 'a' : 'o'} ${b.nome.toLowerCase()}</h3>`;
+  html += `<h3>Animais para ${b.o === 'a' ? 'a' : 'o'} ${b.nome.toLowerCase()}</h3>`;
   for (const k of b.bichos) {
     const d = ANIMAL[k], locked = d.nivel > state.level, cheio = moram.length >= cap;
     const info = d.tipo === 'prod' ? `ração ${d.racao} · ${PRODUCT[d.prod] ? PRODUCT[d.prod].nome.toLowerCase() : 'leitões'} a cada ${fmt(d.tempo)} · vive ${d.periodo} dias`
       : d.tipo === 'cria' ? `cresce em ${fmt(d.tempo)} e vende por ${d.venda.toLocaleString('pt-BR')}`
       : PET_PRESENTES[k] ? `dá ${PET_PRESENTES[k][0].nomePl || PET_PRESENTES[k][0].nome.toLowerCase()} a cada ${fmt(GATO_PRESENTE_MS / 1000)} para vender · companhia (carinho dá XP à parte)` : 'companhia · carinho dá XP';
     html += `<div class="row ${locked ? 'locked' : ''}"><img alt="" src="${animalIcon(k)}"><div><div class="name">${d.nome}</div><div class="meta">${info}</div></div>
-      ${locked ? `<button class="btn" disabled>Nível ${d.nivel}</button>` : cheio ? '<button class="btn ghost" disabled>Cheio</button>' : `<button class="btn" data-buy-animal="${k}" ${state.coins < d.custo ? 'disabled' : ''}>${moeda(d.custo)}</button>`}</div>`;
+      ${locked ? `<button class="btn" disabled>Nível ${d.nivel}</button>` : cheio ? '<button class="btn ghost" disabled>Cheio</button>' : credBtn(k)}</div>`;
   }
   return html;
 }
@@ -1426,19 +1455,18 @@ function actDecor(id) {
 
 function buyAnimal(k) {
   const d = ANIMAL[k];
+  if (!((state.animalCred || {})[k] > 0)) return toast(`${d.nome} não se compra: ganhe em missões, de amigos, chocando ovos ou ao subir de nível.`, 'bad');
   if (k === 'gato') { if (state.animals.filter(a => a.k === 'gato').length >= GATO_MAX) return toast(`Você já tem o máximo de ${GATO_MAX} gatos em casa.`); }
   else if (d.lugar === 'casa' && state.animals.some(a => a.k === k)) return toast(`Você já tem ${d.f ? 'uma' : 'um'} ${d.nome.toLowerCase()} em casa.`);
   else if (d.tipo !== 'pet') {
     const qtd = state.animals.filter(a => a.k === k).length;
-    if (FILHOTES[k] && d.tipo === 'prod' && qtd >= MAX_COMPRA_PAR) return toast(`Você já tem ${MAX_COMPRA_PAR} ${d.nome.toLowerCase()}s: um casal basta, o resto vem da reprodução!`, 'bad');
-    if (qtd >= 5) return toast(`Você já tem 5 ${d.nome.toLowerCase()}s! Venda, coloque na banca ou dê para um amigo antes de comprar mais.`, 'bad');
+    if (qtd >= 5) return toast(`Você já tem 5 ${d.nome.toLowerCase()}s! Venda um antes de resgatar mais.`, 'bad');
   }
   if (state.level < d.nivel) return toast(`${d.nome} libera no nível ${d.nivel}.`);
   const ab = d.lugar !== 'casa' && abrigoOf(k);
   if (ab && !abrigoLv(state, ab.id)) return toast(`${d.nome} precisa de um${ab.o === 'a' ? 'a' : ''} ${ab.nome.toLowerCase()}. Construa na aba Abrigos.`, 'bad');
   if (ab && vagas(state, ab.id) <= 0) return toast(`${ab.o === 'a' ? 'A' : 'O'} ${ab.nome.toLowerCase()} está ${ab.o === 'a' ? 'cheia' : 'cheio'}. Aumente na aba Abrigos.`, 'bad');
-  if (state.coins < d.custo) return toast(`${d.nome} custa ${d.custo} moedas.`, 'bad');
-  state.coins -= d.custo;
+  state.animalCred[k]--;
   const novo = newAnimal(k);
   if (k === 'gato') {
     const usadas = state.animals.filter(a => a.k === 'gato').map(a => a.cor);
@@ -5089,30 +5117,30 @@ function renderPane() {
         </div>`;
       }
     } else if (shopSeg === 'animais') {
-      html += `<p class="hint">Cada bicho mora no seu abrigo, que você constrói e aumenta na aba Abrigos. Sem comida o animal só para de produzir. Animais de produção vivem alguns dias; depois vão embora e é preciso comprar outro.</p>`;
+      html += `<p class="hint">Animais não se compram: você ganha ao subir de nível, em missões da semana, de presente de amigos (amizade nível 2+) e chocando ovos ou com a reprodução de um casal. Resgate aqui e ele vai para o abrigo, que você constrói na aba Abrigos. Sem comida o animal só para de produzir. Animais de produção vivem alguns dias; depois vão embora, então mantenha um casal para a reprodução repor.</p>`;
       const row = (d, meta, btn) => `<div class="row ${d.nivel > state.level ? 'locked' : ''}"><img alt="" src="${animalIcon(d.id)}">
-        <div><div class="name">${d.nome}${state.animals.some(x => x.k === d.id) ? ` <span class="meta">(${state.animals.filter(x => x.k === d.id).length}${d.id === 'gato' ? '/' + GATO_MAX : ''})</span>` : ''}</div><div class="meta">${meta}</div></div>${btn}</div>`;
+        <div><div class="name">${d.nome}${(state.animalCred || {})[d.id] > 0 ? ` <span class="tag">🎁 ${state.animalCred[d.id]} para resgatar</span>` : ''}${state.animals.some(x => x.k === d.id) ? ` <span class="meta">(${state.animals.filter(x => x.k === d.id).length}${d.id === 'gato' ? '/' + GATO_MAX : ''})</span>` : ''}</div><div class="meta">${meta}</div></div>${btn}</div>`;
       const buyBtn = d => {
         if (d.nivel > state.level) return `<button class="btn" disabled>Nível ${d.nivel}</button>`;
         if (d.id === 'gato' && state.animals.filter(x => x.k === 'gato').length >= GATO_MAX) return `<button class="btn ghost" disabled>Máximo (${GATO_MAX})</button>`;
-        if (FILHOTES[d.id] && d.tipo === 'prod' && state.animals.filter(x => x.k === d.id).length >= MAX_COMPRA_PAR) return `<button class="btn ghost" disabled>Casal completo (${MAX_COMPRA_PAR})</button>`;
+        if (!((state.animalCred || {})[d.id] > 0)) return credBtn(d.id);
         const ab = d.lugar !== 'casa' && abrigoOf(d.id);
         if (ab && !abrigoLv(state, ab.id)) return `<button class="btn ghost" data-seg="abrigos" data-focus="${ab.id}">Precisa ${ab.o === 'a' ? 'da' : 'do'} ${ab.nome.toLowerCase()}</button>`;
         if (ab && vagas(state, ab.id) <= 0) return `<button class="btn ghost" data-seg="abrigos" data-focus="${ab.id}">${ab.nome} ${ab.o === 'a' ? 'cheia' : 'cheio'}</button>`;
-        return `<button class="btn" data-buy-animal="${d.id}" ${state.coins < d.custo ? 'disabled' : ''}>${moeda(d.custo)}</button>`;
+        return credBtn(d.id);
       };
       const visible = tipo => { const l = ANIMALS.filter(d => d.tipo === tipo); const up = l.filter(d => d.nivel > state.level); return [...l.filter(d => d.nivel <= state.level), ...up.slice(0, 2)]; };
       html += `<h3>Produção</h3>`;
       for (const d of visible('prod')) {
         const prodTxt = d.prod === 'leitao' ? 'leitões (viram porquinhos no chiqueiro)' : `${PRODUCT[d.prod].nome.toLowerCase()} (vende por ${PRODUCT[d.prod].preco})`;
-        html += row(d, `${d.custo.toLocaleString('pt-BR')} moedas · ração ${d.racao} por produção<br>${prodTxt} a cada ${fmt(d.tempo)}<br>vive ${d.periodo} dias · ${d.xp} XP por coleta`, buyBtn(d));
+        html += row(d, `ração ${d.racao} por produção<br>${prodTxt} a cada ${fmt(d.tempo)}<br>vive ${d.periodo} dias · ${d.xp} XP por coleta`, buyBtn(d));
       }
       html += `<h3>Para criar e vender</h3>`;
       for (const d of visible('cria')) {
-        html += row(d, `${d.custo.toLocaleString('pt-BR')} moedas · ração ${d.racao} por dia<br>cresce em ${fmt(d.tempo)} e vende por ${d.venda.toLocaleString('pt-BR')}<br>lucro ${(d.venda - d.custo - d.racao * Math.ceil(d.tempo / (24 * HOUR))).toLocaleString('pt-BR')} · ${d.xp} XP na venda`, buyBtn(d));
+        html += row(d, `ração ${d.racao} por dia<br>cresce em ${fmt(d.tempo)} e vende por ${d.venda.toLocaleString('pt-BR')}<br>${d.xp} XP na venda`, buyBtn(d));
       }
       html += `<h3>Companhia</h3>`;
-      for (const d of visible('pet')) html += row(d, `${d.custo.toLocaleString('pt-BR')} moedas · mora ${d.lugar === 'casa' ? 'dentro de casa' : (abrigoOf(d.id).o === 'a' ? 'na ' : 'no ') + abrigoOf(d.id).nome.toLowerCase()}<br>${PET_PRESENTES[d.id] ? `dá ${PET_PRESENTES[d.id][0].nomePl || PET_PRESENTES[d.id][0].nome.toLowerCase()} a cada ${fmt(GATO_PRESENTE_MS / 1000)} para vender · não come` : 'não come nem produz'} · carinho dá 2 XP por dia`, buyBtn(d));
+      for (const d of visible('pet')) html += row(d, `mora ${d.lugar === 'casa' ? 'dentro de casa' : (abrigoOf(d.id).o === 'a' ? 'na ' : 'no ') + abrigoOf(d.id).nome.toLowerCase()}<br>${PET_PRESENTES[d.id] ? `dá ${PET_PRESENTES[d.id][0].nomePl || PET_PRESENTES[d.id][0].nome.toLowerCase()} a cada ${fmt(GATO_PRESENTE_MS / 1000)} para vender · não come` : 'não come nem produz'} · carinho dá 2 XP por dia`, buyBtn(d));
       const pets = state.animals.filter(a => ANIMAL[a.k].tipo === 'pet');
       if (pets.length) {
         html += `<h3>Nomes dos seus bichos</h3>`;
@@ -6277,7 +6305,8 @@ function claimMission(tipo, k) {
   state.coins += p.moedas; addXP(p.xp, null);
   if (p.racao) state.racaoEsp += p.racao;
   sfx('coin');
-  toast(`Prêmio: +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.racao ? ' e 1 ração especial' : ''}!`, 'good');
+  const bicho = tipo === 'semana' ? sortearAnimalCred() : null;
+  toast(`Prêmio: +${p.moedas.toLocaleString('pt-BR')} moedas e +${p.xp} XP${p.racao ? ' e 1 ração especial' : ''}${bicho ? ` e ${bicho.f ? 'uma' : 'um'} ${bicho.nome.toLowerCase()} para resgatar (Loja › Animais)` : ''}!`, 'good');
   // completou todas do dia (ou da semana)? ganha trevos, uma vez por dia / por semana
   const ms = state.missions, marca = tipo === 'dia' ? 'd' : 'w';
   if (ms[tipo].every(x => x.pego) && ms['trevo_' + tipo] !== ms[marca]) {
@@ -6378,6 +6407,7 @@ const PRESENTE_AMIGO = [
   { id: 'basico', nome: lvl => `${1 + Math.floor(lvl / 2)} fertilizante${lvl >= 2 ? 's' : ''} básico${lvl >= 2 ? 's' : ''}`, dar: (s, lvl) => { s.fert.basico = (s.fert.basico || 0) + 1 + Math.floor(lvl / 2); } },
   { id: 'racao', nome: lvl => { const n = 1 + Math.floor(lvl / 2); return n > 1 ? `${n} rações especiais` : '1 ração especial'; }, dar: (s, lvl) => { s.racaoEsp += 1 + Math.floor(lvl / 2); } },
   { id: 'racaoCao', nome: lvl => `${2 + lvl} rações de cachorro`, dar: (s, lvl) => { s.dogFood += 2 + lvl; } },
+  { id: 'animal', minLvl: 2, nome: () => '1 animal surpresa', dar: s => { const l = animaisLiberados(s); if (!l.length) { s.coins += 100; return; } const d = l[Math.floor(Math.random() * l.length)]; (s.animalCred = s.animalCred || {})[d.id] = (s.animalCred[d.id] || 0) + 1; } },
   { id: 'enxada', nome: () => '1 enxada de arrancar', dar: s => { (s.derrubar = s.derrubar || {}).enxada = (s.derrubar.enxada || 0) + 1; } },
   { id: 'motosserra', nome: () => '1 motosserra', dar: s => { (s.derrubar = s.derrubar || {}).motosserra = (s.derrubar.motosserra || 0) + 1; } },
 ];
@@ -6395,8 +6425,8 @@ function escolherPresente(uid) {
   presenteParaUid = uid;
   const f = friendInfo[uid], lvl = nivelAmizade(uid);
   $('#presTxt').textContent = `Escolha o presente para ${firstName(f && f.name ? f.name : 'seu amigo')}. Não custa nada!${lvl ? ` Amizade nível ${lvl}: presentes melhores!` : ''}`;
-  const icon = { basico: fertIcon('basico'), racao: bowlIcon(), racaoCao: dogIcon('caramelo'), enxada: ferramentaIcon('enxada'), motosserra: ferramentaIcon('motosserra') };
-  $('#presOpcoes').innerHTML = PRESENTE_AMIGO.map(p => `<button type="button" class="presopt" data-pres="${p.id}"><img alt="" src="${p.id === 'moedas' ? giftIcon({ moedas: 100 + lvl * 50 }) : icon[p.id]}"><span>${p.nome(lvl)}</span></button>`).join('');
+  const icon = { animal: animalIcon('galinha'), basico: fertIcon('basico'), racao: bowlIcon(), racaoCao: dogIcon('caramelo'), enxada: ferramentaIcon('enxada'), motosserra: ferramentaIcon('motosserra') };
+  $('#presOpcoes').innerHTML = PRESENTE_AMIGO.filter(p => !p.minLvl || lvl >= p.minLvl).map(p => `<button type="button" class="presopt" data-pres="${p.id}"><img alt="" src="${p.id === 'moedas' ? giftIcon({ moedas: 100 + lvl * 50 }) : icon[p.id]}"><span>${p.nome(lvl)}</span></button>`).join('');
   $('#presente').hidden = false;
   $('#presOpcoes button').focus();
 }
