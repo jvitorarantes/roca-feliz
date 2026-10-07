@@ -95,12 +95,8 @@ const PRESENTES_GATO = [
   { id: 'presentemisterioso', nome: 'Presente misterioso', nomePl: 'presentes misteriosos', preco: 480, peso: 2 },
 ];
 for (const p of PRESENTES_GATO) PRODUCT[p.id] = { ...p, gato: true };
-// Pavão e cavalo também produzem a cada 12h (igual aos outros animais, hora certa — não é carinho nem sorteio), reaproveitando o relógio dos gatos acima.
-const PRESENTES_PAVAO = [PRODUCT.pena];
-const PRESENTES_CAVALO = [{ id: 'ferradura', nome: 'Ferradura', nomePl: 'ferraduras', preco: 90, peso: 1 }];
-for (const p of PRESENTES_CAVALO) PRODUCT[p.id] = { ...p, pet: true };
-const PET_PRESENTES = { gato: PRESENTES_GATO, pavao: PRESENTES_PAVAO, cavalo: PRESENTES_CAVALO };
-const PET_EMOJI = { gato: '🐱', pavao: '🦚', cavalo: '🐴' };
+const PET_PRESENTES = { gato: PRESENTES_GATO };
+const PET_EMOJI = { gato: '🐱', arara: '🦜' };
 function sortearPresentePet(pool) {
   const tot = pool.reduce((t, p) => t + (p.peso || 1), 0);
   let r = Math.random() * tot;
@@ -190,7 +186,6 @@ const ANIMALS = [
   { id: 'cabra',     tipo: 'prod', nome: 'Cabra',     f: 1, nivel: 7,  custo: 2000, racao: 60,  tempo: 8 * HOUR,  prod: 'leitecabra',  periodo: 45, xp: 4 },
   { id: 'ovelha',    tipo: 'prod', nome: 'Ovelha',    f: 1, nivel: 8,  custo: 2500, racao: 80,  tempo: 10 * HOUR, prod: 'la',          periodo: 45, xp: 5 },
   { id: 'vaca',      tipo: 'prod', nome: 'Vaca',      f: 1, nivel: 10, custo: 4000, racao: 120, tempo: 8 * HOUR,  prod: 'leite',       periodo: 45, xp: 5 },
-  { id: 'abelha',    tipo: 'prod', nome: 'Colmeia',   f: 1, nivel: 12, custo: 3000, racao: 100, tempo: 12 * HOUR, prod: 'mel',         periodo: 60, xp: 6, fixo: true },
   { id: 'porca',     tipo: 'prod', nome: 'Porca',     f: 1, nivel: 15, custo: 5000, racao: 150, tempo: 24 * HOUR, prod: 'leitao',      periodo: 45, xp: 5, desenho: 'porco', escala: 1.15 },
   { id: 'bufala',    tipo: 'prod', nome: 'Búfala',    f: 1, nivel: 18, custo: 8000, racao: 250, tempo: 12 * HOUR, prod: 'leitebufala', periodo: 60, xp: 7 },
   { id: 'porco',     tipo: 'cria', nome: 'Porquinho', f: 0, nivel: 3,  custo: 1000, racao: 50,  tempo: 24 * HOUR, venda: 1600,  xp: 10 },
@@ -199,9 +194,6 @@ const ANIMALS = [
   { id: 'burro',     tipo: 'cria', nome: 'Burro',     f: 0, nivel: 14, custo: 3500, racao: 100, tempo: 60 * HOUR, venda: 5500,  xp: 20, desenho: 'jumento' },
   { id: 'avestruz',  tipo: 'cria', nome: 'Avestruz',  f: 1, nivel: 20, custo: 8000, racao: 200, tempo: 96 * HOUR, venda: 13000, xp: 35 },
   { id: 'gato',      tipo: 'pet',  nome: 'Gato',      f: 0, nivel: 4,  custo: 800,  lugar: 'casa' },
-  { id: 'cavalo',    tipo: 'pet',  nome: 'Cavalo',    f: 0, nivel: 10, custo: 4000, lugar: 'curral' },
-  { id: 'pavao',     tipo: 'pet',  nome: 'Pavão',     f: 0, nivel: 15, custo: 6000, lugar: 'curral' },
-  { id: 'tartaruga', tipo: 'pet',  nome: 'Tartaruga', f: 1, nivel: 18, custo: 5000, lugar: 'casa' },
   { id: 'arara',     tipo: 'pet',  nome: 'Arara',     f: 1, nivel: 22, custo: 8000, lugar: 'casa', fixo: true },
 ];
 const ANIMAL = Object.fromEntries(ANIMALS.map(a => [a.id, a]));
@@ -220,14 +212,19 @@ const inPen = a => ANIMAL[a.k].tipo !== 'pet' || ANIMAL[a.k].lugar === 'curral';
 // Abrigos do rancho: cada bicho mora no seu. Cada nível aumenta quantos cabem.
 // precos: construir (nível 1), depois aumentar para o nível 2 e o 3.
 const ABRIGOS = [
-  { id: 'galinheiro', nome: 'Galinheiro',   o: 'o', nivel: 1,  precos: [0, 1500, 4000],     bichos: ['galinha', 'angola', 'pato'] },
-  { id: 'coelheira',  nome: 'Coelheira',    o: 'a', nivel: 5,  precos: [2000, 3000, 6000],  bichos: ['coelho'] },
-  { id: 'chiqueiro',  nome: 'Chiqueiro',    o: 'o', nivel: 3,  precos: [1500, 3000, 6000],  bichos: ['porco', 'porca'] },
-  { id: 'apiario',    nome: 'Apiário',      o: 'o', nivel: 12, precos: [3000, 4500, 9000],  bichos: ['abelha'] },
-  { id: 'aprisco',    nome: 'Redil',        o: 'o', nivel: 7,  precos: [3500, 5000, 10000], bichos: ['cabra', 'ovelha'] },
-  { id: 'estabulo',   nome: 'Curral',       o: 'o', nivel: 6,  precos: [4000, 6000, 12000], bichos: ['bezerro', 'vaca', 'bufala'] },
-  { id: 'cocheira',   nome: 'Cocheira',     o: 'a', nivel: 10, precos: [6000, 9000, 18000], bichos: ['cavalo', 'potro', 'burro'] },
-  { id: 'cercado',    nome: 'Viveiro',      o: 'o', nivel: 15, precos: [8000, 12000, 24000], bichos: ['pavao', 'avestruz'] },
+  { id: 'galinheiro',   nome: 'Galinheiro',        o: 'o', nivel: 1,  precos: [0, 1500, 4000],     bichos: ['galinha'] },
+  { id: 'angoleiro',    nome: 'Galinheiro-d\'Angola', o: 'o', nivel: 2, precos: [500, 1500, 3000], bichos: ['angola'] },
+  { id: 'patoril',      nome: 'Patoril',           o: 'o', nivel: 3,  precos: [800, 2000, 4000],   bichos: ['pato'] },
+  { id: 'coelheira',    nome: 'Coelheira',         o: 'a', nivel: 5,  precos: [2000, 3000, 6000],  bichos: ['coelho'] },
+  { id: 'cabril',       nome: 'Cabril',            o: 'o', nivel: 7,  precos: [2500, 3500, 7000],  bichos: ['cabra'] },
+  { id: 'ovelharia',    nome: 'Ovelharia',         o: 'a', nivel: 8,  precos: [3000, 4000, 8000],  bichos: ['ovelha'] },
+  { id: 'estabulo',     nome: 'Curral de Vacas',   o: 'o', nivel: 6,  precos: [3500, 5500, 11000], bichos: ['vaca', 'bezerro'] },
+  { id: 'estabulo_buf', nome: 'Curral de Búfalas', o: 'o', nivel: 18, precos: [5000, 7000, 14000], bichos: ['bufala'] },
+  { id: 'chiqueiro',    nome: 'Chiqueiro',         o: 'o', nivel: 3,  precos: [1500, 3000, 6000],  bichos: ['porco', 'porca'] },
+  { id: 'colmeal',      nome: 'Colmeia',           o: 'a', nivel: 12, precos: [3000, 4500, 9000],  bichos: [] },
+  { id: 'cocheira',     nome: 'Cocheira de Cavalo', o: 'a', nivel: 10, precos: [6000, 9000, 18000], bichos: ['cavalo', 'potro'] },
+  { id: 'jumentaria',   nome: 'Jumentaria',        o: 'a', nivel: 14, precos: [4000, 6000, 12000], bichos: ['burro'] },
+  { id: 'cercado',      nome: 'Viveiro de Avestruz', o: 'o', nivel: 15, precos: [8000, 12000, 24000], bichos: ['avestruz'] },
 ];
 const ABRIGO = Object.fromEntries(ABRIGOS.map(b => [b.id, b]));
 const ABRIGO_CAP = [0, 4, 6, 8];               // animais que cabem em cada nível
@@ -380,8 +377,12 @@ function orderFor(cols, rows) {
 }
 const ORDER = orderFor(COLS, ROWS);
 
-// XP pra subir de nível: dobrado (era 100 + 50 por nível) pra alongar a progressão, mesma forma linear de antes.
-const need = l => 200 + 100 * (l - 1);
+// XP pra subir de nível: fórmula exponencial — próximo = atual + (atual/2)
+const need = l => {
+  if (l <= 1) return 200;
+  const anterior = need(l - 1);
+  return Math.round(anterior + anterior / 2);
+};
 // Expansões: cada uma libera mais canteiros, que você coloca onde quiser dentro da área da roça.
 // Cada canteiro novo custa sempre 1000 moedas, não importa o nível (preco = 1000 × canteiros ganhos na
 // expansão). Limite de 80 canteiros no total — progressão organizada pra chegar lá até o nível 50, num
@@ -434,6 +435,7 @@ function newState() {
     fert: { basico: 2 }, fertSel: 'basico',
     dogs: { roca: null, animais: null }, dogFood: 0, news: [], newsSeen: 0, limits: {},
     stats: { colheitas: 0, coletas: 0, vendido: 0, roubado: 0, ajudas: 0 },
+    chocadeira: { ovos: [], level: 0 },
   };
 }
 
@@ -781,6 +783,18 @@ function addXP(n, pos) {
     const novas = [...CROPS, ...ANIMALS, ...DECOR].filter(c => c.nivel === state.level).map(c => c.nome);
     for (const M of MAQUINAS) if (M.slots[0].nivel === state.level) novas.push(`${M.nome} (fábrica)`);
     for (const [id, n] of AV_OPC.mao) if (AV_NIVEL[id] === state.level) { novas.push(`${n.toLowerCase()} para o avatar (⚙️ › Seu avatar)`); addNews(`🎁 Item novo para o avatar: ${n}! Coloque na mão dele em ⚙️ › Seu avatar.`); }
+    // Dar 2 animais de cada abrigo que já tem quando sobe de nível
+    for (const abrigo of ABRIGOS) {
+      if (state.abrigos && state.abrigos[abrigo.id]) {
+        for (const k of abrigo.bichos) {
+          const animal = ANIMAL[k];
+          if (animal.tipo === 'prod') {
+            for (let i = 0; i < 2; i++) state.animals.push(newAnimal(k));
+            novas.push(`+2 ${animal.nome.toLowerCase()}`);
+          }
+        }
+      }
+    }
     toast(`Nível ${state.level}! +${bonus} moedas · +${trevos} 🍀 · +1 ${premio.nome.toLowerCase()}` + (novas.length ? ` · novidades: ${novas.join(', ')}` : ''), 'good');
   }
 }
@@ -976,14 +990,9 @@ const FALAS_BICHO = {
   bezerro: ['Mé-uuu!', 'Cadê a mamãe?', 'Quero mamar!'],
   porco: ['Oinc oinc!', 'Tem lama aí?', 'Sobrou lavagem?', 'Oinc! Tô com fome!'],
   porca: ['Oinc oinc!', 'Cuidado com os leitõezinhos!', 'Tem lama aí?'],
-  cavalo: ['Iiirrí!', 'Bora dar uma volta?', 'Quero uma maçã! 🍎'],
-  potro: ['Iirrí!', 'Olha como eu corro!', 'Brincar! Brincar!'],
-  burro: ['Ió! Ió!', 'Teimoso eu? Nunca!', 'Ió… tô descansando.'],
   abelha: ['Bzzzz!', 'Fazendo mel 🍯', 'Cuidado com o ferrão!', 'Bzz, cadê as flores?'],
-  pavao: ['Olha minha cauda! ✨', 'Sou o mais bonito da roça', 'Mi-áu! (não sou gato)'],
   avestruz: ['Bum bum!', 'Quem viu meu ovo gigante?', 'Corro mais que o caminhão!'],
   gato: ['Miau!', 'Ronronando… 😸', 'Cadê o peixe?', 'Miau, carinho!'],
-  tartaruga: ['Devagar se vai longe…', 'Oi… 🐢', 'Tô com pressa não.'],
   arara: ['Currupaco!', 'Louro quer biscoito!', 'Roça Feliz! Roça Feliz!', 'Olá! Olá!'],
 };
 function falaBicho(a) {
@@ -1400,6 +1409,10 @@ function buyAnimal(k) {
   const d = ANIMAL[k];
   if (k === 'gato') { if (state.animals.filter(a => a.k === 'gato').length >= GATO_MAX) return toast(`Você já tem o máximo de ${GATO_MAX} gatos em casa.`); }
   else if (d.lugar === 'casa' && state.animals.some(a => a.k === k)) return toast(`Você já tem ${d.f ? 'uma' : 'um'} ${d.nome.toLowerCase()} em casa.`);
+  else if (d.tipo !== 'pet') {
+    const qtd = state.animals.filter(a => a.k === k).length;
+    if (qtd >= 5) return toast(`Você já tem 5 ${d.nome.toLowerCase()}s! Venda, coloque na banca ou dê para um amigo antes de comprar mais.`, 'bad');
+  }
   if (state.level < d.nivel) return toast(`${d.nome} libera no nível ${d.nivel}.`);
   const ab = d.lugar !== 'casa' && abrigoOf(k);
   if (ab && !abrigoLv(state, ab.id)) return toast(`${d.nome} precisa de um${ab.o === 'a' ? 'a' : ''} ${ab.nome.toLowerCase()}. Construa na aba Abrigos.`, 'bad');
