@@ -1323,6 +1323,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 250, txt: "O tempo máximo para uma ave botar ovo agora é 72h (o avestruz caiu de 84h para 72h)." },
   { v: 249, txt: "O Celeiro agora tem duas abas: Itens (ovos, leite, minérios, peixes…) e Plantas (o que você colheu, que também serve para plantar, e as mudas), cada uma com seu botão de vender tudo. Nas plantas dá para plantar e vender direto, e aparece 'poucas' quando tem menos de 10." },
   { v: 248, txt: "Corrigido: o que você colhe e guarda no celeiro (feijão, arroz…) agora também serve para plantar. A janela ao clicar na terra e a aba Plantas contam as mudas mais o celeiro, e o celeiro ganhou o botão Plantar. Vender deixando menos de 10 avisa para não ficar sem plantas. Mina: cada ferramenta tem sua chance de achar um minério extra (picareta 10%, dinamite 30% com mais chance de raros, TNT 60% bem raros) e o kit inicial agora é 10 picaretas, 4 dinamites e 1 TNT." },
   { v: 247, txt: "Folhas e chocadeira 🍂🥚: a colheita automática (🚜) agora também limpa todos os montes de folhas sem o avatar ir, e cada monte pode render ferramentas da mina (picareta, dinamite, às vezes TNT). Aparecem até 5 montes por dia. A chocadeira ficou rústica, cabe de 2 a 6 ovos (melhore até o nível 4) e mostra os espaços ao clicar. Cada ave tem seu tempo para botar e para chocar (codorna 14h/8h, galinha 22h/12h, d'angola 26h/14h, pato 34h/16h, peru, ganso, pavão e avestruz mais longos). Mamíferos não usam a chocadeira: o filhote nasce direto no abrigo, junto dos pais. Todo filhote recém-nascido tem nome de graça ao tocar nele. E os animais da mesma espécie se encontram: um sobe no outro, com corações 💕." },
@@ -2451,7 +2452,7 @@ async function recuperarAmigos() {
 // Cada ave tem seu tempo (em horas) para botar o ovo e para ele chocar.
 const CHOC_ESP = {
   codorna: { poe: 14, choca: 8 },  galinha: { poe: 22, choca: 12 }, angola: { poe: 26, choca: 14 }, pato: { poe: 34, choca: 16 },
-  peru: { poe: 43, choca: 18 },    ganso: { poe: 50, choca: 20 },   pavao: { poe: 67, choca: 24 },  avestruz: { poe: 84, choca: 30 },
+  peru: { poe: 43, choca: 18 },    ganso: { poe: 50, choca: 20 },   pavao: { poe: 67, choca: 24 },  avestruz: { poe: 72, choca: 30 },
 };
 const CHOC_OVO = { codorna: '#e8dcc0', galinha: '#f3e6d0', angola: '#e6d5bb', pato: '#e2efe6', peru: '#efdfca', ganso: '#f6f3ea', pavao: '#d6ebd6', avestruz: '#f4eed8' };
 // Níveis da chocadeira (0 a 4): cabem 2 a 6 ovos, choca mais rápido e aparecem filhotes especiais.
