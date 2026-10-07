@@ -187,6 +187,7 @@ const FRUTAS = [
   { id: 'goiaba',     nome: 'Goiaba',     preco: 75, cor: '#c9d45a' },
 ];
 const FRUTA = Object.fromEntries(FRUTAS.map(f => [f.id, f]));
+FRUTA.mel = { id: 'mel', nome: 'Pote de mel', preco: 400, cor: '#f2b52a' }; // a colmeia do pomar dá mel (o produto 'mel' já existe no celeiro)
 for (const f of FRUTAS) PRODUCT[f.id] = { id: f.id, nome: f.nome, preco: f.preco, fruta: true };
 PRODUCT.leitao = { id: 'leitao', nome: 'Leitão', preco: 700 };
 
@@ -3382,7 +3383,7 @@ function drawProduct(id, x, y, s) {
   id = { penaarara: 'pena', ovoarara: 'ovo', penapavao: 'pena', ovocodorna: 'ovoangola', ovoperu: 'ovoangola', plumaganso: 'penaavestruz', lalhama: 'la' }[id] || id;
   if (RECEITA[id]) return drawGood(id, x, y, s);
   if (PEIXE[id]) return drawPeixe(ctx, x, y, s * 0.85 * cabePeixe(PEIXE[id]), PEIXE[id]);
-  if (FRUTA[id]) return drawFruta(id, x, y, s);
+  if (FRUTA[id] && id !== 'mel') return drawFruta(id, x, y, s);
   if (id === 'carnejavali') {
     ctx.fillStyle = '#b8403a'; ctx.strokeStyle = '#7a2420'; ctx.lineWidth = Math.max(1, 0.6 * s);
     ctx.beginPath(); ctx.ellipse(x - 1 * s, y + 1 * s, 6.5 * s, 5 * s, -0.3, 0, 7); ctx.fill(); ctx.stroke();
@@ -10339,6 +10340,7 @@ function actFruteira(sc, i) {
   toast(`${e.nome}: ${st.txt}`);
 }
 function drawFruta(id, x, y, s) {
+  if (id === 'mel') return drawProduct('mel', x, y, s * 0.7);
   const f = FRUTA[id]; ctx.lineWidth = Math.max(1, 0.5 * s); ctx.strokeStyle = 'rgba(0,0,0,.25)';
   const bola = (dx, dy, r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + dx * s, y + dy * s, r * s, 0, 7); ctx.fill(); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.arc(x + (dx - r * 0.35) * s, y + (dy - r * 0.35) * s, r * 0.3 * s, 0, 7); ctx.fill(); };
   if (id === 'manga') { ctx.fillStyle = '#f2a030'; ctx.beginPath(); ctx.ellipse(x, y + 1 * s, 5 * s, 6.5 * s, 0.5, 0, 7); ctx.fill(); ctx.stroke(); ctx.fillStyle = 'rgba(200,60,30,.5)'; ctx.beginPath(); ctx.ellipse(x + 2 * s, y - 1 * s, 2.5 * s, 3.5 * s, 0.5, 0, 7); ctx.fill(); }
