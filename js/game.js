@@ -685,6 +685,19 @@ function migrate(s) {
   s.bloqueados = s.bloqueados && typeof s.bloqueados === 'object' ? s.bloqueados : {};
   s.chocadeira = s.chocadeira && typeof s.chocadeira === 'object' ? s.chocadeira : { ovos: [], level: 0 };
   s.ultima_reproducao = s.ultima_reproducao && typeof s.ultima_reproducao === 'object' ? s.ultima_reproducao : {};
+  // Novo sistema de plantações: jogador recebe plantas baseado no nível
+  if (!s.plantas || typeof s.plantas !== 'object') {
+    s.plantas = {};
+    for (const c of CROPS) {
+      if (c.nivel <= s.level) s.plantas[c.id] = (s.plantas[c.id] || 0) + 4;
+    }
+    if (Object.keys(s.plantas).length > 0) {
+      s.invNovos = (s.invNovos || 0) + 1;
+      s.news = [{ at: Date.now(), msg: 'Sistema de plantações renovado 🌱: agora você recebe plantas ao subir de nível, em presentes de amigos e outras formas. Plantações reproduzem infinitamente — colha e replante quantas vezes quiser!' }].concat(Array.isArray(s.news) ? s.news : []);
+    }
+  } else {
+    s.plantas = s.plantas && typeof s.plantas === 'object' ? s.plantas : {};
+  }
   return s;
 }
 
@@ -1270,6 +1283,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 237, txt: "Sistema de plantações renovado (Hay Day style) 🌱: sem mais sementes, você recebe 4 plantas ao desbloquear cada nível. Replante a planta inteira quantas vezes quiser — ela produz infinitamente. Alerta quando uma plantação tiver menos de 10 unidades. Amizade agora vai até 10 corações ❤️, e roubos diários aumentam com a amizade (6+ itens com 5+ corações)." },
   { v: 236, txt: "O Correio estava sem as novidades das últimas versões: agora todas aparecem aqui." },
   { v: 235, txt: "Chocadeira bem maior no rancho e a colmeia virou uma árvore com a colmeia pendurada num galho, com abelhinhas em volta 🐝." },
   { v: 234, txt: "Corrigido: a aba Pomar da Loja não abria por causa da colmeia." },
