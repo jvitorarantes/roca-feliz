@@ -1334,6 +1334,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 262, txt: "Corrigido: o menu do botão direito (Mover, Guardar…) e o segurar para mover tinham parado de funcionar em tudo (construções, itens, plantas e canteiros) por causa da entrada da mina, que não tinha área de clique. Voltou ao normal." },
   { v: 261, txt: "Quando você ajuda uma frutífera seca de um amigo, ela agora aparece revivida para você ao visitar de novo, mesmo que o dono ainda não tenha aberto o jogo (para ele, ela volta quando abrir)." },
   { v: 260, txt: "Corrigido: ajuda numa frutífera seca de um amigo. Se o envio da ajuda falhava, o jogo marcava 'Você já ajudou esta' e a árvore não voltava nunca. Agora, se não conseguir enviar, dá para tentar de novo na hora, e depois de 12 horas sem a árvore voltar a ajuda pode ser refeita. A regra de uma ajuda por árvore (depois ela seca de vez) continua igual." },
   { v: 258, txt: "Negócios: nas receitas, a quantidade de planta que você tem aparece em vermelho quando, ao usar, ficaria menos de 10, e antes de fazer um produto, entregar no caminhão, atender a vila ou colocar na banca que deixe menos de 10 plantas para replantar aparece um aviso com Sim e Não." },
@@ -6061,7 +6062,7 @@ let holdTimer = null, holdFired = false;
 function objAt(x, y) {
   if (!isHome() || scene === 'casa') return null;
   // a área de clique cobre o desenho inteiro (largura para cada lado e altura, em casas da grade)
-  const CAIXA = { armadilha: [0.25, 0.35], mata: [0.6, 0.8], placa: [0.5, 0.95], casa: [0.55, 1.0], celeiro: [0.62, 1.15], canil: [0.4, 0.65], arv1: [0.4, 1.05], arv2: [0.4, 1.05], pesqueiro: [0.5, 0.3] };
+  const CAIXA = { armadilha: [0.25, 0.35], mata: [0.6, 0.8], placa: [0.5, 0.95], casa: [0.55, 1.0], celeiro: [0.62, 1.15], canil: [0.4, 0.65], arv1: [0.4, 1.05], arv2: [0.4, 1.05], pesqueiro: [0.5, 0.3], mina: [0.85, 1.0] };
   let best = null, bd = Infinity;
   for (const o of objList(state, scene)) {
     if (o.key === 'placa' && !landSignText()) continue;
