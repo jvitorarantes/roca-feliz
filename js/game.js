@@ -242,7 +242,7 @@ const ABRIGOS = [
   { id: 'cercado',      nome: 'Viveiro de Avestruz', o: 'o', nivel: 15, precos: [8000, 12000, 24000], bichos: ['avestruz'] },
 ];
 const ABRIGO = Object.fromEntries(ABRIGOS.map(b => [b.id, b]));
-const ABRIGO_CAP = [0, 4, 6, 8];               // animais que cabem em cada nível
+const ABRIGO_CAP = [0, 4, 6, 6];               // animais que cabem em cada nível
 const ABRIGO_NIVEL = [0, 0, 3, 6];             // níveis de jogador a mais para aumentar
 const abrigoOf = k => ABRIGOS.find(b => b.bichos.includes(k));
 // O rancho começa como uma grade de 4 × 2 cercados, cada um com 4 × 3,8 casas — mas dá para
@@ -5124,7 +5124,7 @@ function renderPane() {
       }
     } else if (shopSeg === 'abrigos') {
       html += `<p class="hint">Cada abrigo tem o seu cercado no rancho. Nível 1 cabe ${ABRIGO_CAP[1]} animais, nível 2 cabe ${ABRIGO_CAP[2]} e nível 3 cabe ${ABRIGO_CAP[3]}.</p>`;
-      for (const b of ABRIGOS) {
+      for (const b of ABRIGOS.filter(x => x.bichos.length > 0)) {
         const lv = abrigoLv(state, b.id), max = lv >= 3, nivel = b.nivel + ABRIGO_NIVEL[Math.min(3, lv + 1)], preco = b.precos[Math.min(2, lv)];
         const quem = b.bichos.map(k => ANIMAL[k].nome).join(', ');
         const btn = max ? '<button class="btn ghost" disabled>Nível máximo</button>'
