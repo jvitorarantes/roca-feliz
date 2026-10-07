@@ -237,7 +237,7 @@ const ABRIGOS = [
   { id: 'estabulo_buf', nome: 'Curral de Búfalas', o: 'o', nivel: 18, precos: [5000, 7000, 14000], bichos: ['bufala'] },
   { id: 'chiqueiro',    nome: 'Chiqueiro',         o: 'o', nivel: 3,  precos: [1500, 3000, 6000],  bichos: ['porco', 'porca'] },
   { id: 'colmeal',      nome: 'Colmeia',           o: 'a', nivel: 12, precos: [3000, 4500, 9000],  bichos: [] },
-  { id: 'cocheira',     nome: 'Cocheira de Cavalo', o: 'a', nivel: 10, precos: [6000, 9000, 18000], bichos: ['cavalo', 'potro'] },
+  { id: 'cocheira',     nome: 'Cocheira de Cavalo', o: 'a', nivel: 10, precos: [6000, 9000, 18000], bichos: ['potro'] },
   { id: 'jumentaria',   nome: 'Jumentaria',        o: 'a', nivel: 14, precos: [4000, 6000, 12000], bichos: ['burro'] },
   { id: 'cercado',      nome: 'Viveiro de Avestruz', o: 'o', nivel: 15, precos: [8000, 12000, 24000], bichos: ['avestruz'] },
 ];
