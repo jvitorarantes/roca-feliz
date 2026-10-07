@@ -22,43 +22,43 @@ const settings = Object.assign(
 );
 const Cloud = window.RFCloud || { available: false };
 
-// Plantações. custo = semente de 1 canteiro; venda = quanto vale a colheita inteira do canteiro
-// (sempre 1,6 × a semente), dividida em "rend" unidades.
+// Plantações: sem custos de semente. Plantas são obtidas através de níveis, missões, presentes de amigos, compra, caminhão.
+// Cada plantação reproduz infinitamente. Tempo máximo 24 horas.
 const MIN = 60;
 const CROP_LIST = [
-  // id, nome, nível, semente, venda, tempo, XP, unidades, tipo, cores
-  ['feijao',   'Feijão',         1,  10,   16,   2 * MIN,       2,  4,  'pendente', '#c9a86a', null, 'longo'],
-  ['arroz',    'Arroz',          1,  15,   25,   3 * MIN,       2,  5,  'grao',     '#efdc9a'],
-  ['cenoura',  'Cenoura',        1,  20,   32,   5 * MIN,       3,  4,  'raiz',     '#f08a24', '#e0761a'],
-  ['trigo',    'Trigo',          2,  30,   48,   10 * MIN,      4,  6,  'grao',     '#e8c35a'],
-  ['mandioca', 'Mandioca',       2,  150,  260,  8 * HOUR,      14, 6,  'raiz',     '#c9a06a', '#8a5a33'], // demorada: planta antes de dormir
-  ['milho',    'Milho',          3,  50,   80,   20 * MIN,      5,  5,  'alto',     '#f7d046'],
-  ['batata',   'Batata',         4,  80,   128,  30 * MIN,      6,  8,  'raiz',     '#c9a06a', '#a47a48'],
-  ['tomate',   'Tomate',         5,  120,  192,  HOUR,          8,  8,  'moita',    '#e53b2f'],
-  ['couve',    'Couve',          5,  100,  160,  45 * MIN,      7,  6,  'folha',    '#4f8a3f'],
-  ['alface',   'Alface',         6,  150,  240,  1.5 * HOUR,    9,  6,  'folha',    '#8fd05a'],
-  ['amendoim', 'Amendoim',       7,  180,  290,  2 * HOUR,      10, 8,  'raiz',     '#d9b27a', '#b8905a'],
-  ['maxixe',   'Maxixe',         8,  220,  350,  2 * HOUR,      11, 8,  'chao',     '#8fbf4a', '#d8ecb8'],
-  ['cebola',   'Cebola',         8,  200,  320,  2.5 * HOUR,    11, 8,  'raiz',     '#b8617e', '#e6c07a'],
-  ['abobora',  'Abóbora',        9,  250,  400,  4 * HOUR,      12, 4,  'chao',     '#f28c1b', '#c9650a'],
-  ['cana',     'Cana-de-açúcar', 11, 350,  560,  5 * HOUR,      14, 6,  'cana',     '#8a5a7a'],
-  ['melancia', 'Melancia',       12, 400,  640,  6 * HOUR,      15, 4,  'chao',     '#4d9a3e', '#2a5e27'],
-  ['pepino',   'Pepino',         13, 450,  720,  5 * HOUR,      15, 8,  'pendente', '#4f8f3a', null, 'longo'],
-  ['pimentao', 'Pimentão',       14, 500,  800,  7 * HOUR,      16, 8,  'pendente', '#d8342a'],
-  ['abacaxi',  'Abacaxi',        16, 700,  1120, 10 * HOUR,     20, 4,  'abacaxi',  '#e0a83a'],
-  ['mamao',    'Mamão',          17, 800,  1280, 12 * HOUR,     20, 4,  'pendente', '#f39a3a'],
-  ['soja',     'Soja',           20, 1100, 1760, 16 * HOUR,     25, 8,  'pendente', '#a8984a'],
-  ['algodao',  'Algodão',        21, 1200, 1920, 18 * HOUR,     26, 10, 'moita',    '#ffffff'],
-  ['limao',    'Limão',          23, 1400, 2240, 20 * HOUR,     27, 16, 'moita',    '#9ccf3a'],
-  ['cafe',     'Café',           26, 1800, 2880, 24 * HOUR,     30, 16, 'moita',    '#c0302a', null, 'pequeno'],
-  ['conde',    'Fruta-do-conde', 29, 2400, 3840, 32 * HOUR,     38, 6,  'pendente', '#8fbf6a', null, 'redondo'],
-  ['maracuja', 'Maracujá',       30, 2500, 4000, 36 * HOUR,     40, 10, 'pendente', '#f2d03a', null, 'redondo'],
-  ['cacau',    'Cacau',          32, 3200, 5120, 48 * HOUR,     44, 8,  'pendente', '#d4791e', '#7a4a2a', 'redondo'],
+  // id, nome, nível, venda, tempo, XP, unidades, tipo, cores
+  ['feijao',   'Feijão',         1,  16,   2 * MIN,       2,  4,  'pendente', '#c9a86a', null, 'longo'],
+  ['arroz',    'Arroz',          1,  25,   3 * MIN,       2,  5,  'grao',     '#efdc9a'],
+  ['cenoura',  'Cenoura',        1,  32,   5 * MIN,       3,  4,  'raiz',     '#f08a24', '#e0761a'],
+  ['trigo',    'Trigo',          2,  48,   10 * MIN,      4,  6,  'grao',     '#e8c35a'],
+  ['mandioca', 'Mandioca',       2,  260,  8 * HOUR,      14, 6,  'raiz',     '#c9a06a', '#8a5a33'],
+  ['milho',    'Milho',          3,  80,   20 * MIN,      5,  5,  'alto',     '#f7d046'],
+  ['batata',   'Batata',         4,  128,  30 * MIN,      6,  8,  'raiz',     '#c9a06a', '#a47a48'],
+  ['tomate',   'Tomate',         5,  192,  HOUR,          8,  8,  'moita',    '#e53b2f'],
+  ['couve',    'Couve',          5,  160,  45 * MIN,      7,  6,  'folha',    '#4f8a3f'],
+  ['alface',   'Alface',         6,  240,  1.5 * HOUR,    9,  6,  'folha',    '#8fd05a'],
+  ['amendoim', 'Amendoim',       7,  290,  2 * HOUR,      10, 8,  'raiz',     '#d9b27a', '#b8905a'],
+  ['maxixe',   'Maxixe',         8,  350,  2 * HOUR,      11, 8,  'chao',     '#8fbf4a', '#d8ecb8'],
+  ['cebola',   'Cebola',         8,  320,  2.5 * HOUR,    11, 8,  'raiz',     '#b8617e', '#e6c07a'],
+  ['abobora',  'Abóbora',        9,  400,  4 * HOUR,      12, 4,  'chao',     '#f28c1b', '#c9650a'],
+  ['cana',     'Cana-de-açúcar', 11, 560,  5 * HOUR,      14, 6,  'cana',     '#8a5a7a'],
+  ['melancia', 'Melancia',       12, 640,  6 * HOUR,      15, 4,  'chao',     '#4d9a3e', '#2a5e27'],
+  ['pepino',   'Pepino',         13, 720,  5 * HOUR,      15, 8,  'pendente', '#4f8f3a', null, 'longo'],
+  ['pimentao', 'Pimentão',       14, 800,  7 * HOUR,      16, 8,  'pendente', '#d8342a'],
+  ['abacaxi',  'Abacaxi',        16, 1120, 10 * HOUR,     20, 4,  'abacaxi',  '#e0a83a'],
+  ['mamao',    'Mamão',          17, 1280, 12 * HOUR,     20, 4,  'pendente', '#f39a3a'],
+  ['soja',     'Soja',           20, 1760, 16 * HOUR,     25, 8,  'pendente', '#a8984a'],
+  ['algodao',  'Algodão',        21, 1920, 18 * HOUR,     26, 10, 'moita',    '#ffffff'],
+  ['limao',    'Limão',          23, 2240, 20 * HOUR,     27, 16, 'moita',    '#9ccf3a'],
+  ['cafe',     'Café',           26, 2880, 24 * HOUR,     30, 16, 'moita',    '#c0302a', null, 'pequeno'],
+  ['conde',    'Fruta-do-conde', 29, 3840, 24 * HOUR,     38, 6,  'pendente', '#8fbf6a', null, 'redondo'],
+  ['maracuja', 'Maracujá',       30, 4000, 24 * HOUR,     40, 10, 'pendente', '#f2d03a', null, 'redondo'],
+  ['cacau',    'Cacau',          32, 5120, 24 * HOUR,     44, 8,  'pendente', '#d4791e', '#7a4a2a', 'redondo'],
 ];
 // (as árvores frutíferas saíram daqui: agora são frutíferas do Pomar, plantadas no gramado, fora dos canteiros)
 const CROPS = [
-  ...CROP_LIST.map(([id, nome, nivel, custo, venda, tempo, xp, rend, tipo, cor, cor2, forma]) =>
-    ({ id, nome, nivel, custo, tempo, xp, rend, preco: Math.round(venda / rend), prod: id, prodNome: nome, tipo, cor, cor2: cor2 || cor, forma, pequeno: forma === 'pequeno' })),
+  ...CROP_LIST.map(([id, nome, nivel, venda, tempo, xp, rend, tipo, cor, cor2, forma]) =>
+    ({ id, nome, nivel, tempo, xp, rend, preco: Math.round(venda / rend), prod: id, prodNome: nome, tipo, cor, cor2: cor2 || cor, forma, pequeno: forma === 'pequeno' })),
 ];
 const CROP = Object.fromEntries(CROPS.map(c => [c.id, c]));
 // O que vai para o celeiro: a fruta/verdura de cada plantação.
@@ -358,6 +358,11 @@ const DOG_NAMES = ['Totó', 'Rex', 'Pipoca', 'Thor', 'Mel', 'Bidu', 'Paçoca', '
 // Nome de cada lugar com o artigo certo ("a roça", "o rancho"…)
 const SLOT = { roca: { a: 'a roça', aSua: 'a sua roça', daSua: 'da sua roça', A: 'A roça' }, animais: { a: 'o rancho', aSua: 'o seu rancho', daSua: 'do seu rancho', A: 'O rancho' } };
 const STEAL_MAX = { roca: 4, animais: 3 }; // itens por amigo por dia (roca conta plantação e pomar juntos)
+function stealMaxForLevel(uid, slot) {
+  const nivel = nivelAmizade(uid);
+  if (nivel >= 5) return slot === 'roca' ? 6 : 4;
+  return STEAL_MAX[slot];
+}
 // Dia pelo relógio do aparelho: os limites voltam à meia-noite.
 const localDay = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / DAY);
 
@@ -493,7 +498,7 @@ function newState() {
     stats: { colheitas: 0, coletas: 0, vendido: 0, roubado: 0, ajudas: 0 },
     chocadeira: { ovos: [], level: 0 },
     animalCred: {}, animalNivel: {},
-    bloqueados: {},
+    bloqueados: {}, plantas: {},
   };
 }
 
@@ -896,6 +901,13 @@ function addXP(n, pos) {
       dado[d.id] = 1; const n = d.tipo === 'prod' ? 2 : 1; darAnimal(d.id, n);
       novas.push(`+${n} ${d.nome.toLowerCase()} para resgatar (Loja › Animais)`);
     }
+    // Plantação nova liberada neste nível: ganha 4 unidades
+    for (const c of CROPS) {
+      const dado = state.plantas || (state.plantas = {});
+      if (c.nivel !== state.level || dado[c.id] !== undefined) continue;
+      dado[c.id] = 4;
+      novas.push(`+4 ${c.nome.toLowerCase()} para plantar`);
+    }
     toast(`Nível ${state.level}! +${bonus} moedas · +${trevos} 🍀 · +1 ${premio.nome.toLowerCase()}` + (novas.length ? ` · novidades: ${novas.join(', ')}` : ''), 'good');
   }
 }
@@ -960,8 +972,9 @@ function usePotion(p, pos) {
 function plant(p, pos) {
   const crop = CROP[state.seed];
   if (crop.nivel > state.level) return toast(`${crop.nome} libera no nível ${crop.nivel}.`);
-  if (state.coins < crop.custo) return toast(`Faltam moedas para ${crop.nome} (${crop.custo}).`, 'bad');
-  addCoins(-crop.custo, pos);
+  const plantasDisponiveis = (state.plantas[crop.id] || 0);
+  if (plantasDisponiveis <= 0) return toast(`Você não tem ${crop.nome} para plantar.`, 'bad');
+  state.plantas[crop.id]--;
   Object.assign(p, emptyPlot('growing'), { c: crop.id, id: newId(), ouro: Math.random() < OURO_CHANCE });
   sfx('plant'); useFx('seed', pos); track('plantar');
   if (xpAllowed(crop.id)) addXP(1, pos);
@@ -1852,7 +1865,8 @@ function awayPlot(i, p) {
   if (ripe(p) && tool === 'hand') {
     const key = visitKey(p.id), lim = stealLimit();
     if (alreadyTook(p, key)) return toast('Você já pegou daqui. Não exagere!');
-    if (lim.roca >= STEAL_MAX.roca) return toast(`Você já pegou ${STEAL_MAX.roca} itens da plantação e do pomar de ${view.nome} hoje. À meia-noite libera de novo!`);
+    const maxRoca = view.kind === 'friend' ? stealMaxForLevel(view.uid, 'roca') : STEAL_MAX.roca;
+    if (lim.roca >= maxRoca) return toast(`Você já pegou ${maxRoca} itens da plantação e do pomar de ${view.nome} hoje. À meia-noite libera de novo!`);
     p.stolen = true; state.log[key] = Date.now(); lim.roca++;
     if (guarded('roca', pos, { t: 'steal', plot: i, pid: p.id, qty: 0 })) return done();
     const crop = CROP[p.c];
@@ -1871,7 +1885,8 @@ function awayAnimal(a, def, prod, pos) {
   if (a.ready) {
     const key = visitKey(a.id + ':' + a.n), lim = stealLimit();
     if (alreadyTook(a, key)) return toast('Você já pegou deste bicho. Não exagere!');
-    if (lim.animais >= STEAL_MAX.animais) return toast(`Você já pegou ${STEAL_MAX.animais} itens dos animais de ${view.nome} hoje. À meia-noite libera de novo!`);
+    const maxAnimais = view.kind === 'friend' ? stealMaxForLevel(view.uid, 'animais') : STEAL_MAX.animais;
+    if (lim.animais >= maxAnimais) return toast(`Você já pegou ${maxAnimais} itens dos animais de ${view.nome} hoje. À meia-noite libera de novo!`);
     a.stolen = true; state.log[key] = Date.now(); lim.animais++;
     if (guarded('animais', pos, { t: 'stealA', animal: a.id })) return done();
     sfx('collect');
@@ -6487,7 +6502,7 @@ function closeGift() { $('#gift').hidden = true; }
 // animal) ou manda presente para essa pessoa. A cada AMIZADE_POR_NIVEL pontos sobe um nível de amizade
 // (até o máximo), e os presentes que você manda pra ela ficam melhores — igual a amizade da vila, mas
 // entre jogadores de verdade.
-const AMIZADE_POR_NIVEL = 3, AMIZADE_NIVEL_MAX = 4;
+const AMIZADE_POR_NIVEL = 3, AMIZADE_NIVEL_MAX = 10;
 const nivelAmizade = uid => clamp(Math.floor((state.amizade[uid] || 0) / AMIZADE_POR_NIVEL), 0, AMIZADE_NIVEL_MAX);
 function ganharAmizade(uid) {
   if (!uid) return;
@@ -6855,6 +6870,20 @@ function drawWeather(t) {
     ctx.moveTo(px, py); ctx.lineTo(px - 4, py + 16 * k);
   }
   ctx.stroke();
+}
+
+let plantasAlertadasUltimo = {};
+function checkPlantasLow() {
+  if (!state || !state.plantas) return;
+  for (const [cropId, qtd] of Object.entries(state.plantas)) {
+    if (qtd > 0 && qtd <= 10 && !plantasAlertadasUltimo[cropId]) {
+      plantasAlertadasUltimo[cropId] = true;
+      const crop = CROP[cropId];
+      toast(`⚠️ Você tem apenas ${qtd} ${crop.nome.toLowerCase()} no inventário!`, 'warn');
+    } else if (qtd > 10) {
+      plantasAlertadasUltimo[cropId] = false;
+    }
+  }
 }
 
 // ---------- Borboletas, sapos, porquinhos-da-índia, grilos e vaga-lumes ----------
@@ -11667,7 +11696,7 @@ function frame(now) {
     if (!isGated() && L.cw > 20 && now - lastDraw >= DRAW_MS) { draw(now, dt); lastDraw = now; }
     if (now - lastUI > 250) { updateTip(); lastUI = now; }
     if (now - lastInfo > 2000) {
-      tickLife(); rollPeriods(); weatherTick(); bancaTick(); rollCaminhao(); folhasTick(); invasaoTick(); petsTick();
+      tickLife(); rollPeriods(); weatherTick(); bancaTick(); rollCaminhao(); folhasTick(); invasaoTick(); petsTick(); checkPlantasLow();
       // a fábrica e o caminhão têm relógio: atualiza a janela (menos a banca, que tem formulário)
       if (!$('#panel').hidden && tab === 'fabrica' && fabSeg !== 'banca' && isHome()) { const y = $('#pane').scrollTop; renderPane(); $('#pane').scrollTop = y; } renderTabs(); renderSceneInfo(); root.dataset.tema = timeOfDay() === 'noite' ? 'noite' : 'dia'; lastInfo = now; }
   }
