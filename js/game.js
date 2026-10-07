@@ -9135,7 +9135,7 @@ const objetosDe = (s, sc) => (s.objetos && Array.isArray(s.objetos[sc]) ? s.obje
 function objList(s, sc) {
   const l = Object.keys(POS_PADRAO[sc]).filter(key => key !== 'armadilha' || s.armadilha).map(key => { const [u, v] = posOf(s, sc, key); return { key, u, v, r: OBJ_INFO[key].r, rot: (s.rotPos && s.rotPos[sc] && s.rotPos[sc][key]) | 0 }; });
   objetosDe(s, sc).forEach((o, i) => l.push(ehCerca(o.id) ? { key: 'enf:' + i, id: o.id, u: o.u, v: o.v, r: 0.3, obj: o, cerca: true, rot: o.rot ? 1 : 0 }
-    : { key: 'enf:' + i, id: o.id, u: o.u, v: o.v, r: ['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.65 : 0.55, obj: o, rot: (o.rot | 0) % 4 }));
+    : { key: 'enf:' + i, id: o.id, u: o.u, v: o.v, r: ['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.65 : o.id === 'chocadeira' ? 0.75 : 0.55, obj: o, rot: (o.rot | 0) % 4 }));
   return l;
 }
 const confortoEnfeites = s => ['roca', 'animais'].reduce((t, sc) => t + objetosDe(s, sc).reduce((u, o) => u + ENFEITE[o.id].conforto, 0), 0);
@@ -9565,7 +9565,7 @@ function drawObjetos(s, sc, t, home, stage, d0 = -Infinity, d1 = Infinity) {
         if (ENFEITE[o.id].fruteira && o.obj) drawFruteira(o.obj, q.x, q.y, W / 100, t, home);
         else drawEnfeite(o.id, q.x, q.y, W / 100, t, o.rot);
       });
-      if (!moveMode) hits.push({ kind: 'enfeite', sc, key: o.key, id: o.id, x: q.x, y: q.y - W * (['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.45 : 0.25), r: W * (['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.45 : 0.32) });
+      if (!moveMode) hits.push({ kind: 'enfeite', sc, key: o.key, id: o.id, x: q.x, y: q.y - W * (['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.45 : o.id === 'chocadeira' ? 0.4 : 0.25), r: W * (['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.45 : o.id === 'chocadeira' ? 0.55 : 0.32) });
     }
   }
   return cachorroDepois;
@@ -10164,7 +10164,7 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.fillStyle = '#ffb300'; ctx.beginPath(); ctx.ellipse(x, y - 54 * s + Math.sin(t / 120) * 0.5 * s, 2 * s, 3.5 * s, 0, 0, 7); ctx.fill();
   }
 }
-const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && ['arvore', 'colmeia'].includes(ENFEITE[id].fruteira) ? 1.1 : { bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4 }[id] || 1.6, 0));
+const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && ['arvore', 'colmeia'].includes(ENFEITE[id].fruteira) ? 1.1 : { chocadeira: 0.78, bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4 }[id] || 1.6, 0));
 
 // ============================================================
 // Pomar: frutíferas (arbustos e árvores) plantadas no gramado. Dão frutas de tempos em tempos
@@ -10415,6 +10415,24 @@ function drawFruteira(o, x, y, s, t, home) {
       for (const [bx, tx] of [[-5, -12], [0, 0], [5, 12]]) tronco([[bx, 0], [tx * 0.6, -26], [tx, -36]], 3.2, seca ? '#8a7a6a' : '#9a7a5a');
       if (!seca) for (const [cx, cy, r] of [[-14, -42, 12], [14, -44, 13], [0, -52, 14], [-5, -40, 10], [7, -40, 10]]) bola(cx + sway / s, cy, r, '#3f7a2a');
       if (pronto) for (let k = 0; k < 14; k++) { const tr = [-1, 0, 1][k % 3]; bola(tr * 4 + tr * (k / 14) * 6 + (k % 2 ? 1.6 : -1.6), -4 - k * 1.9, 1.9, f.cor); }
+      break;
+    }
+    case 'colmeieira': { // árvore de copa redonda com a colmeia pendurada num galho
+      tronco([[0, 0], [0, -28]], 6, galho); tronco([[0, -24], [-12, -36]], 3, galho); tronco([[0, -26], [18, -38]], 3, galho);
+      if (!seca) { ctx.fillStyle = '#3a7a2a'; ctx.beginPath(); ctx.ellipse(x + sway, y - 46 * s, 26 * s, 17 * s, 0, 0, 7); ctx.fill(); bola(-12, -50, 11, '#44882f'); bola(10, -52, 12, '#3f7a2a'); bola(0, -58, 10, '#4f9434'); }
+      // a corda e a colmeia (de palha, em camadas), balançando um pouquinho
+      const hx = 17 + sway / s * 0.5;
+      tronco([[18, -38], [hx, -31]], 0.9, '#6b4a2a');
+      const palha = seca ? '#a89a7a' : '#e0a83a', palhaD = seca ? '#8a7c5e' : '#b87f1e';
+      for (const [cy, rx, ry] of [[-26, 8, 6], [-19.5, 7, 5.4], [-14, 5.2, 4.4]]) { ctx.fillStyle = palha; ctx.strokeStyle = palhaD; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.ellipse(x + hx * s, y + cy * s, rx * s, ry * s, 0, 0, 7); ctx.fill(); ctx.stroke(); }
+      ctx.fillStyle = '#3a2412'; ctx.beginPath(); ctx.ellipse(x + hx * s, y - 17.5 * s, 2.2 * s, 1.5 * s, 0, 0, 7); ctx.fill();
+      if (!seca) for (let k = 0; k < 4; k++) {
+        const bx = x + (hx + Math.cos(t / 260 + k * 1.7) * 11) * s, by = y + (-22 + Math.sin(t / 220 + k * 2.3) * 8) * s;
+        ctx.fillStyle = '#f2c230'; ctx.beginPath(); ctx.ellipse(bx, by, 1.8 * s, 1.3 * s, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#222'; ctx.fillRect(bx - 0.4 * s, by - 1.2 * s, 0.8 * s, 2.4 * s);
+        ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.ellipse(bx, by - 1.6 * s, 1.3 * s, 0.7 * s, 0.3, 0, 7); ctx.fill();
+      }
+      if (pronto) { ctx.fillStyle = '#f2b52a'; for (const [dx, dy, r] of [[hx - 3, -10, 1.6], [hx + 1, -7, 1.3], [hx - 1, -4, 1]]) { ctx.beginPath(); ctx.ellipse(x + dx * s, y + dy * s, r * s, r * 1.4 * s, 0, 0, 7); ctx.fill(); } }
       break;
     }
     case 'mangueira': { // tronco grosso e uma copa enorme, bem fechada
@@ -11355,7 +11373,7 @@ function tipChocadeira() {
   return `<b>🥚 Chocadeira</b><br>${ovos.length} ovo${ovos.length > 1 ? 's' : ''} · ${prox > 0 ? `o próximo nasce em ${fmt(prox / 1000)}` : 'esperando vaga no abrigo'}<br>Clique para abrir.`;
 }
 function drawChocadeira(x, y, W, ovos, t) {
-  const s = W / 100, quente = ovos.length > 0;
+  const s = W / 100 * 2.3, quente = ovos.length > 0;
   ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(x, y, 24 * s, 7 * s, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#8a5a33'; ctx.fillRect(x - 20 * s, y - 10 * s, 40 * s, 10 * s);
   ctx.fillStyle = '#6b4220'; ctx.fillRect(x - 20 * s, y - 3 * s, 40 * s, 3 * s);
