@@ -75,6 +75,11 @@ const PRODUCTS = [
   { id: 'leite',       nome: 'Leite',           preco: 300 },
   { id: 'mel',         nome: 'Mel',             preco: 400 },
   { id: 'leitebufala', nome: 'Leite de búfala', preco: 500 },
+  { id: 'ovocodorna', nome: 'Ovo de codorna',  preco: 45 },
+  { id: 'ovoperu',     nome: 'Ovo de peru',     preco: 110 },
+  { id: 'plumaganso',  nome: 'Pluma de ganso',  preco: 150 },
+  { id: 'penapavao',   nome: 'Pena de pavão',   preco: 700 },
+  { id: 'lalhama',     nome: 'Lã de lhama',     preco: 480 },
   { id: 'esterco',     nome: 'Esterco',         preco: 110 },
   { id: 'bacon',       nome: 'Bacon',           preco: 350 },
   { id: 'leitejumenta', nome: 'Leite de jumenta', preco: 450 },
@@ -205,6 +210,11 @@ const ANIMALS = [
   { id: 'potro',     tipo: 'prod', nome: 'Potro',     f: 0, nivel: 12, custo: 5000, racao: 120, tempo: 16 * HOUR, prod: 'crina',       periodo: 60, xp: 6, desenho: 'cavalo', repro: 3 },
   { id: 'burro',     tipo: 'prod', nome: 'Burro',     f: 0, nivel: 14, custo: 3500, racao: 100, tempo: 14 * HOUR, prod: 'leitejumenta', periodo: 60, xp: 6, desenho: 'jumento', repro: 3 },
   { id: 'avestruz',  tipo: 'prod', nome: 'Avestruz',  f: 1, nivel: 20, custo: 8000, racao: 200, tempo: 24 * HOUR, prod: 'penaavestruz', periodo: 60, xp: 8, repro: 3 },
+  { id: 'codorna',   tipo: 'prod', nome: 'Codorna',   f: 1, nivel: 6,  custo: 600,  racao: 20,  tempo: 3 * HOUR,  prod: 'ovocodorna',  periodo: 30, xp: 2, desenho: 'galinha', escala: 0.65, repro: 1 },
+  { id: 'peru',      tipo: 'prod', nome: 'Peru',      f: 0, nivel: 9,  custo: 1500, racao: 50,  tempo: 8 * HOUR,  prod: 'ovoperu',     periodo: 30, xp: 3, desenho: 'galinha', escala: 1.4, repro: 2 },
+  { id: 'ganso',     tipo: 'prod', nome: 'Ganso',     f: 0, nivel: 11, custo: 1800, racao: 55,  tempo: 9 * HOUR,  prod: 'plumaganso',  periodo: 35, xp: 4, desenho: 'pato', escala: 1.3, repro: 2 },
+  { id: 'pavao',     tipo: 'prod', nome: 'Pavão',     f: 0, nivel: 16, custo: 6000, racao: 160, tempo: 20 * HOUR, prod: 'penapavao',   periodo: 60, xp: 7, repro: 3 },
+  { id: 'lhama',     tipo: 'prod', nome: 'Lhama',     f: 1, nivel: 24, custo: 9000, racao: 220, tempo: 18 * HOUR, prod: 'lalhama',     periodo: 60, xp: 8, desenho: 'ovelha', escala: 1.35, repro: 3 },
   { id: 'onca',      tipo: 'prod', nome: 'Onça-pintada', f: 1, nivel: 35, custo: 30000, racao: 500, tempo: 24 * HOUR, prod: 'peloonca', periodo: 90, xp: 15, repro: 5 },
   { id: 'gato',      tipo: 'pet',  nome: 'Gato',      f: 0, nivel: 4,  custo: 800,  lugar: 'casa' },
   { id: 'arara',     tipo: 'pet',  nome: 'Arara',     f: 1, nivel: 22, custo: 8000, lugar: 'casa', fixo: true },
@@ -217,6 +227,7 @@ const GATO_CORES = [
   { id: 'preto',   nome: 'Preto',   pel: '#3a3a3a', escuro: '#242424', claro: '#333333' },
 ];
 const GATO_MAX = GATO_CORES.length;
+const PET_MAX = { gato: GATO_MAX, arara: 2 };
 const corGato = a => GATO_CORES.find(c => c.id === a.cor) || GATO_CORES[0];
 const RACAO_ESP = 100; // ração especial: a próxima produção rende em dobro
 const vetCost = d => Math.round(d.custo * 0.25);
@@ -237,8 +248,13 @@ const FILHOTES = {
   burro: 'burro',
   avestruz: 'avestruz',
   onca: 'onca',
+  codorna: 'codorna',
+  peru: 'peru',
+  ganso: 'ganso',
+  pavao: 'pavao',
+  lhama: 'lhama',
 };
-const AVES = ['galinha', 'angola', 'pato', 'avestruz']; // só aves botam ovos; mamíferos têm o filhote direto
+const AVES = ['galinha', 'angola', 'pato', 'avestruz', 'codorna', 'peru', 'ganso', 'pavao']; // só aves botam ovos; mamíferos têm o filhote direto
 const tempoRepro = k => ((ANIMAL[k] && ANIMAL[k].repro) || 3) * DAY; // cada espécie tem o seu intervalo (1 a 5 dias)
 // Animais não se compram: vêm de missões, de amigos, de chocar/reproduzir e de subir de nível.
 // Cada um vira um "crédito" (state.animalCred) que se resgata em Loja › Animais, no abrigo certo.
@@ -252,18 +268,18 @@ function sortearAnimalCred() {
 // Abrigos do rancho: cada bicho mora no seu. Cada nível aumenta quantos cabem.
 // precos: construir (nível 1), depois aumentar para o nível 2 e o 3.
 const ABRIGOS = [
-  { id: 'galinheiro',   nome: 'Galinheiro',        o: 'o', nivel: 1,  precos: [0, 1500, 4000],     bichos: ['galinha'] },
-  { id: 'angoleiro',    nome: 'Galinheiro-d\'Angola', o: 'o', nivel: 2, precos: [500, 1500, 3000], bichos: ['angola'] },
-  { id: 'patoril',      nome: 'Patoril',           o: 'o', nivel: 3,  precos: [800, 2000, 4000],   bichos: ['pato'] },
+  { id: 'galinheiro',   nome: 'Galinheiro',        o: 'o', nivel: 1,  precos: [0, 1500, 4000],     bichos: ['galinha', 'codorna'] },
+  { id: 'angoleiro',    nome: 'Galinheiro-d\'Angola', o: 'o', nivel: 2, precos: [500, 1500, 3000], bichos: ['angola', 'peru'] },
+  { id: 'patoril',      nome: 'Patoril',           o: 'o', nivel: 3,  precos: [800, 2000, 4000],   bichos: ['pato', 'ganso'] },
   { id: 'coelheira',    nome: 'Coelheira',         o: 'a', nivel: 5,  precos: [2000, 3000, 6000],  bichos: ['coelho'] },
   { id: 'cabril',       nome: 'Cabril',            o: 'o', nivel: 7,  precos: [2500, 3500, 7000],  bichos: ['cabra'] },
-  { id: 'ovelharia',    nome: 'Ovelharia',         o: 'a', nivel: 8,  precos: [3000, 4000, 8000],  bichos: ['ovelha'] },
+  { id: 'ovelharia',    nome: 'Ovelharia',         o: 'a', nivel: 8,  precos: [3000, 4000, 8000],  bichos: ['ovelha', 'lhama'] },
   { id: 'estabulo',     nome: 'Curral de Vacas',   o: 'o', nivel: 6,  precos: [3500, 5500, 11000], bichos: ['vaca', 'bezerro'] },
   { id: 'estabulo_buf', nome: 'Curral de Búfalas', o: 'o', nivel: 18, precos: [5000, 7000, 14000], bichos: ['bufala'] },
   { id: 'chiqueiro',    nome: 'Chiqueiro',         o: 'o', nivel: 3,  precos: [1500, 3000, 6000],  bichos: ['porco', 'porca'] },
   { id: 'cocheira',     nome: 'Cocheira de Cavalo', o: 'a', nivel: 10, precos: [6000, 9000, 18000], bichos: ['potro'] },
   { id: 'jumentaria',   nome: 'Jumentaria',        o: 'a', nivel: 14, precos: [4000, 6000, 12000], bichos: ['burro'] },
-  { id: 'cercado',      nome: 'Viveiro Exótico', o: 'o', nivel: 15, precos: [8000, 12000, 24000], bichos: ['avestruz', 'onca'] },
+  { id: 'cercado',      nome: 'Viveiro Exótico', o: 'o', nivel: 15, precos: [8000, 12000, 24000], bichos: ['avestruz', 'onca', 'pavao'] },
 ];
 const ABRIGO = Object.fromEntries(ABRIGOS.map(b => [b.id, b]));
 const ABRIGO_CAP = [0, 4, 6, 6];               // animais que cabem em cada nível
@@ -641,6 +657,16 @@ function migrate(s) {
       if (falta > 0) { s.animalCred[d.id] = (s.animalCred[d.id] || 0) + falta; creditos += falta; }
     }
     if (vendidos || creditos) s.news = [{ at: Date.now(), msg: `Animais não se compram mais! ${vendidos ? `Ficou um casal de cada espécie: ${vendidos} animai${vendidos > 1 ? 's' : ''} a mais foram vendidos e você recebeu ${moedas.toLocaleString('pt-BR')} moedas. ` : ''}${creditos ? `Você tem ${creditos} animal${creditos > 1 ? 'is' : ''} para resgatar em Loja › Animais. ` : ''}Agora eles vêm de nível, missões da semana, amigos e reprodução.` }].concat(Array.isArray(s.news) ? s.news : []);
+  }
+  // animais novos liberados pelo nível (incluindo espécies que chegaram depois): ganha para resgatar
+  if (s.animaisReset && Array.isArray(s.animals)) {
+    const novos = [];
+    for (const d of ANIMALS) {
+      if (d.nivel > (s.level || 1) || s.animalNivel[d.id]) continue;
+      s.animalNivel[d.id] = 1; const meta = d.tipo === 'prod' ? 2 : 1, falta = meta - s.animals.filter(a => a.k === d.id).length;
+      if (falta > 0) { s.animalCred[d.id] = (s.animalCred[d.id] || 0) + falta; novos.push(d.nome); }
+    }
+    if (novos.length) s.news = [{ at: Date.now(), msg: `Animais novos para resgatar em Loja › Animais: ${novos.join(', ')}.` }].concat(Array.isArray(s.news) ? s.news : []);
   }
   // a cerca em volta da roça saiu: quem já jogava ganha 40 pedaços de cerca para pôr onde quiser
   if (!s.cercaDada) { s.cercaDada = 1; s.enfeites = s.enfeites && typeof s.enfeites === 'object' ? s.enfeites : {}; s.enfeites.cerca = (s.enfeites.cerca || 0) + 40; s.invNovos = (s.invNovos || 0) + 1; }
@@ -1477,7 +1503,7 @@ function actDecor(id) {
 function buyAnimal(k) {
   const d = ANIMAL[k];
   if (!((state.animalCred || {})[k] > 0)) return toast(`${d.nome} não se compra: ganhe em missões, de amigos, chocando ovos ou ao subir de nível.`, 'bad');
-  if (k === 'gato') { if (state.animals.filter(a => a.k === 'gato').length >= GATO_MAX) return toast(`Você já tem o máximo de ${GATO_MAX} gatos em casa.`); }
+  if (PET_MAX[k]) { if (state.animals.filter(a => a.k === k).length >= PET_MAX[k]) return toast(`Você já tem o máximo de ${PET_MAX[k]} ${d.nome.toLowerCase()}s.`); }
   else if (d.lugar === 'casa' && state.animals.some(a => a.k === k)) return toast(`Você já tem ${d.f ? 'uma' : 'um'} ${d.nome.toLowerCase()} em casa.`);
   else if (d.tipo !== 'pet') {
     const qtd = state.animals.filter(a => a.k === k).length;
@@ -1736,6 +1762,7 @@ function renderVisita() {
   const fora = !isHome();
   document.body.classList.toggle('visitando', fora);
   if (fora && !$('#panel').hidden && !TABS_VISITA.includes(tab)) closePanel();
+  for (const k of Object.keys(critters)) delete critters[k]; // os bichinhos se espalham de novo na roça de quem você visita
   renderMoveBtn(); pedirFitHud(); renderTabs();
 }
 function goHome() {
@@ -2371,7 +2398,7 @@ function tick(dt) {
 const ROOM_AREA = { u0: 1.3, u1: 4.1, v0: 1.2, v1: 4.2 };
 function fixedSpot(a, list) {
   const same = list.filter(x => ANIMAL[x.k].fixo), n = same.indexOf(a);
-  if (ANIMAL[a.k].lugar === 'casa') return [4.45, 1.5];
+  if (ANIMAL[a.k].lugar === 'casa') return [4.45 - n * 0.8, 1.5 + n * 0.5];
   const y = yardOf('apiario'), [hu, hv] = HIVE_SPOTS[n % HIVE_SPOTS.length], [u, v] = y.rot ? [hv, hu] : [hu, hv];
   return [y.u0 + u, y.v0 + v];
 }
@@ -3344,7 +3371,7 @@ function drawBug(x, y, s, t, k) {
 
 // Produtos dos animais, centrados em (x, y); s ≈ 1/10 do tamanho.
 function drawProduct(id, x, y, s) {
-  if (id === 'penaarara') id = 'pena'; else if (id === 'ovoarara') id = 'ovo';
+  id = { penaarara: 'pena', ovoarara: 'ovo', penapavao: 'pena', ovocodorna: 'ovoangola', ovoperu: 'ovoangola', plumaganso: 'penaavestruz', lalhama: 'la' }[id] || id;
   if (RECEITA[id]) return drawGood(id, x, y, s);
   if (PEIXE[id]) return drawPeixe(ctx, x, y, s * 0.85 * cabePeixe(PEIXE[id]), PEIXE[id]);
   if (FRUTA[id]) return drawFruta(id, x, y, s);
@@ -4565,7 +4592,7 @@ const cropIcon = id => makeIcon('c:' + id, () => {
 });
 const animalIcon = id => makeIcon('a:' + id, () => {
   const k = ANIMAL[id].desenho || id;
-  const sc = { galinha: 2.6, vaca: 1.6, ovelha: 2.2, porco: 2.1, coelho: 2.7, angola: 2.5, pato: 2.5, jumento: 1.45, cavalo: 1.35, pavao: 2.0, cabra: 1.9, bufala: 1.5, abelha: 2.6, avestruz: 1.45, gato: 3.4, tartaruga: 3.6, arara: 1.75 }[k];
+  const sc = { galinha: 2.6, vaca: 1.6, ovelha: 2.2, porco: 2.1, coelho: 2.7, angola: 2.5, pato: 2.5, jumento: 1.45, cavalo: 1.35, pavao: 2.0, cabra: 1.9, bufala: 1.5, abelha: 2.6, avestruz: 1.45, gato: 3.4, tartaruga: 3.6, arara: 1.75, onca: 1.7 }[k];
   const x = SMALL_ANIMALS.includes(k) || k === 'tartaruga' ? 46 : k === 'pavao' ? 56 : k === 'abelha' || k === 'arara' ? 48 : k === 'avestruz' ? 42 : 38;
   drawAnimal(k, x, 88, sc, 0, 1, false);
 });
@@ -5166,10 +5193,10 @@ function renderPane() {
     } else if (shopSeg === 'animais') {
       html += `<p class="hint">Animais não se compram: você ganha ao subir de nível, em missões da semana, de presente de amigos (amizade nível 2+) e chocando ovos ou com a reprodução de um casal. Resgate aqui e ele vai para o abrigo, que você constrói na aba Abrigos. Sem comida o animal só para de produzir. Animais de produção vivem alguns dias; depois vão embora, então mantenha um casal para a reprodução repor.</p>`;
       const row = (d, meta, btn) => `<div class="row ${d.nivel > state.level ? 'locked' : ''}"><img alt="" src="${animalIcon(d.id)}">
-        <div><div class="name">${d.nome}${(state.animalCred || {})[d.id] > 0 ? ` <span class="tag">🎁 ${state.animalCred[d.id]} para resgatar</span>` : ''}${state.animals.some(x => x.k === d.id) ? ` <span class="meta">(${state.animals.filter(x => x.k === d.id).length}${d.id === 'gato' ? '/' + GATO_MAX : ''})</span>` : ''}</div><div class="meta">${meta}</div></div>${btn}</div>`;
+        <div><div class="name">${d.nome}${(state.animalCred || {})[d.id] > 0 ? ` <span class="tag">🎁 ${state.animalCred[d.id]} para resgatar</span>` : ''}${state.animals.some(x => x.k === d.id) ? ` <span class="meta">(${state.animals.filter(x => x.k === d.id).length}${PET_MAX[d.id] ? '/' + PET_MAX[d.id] : ''})</span>` : ''}</div><div class="meta">${meta}</div></div>${btn}</div>`;
       const buyBtn = d => {
         if (d.nivel > state.level) return `<button class="btn" disabled>Nível ${d.nivel}</button>`;
-        if (d.id === 'gato' && state.animals.filter(x => x.k === 'gato').length >= GATO_MAX) return `<button class="btn ghost" disabled>Máximo (${GATO_MAX})</button>`;
+        if (PET_MAX[d.id] && state.animals.filter(x => x.k === d.id).length >= PET_MAX[d.id]) return `<button class="btn ghost" disabled>Máximo (${PET_MAX[d.id]})</button>`;
         if (!((state.animalCred || {})[d.id] > 0)) return credBtn(d.id);
         const ab = d.lugar !== 'casa' && abrigoOf(d.id);
         if (ab && !abrigoLv(state, ab.id)) return `<button class="btn ghost" data-seg="abrigos" data-focus="${ab.id}">Precisa ${ab.o === 'a' ? 'da' : 'do'} ${ab.nome.toLowerCase()}</button>`;
@@ -5183,7 +5210,7 @@ function renderPane() {
         html += row(d, `ração ${d.racao} por produção<br>${prodTxt} a cada ${fmt(d.tempo)}<br>${d.repro ? `casal ${AVES.includes(d.id) ? 'bota ovo' : 'tem filhote'} a cada ${d.repro} dia${d.repro > 1 ? 's' : ''}` : 'nasce de outra espécie'} · vive ${d.periodo} dias · ${d.xp} XP por coleta`, buyBtn(d));
       }
       html += `<h3>Companhia</h3>`;
-      for (const d of visible('pet')) html += row(d, `mora ${d.lugar === 'casa' ? 'dentro de casa' : (abrigoOf(d.id).o === 'a' ? 'na ' : 'no ') + abrigoOf(d.id).nome.toLowerCase()}<br>${PET_PRESENTES[d.id] ? `dá ${PET_PRESENTES[d.id][0].nomePl || PET_PRESENTES[d.id][0].nome.toLowerCase()} a cada ${fmt(GATO_PRESENTE_MS / 1000)} para vender · não come` : 'não come nem produz'} · carinho dá 2 XP por dia`, buyBtn(d));
+      for (const d of visible('pet')) html += row(d, `${d.id === 'arara' ? 'voa junto com o seu avatar' : 'mora ' + (d.lugar === 'casa' ? 'dentro de casa' : (abrigoOf(d.id).o === 'a' ? 'na ' : 'no ') + abrigoOf(d.id).nome.toLowerCase())}<br>${PET_PRESENTES[d.id] ? `dá ${PET_PRESENTES[d.id][0].nomePl || PET_PRESENTES[d.id][0].nome.toLowerCase()} a cada ${fmt(GATO_PRESENTE_MS / 1000)} para vender · não come` : 'não come nem produz'} · carinho dá 2 XP por dia`, buyBtn(d));
       const pets = state.animals.filter(a => ANIMAL[a.k].tipo === 'pet');
       if (pets.length) {
         html += `<h3>Nomes dos seus bichos</h3>`;
@@ -6811,12 +6838,26 @@ const CRIT_TIPOS = ['sapo', 'sapo', 'preá', 'preá', 'grilo', 'grilo', 'grilo']
 const CRIT_CORES = [['#c98a4b', '#fff4e0'], ['#5a3a22', '#e8c9a0'], ['#e8e0d0', '#c98a4b']];
 const critters = {};
 // Lugares de grama onde eles podem ficar: na roça, os lotes ainda sem canteiro; no rancho, em volta dos cercados.
+function centroRoca() {
+  let su = 0, sv = 0, n = 0;
+  S().plots.forEach((p, i) => { if (p.s !== 'locked') { su += plotU(i) + 0.5; sv += plotV(i) + 0.5; n++; } });
+  return n ? [su / n, sv / n] : [2, 2];
+}
 function critterHome(sc) {
   if (sc === 'roca') {
-    const livres = [];
-    S().plots.forEach((p, i) => { if (p.s === 'locked' && !plotCeu(i)) livres.push([plotU(i) + 0.5, plotV(i) + 0.5]); });
+    // só a grama perto da plantação (o mapa é enorme: sorteando no mapa todo, os bichinhos ficavam longe da tela)
+    const pl = S().plots, livres = [];
+    for (let i = 0; i < N; i++) {
+      if (pl[i].s !== 'locked' || plotCeu(i)) continue;
+      const c = i % COLS, r = Math.floor(i / COLS); let perto = false;
+      for (let dr = -3; dr <= 3 && !perto; dr++) for (let dc = -3; dc <= 3; dc++) {
+        const cc = c + dc, rr = r + dr;
+        if (cc >= 0 && rr >= 0 && cc < COLS && rr < ROWS && pl[rr * COLS + cc].s !== 'locked') { perto = true; break; }
+      }
+      if (perto) livres.push([plotU(i) + 0.5, plotV(i) + 0.5]);
+    }
     if (livres.length) return livres[Math.floor(Math.random() * livres.length)];
-    return [-1.5, 2 + Math.random() * 6];
+    const [cu, cv] = centroRoca(); return [cu - 3 + Math.random() * 2, cv + Math.random() * 4];
   }
   return Math.random() < 0.6 ? [Math.random() * RANCH_C, RANCH_R + 0.5 + Math.random() * 1.2] : [-1.2 - Math.random(), Math.random() * RANCH_R];
 }
@@ -6826,7 +6867,8 @@ function crittersOf(sc) {
     const [u, v] = critterHome(sc);
     return { tipo, u, v, hu: u, hv: v, fu: u, fv: v, tu: u, tv: v, t0: 0, dur: 1, wait: Math.random() * 3, dir: Math.random() < 0.5 ? 1 : -1, cor: CRIT_CORES[k % 3] };
   });
-  const flies = Array.from({ length: 10 }, (_, k) => ({ u: Math.random() * 7 - 1, v: Math.random() * 7 - 1, s: Math.random() * 10, cor: ['#ffd54a', '#ffffff', '#ff9a3c', '#6fb6ff', '#f48fb1', '#b388ff', '#ffffff', '#ffd54a', '#80deea', '#ff8a65'][k] }));
+  const [cu, cv] = sc === 'roca' ? centroRoca() : [RANCH_C / 2, RANCH_R / 2 + 1], sp = sc === 'roca' ? 4 : 6;
+  const flies = Array.from({ length: 10 }, (_, k) => ({ u: cu + (Math.random() - 0.5) * 2 * sp, v: cv + (Math.random() - 0.5) * 2 * sp, s: Math.random() * 10, cor: ['#ffd54a', '#ffffff', '#ff9a3c', '#6fb6ff', '#f48fb1', '#b388ff', '#ffffff', '#ffd54a', '#80deea', '#ff8a65'][k] }));
   return (critters[sc] = { list, flies });
 }
 function moveCritter(c, t) {
@@ -7253,6 +7295,40 @@ function drawAvatarWalk(sc, t, quem = 'eu') {
   // Indo rastelar um monte de folhas: já mostra o rastelo na mão no caminho, não só ao chegar.
   const avTarefa = quem === 'eu' && w.tarefa ? Object.assign({}, state.avatar, { mao: 'rastelo' }) : state.avatar;
   drawAvatar(ctx, q.x, q.y, esc, quem === 'dono' ? view.avatar : avTarefa, t, k < 1, w.dir);
+  if (quem === 'eu') drawAraras(u, v, esc, t);
+}
+// As araras voam junto com o avatar: seguem de longe, devagar, balançando no ar.
+const araraSeg = {};
+function drawAraras(u, v, esc, t) {
+  if (!state) return;
+  state.animals.filter(a => a.k === 'arara').slice(0, PET_MAX.arara).forEach((a, i) => {
+    const alvoU = u + (i ? 0.5 : -0.5), alvoV = v + (i ? -0.5 : 0.5);
+    let f = araraSeg[a.id];
+    if (!f || Math.hypot(f.u - alvoU, f.v - alvoV) > 6) f = araraSeg[a.id] = { u: alvoU, v: alvoV, t, dir: 1 };
+    const dt = clamp((t - f.t) / 1000, 0, 0.1), kk = 1 - Math.exp(-dt * 2.2);
+    const sx = (alvoU - f.u) - (alvoV - f.v);
+    f.u += (alvoU - f.u) * kk; f.v += (alvoV - f.v) * kk; f.t = t;
+    if (Math.abs(sx) > 0.15) f.dir = sx > 0 ? 1 : -1;
+    const q = iso(f.u, f.v), alt = (44 + Math.sin(t / 380 + i * 2) * 5) * esc;
+    ctx.fillStyle = 'rgba(0,0,0,.14)'; ctx.beginPath(); ctx.ellipse(q.x, q.y, 9 * esc, 3 * esc, 0, 0, 7); ctx.fill();
+    drawAraraVoando(q.x, q.y - alt, esc * 0.7, t + i * 160, f.dir);
+  });
+}
+function drawAraraVoando(x, y, s, t, dir) {
+  const bate = Math.sin(t / 95);
+  ctx.save(); ctx.translate(x, y); ctx.scale(dir * s, s);
+  ctx.fillStyle = '#2a6fc8'; ctx.beginPath(); ctx.moveTo(-4, 1); ctx.lineTo(-19, 9); ctx.lineTo(-15, 3); ctx.lineTo(-4, -1); ctx.fill();
+  ctx.fillStyle = '#d8342a'; ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(-17, 5); ctx.lineTo(-13, 0); ctx.lineTo(-4, -1); ctx.fill();
+  ctx.save(); ctx.translate(-1, -1); ctx.rotate(-0.2 + bate * 0.7);
+  ctx.fillStyle = '#f2c230'; ctx.beginPath(); ctx.ellipse(0, -7, 3.2, 9, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#2a6fc8'; ctx.beginPath(); ctx.ellipse(0, -10, 2.2, 6, 0, 0, 7); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = '#d8342a'; ctx.beginPath(); ctx.ellipse(1, 0, 7, 3.8, -0.35, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(7, -4, 3.2, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f3efe6'; ctx.beginPath(); ctx.ellipse(8, -4, 1.6, 1.3, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(8.2, -4.2, 0.55, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3a3a3a'; ctx.beginPath(); ctx.moveTo(9, -5); ctx.quadraticCurveTo(12.5, -4, 10, -1); ctx.lineTo(9, -3); ctx.fill();
+  ctx.restore();
 }
 // ---------- Montes de folhas: de vez em quando aparecem no gramado; o avatar vai lá e rastela ----------
 const FOLHAS_MAX = 3;
