@@ -1000,7 +1000,7 @@ function abrirPlantPicker() {
     document.body.appendChild(el);
   }
   el.innerHTML = `<div class="pp-head"><b>🌱 O que plantar?</b><button type="button" class="btn ghost tiny" data-pick-close>✕</button></div>
-    <div class="pp-list">${l.map(c => `<button type="button" class="pp-item" data-pick-seed="${c.id}"><img alt="" src="${cropIcon(c.id)}"><span>${c.nome}</span><small>${state.plantas[c.id]}</small></button>`).join('')}</div>`;
+    <div class="pp-list">${l.map(c => `<button type="button" class="pp-item" data-pick-seed="${c.id}"><img alt="" src="${cropIcon(c.id)}"><span>${c.nome}</span><em>⏱ ${fmt(c.tempo)}</em><em>rende ${faixa(c)} × ${c.preco}</em><small>${state.plantas[c.id]}</small></button>`).join('')}</div>`;
   el.hidden = false;
 }
 function plant(p, pos) {
@@ -1304,6 +1304,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 244, txt: "A janelinha que abre ao clicar na terra arada agora mostra o tempo de crescimento e quanto cada planta rende." },
   { v: 243, txt: "Mina ⛏️ (nível 6): a terceira área do jogo, ao lado da roça e do rancho. Quebre pedras, carvão, ferro, cobre, prata, ouro e gemas com a picareta (melhore na placa da mina). Os minérios vão para o celeiro, a banca e o caminhão, e tem missão de mina. Chocadeira com 5 níveis: choca mais rápido, cabe mais ovo, e dá chance de gêmeos, cor rara 🌈 e raça rara 💎 (produz mais). Mais jeitos de ganhar animal: missão diária (12%), pedidos do caminhão, top 3 do ranking, melhor vizinho, feira da vizinhança e Loja do Trevo. Corrigido: os ovos agora levam as horas de verdade para chocar." },
   { v: 242, txt: "Amizade ❤️ mais útil: o limite de pegar coisas na roça do amigo sobe com os corações (roça de 4 a 6 itens, animais de 3 a 5) e o pomar agora segue o mesmo limite. Mudas ficaram mais caras e a ferramenta Semente virou Planta." },
   { v: 241, txt: "Aviso do milho 🌽: o milho do celeiro é a isca da pesca e das armadilhas. Quando tiver menos de 10, aparece um aviso vermelho para você não ficar sem." },
