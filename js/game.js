@@ -990,7 +990,6 @@ const FALAS_BICHO = {
   bezerro: ['Mé-uuu!', 'Cadê a mamãe?', 'Quero mamar!'],
   porco: ['Oinc oinc!', 'Tem lama aí?', 'Sobrou lavagem?', 'Oinc! Tô com fome!'],
   porca: ['Oinc oinc!', 'Cuidado com os leitõezinhos!', 'Tem lama aí?'],
-  abelha: ['Bzzzz!', 'Fazendo mel 🍯', 'Cuidado com o ferrão!', 'Bzz, cadê as flores?'],
   avestruz: ['Bum bum!', 'Quem viu meu ovo gigante?', 'Corro mais que o caminhão!'],
   gato: ['Miau!', 'Ronronando… 😸', 'Cadê o peixe?', 'Miau, carinho!'],
   arara: ['Currupaco!', 'Louro quer biscoito!', 'Roça Feliz! Roça Feliz!', 'Olá! Olá!'],
