@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="252">
+<meta name="rf-version" content="253">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -224,13 +224,13 @@
   .mina-chip { display: flex; align-items: center; gap: 4px; background: rgba(255,248,225,.96); color: #3a2410; border: 2px solid var(--gold); border-radius: 12px; padding: 2px 8px 2px 4px; font-weight: 800; font-size: 14px; animation: minaChip .35s ease-out; }
   .mina-chip img { width: 30px; height: 30px; }
   @keyframes minaChip { from { transform: translateY(14px) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
-  .mina-ferrs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .mina-ferrs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .mina-ferr { position: relative; display: grid; justify-items: center; gap: 2px; background: var(--card); border: 2px solid var(--panel-2); border-radius: 12px; padding: 8px 4px; font: inherit; color: inherit; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
   .mina-ferr.sel { border-color: var(--gold); background: var(--sel); }
   .mina-ferr.vazio { opacity: .5; }
   .mina-ferr img { width: 54px; height: 54px; pointer-events: none; }
   .mina-ferr b { font-size: 13px; }
-  .mina-ferr small { font-size: 10.5px; color: var(--muted); line-height: 1.2; text-align: center; }
+  .mina-ferr small { font-size: 10.5px; padding: 0 2px; color: var(--muted); line-height: 1.2; text-align: center; }
   .mina-ferr .qtd { position: absolute; top: 4px; right: 6px; background: var(--gold); color: #3a2410; border-radius: 9px; padding: 0 6px; font-size: 12px; font-weight: 800; }
   .mina-ghost { position: fixed; z-index: 999; width: 64px; height: 64px; transform: translate(-50%, -50%); pointer-events: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
   .bm-card { width: min(100%, 480px); }
@@ -978,10 +978,12 @@
 <div class="modal" id="minaModal" hidden role="dialog" aria-modal="true" aria-labelledby="minaTitulo">
   <div class="modal-card mina-card">
     <div class="modal-head"><h2 id="minaTitulo">⛏️ Mina</h2><button class="iconbtn" type="button" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <section>
     <div class="mina-campo" id="minaCampo"><canvas id="minaCv" width="480" height="270"></canvas><div class="mina-ganho" id="minaGanho"></div></div>
-    <p class="hint" style="margin:6px 0">Arraste uma ferramenta até a pedra (ou toque na ferramenta e depois na pedra).</p>
+    <p class="hint" style="margin:0;color:var(--muted);font-size:13.5px">Arraste uma ferramenta até a pedra (ou toque na ferramenta e depois na pedra).</p>
     <div class="mina-ferrs" id="minaFerrs"></div>
-    <button class="btn ghost" type="button" data-mina-info style="margin-top:8px">ℹ️ Minérios e como ganhar ferramentas</button>
+    <button class="btn ghost" type="button" data-mina-info>ℹ️ Minérios e como ganhar ferramentas</button>
+    </section>
   </div>
 </div>
 
@@ -1086,6 +1088,6 @@
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
 <script src="js/audio.js?v=236"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=252"></script>
+<script src="js/game.js?v=253"></script>
 </body>
 </html>

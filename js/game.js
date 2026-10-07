@@ -1323,6 +1323,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 253, txt: "A janela da mina ganhou mais espaço nas laterais: os textos não encostam mais na borda." },
   { v: 252, txt: "Celeiro › Plantas: no − do mínimo a quantidade pula para o máximo (e no + do máximo volta para 1). O 🔒 Bloquear agora deixa escolher quantas plantas daquela cultura ficam guardadas, e elas não entram em nenhuma venda. A aba também ganhou o botão Vender tudo, que vende o que não está bloqueado." },
   { v: 251, txt: "Mina nova ⛏️: a porta da mina não mostra mais minérios e o avatar não precisa ir lá. Toque na mina para abrir a pedreira, arraste a picareta, a dinamite ou o TNT até a pedra e veja a animação de bater ou explodir (uns 2 segundos) com o que você ganhou. Picareta rende 1 a 2 minérios comuns, dinamite 2 a 4 com mais chance dos raros, e TNT 4 a 7 muito mais raros. Também dá para tocar na ferramenta e depois na pedra." },
   { v: 250, txt: "O tempo máximo para uma ave botar ovo agora é 72h (o avestruz caiu de 84h para 72h)." },
