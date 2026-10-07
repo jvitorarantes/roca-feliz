@@ -1303,6 +1303,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 241, txt: "Aviso do milho 🌽: o milho do celeiro é a isca da pesca e das armadilhas. Quando tiver menos de 10, aparece um aviso vermelho para você não ficar sem." },
   { v: 240, txt: "Feira da vizinhança 🧺 (Negócios › Feira): 8 barracas com itens novos a cada 6 horas — plantas, rações, ovos, fertilizantes e mais. Clicar numa terra arada agora mostra as plantas que você tem para escolher, o Celeiro tem a lista de plantas com botão Plantar, e o aviso de poucas plantas ficou menor e não cobre mais a Loja." },
   { v: 239, txt: "Plantas sem semente 🌱: em Loja › Plantas você escolhe uma planta e clica em quantas terras aradas quiser. Ganhe mais plantas em missões diárias e semanais, nos pedidos do caminhão, de presente específico dos amigos (🎁 › Plantas) e comprando mudas na banca de amigos e vizinhos (e venda as suas na sua banca). Aviso vermelho quando uma planta tiver menos de 10. As fazendas dos vizinhos agora têm tudo que o nível deles permite." },
   { v: 238, txt: "Amizade ❤️ agora é do par: você e seu amigo veem sempre a mesma quantidade de corações (os pontos de quem ajuda e de quem presenteia se somam)." },
@@ -6984,12 +6985,17 @@ let plantasAvisoChave = '';
 function checkPlantasLow() {
   if (!state || !state.plantas || isGated() || state.boasVindas || !$('#boasvindas').hidden || !$('#panel').hidden) return;
   const baixas = CROPS.filter(c => c.nivel <= state.level && (state.plantas[c.id] || 0) < PLANTAS_BAIXO);
-  const chave = baixas.map(c => c.id).join(',');
+  // o milho do celeiro é a isca da pesca e das armadilhas: avisa antes de acabar
+  const milho = state.level >= CROP.milho.nivel ? (state.barn.milho || 0) : PLANTAS_BAIXO;
+  const chave = baixas.map(c => c.id).join(',') + (milho < PLANTAS_BAIXO ? '|milho' : '');
   if (chave === plantasAvisoChave) return;
-  plantasAvisoChave = chave;
-  if (!baixas.length) return;
-  const ver = baixas.slice(0, 3).map(c => `${c.nome} (${state.plantas[c.id] || 0})`).join(', ') + (baixas.length > 3 ? ` +${baixas.length - 3}` : '');
-  plantaAlerta(`⚠️ Poucas plantas: ${ver}`);
+  const antes = plantasAvisoChave; plantasAvisoChave = chave;
+  const nova = chave.split('|')[0] !== antes.split('|')[0], milhoNovo = milho < PLANTAS_BAIXO && !antes.includes('|milho');
+  if (nova && baixas.length) {
+    const ver = baixas.slice(0, 3).map(c => `${c.nome} (${state.plantas[c.id] || 0})`).join(', ') + (baixas.length > 3 ? ` +${baixas.length - 3}` : '');
+    plantaAlerta(`⚠️ Poucas plantas: ${ver}`);
+  }
+  if (milhoNovo) plantaAlerta(`🌽 Cuidado: só ${milho} milho no celeiro! Ele é a isca da pesca e das armadilhas, não deixe acabar.`);
 }
 // Aviso vermelho que fica um pouco mais na tela que um toast comum.
 function plantaAlerta(msg) {
