@@ -768,7 +768,7 @@ function load() {
 }
 function save() {
   if (kicked) return; // outro aparelho assumiu: este não grava mais nada
-  try { state.t = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* sem armazenamento */ }
+  try { state.t = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(Object.assign({}, state, { nb: {} }))); } catch (e) { /* sem armazenamento */ }
 }
 // Só um aparelho joga por vez. Cada aba aberta ganha uma sessão; a mais nova vale.
 const isPhone = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
@@ -1334,6 +1334,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 264, txt: "Atualização automática mais firme: ao abrir o jogo (e a cada poucos minutos com ele aberto) ele confere se há versão nova e se atualiza sozinho, avisando na tela. Se a primeira tentativa não pegar, tenta de novo com limpeza completa, sem precisar ir em Configurações › Atualizar." },
   { v: 263, txt: "Corrigido: o botão 🆘 Precisa de ajuda de um amigo continuava aceso mesmo depois de você ajudar a árvore dele. Agora ele apaga assim que você ajuda (e volta a acender se a ajuda não chegar em 12 horas)." },
   { v: 262, txt: "Corrigido: o menu do botão direito (Mover, Guardar…) e o segurar para mover tinham parado de funcionar em tudo (construções, itens, plantas e canteiros) por causa da entrada da mina, que não tinha área de clique. Voltou ao normal." },
@@ -2139,8 +2140,9 @@ async function cloudSave() {
     state.owner = user.uid;
     const base = state.rev || 0;
     // friends e sent ficam fora do JSON para as regras do Firestore decidirem quem pode ver a roça.
+    // nb (as roças dos vizinhos da vila, geradas a cada visita) também fica de fora: passava de 1 MB e estourava o limite da nuvem.
     const rev = await Cloud.saveFarmSeguro(user.uid, {
-      stateJson: JSON.stringify(Object.assign({}, state, { rev: base + 1, pendente: false })), name: user.name || '', photo: fotoParaSalvar(),
+      stateJson: JSON.stringify(Object.assign({}, state, { rev: base + 1, pendente: false, nb: {} })), name: user.name || '', photo: fotoParaSalvar(),
       moldura: molduraAtual(),
       level: state.level, code: state.code || '', updatedAt: Date.now(), apelido: state.apelido || '', fazenda: state.fazenda || '',
       friends: state.friends.slice(), sent: Object.keys(state.sent), session: SESSION,
@@ -2159,7 +2161,7 @@ async function cloudSave() {
 }
 // Guarda uma cópia da roça deste aparelho antes de trocar pela da nuvem (dá para restaurar nas Configurações).
 function guardarCopiaLocal(s, motivo) {
-  try { if (s && s.level) localStorage.setItem('roca-feliz-copia', JSON.stringify({ at: Date.now(), motivo, level: s.level, stateJson: JSON.stringify(s) })); } catch (e) { /* sem espaço */ }
+  try { if (s && s.level) localStorage.setItem('roca-feliz-copia', JSON.stringify({ at: Date.now(), motivo, level: s.level, stateJson: JSON.stringify(Object.assign({}, s, { nb: {} })) })); } catch (e) { /* sem espaço */ }
 }
 async function recarregarDaNuvem(msg) {
   if (!user) return;
