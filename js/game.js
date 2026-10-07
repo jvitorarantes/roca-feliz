@@ -270,7 +270,7 @@ const FILHOTES = {
   lhama: 'lhama',
 };
 const AVES = ['galinha', 'angola', 'pato', 'avestruz', 'codorna', 'peru', 'ganso', 'pavao']; // só aves botam ovos; mamíferos têm o filhote direto
-const tempoRepro = k => ((ANIMAL[k] && ANIMAL[k].repro) || 3) * DAY; // cada espécie tem o seu intervalo (1 a 5 dias)
+const tempoRepro = k => CHOC_ESP[k] ? CHOC_ESP[k].poe * 3600e3 : ((ANIMAL[k] && ANIMAL[k].repro) || 3) * DAY; // cada espécie tem o seu intervalo (1 a 5 dias)
 // Animais não se compram: vêm de missões, de amigos, de chocar/reproduzir e de subir de nível.
 // Cada um vira um "crédito" (state.animalCred) que se resgata em Loja › Animais, no abrigo certo.
 const darAnimal = (k, n = 1) => { const c = state.animalCred || (state.animalCred = {}); c[k] = (c[k] || 0) + n; };
@@ -1171,6 +1171,7 @@ function actAnimal(id) {
     if (isHungry(a)) return feedAnimal(a, pos) && done();
     return toast(`${d.nome} está crescendo: falta ${fmt(d.tempo - a.g)}. Comida por mais ${fmt(a.food)}.`);
   }
+  if (a.nomeGrat && !a.ready) return askName(a); // filhote recém-nascido: o nome é de graça
   if (a.ready) { collectAnimal(a, pos); return done(); }
   if (!a.fed) return feedAnimal(a, pos, true) && done();
   const rt = reproTexto(a.k);
@@ -1316,6 +1317,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 247, txt: "Folhas e chocadeira 🍂🥚: a colheita automática (🚜) agora também limpa todos os montes de folhas sem o avatar ir, e cada monte pode render ferramentas da mina (picareta, dinamite, às vezes TNT). Aparecem até 5 montes por dia. A chocadeira ficou rústica, cabe de 2 a 6 ovos (melhore até o nível 4) e mostra os espaços ao clicar. Cada ave tem seu tempo para botar e para chocar (codorna 14h/8h, galinha 22h/12h, d'angola 26h/14h, pato 34h/16h, peru, ganso, pavão e avestruz mais longos). Mamíferos não usam a chocadeira: o filhote nasce direto no abrigo, junto dos pais. Todo filhote recém-nascido tem nome de graça ao tocar nele. E os animais da mesma espécie se encontram: um sobe no outro, com corações 💕." },
   { v: 246, txt: "A mina mudou ⛏️ (nível 6): agora é uma entrada de caverna lá na sua roça, com 4 depósitos de minério na frente. Toque na entrada para escolher a ferramenta e toque num depósito: o avatar vai até lá e bate com a picareta (faíscas!), acende a dinamite (quebra 5 batidas de uma vez) ou explode tudo com TNT. As ferramentas se gastam: você começa com 25 picaretas e 2 dinamites, e ganha mais em missões diárias e semanais, no caminhão, de presente de amigos, na feira da vizinhança e na Loja do Trevo. Cada depósito volta depois de um tempo, e dá para mover a mina no modo Mover." },
   { v: 245, txt: "Forja & Joalheria ⚒️ (Negócios › Fábrica, a partir do nível 8): transforme os minérios da mina em tijolo, barras de ferro, cobre, prata e ouro, e depois em ferradura, panela de cobre, pingente de prata, aliança de ouro e anel de gema. As barras são ingredientes das peças, e tudo vale bem mais que o minério puro." },
   { v: 244, txt: "A janelinha que abre ao clicar na terra arada agora mostra o tempo de crescimento e quanto cada planta rende." },
@@ -1671,7 +1673,7 @@ function saveName(e) {
     if (state.coins < CUSTO_NOME_BICHO) { sfx('error'); return toast(`Trocar o nome custa ${CUSTO_NOME_BICHO} moedas.`, 'bad'); }
     state.coins -= CUSTO_NOME_BICHO; sfx('buy');
   }
-  if (a) { a.nome = v; toast(nomeDe.troca ? `Agora ${ANIMAL[a.k].f ? 'ela' : 'ele'} se chama ${v}! (−${CUSTO_NOME_BICHO} moedas)` : `Bem-vind${ANIMAL[a.k].f ? 'a' : 'o'}, ${v}!`, 'good'); }
+  if (a) { a.nome = v; delete a.nomeGrat; toast(nomeDe.troca ? `Agora ${ANIMAL[a.k].f ? 'ela' : 'ele'} se chama ${v}! (−${CUSTO_NOME_BICHO} moedas)` : `Bem-vind${ANIMAL[a.k].f ? 'a' : 'o'}, ${v}!`, 'good'); }
   else { c.nome = v; toast(`Agora o cachorro se chama ${v}! (−${CUSTO_NOME_BICHO} moedas)`, 'good'); }
   done(); fecharNome(); renderPane();
 }
@@ -2439,11 +2441,18 @@ async function recuperarAmigos() {
 // ============================================================
 // Casal = 2 animais da mesma espécie. O relógio começa quando o casal se forma e, a cada tempoRepro(espécie),
 // se os dois estiverem alimentados, nasce um filhote (aves põem um ovo na chocadeira do rancho).
-// Níveis da chocadeira (0 a 5): choca mais rápido, cabe mais ovo e aparecem filhotes especiais.
-const CHOC = { max: 5, custo: [0, 3000, 8000, 20000, 50000, 120000], nivelJ: [0, 8, 14, 20, 28, 36] };
+// Cada ave tem seu tempo (em horas) para botar o ovo e para ele chocar.
+const CHOC_ESP = {
+  codorna: { poe: 14, choca: 8 },  galinha: { poe: 22, choca: 12 }, angola: { poe: 26, choca: 14 }, pato: { poe: 34, choca: 16 },
+  peru: { poe: 43, choca: 18 },    ganso: { poe: 50, choca: 20 },   pavao: { poe: 67, choca: 24 },  avestruz: { poe: 84, choca: 30 },
+};
+const CHOC_OVO = { codorna: '#e8dcc0', galinha: '#f3e6d0', angola: '#e6d5bb', pato: '#e2efe6', peru: '#efdfca', ganso: '#f6f3ea', pavao: '#d6ebd6', avestruz: '#f4eed8' };
+// Níveis da chocadeira (0 a 4): cabem 2 a 6 ovos, choca mais rápido e aparecem filhotes especiais.
+const CHOC = { max: 4, custo: [0, 3000, 8000, 20000, 50000], nivelJ: [0, 8, 14, 20, 28] };
 const chocNivel = () => clamp((state.chocadeira && state.chocadeira.level) || 0, 0, CHOC.max);
-const chocInfo = L => ({ cap: 20 + 5 * L, horas: Math.round(24 * (1 - 0.12 * L) * 10) / 10, gemeos: 5 * L, cor: 3 * L, raro: 2 * L });
+const chocInfo = L => ({ cap: 2 + L, vel: 1 - 0.1 * L, gemeos: 5 * L, cor: 3 * L, raro: 2 * L });
 const chocCap = () => chocInfo(chocNivel()).cap;
+const chocHoras = (esp, L) => Math.round((CHOC_ESP[esp] ? CHOC_ESP[esp].choca : 12) * chocInfo(L).vel * 10) / 10;
 const CHOC_HUES = [0, 70, 150, 215];
 function melhorarChocadeira() {
   const L = chocNivel(), n = L + 1;
@@ -2486,12 +2495,12 @@ function verificarReproducao() {
     if (!AVES.includes(k)) {
       const ab = abrigoOf(filhote);
       if (!ab || vagas(state, ab.id) <= 0) continue;
-      state.animals.push(newAnimal(filhote));
+      const bebe = newAnimal(filhote); bebe.nomeGrat = 1; bebe.nasc = now; state.animals.push(bebe); nascerPerto(bebe, k);
       state.ultima_reproducao[k] = now;
       toast(`🐾 Nasceu ${ANIMAL[filhote].f ? 'uma' : 'um'} ${ANIMAL[filhote].nome.toLowerCase()}!`, 'good');
       done();
     } else if (temChocadeira() && state.chocadeira.ovos.length < chocCap()) {
-      const dur = chocInfo(chocNivel()).horas * 3600e3;
+      const dur = chocHoras(filhote, chocNivel()) * 3600e3;
       state.chocadeira.ovos.push({ especie: filhote, nascimento: now + dur, dur });
       state.ultima_reproducao[k] = now;
       toast(`🥚 Ovo de ${ANIMAL[filhote].nome.toLowerCase()} colocado na chocadeira!`, 'good');
@@ -2500,6 +2509,12 @@ function verificarReproducao() {
   }
 }
 
+// O filhote aparece ao lado dos pais, no próprio abrigo.
+function nascerPerto(a, especiePais) {
+  const pai = state.animals.find(x => x !== a && x.k === especiePais && amb[x.id]);
+  const pm = pai && amb[pai.id];
+  if (pm) amb[a.id] = { u: pm.u + 0.22, v: pm.v + 0.16, tu: pm.u, tv: pm.v, wait: rand(1, 2.5), dir: pm.dir, moving: false };
+}
 function hatcharOvos() {
   if (!isHome() || !state.chocadeira || !state.chocadeira.ovos.length) return;
   const agora = Date.now(), L = chocNivel(), info = chocInfo(L), nasceu = [];
@@ -2510,10 +2525,10 @@ function hatcharOvos() {
     if (vaga <= 0) continue;
     const n = Math.min(vaga, Math.random() * 100 < info.gemeos ? 2 : 1);
     for (let k = 0; k < n; k++) {
-      const a = newAnimal(ovo.especie);
+      const a = newAnimal(ovo.especie); a.nomeGrat = 1; a.nasc = Date.now();
       if (Math.random() * 100 < info.cor) a.cor = 1 + Math.floor(Math.random() * 3);
       if (Math.random() * 100 < info.raro) a.raro = 1;
-      state.animals.push(a);
+      state.animals.push(a); nascerPerto(a, ovo.especie);
       nasceu.push(`${ANIMAL[ovo.especie].nome.toLowerCase()}${a.raro ? ' de raça rara 💎' : ''}${a.cor ? ' de cor rara 🌈' : ''}`);
     }
     state.chocadeira.ovos.splice(i, 1);
@@ -2552,11 +2567,28 @@ function updateWander(list, dt, area) {
       m = amb[a.id] = { u, v, tu: u, tv: v, wait: rand(0, 2), dir: Math.random() < 0.5 ? 1 : -1, moving: false };
     }
     if (d.fixo) { m.moving = false; continue; }
+    if (m.enc) { if (performance.now() > m.enc.fim) { m.enc = null; m.wait = rand(1.5, 4); } m.moving = false; if (m.enc) continue; }
+    // Casais da mesma espécie se procuram: um vai até o outro, sobe nele (com corações) e depois cada um segue seu rumo.
+    if (m.alvoPar) {
+      const pm = amb[m.alvoPar];
+      if (!pm || pm.enc || !list.some(x => x.id === m.alvoPar)) m.alvoPar = null;
+      else {
+        m.tu = pm.u; m.tv = pm.v; m.wait = 0;
+        if (Math.hypot(pm.u - m.u, pm.v - m.v) < 0.42) {
+          const ini = performance.now(), fim = ini + 3800;
+          m.enc = { papel: 'sobe', ini, fim }; pm.enc = { papel: 'recebe', ini, fim };
+          m.u = pm.u + 0.04; m.v = pm.v + 0.04; m.dir = pm.dir; m.alvoPar = null; m.moving = false; pm.moving = false; pm.wait = 0;
+          continue;
+        }
+      }
+    }
     const hungry = area.trough && isHungry(a);
     if (m.wait > 0) { m.wait -= dt; m.moving = false; continue; }
     const du = m.tu - m.u, dv = m.tv - m.v, dist = Math.hypot(du, dv);
     if (dist < 0.05) {
       m.wait = hungry ? rand(2, 5) : rand(1, 4); m.moving = false;
+      const par = !hungry && d.tipo === 'prod' && Math.random() < 0.2 && list.find(x => x !== a && x.k === a.k && amb[x.id] && !amb[x.id].enc && !amb[x.id].alvoPar);
+      if (par) { m.alvoPar = par.id; m.tu = amb[par.id].u; m.tv = amb[par.id].v; m.wait = 0; continue; }
       if (hungry) { m.tu = rand(area.trough.u0, area.trough.u1); m.tv = rand(area.trough.v0, area.trough.v1); }
       else { m.tu = rand(area.u0, area.u1); m.tv = rand(area.v0, area.v1); }
       continue;
@@ -2572,6 +2604,7 @@ function animalScale(a, base) {
   const d = ANIMAL[a.k];
   let k = base * (d.escala || 1);
   if (d.tipo === 'cria') k *= 0.6 + 0.4 * Math.min(1, a.g / d.tempo);
+  if (a.nasc) k *= 0.62 + 0.38 * Math.min(1, (Date.now() - a.nasc) / DAY); // filhote cresce em um dia
   return k;
 }
 function drawAnimalAt(a, m, base, t) {
@@ -2580,10 +2613,13 @@ function drawAnimalAt(a, m, base, t) {
     ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.ellipse(p.x, p.y, W * 0.26, W * 0.09, 0, 0, 7); ctx.stroke();
   }
+  let py = p.y;
+  if (m.enc && m.enc.papel === 'sobe') { const k = (performance.now() - m.enc.ini) / (m.enc.fim - m.enc.ini); py -= ANIMAL_H[kind] * sc * 0.55 * Math.min(1, k * 6, (1 - k) * 6) + Math.abs(Math.sin(performance.now() / 140)) * W * 0.012; }
   if (a.cor) { ctx.save(); try { ctx.filter = `hue-rotate(${CHOC_HUES[a.cor] || 70}deg) saturate(1.15)`; } catch (e) { /* sem filtro */ } }
-  drawAnimal(kind, p.x, p.y, sc, t, m.dir, m.moving, kind === 'gato' ? corGato(a) : undefined);
+  drawAnimal(kind, p.x, py, sc, t, m.dir, m.moving, kind === 'gato' ? corGato(a) : undefined);
   if (a.cor) ctx.restore();
   const h = ANIMAL_H[kind] * sc;
+  if (m.enc && m.enc.papel === 'sobe') { ctx.font = `${Math.round(W * 0.13)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('💕', p.x, py - h - W * 0.08 - ((performance.now() - m.enc.ini) / 40) % (W * 0.1)); }
   if (a.raro) { ctx.font = `${Math.round(W * 0.14)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('✨', p.x + W * 0.12, p.y - h - W * 0.02 + Math.sin(t / 300) * 2); }
   m.topo = { x: p.x, y: p.y - h - W * 0.05 };
   hits.push({ kind: 'animal', id: a.id, x: p.x, y: p.y - h * 0.5, r: Math.max(W * 0.3, h * 0.85) });
@@ -4917,8 +4953,8 @@ function atualizarColher() {
 // Menu do botão 🚜: escolher entre colheita automática (canteiros prontos) e limpeza automática (terra seca).
 function abrirMenuColher(btn) {
   const m = $('#ctxMenu'), r = btn.getBoundingClientRect();
-  const nColher = state.plots.filter(ripe).length + fruteirasProntas().length, nLimpar = state.plots.filter(p => p.s === 'withered').length;
-  m.innerHTML = `<b>Ações automáticas</b><button type="button" data-ctx="colher">🧺 Colheita automática${nColher ? ` (${nColher})` : ''}</button><button type="button" data-ctx="limpar">🧹 Limpeza automática de terras${nLimpar ? ` (${nLimpar})` : ''}</button><button type="button" data-ctx="fechar">Cancelar</button>`;
+  const nColher = state.plots.filter(ripe).length + fruteirasProntas().length, nLimpar = state.plots.filter(p => p.s === 'withered').length, nFolhas = folhasDe().filter(f => !f.alvo).length;
+  m.innerHTML = `<b>Ações automáticas</b><button type="button" data-ctx="colher">🧺 Colheita automática${nColher ? ` (${nColher})` : ''}</button><button type="button" data-ctx="limpar">🧹 Limpeza automática de terras${nLimpar ? ` (${nLimpar})` : ''}</button><button type="button" data-ctx="folhas">🍂 Limpeza automática de folhas${nFolhas ? ` (${nFolhas})` : ''}</button><button type="button" data-ctx="fechar">Cancelar</button>`;
   m.dataset.key = ''; m.hidden = false;
   const w = m.offsetWidth, h = m.offsetHeight;
   m.style.left = `${clamp(r.left + r.width / 2 - w / 2, 6, L.cw - w - 6)}px`; m.style.top = `${clamp(r.top - h - 10, 6, L.ch - h - 6)}px`;
@@ -5245,37 +5281,33 @@ function focusRow(id) {
   el.scrollIntoView({ block: 'center' }); el.classList.add('flash');
 }
 function chocadeiraHTML() {
-  let html = '';
-    html += `<h3>Chocadeira 🐣</h3>`;
-    { const L = chocNivel(), I = chocInfo(L), N = L < CHOC.max ? chocInfo(L + 1) : null;
-      html += `<div class="row sel"><div class="avatar" style="background:#c9a86a">🥚</div><div><div class="name">Nível ${L} de ${CHOC.max}</div>
-        <div class="meta">Choca em ${I.horas}h · cabe ${I.cap} ovos · gêmeos ${I.gemeos}% · cor rara 🌈 ${I.cor}% · raça rara 💎 ${I.raro}%${N ? `<br>Próximo nível: ${N.horas}h · ${N.cap} ovos · ${N.gemeos}% · ${N.cor}% · ${N.raro}%` : ''}</div></div>
-        ${N ? (state.level < CHOC.nivelJ[L + 1] ? `<button class="btn" disabled>Nível ${CHOC.nivelJ[L + 1]}</button>` : `<button class="btn gold" data-choc-up="1" ${state.coins < CHOC.custo[L + 1] ? 'disabled' : ''}>${moeda(CHOC.custo[L + 1])}</button>`) : '<button class="btn ghost" disabled>Máximo</button>'}</div>`; }
-    if (!temChocadeira()) html += `<div class="empty">Sua chocadeira está no Inventário: ponha no rancho onde quiser para as aves botarem ovos.</div>`;
-    html += `<p class="hint">Cada espécie precisa de um casal (2 animais) alimentado. Aves (e avestruzes) põem ovos aqui; mamíferos têm o filhote direto no abrigo. O tempo depende da espécie: de 1 dia (galinhas, patos, coelhos…) a 5 dias (a rara onça-pintada).</p>`;
-    for (const k of reproEspecies()) {
-      if (!state.animals.some(a => a.k === k)) continue;
-      html += `<div class="row"><img alt="" src="${animalIcon(k)}"><div><div class="name">${ANIMAL[k].nome}</div><div class="meta">${reproTexto(k)}</div></div><div></div></div>`;
-    }
-    if (!state.chocadeira || !state.chocadeira.ovos || !state.chocadeira.ovos.length) {
-      html += `<div class="empty">A chocadeira está vazia.<br>Aves bem-alimentadas botam ovos para incubar. Mamíferos têm o filhote direto, sem ovo.</div>`;
-    } else {
-      html += `<p class="hint">Os ovos levam ${chocInfo(chocNivel()).horas} horas para incubar. Filhotes nascem automaticamente se houver vaga no abrigo (de gêmeos, se couber os dois).</p>`;
-      const agora = Date.now();
-      for (const ovo of state.chocadeira.ovos) {
-        const tempoRestante = ovo.nascimento - agora;
-        const porcentagem = Math.max(0, Math.min(100, 100 - (tempoRestante / (ovo.dur || 24 * 3600e3)) * 100));
-        const animalData = ANIMAL[ovo.especie];
-
-        html += `<div class="row"><img alt="" src="${animalIcon(ovo.especie)}">
-          <div><div class="name">Ovo de ${animalData.nome.toLowerCase()}</div>
-          <div class="meta">${tempoRestante > 0 ? `Nasce em ${fmt(tempoRestante / 1000)}` : '<b>Pronto para nascer!</b>'}</div>
-          <div class="mbar"><i style="width:${porcentagem}%"></i></div></div>
-          <div></div></div>`;
-      }
-      html += `<div class="row"><div class="avatar" style="background:#5a646c">🥚</div>
-        <div><div class="name">Total de ovos</div><div class="meta">${state.chocadeira.ovos.length} de ${chocCap()}</div></div></div>`;
-    }
+  let html = `<h3>Chocadeira 🐣</h3>`;
+  if (!temChocadeira()) html += `<div class="empty">Sua chocadeira está no Inventário: ponha no rancho onde quiser para as aves botarem ovos.</div>`;
+  const L = chocNivel(), I = chocInfo(L), N = L < CHOC.max ? chocInfo(L + 1) : null, ovos = (state.chocadeira && state.chocadeira.ovos) || [];
+  html += `<div class="row sel"><div class="avatar" style="background:#c9a86a">🥚</div><div><div class="name">Nível ${L} de ${CHOC.max}</div>
+    <div class="meta">Cabem ${I.cap} ovos · choca ${Math.round((1 - I.vel) * 100)}% mais rápido · gêmeos ${I.gemeos}% · cor rara 🌈 ${I.cor}% · raça rara 💎 ${I.raro}%${N ? `<br>Próximo nível: ${N.cap} ovos · ${Math.round((1 - N.vel) * 100)}% mais rápido · ${N.gemeos}% · ${N.cor}% · ${N.raro}%` : ''}</div></div>
+    ${N ? (state.level < CHOC.nivelJ[L + 1] ? `<button class="btn" disabled>Nível ${CHOC.nivelJ[L + 1]}</button>` : `<button class="btn gold" data-choc-up="1" ${state.coins < CHOC.custo[L + 1] ? 'disabled' : ''}>${moeda(CHOC.custo[L + 1])}</button>`) : '<button class="btn ghost" disabled>Máximo</button>'}</div>`;
+  // os espaços da chocadeira: cada um mostra o ovo que está nele
+  html += `<h3>Espaços (${ovos.length} de ${I.cap})</h3><div class="banca">`;
+  const agora = Date.now();
+  for (let k = 0; k < Math.max(I.cap, ovos.length); k++) {
+    const ovo = ovos[k];
+    if (!ovo) { html += `<div class="bslot" style="opacity:.6"><div style="width:40px;height:40px;border-radius:50%;background:#d9b86a;opacity:.6;display:grid;place-items:center">🪹</div><b>Vazio</b><span>espaço ${k + 1}</span></div>`; continue; }
+    const falta = ovo.nascimento - agora, pct = Math.max(0, Math.min(100, 100 - falta / (ovo.dur || 12 * 3600e3) * 100));
+    html += `<div class="bslot"><img alt="" src="${animalIcon(ovo.especie)}"><b>Ovo de ${esc(ANIMAL[ovo.especie].nome.toLowerCase())}</b><span>${falta > 0 ? fmt(falta / 1000) : 'Pronto!'}</span><div class="mbar" style="width:90%"><i style="width:${pct}%"></i></div></div>`;
+  }
+  html += `</div><p class="hint">Aves botam ovos aqui e filhotes nascem no abrigo se houver vaga (de gêmeos, se couberem os dois). Mamíferos não usam a chocadeira: o filhote nasce direto no abrigo, junto dos pais, e você dá o nome dele de graça ao tocar.</p>`;
+  html += `<h3>Tempos de cada ave</h3>`;
+  for (const k of Object.keys(CHOC_ESP)) {
+    if (!state.animals.some(a => a.k === k)) continue;
+    const e = CHOC_ESP[k];
+    html += `<div class="row"><img alt="" src="${animalIcon(k)}"><div><div class="name">${ANIMAL[k].nome}</div><div class="meta">põe um ovo a cada ${e.poe}h · choca em ${chocHoras(k, L)}h<br>${reproTexto(k)}</div></div><div></div></div>`;
+  }
+  html += `<h3>Mamíferos</h3>`;
+  for (const k of reproEspecies()) {
+    if (AVES.includes(k) || !state.animals.some(a => a.k === k)) continue;
+    html += `<div class="row"><img alt="" src="${animalIcon(k)}"><div><div class="name">${ANIMAL[k].nome}</div><div class="meta">${reproTexto(k)}</div></div><div></div></div>`;
+  }
   return html;
 }
 function renderPane() {
@@ -5354,7 +5386,7 @@ function renderPane() {
       html += `<h3>Produção</h3>`;
       for (const d of visible('prod')) {
         const prodTxt = d.prod === 'leitao' ? 'leitões (viram porquinhos no chiqueiro)' : `${PRODUCT[d.prod].nome.toLowerCase()} (vende por ${PRODUCT[d.prod].preco})`;
-        html += row(d, `ração ${d.racao} por produção<br>${prodTxt} a cada ${fmt(d.tempo)}<br>${d.repro ? `casal ${AVES.includes(d.id) ? 'bota ovo' : 'tem filhote'} a cada ${d.repro} dia${d.repro > 1 ? 's' : ''}` : 'nasce de outra espécie'} · vive ${d.periodo} dias · ${d.xp} XP por coleta`, buyBtn(d));
+        html += row(d, `ração ${d.racao} por produção<br>${prodTxt} a cada ${fmt(d.tempo)}<br>${d.repro ? `casal ${AVES.includes(d.id) ? 'bota ovo' : 'tem filhote'} a cada ${CHOC_ESP[d.id] ? CHOC_ESP[d.id].poe + 'h' : d.repro + ' dia' + (d.repro > 1 ? 's' : '')}${CHOC_ESP[d.id] ? ` (choca em ${CHOC_ESP[d.id].choca}h)` : ''}` : 'nasce de outra espécie'} · vive ${d.periodo} dias · ${d.xp} XP por coleta`, buyBtn(d));
       }
       html += `<h3>Companhia</h3>`;
       for (const d of visible('pet')) html += row(d, `${d.id === 'arara' ? 'voa junto com o seu avatar' : 'mora ' + (d.lugar === 'casa' ? 'dentro de casa' : (abrigoOf(d.id).o === 'a' ? 'na ' : 'no ') + abrigoOf(d.id).nome.toLowerCase())}<br>${PET_PRESENTES[d.id] ? `dá ${PET_PRESENTES[d.id][0].nomePl || PET_PRESENTES[d.id][0].nome.toLowerCase()} a cada ${fmt(GATO_PRESENTE_MS / 1000)} para vender · não come` : 'não come nem produz'} · carinho dá 2 XP por dia`, buyBtn(d));
@@ -5821,7 +5853,7 @@ function tipAnimal(id) {
   const a = S().animals.find(x => x.id === id); if (!a) return null;
   const d = ANIMAL[a.k], home = isHome();
   if (d.tipo === 'pet') return `<b>${esc(a.nome || d.nome)}</b> · ${d.nome.toLowerCase()}<br>Clique para fazer carinho.`;
-  let h = `<b>${esc(a.nome || d.nome)}</b>${a.nome && a.nome !== d.nome ? ` · ${d.nome.toLowerCase()}` : ''}<br>`;
+  let h = `<b>${esc(a.nome || d.nome)}</b>${a.nome && a.nome !== d.nome ? ` · ${d.nome.toLowerCase()}` : ''}<br>${a.nomeGrat && home ? '🍼 Recém-nascido! Clique para dar um nome (grátis).<br>' : ''}`;
   if (d.tipo === 'cria') {
     if (isAdult(a)) return h + `Adulto! ${home ? `Clique para vender por ${d.venda.toLocaleString('pt-BR')} moedas.` : ''}`;
     h += `Crescendo: falta ${fmt(d.tempo - a.g)}<div class="bar"><i style="width:${a.g / d.tempo * 100}%"></i></div>`;
@@ -6010,6 +6042,7 @@ $('#ctxMenu').addEventListener('click', e => {
   else if (b.dataset.ctx === 'derrubar') derrubarFruteira($('#ctxMenu').dataset.sc || scene, Number(key.slice(4)));
   else if (b.dataset.ctx === 'colher') harvestAll();
   else if (b.dataset.ctx === 'limpar') clearAllWithered();
+  else if (b.dataset.ctx === 'folhas') limparFolhasAuto();
 });
 cv.addEventListener('contextmenu', e => {
   const q = localPos(e), o = objAt(q.x, q.y);
@@ -7575,8 +7608,8 @@ function drawAraraVoando(x, y, s, t, dir) {
   ctx.restore();
 }
 // ---------- Montes de folhas: de vez em quando aparecem no gramado; o avatar vai lá e rastela ----------
-const FOLHAS_MAX = 3;
-const folhasIntervalo = () => (estacao().id === 'outono' ? 8 + Math.random() * 8 : 20 + Math.random() * 20) * 60e3; // no outono cai mais folha
+const FOLHAS_MAX = 5, FOLHAS_DIA = 5; // até 5 montes por dia, espalhados ao longo do dia
+const folhasIntervalo = () => (estacao().id === 'outono' ? 1.5 + Math.random() * 1.5 : 2.5 + Math.random() * 2.5) * 3600e3; // no outono cai mais folha
 function folhasDe() { return state.folhas = Array.isArray(state.folhas) ? state.folhas : []; }
 function folhasTick() {
   if (!state || kicked) return;
@@ -7586,8 +7619,9 @@ function folhasTick() {
   const w = avWalk['roca:eu'];
   for (const f of l) if (f.alvo && (!w || !w.tarefa || w.tarefa.id !== f.id)) f.alvo = false;
   if (!state.folhasProx) { state.folhasProx = agora + 3 * 60e3; return; }
+  const hoje = localDay(); if (!state.folhasDia || state.folhasDia.d !== hoje) state.folhasDia = { d: hoje, n: 0 };
   let n = 0, mudou = false;
-  while (agora >= state.folhasProx && n++ < FOLHAS_MAX) { if (l.length < FOLHAS_MAX && novaFolha()) mudou = true; state.folhasProx += folhasIntervalo(); }
+  while (agora >= state.folhasProx && n++ < FOLHAS_MAX) { if (l.length < FOLHAS_MAX && state.folhasDia.n < FOLHAS_DIA && novaFolha()) { mudou = true; state.folhasDia.n++; } state.folhasProx += folhasIntervalo(); }
   if (agora >= state.folhasProx) state.folhasProx = agora + folhasIntervalo();
   if (mudou) save();
 }
@@ -7653,12 +7687,37 @@ function rastelando(w, sc, t) {
   ctx.globalAlpha = 1;
   if (ke >= 1) { concluirFolhas(tf.id); w.tarefa = null; w.fu = w.tu; w.fv = w.tv; w.t0 = t; w.dur = 0; w.wait = 1200; }
 }
+// Cada monte rende moedas, XP e, com a mina liberada, ferramentas dela (picareta, dinamite e às vezes TNT).
+function recompensaFolha(pos) {
+  const moedas = 5 + Math.floor(Math.random() * 8);
+  addCoins(moedas, pos); addXP(3, pos);
+  state.stats.folhas = (state.stats.folhas || 0) + 1;
+  if (state.level < MINA_NIVEL) return {};
+  const r = Math.random(), ferr = r < 0.55 ? { pic: 2 + Math.floor(Math.random() * 3) } : r < 0.8 ? { din: 1 } : r < 0.88 ? { tnt: 1 } : null;
+  if (ferr) for (const [f, n] of Object.entries(ferr)) darFerr(f, n);
+  return ferr || {};
+}
 function concluirFolhas(id) {
   const l = folhasDe(), i = l.findIndex(x => x.id === id); if (i < 0) return;
   const f = l[i]; l.splice(i, 1);
-  const q = iso(f.u, f.v), pos = scene === 'roca' ? { x: q.x, y: q.y - L.W * 0.2 } : null, moedas = 5 + Math.floor(Math.random() * 8);
-  addCoins(moedas, pos); addXP(3, pos); sfx('collect');
-  state.stats.folhas = (state.stats.folhas || 0) + 1;
+  const q = iso(f.u, f.v), pos = scene === 'roca' ? { x: q.x, y: q.y - L.W * 0.2 } : null;
+  const ferr = recompensaFolha(pos); sfx('collect');
+  if (Object.keys(ferr).length) toast(`🍂 Achou no meio das folhas: ${txtFerr(ferr)}!`, 'good');
+  done();
+}
+// Limpeza automática: recolhe todos os montes de uma vez, sem o avatar ir até lá.
+function limparFolhasAuto() {
+  if (!isHome()) return;
+  const l = folhasDe(), livres = l.filter(f => !f.alvo);
+  if (!livres.length) return toast('Não tem nenhuma folha pra limpar agora. 🍂');
+  const total = {};
+  for (const f of livres) {
+    l.splice(l.indexOf(f), 1);
+    const q = iso(f.u, f.v), ferr = recompensaFolha(scene === 'roca' ? { x: q.x, y: q.y - L.W * 0.2 } : null);
+    for (const [k, n] of Object.entries(ferr)) total[k] = (total[k] || 0) + n;
+  }
+  sfx('collect');
+  toast(`Limpou ${livres.length} ${livres.length > 1 ? 'montes de folhas' : 'monte de folhas'}${Object.keys(total).length ? ` e achou ${txtFerr(total)}` : ''}.`, 'good');
   done();
 }
 // Na roça dos outros, o dono também passeia (desenha antes o que está mais ao fundo).
@@ -11934,20 +11993,45 @@ function comprarArmadilha() {
   toast('🪤 Armadilha comprada! Ela fica perto da plantação e pega a próxima praga que aparecer (dá para mudar de lugar no Mover).', 'good'); done();
 }
 function tipChocadeira() {
-  const ovos = (state.chocadeira && state.chocadeira.ovos) || [];
-  if (!ovos.length) return '<b>🥚 Chocadeira</b><br>Vazia. Quando um casal de aves estiver alimentado, o ovo vem para cá.<br>Clique para abrir.';
+  const ovos = (state.chocadeira && state.chocadeira.ovos) || [], cap = chocCap();
+  if (!ovos.length) return `<b>🥚 Chocadeira</b> (0 de ${cap})<br>Vazia. Quando um casal de aves estiver alimentado, o ovo vem para cá.<br>Clique para ver os espaços.`;
   const prox = Math.min(...ovos.map(o => o.nascimento)) - Date.now();
-  return `<b>🥚 Chocadeira</b><br>${ovos.length} ovo${ovos.length > 1 ? 's' : ''} · ${prox > 0 ? `o próximo nasce em ${fmt(prox / 1000)}` : 'esperando vaga no abrigo'}<br>Clique para abrir.`;
+  return `<b>🥚 Chocadeira</b> (${ovos.length} de ${cap})<br>${prox > 0 ? `o próximo nasce em ${fmt(prox / 1000)}` : 'esperando vaga no abrigo'}<br>Clique para ver os espaços.`;
 }
+// Chocadeira rústica: caixote de tábuas com palha, telhadinho de madeira e lampião; um ninho por espaço.
 function drawChocadeira(x, y, W, ovos, t) {
-  const s = W / 100 * 2.3, quente = ovos.length > 0;
-  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(x, y, 24 * s, 7 * s, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#8a5a33'; ctx.fillRect(x - 20 * s, y - 10 * s, 40 * s, 10 * s);
-  ctx.fillStyle = '#6b4220'; ctx.fillRect(x - 20 * s, y - 3 * s, 40 * s, 3 * s);
-  ctx.fillStyle = quente ? 'rgba(255,200,90,.45)' : 'rgba(190,225,240,.4)'; ctx.strokeStyle = '#5a646c'; ctx.lineWidth = 1.6 * s;
-  ctx.beginPath(); ctx.moveTo(x - 17 * s, y - 10 * s); ctx.quadraticCurveTo(x - 17 * s, y - 34 * s, x, y - 34 * s); ctx.quadraticCurveTo(x + 17 * s, y - 34 * s, x + 17 * s, y - 10 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
-  for (let k = 0; k < Math.min(4, ovos.length || 0); k++) { ctx.fillStyle = '#f6efe0'; ctx.beginPath(); ctx.ellipse(x + (k - 1.5) * 8 * s, y - 14 * s, 3.4 * s, 4.4 * s, 0, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 0.8 * s; ctx.stroke(); }
-  if (quente) { const pu = 0.5 + 0.5 * Math.sin(t / 400); ctx.fillStyle = `rgba(255,150,40,${0.55 + pu * 0.4})`; ctx.beginPath(); ctx.arc(x, y - 27 * s, 2.6 * s, 0, 7); ctx.fill(); }
+  const s = W / 100 * 2.3, quente = ovos.length > 0, cap = Math.max(2, state && state.chocadeira ? chocCap() : 2), larg = 14 * s + cap * 6.2 * s;
+  ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(x, y + s, larg * 0.62, 7 * s, 0, 0, 7); ctx.fill();
+  // pés e caixote de tábuas
+  ctx.fillStyle = '#4a2f18'; ctx.fillRect(x - larg / 2 + 1 * s, y - 2 * s, 3 * s, 4 * s); ctx.fillRect(x + larg / 2 - 4 * s, y - 2 * s, 3 * s, 4 * s);
+  ctx.fillStyle = '#9a6a3c'; ctx.strokeStyle = '#4a2f18'; ctx.lineWidth = 1.1 * s;
+  ctx.fillRect(x - larg / 2, y - 12 * s, larg, 10 * s); ctx.strokeRect(x - larg / 2, y - 12 * s, larg, 10 * s);
+  ctx.strokeStyle = 'rgba(60,34,14,.55)'; ctx.lineWidth = 0.8 * s;
+  for (let k = 1; k < 3; k++) { ctx.beginPath(); ctx.moveTo(x - larg / 2, y - 12 * s + k * 3.3 * s); ctx.lineTo(x + larg / 2, y - 12 * s + k * 3.3 * s); ctx.stroke(); }
+  ctx.fillStyle = '#6d6a64'; for (const bx of [x - larg / 2 + 3 * s, x + larg / 2 - 3 * s]) { ctx.fillRect(bx - 1 * s, y - 12 * s, 2 * s, 10 * s); }
+  // bandeja de palha com um ninho para cada espaço
+  ctx.fillStyle = '#d9b86a'; ctx.beginPath(); ctx.ellipse(x, y - 13 * s, larg / 2 - 1 * s, 4.6 * s, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#a8863f'; ctx.lineWidth = 0.7 * s; for (let k = 0; k < 14; k++) { const a = k * 0.45; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * larg * 0.42, y - 13 * s + Math.sin(a) * 3.4 * s); ctx.lineTo(x + Math.cos(a + 0.3) * larg * 0.46, y - 13 * s + Math.sin(a + 0.3) * 4 * s); ctx.stroke(); }
+  for (let k = 0; k < cap; k++) {
+    const nx = x + (k - (cap - 1) / 2) * 6.2 * s, ovo = ovos[k];
+    ctx.fillStyle = '#b8924a'; ctx.beginPath(); ctx.ellipse(nx, y - 13.4 * s, 3.1 * s, 1.9 * s, 0, 0, 7); ctx.fill();
+    if (ovo) {
+      const g = ovo.especie === 'avestruz' ? 1.35 : ovo.especie === 'codorna' ? 0.7 : 1;
+      ctx.fillStyle = CHOC_OVO[ovo.especie] || '#f3e6d0'; ctx.strokeStyle = 'rgba(70,45,20,.6)'; ctx.lineWidth = 0.6 * s;
+      ctx.beginPath(); ctx.ellipse(nx, y - 16 * s, 2.3 * s * g, 3 * s * g, 0, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(120,80,40,.35)'; ctx.beginPath(); ctx.arc(nx + 0.7 * s, y - 16.5 * s, 0.5 * s, 0, 7); ctx.arc(nx - 0.6 * s, y - 15 * s, 0.4 * s, 0, 7); ctx.fill();
+    }
+  }
+  // telhadinho de tábuas e hastes
+  ctx.fillStyle = '#5a3a20'; ctx.fillRect(x - larg / 2 + 1 * s, y - 28 * s, 2.2 * s, 15 * s); ctx.fillRect(x + larg / 2 - 3.2 * s, y - 28 * s, 2.2 * s, 15 * s);
+  ctx.fillStyle = '#7a4e2a'; ctx.strokeStyle = '#3a2410'; ctx.lineWidth = 1 * s;
+  ctx.beginPath(); ctx.moveTo(x - larg / 2 - 3 * s, y - 27 * s); ctx.lineTo(x, y - 35 * s); ctx.lineTo(x + larg / 2 + 3 * s, y - 27 * s); ctx.lineTo(x + larg / 2 + 1 * s, y - 25 * s); ctx.lineTo(x - larg / 2 - 1 * s, y - 25 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(40,24,10,.5)'; ctx.lineWidth = 0.7 * s; for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(x + k * larg * 0.17, y - 34 * s + Math.abs(k) * 1.6 * s); ctx.lineTo(x + k * larg * 0.19, y - 25.5 * s); ctx.stroke(); }
+  // lampião de calor pendurado, brilha quando há ovos
+  const pu = 0.5 + 0.5 * Math.sin(t / 400);
+  ctx.strokeStyle = '#3a3a3a'; ctx.lineWidth = 0.8 * s; ctx.beginPath(); ctx.moveTo(x, y - 25 * s); ctx.lineTo(x, y - 22 * s); ctx.stroke();
+  if (quente) { ctx.fillStyle = `rgba(255,190,80,${0.2 + pu * 0.18})`; ctx.beginPath(); ctx.ellipse(x, y - 17 * s, larg * 0.45, 7 * s, 0, 0, 7); ctx.fill(); }
+  ctx.fillStyle = quente ? `rgba(255,${170 + pu * 50},70,.95)` : '#8a7a5a'; ctx.beginPath(); ctx.roundRect(x - 2 * s, y - 22 * s, 4 * s, 5 * s, 1 * s); ctx.fill();
 }
 function drawArmadilha(x, y, W, pronta, t) {
   const s = W / 100;
