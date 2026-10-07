@@ -460,12 +460,10 @@ function orderFor(cols, rows) {
 }
 const ORDER = orderFor(COLS, ROWS);
 
-// XP pra subir de nível: fórmula exponencial — próximo = atual + (atual/2)
-const need = l => {
-  if (l <= 1) return 200;
-  const anterior = need(l - 1);
-  return Math.round(anterior + anterior / 2);
-};
+// XP pra subir de nível (curva híbrida): até o nível 20 cresce 15% por nível; depois cada nível pede só
+// 12% do valor do nível 20 a mais que o anterior (crescimento reto), para o nível 50 continuar alcançável.
+const NEED_20 = Math.round(200 * Math.pow(1.15, 19));
+const need = l => l <= 1 ? 200 : l <= 20 ? Math.round(200 * Math.pow(1.15, l - 1)) : NEED_20 + (l - 20) * Math.round(NEED_20 * 0.12);
 // Expansões: cada uma libera mais canteiros, que você coloca onde quiser dentro da área da roça.
 // Cada canteiro novo custa sempre 1000 moedas, não importa o nível (preco = 1000 × canteiros ganhos na
 // expansão). Limite de 80 canteiros no total — progressão organizada pra chegar lá até o nível 50, num
@@ -1336,6 +1334,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 257, txt: "Nova curva de XP para subir de nível: até o nível 20 continua rápida, e depois cada nível pede só um pouco mais que o anterior (por volta de 10 mil XP no nível 42), em vez de explodir. Você mantém seu nível e seu XP." },
   { v: 256, txt: "As 4 plantas que você ganha ao liberar cada cultura já chegam bloqueadas (🔒 4), então não são vendidas sem querer; desbloqueie quando quiser. Corrigido também: um jogo novo começa com as 4 plantas de cada cultura do nível 1 no Celeiro." },
   { v: 255, txt: "Vizinhos da vila renovados 🏘️: chegaram o Seu Bastião (Fazenda Santa Rita) e a Dona Véia (Cantinho da Véia), com pedidos e presentes próprios (porteira e cadeira de balanço). Cada vizinho agora tem a casa (skin), as cercas e o jeito de plantar dele (fileiras, quadras, anéis e tabuleiro), com tantas terras quanto o nível dele libera e todas as árvores do pomar que ele já pode ter. E mudas e colheita viraram uma coisa só: o que você colhe é a planta, tudo fica no Celeiro (suas mudas antigas já foram para lá)." },
   { v: 254, txt: "Celeiro: botão Vender todas as plantas no topo da aba Plantas, e todos os botões de vender tudo (geral e o Todos de cada item) agora perguntam 'Você tem certeza que quer vender tudo?' com Sim e Não." },
