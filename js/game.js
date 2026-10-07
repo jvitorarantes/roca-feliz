@@ -1323,6 +1323,7 @@ function buyDogFood(n) {
 // ---------- Novidades do jogo: viram cartas na caixa de correio ----------
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
+  { v: 252, txt: "Celeiro › Plantas: no − do mínimo a quantidade pula para o máximo (e no + do máximo volta para 1). O 🔒 Bloquear agora deixa escolher quantas plantas daquela cultura ficam guardadas, e elas não entram em nenhuma venda. A aba também ganhou o botão Vender tudo, que vende o que não está bloqueado." },
   { v: 251, txt: "Mina nova ⛏️: a porta da mina não mostra mais minérios e o avatar não precisa ir lá. Toque na mina para abrir a pedreira, arraste a picareta, a dinamite ou o TNT até a pedra e veja a animação de bater ou explodir (uns 2 segundos) com o que você ganhou. Picareta rende 1 a 2 minérios comuns, dinamite 2 a 4 com mais chance dos raros, e TNT 4 a 7 muito mais raros. Também dá para tocar na ferramenta e depois na pedra." },
   { v: 250, txt: "O tempo máximo para uma ave botar ovo agora é 72h (o avestruz caiu de 84h para 72h)." },
   { v: 249, txt: "O Celeiro agora tem duas abas: Itens (ovos, leite, minérios, peixes…) e Plantas (o que você colheu, que também serve para plantar, e as mudas), cada uma com seu botão de vender tudo. Nas plantas dá para plantar e vender direto, e aparece 'poucas' quando tem menos de 10." },
@@ -1721,9 +1722,14 @@ function usarDecor(id) {
   done();
 }
 
+// Bloqueio por quantidade: state.bloqueados[id] guarda quantas unidades ficam guardadas (true = tudo). Só o resto pode ser vendido.
+function bloqQtd(id, q) {
+  const v = state.bloqueados && state.bloqueados[id];
+  return v === true ? q : clamp(Math.floor(Number(v)) || 0, 0, q);
+}
 function sell(id, qtd) {
-  const it = item(id), q = state.barn[id] || 0; if (!q || !it) return;
-  const n = qtd === true ? q : clamp(Math.round(qtd) || 1, 1, q);
+  const it = item(id), q = state.barn[id] || 0, vend = q - bloqQtd(id, q); if (!q || !it || vend <= 0) return;
+  const n = qtd === true ? vend : clamp(Math.round(qtd) || 1, 1, vend);
   const crop = PRODUCE[id] && PRODUCE[id].planta ? CROP[PRODUCE[id].planta] : null;
   if (crop) {
     const sobra = (q - n) + (state.plantas[crop.id] || 0);
@@ -1738,14 +1744,14 @@ function sellAll(escopo) {
   let total = 0, avisos = [];
   const doEscopo = id => !escopo || (escopo === 'plantas') === !!PRODUCE[id];
   for (const [id, q] of Object.entries(state.barn)) {
-    if (state.bloqueados && state.bloqueados[id]) continue;
-    if (!doEscopo(id)) continue;
+    const qv = q - bloqQtd(id, q);
+    if (qv <= 0 || !doEscopo(id)) continue;
     const it = item(id);
     if (!it) continue;
-    total += q * it.preco;
+    total += qv * it.preco;
     if (PRODUCE[id] && PRODUCE[id].planta) {
       const crop = CROP[PRODUCE[id].planta];
-      if (crop && (state.plantas[crop.id] || 0) < PLANTAS_BAIXO) avisos.push(crop.nome);
+      if (crop && (q - qv) + (state.plantas[crop.id] || 0) < PLANTAS_BAIXO) avisos.push(crop.nome);
     }
   }
   if (!total) return toast('Nenhum produto desbloqueado para vender.', 'bad');
@@ -1753,8 +1759,10 @@ function sellAll(escopo) {
     const msg = `Vai vender tudo. Isso deixa menos de ${PLANTAS_BAIXO} para plantar de:\n${avisos.join(', ')}\n\nTem certeza? (dica: use 🔒 Bloquear nos que quer guardar)`;
     if (!confirm(msg)) return;
   }
-  for (const [id] of Object.entries(state.barn)) {
-    if (doEscopo(id) && !(state.bloqueados && state.bloqueados[id])) delete state.barn[id];
+  for (const [id, q] of Object.entries(state.barn)) {
+    if (!doEscopo(id) || !item(id)) continue;
+    const qv = q - bloqQtd(id, q);
+    if (qv > 0) { state.barn[id] = q - qv; if (!state.barn[id]) delete state.barn[id]; }
   }
   state.coins += total; state.stats.vendido += total; track('vender', total);
   sfx('coin');
@@ -5493,18 +5501,22 @@ function renderPane() {
     const nPl = CROPS.filter(c => plantaQtd(c) > 0).length, nIt = items.filter(it => !dePlanta(it)).length;
     html += `<div class="seg small" role="tablist"><button type="button" role="tab" data-cseg="itens" aria-selected="${seg === 'itens'}">Itens${nIt ? ` (${nIt})` : ''}</button><button type="button" role="tab" data-cseg="plantas" aria-selected="${seg === 'plantas'}">Plantas${nPl ? ` (${nPl})` : ''}</button></div>`;
     const lista = items.filter(it => dePlanta(it) === (seg === 'plantas'));
-    let total = 0; for (const it of lista) total += state.barn[it.id] * it.preco;
+    let total = 0; for (const it of lista) total += (state.barn[it.id] - bloqQtd(it.id, state.barn[it.id])) * it.preco;
     const linha = (it, m) => {
-      let h = '';
-        const q = state.barn[it.id], key = 'sell:' + it.id, sel = q > 1 ? qtdSel[key] = clamp(qtdSel[key] || 1, 1, q) : 1;
-        const bloq = state.bloqueados && state.bloqueados[it.id];
-        h += `<div class="row"><img alt="" src="${itemIcon(it.id)}">
-          <div><div class="name">${it.nome} × ${q}${bloq ? ' 🔒' : ''}${m ? ` <span class="tag">+${m} mudas</span>` : ''}${PRODUCE[it.id] && q + (m || 0) < PLANTAS_BAIXO ? ' <span class="tag bad">poucas</span>' : ''}</div><div class="meta">${moeda(it.preco)} cada · ${moeda(q * it.preco)} no total${it.id === 'milho' ? '<br>também serve de comida para os animais' : ''}</div></div>
-          <div class="stack">${PRODUCE[it.id] && PRODUCE[it.id].planta && CROP[PRODUCE[it.id].planta].nivel <= state.level ? `<button class="btn gold" data-seed="${PRODUCE[it.id].planta}">Plantar</button>` : ''}<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" ${bloq ? 'checked' : ''} data-toggle-block="${it.id}"> Bloquear</label>${!bloq ? (q > 1 ? qtdStep(key, q) : '') + `<button class="btn" data-sell="${it.id}" data-qtd="${sel}">Vender ${sel} · ${moeda(sel * it.preco)}</button>${q > 1 ? `<button class="btn ghost" data-sellall-of="${it.id}">Todos</button>` : ''}` : '<button class="btn ghost" disabled>Bloqueado</button>'}</div></div>`;
-      return h;
+      const q = state.barn[it.id], key = 'sell:' + it.id, ehPlanta = !!PRODUCE[it.id], bq = bloqQtd(it.id, q), vend = q - bq;
+      const sel = vend > 1 ? qtdSel[key] = clamp(qtdSel[key] || 1, 1, vend) : 1;
+      const trava = ehPlanta
+        ? `<div class="stepper" title="Quantas guardar (não são vendidas)"><span>🔒 Bloquear</span><button type="button" class="btn ghost" data-blk-d="${it.id}" data-blk-max="${q}" aria-label="Guardar menos">−</button><b>${bq}</b><button type="button" class="btn ghost" data-blk-i="${it.id}" data-blk-max="${q}" aria-label="Guardar mais">+</button></div>`
+        : `<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" ${bq ? 'checked' : ''} data-toggle-block="${it.id}"> Bloquear</label>`;
+      const venda = vend > 0
+        ? (vend > 1 ? qtdStep(key, vend) : '') + `<button class="btn" data-sell="${it.id}" data-qtd="${sel}">Vender ${sel} · ${moeda(sel * it.preco)}</button>${vend > 1 ? `<button class="btn ghost" data-sellall-of="${it.id}">Todos${bq ? ` (${vend})` : ''}</button>` : ''}`
+        : '<button class="btn ghost" disabled>Tudo guardado</button>';
+      return `<div class="row"><img alt="" src="${itemIcon(it.id)}">
+          <div><div class="name">${it.nome} × ${q}${bq ? ' 🔒' : ''}${m ? ` <span class="tag">+${m} mudas</span>` : ''}${ehPlanta && q + (m || 0) < PLANTAS_BAIXO ? ' <span class="tag bad">poucas</span>' : ''}</div><div class="meta">${moeda(it.preco)} cada · ${moeda(vend * it.preco)} para vender${bq ? ` · ${bq} guardada${bq > 1 ? 's' : ''}` : ''}${it.id === 'milho' ? '<br>também serve de comida para os animais' : ''}</div></div>
+          <div class="stack">${ehPlanta && CROP[PRODUCE[it.id].planta].nivel <= state.level ? `<button class="btn gold" data-seed="${PRODUCE[it.id].planta}">Plantar</button>` : ''}${trava}${venda}</div></div>`;
     };
     if (seg === 'plantas') {
-      html += `<p class="hint">Aqui ficam as plantações: o que você colheu (também serve para plantar) e as mudas. Tenha pelo menos ${PLANTAS_BAIXO} de cada para replantar.</p>`;
+      html += `<p class="hint">Aqui ficam as plantações: o que você colheu (também serve para plantar) e as mudas. Tenha pelo menos ${PLANTAS_BAIXO} de cada para replantar. Em 🔒 Bloquear escolha quantas de cada ficam guardadas: elas não entram em nenhuma venda.</p>`;
       let algum = false;
       for (const c of CROPS) {
         if (c.nivel > state.level) continue;
@@ -5516,7 +5528,7 @@ function renderPane() {
         else html += `<div class="row"><img alt="" src="${cropIcon(c.id)}"><div><div class="name">${c.nome} × ${m} <span class="tag">muda</span>${m < PLANTAS_BAIXO ? ' <span class="tag bad">poucas</span>' : ''}</div><div class="meta">${fmt(c.tempo)} · rende ${faixa(c)} × ${c.preco}</div></div><div class="stack"><button class="btn gold" data-seed="${c.id}">Plantar</button></div></div>`;
       }
       if (!algum) html += `<div class="empty">Você não tem nenhuma planta. Ganhe mudas em missões, no caminhão, de amigos ou na feira.</div>`;
-      else html += `<div class="total"><span>Colhidas: ${moeda(total)}</span><button class="btn gold" data-sellall="plantas" ${total ? '' : 'disabled'}>Vender colheitas</button></div>`;
+      else html += `<div class="total"><span>Para vender: ${moeda(total)}</span><button class="btn gold" data-sellall="plantas" ${total ? '' : 'disabled'}>Vender tudo</button></div>`;
     } else if (!lista.length) html += `<div class="empty">O celeiro está vazio.<br>Recolha ovos, leite, lã, pesque, cace e minere para guardar aqui.</div>`;
     else {
       html += `<div class="total"><span>Total: ${moeda(total)}</span><button class="btn gold" data-sellall="itens">Vender tudo</button></div>`;
@@ -5703,7 +5715,8 @@ $('#pane').addEventListener('click', e => {
     toast(`${n}× ${ENFEITE[id].nome.toLowerCase()} guardado${n > 1 ? 's' : ''} no inventário.`); return done();
   }
   if (d.invGuardar) { const [sc, i] = d.invGuardar.split(':'); return invGuardar(sc, Number(i)); }
-  if (d.qtdd || d.qtdi) { const k = d.qtdd || d.qtdi, max = Number(d.qtdMax) || 1; qtdSel[k] = clamp((qtdSel[k] || 1) + (d.qtdi ? 1 : -1), 1, max); return renderPane(); }
+  if (d.qtdd || d.qtdi) { const k = d.qtdd || d.qtdi, max = Number(d.qtdMax) || 1; const cur = clamp(qtdSel[k] || 1, 1, max), nx = cur + (d.qtdi ? 1 : -1); qtdSel[k] = nx < 1 ? max : nx > max ? 1 : nx; return renderPane(); } // no limite, volta para o outro lado
+  if (d.blkD || d.blkI) { const id = d.blkD || d.blkI, max = Number(d.blkMax) || 0, cur = bloqQtd(id, max), nx = cur + (d.blkI ? 1 : -1), v = nx < 0 ? max : nx > max ? 0 : nx; if (!state.bloqueados) state.bloqueados = {}; if (v > 0) state.bloqueados[id] = v; else delete state.bloqueados[id]; save(); return renderPane(); }
   if (d.pocao) {
     const n = Number(d.pocao) || 1;
     if (state.coins < POCAO.custo * n) return toast(`Faltam moedas: ${n} ${n > 1 ? 'poções custam' : 'poção custa'} ${POCAO.custo * n}.`, 'bad');
@@ -10281,7 +10294,7 @@ const qtdSel = {};
 function qtdStep(key, max) {
   const n = clamp(Math.round(qtdSel[key]) || max, 1, max);
   qtdSel[key] = n;
-  return `<div class="stepper"><button type="button" class="btn ghost" data-qtdd="${key}" data-qtd-max="${max}" ${n <= 1 ? 'disabled' : ''} aria-label="Menos">−</button><b>${n}</b><button type="button" class="btn ghost" data-qtdi="${key}" data-qtd-max="${max}" ${n >= max ? 'disabled' : ''} aria-label="Mais">+</button></div>`;
+  return `<div class="stepper"><button type="button" class="btn ghost" data-qtdd="${key}" data-qtd-max="${max}" aria-label="Menos">−</button><b>${n}</b><button type="button" class="btn ghost" data-qtdi="${key}" data-qtd-max="${max}" aria-label="Mais">+</button></div>`;
 }
 // Vender decoração: metade do que custou, com um clique a mais para confirmar. Itens de evento não se vendem.
 let vendaArmed = null;
