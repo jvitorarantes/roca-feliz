@@ -221,6 +221,7 @@ const FILHOTES = {
   porca: 'porco',       // porca gera porquinho
   bufala: 'bufala',
 };
+const AVES = ['galinha', 'angola', 'pato']; // só aves botam ovos; mamíferos têm o filhote direto
 const TEMPO_REPRODUCAO = 7 * DAY; // 7 dias entre reproduções da mesma espécie
 
 // Abrigos do rancho: cada bicho mora no seu. Cada nível aumenta quantos cabem.
@@ -2261,8 +2262,16 @@ function verificarReproducao() {
     const ultima = state.ultima_reproducao[especie] || 0;
     if (now - ultima < TEMPO_REPRODUCAO) continue;
 
-    // Gerar um ovo a cada ciclo de reprodução
     const filhote = FILHOTES[especie];
+    if (!AVES.includes(especie)) {
+      const ab = abrigoOf(filhote);
+      if (!ab || vagas(state, ab.id) <= 0 || (ANIMAL[filhote].tipo !== 'cria' && state.animals.filter(x => x.k === filhote).length >= 5)) continue;
+      state.animals.push(newAnimal(filhote));
+      state.ultima_reproducao[especie] = now;
+      toast(`🐾 Nasceu ${ANIMAL[filhote].f ? 'uma' : 'um'} ${ANIMAL[filhote].nome.toLowerCase()}!`, 'good');
+      done();
+      continue;
+    }
     if (state.chocadeira.ovos.length < 20) { // Limite de 20 ovos no incubador
       state.chocadeira.ovos.push({
         especie: filhote,
@@ -4994,7 +5003,7 @@ function chocadeiraHTML() {
   let html = '';
     html += `<h3>Chocadeira 🐣</h3>`;
     if (!state.chocadeira || !state.chocadeira.ovos || !state.chocadeira.ovos.length) {
-      html += `<div class="empty">A chocadeira está vazia.<br>Animais bem-alimentados se reproduzem automaticamente e colocam ovos para incubar.</div>`;
+      html += `<div class="empty">A chocadeira está vazia.<br>Aves bem-alimentadas botam ovos para incubar. Mamíferos têm o filhote direto, sem ovo.</div>`;
     } else {
       html += `<p class="hint">Ovos levam 24 horas para incubar. Filhotes nascem automaticamente se houver vaga no abrigo.</p>`;
       const agora = Date.now();
