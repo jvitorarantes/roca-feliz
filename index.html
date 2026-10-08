@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="268">
+<meta name="rf-version" content="269">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -775,6 +775,21 @@
   .news > div{position:relative;padding-right:30px}
   .newsdel{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(122,74,34,.12);color:#7a4a22;font-weight:900;font-size:11px;cursor:pointer;line-height:22px;padding:0}
   .newsdel:hover{background:#e0463a;color:#fff}
+  .papelrow{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}
+  .papelchip{border:2px solid var(--panel-2);background:var(--card);border-radius:10px;padding:4px 9px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;color:inherit}
+  .papelchip[aria-pressed=true]{border-color:var(--gold);background:var(--sel)}
+  .papelchip:disabled{opacity:.55;cursor:default}
+  .news.papel-pautado > div{background-color:#fffdf4;background-image:repeating-linear-gradient(transparent,transparent 19px,rgba(74,134,199,.28) 19px,rgba(74,134,199,.28) 20px);border-color:#d8c8a0;border-left:4px double #e0a0a0}
+  .news.papel-florido > div{background-color:#fff5f8;border-color:#e89ab8;background-image:radial-gradient(circle at 10px 10px,#f06292 3px,transparent 4px),radial-gradient(circle at calc(100% - 10px) calc(100% - 10px),#ffd54a 3px,transparent 4px)}
+  .news.papel-junino > div{background-color:#fff6d6;border-color:#e8b030;padding-top:11px;background-image:linear-gradient(90deg,#e53b2f 0 20%,#ffd54a 20% 40%,#4aa3df 40% 60%,#4f9a2f 60% 80%,#f06292 80% 100%);background-size:100% 5px;background-repeat:no-repeat}
+  .news.papel-estrelado > div{background-color:#1f2a55;color:#fff;border-color:#ffd54a;background-image:radial-gradient(circle at 12% 30%,#fff 1px,transparent 2px),radial-gradient(circle at 70% 70%,#ffd54a 1.5px,transparent 2.5px),radial-gradient(circle at 92% 22%,#fff 1px,transparent 2px)}
+  .news.papel-estrelado time{color:#b8c4f0}
+  .news.papel-trevo > div{background-color:#eaf8dc;border-color:#2f8a2f}
+  .news.papel-trevo > div::after{content:"🍀";position:absolute;right:30px;bottom:2px;font-size:20px;opacity:.35}
+  .news.papel-pergaminho > div{background-color:#f3e2b8;border-color:#a8803a;border-radius:4px 14px 4px 14px;background-image:radial-gradient(ellipse at 50% 50%,rgba(255,255,255,.35),rgba(160,110,50,.22))}
+  .news.papel-coracao > div{background-color:#fff0f3;border-color:#e8708a}
+  .news.papel-coracao > div::after{content:"💌";position:absolute;right:30px;bottom:2px;font-size:18px;opacity:.4}
+  .news[class*="papel-"] > div.new{box-shadow:0 0 0 2px var(--gold)}
   .chatlimpar{font-size:12px;padding:3px 10px;margin-right:6px}
   img.emo{height:1.25em;width:1.25em;vertical-align:-0.3em;display:inline-block}
   #cacaCv { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: crosshair; background: #86c050; }
@@ -1097,6 +1112,6 @@
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
 <script src="js/audio.js?v=236"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=268"></script>
+<script src="js/game.js?v=269"></script>
 </body>
 </html>

@@ -1339,6 +1339,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 269, txt: "Árvores com estações: ipês florescem no inverno e na primavera, a cerejeira só na primavera (e fica sem folhas no inverno), o flamboyant no verão, e no outono as folhas ficam alaranjadas e caem. Os arbustos também só florescem na época certa. Na Loja do Trevo 🍀: 8 selos de perfil, 7 papéis de parede para a casa (Loja › Temas) e 6 papéis de carta para o Correio." },
   { v: 268, txt: "Loja do Trevo 🍀 bem maior! Enfeites: lago com vitória-régia, coreto, festa junina, moinho d'água, ipê-branco, flamboyant, lampião de rua, rede e boi-bumbá. Avatar: chapéu de palha de festa, chapéu de bandeirinhas, poncho, violão, triângulo e cesta de frutas. Temas: Casa Junina, Casa Praiana e Cerca do Trevo. Cães de pelagem rara (caramelo-dourado e preto-e-branco). E itens úteis: isca dourada (peixe raro garantido), ovo misterioso, pacote de plantas, pular 1 hora de espera, fertilizante dourado, kit da mina e troca de nome grátis." },
   { v: 267, txt: "Chegaram árvores e arbustos só de enfeite na Loja › Enfeites: buxinho, hortênsia, hibisco, azaleia, pinheiro, palmeira, salgueiro, ipê-roxo e cerejeira. Não dão fruta nem secam, e cada um dá conforto (+XP)." },
   { v: 266, txt: "Corrigido: o olho da raposa (e dos outros canídeos da caçada) aparecia lá em cima; agora fica na cabeça." },
@@ -4664,6 +4665,88 @@ function drawSlotHint(id) {
   line({ x: m.x, y: m.y - R * 0.5 }, { x: m.x, y: m.y + R * 0.5 }, '#4f9a2f', 2.5);
 }
 
+// ---------- Papéis de carta do Correio (cada um muda o visual das suas cartas) ----------
+const PAPEIS_CARTA = [
+  { id: 'classico',   nome: 'Clássico' },
+  { id: 'pautado',    nome: 'Pautado' },
+  { id: 'florido',    nome: 'Florido',      trevo: 12 },
+  { id: 'junino',     nome: 'Junino',       trevo: 15 },
+  { id: 'estrelado',  nome: 'Estrelado',    trevo: 15 },
+  { id: 'trevo',      nome: 'Trevo',        trevo: 12 },
+  { id: 'pergaminho', nome: 'Pergaminho',   trevo: 12 },
+  { id: 'coracao',    nome: 'Coração',      trevo: 12 },
+];
+const PAPEL_CARTA = Object.fromEntries(PAPEIS_CARTA.map(p => [p.id, p]));
+const cartaLiberada = id => !PAPEL_CARTA[id].trevo || temTrevoItem('papel:' + id);
+const papelCartaAtual = () => { const id = state && state.papelCarta; return PAPEL_CARTA[id] && cartaLiberada(id) ? id : 'classico'; };
+const papelIcon = id => makeIcon('papel:' + id, () => {
+  const cores = { classico: ['#fffdf4', '#d8c8a0', ''], pautado: ['#fffdf4', '#d8c8a0', ''], florido: ['#fff5f8', '#e89ab8', '🌸'], junino: ['#fff6d6', '#e8b030', '🎏'], estrelado: ['#1f2a55', '#ffd54a', '⭐'], trevo: ['#eaf8dc', '#2f8a2f', '🍀'], pergaminho: ['#f3e2b8', '#a8803a', '📜'], coracao: ['#fff0f3', '#e8708a', '💌'] }[id];
+  ctx.save(); ctx.translate(48, 48); ctx.rotate(-0.08);
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.roundRect(-30, -36, 64, 78, 6); ctx.fill();
+  ctx.fillStyle = cores[0]; ctx.strokeStyle = cores[1]; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(-32, -40, 64, 78, 6); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = id === 'estrelado' ? 'rgba(255,255,255,.5)' : 'rgba(74,134,199,.4)'; ctx.lineWidth = 1.2; for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(-24, -22 + k * 11); ctx.lineTo(24, -22 + k * 11); ctx.stroke(); }
+  if (cores[2]) { ctx.font = '22px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(cores[2], 16, 24); }
+  ctx.restore();
+});
+function cartasEscolhaHTML() {
+  const sel = papelCartaAtual();
+  return `<div class="papelrow">${PAPEIS_CARTA.map(p => cartaLiberada(p.id)
+    ? `<button type="button" class="papelchip" data-papel-carta="${p.id}" aria-pressed="${sel === p.id}">${esc(p.nome)}</button>`
+    : `<button type="button" class="papelchip" disabled title="Loja do Trevo">🔒 ${esc(p.nome)}</button>`).join('')}</div>`;
+}
+function paredeEscolhaHTML() {
+  const sel = (papelParedeAtual(state) || PAPEL_PAREDE.padrao).id;
+  return `<div class="papelrow">${PAPEIS_PAREDE.map(p => paredeLiberada(p.id)
+    ? `<button type="button" class="papelchip" data-papel-parede="${p.id}" aria-pressed="${sel === p.id}">${esc(p.nome)}</button>`
+    : `<button type="button" class="papelchip" disabled title="Loja do Trevo">🔒 ${esc(p.nome)}</button>`).join('')}</div>`;
+}
+// ---------- Papéis de parede da casa (exclusivos da Loja do Trevo; o padrão é de graça) ----------
+const PAPEIS_PAREDE = [
+  { id: 'padrao',    nome: 'Padrão' },
+  { id: 'listrado',  nome: 'Listras de fazenda', tipo: 'listras',   cores: ['#e8d8b0', '#f4e6c0', '#d9b87a'], trevo: 10 },
+  { id: 'xadrez',    nome: 'Xadrez de toalha',   tipo: 'xadrez',    cores: ['#f4e8e4', '#fbf3ef', '#e0584a'], trevo: 10 },
+  { id: 'floral',    nome: 'Florzinhas',         tipo: 'floral',    cores: ['#f6dde6', '#fce9ef', '#e8708a'], trevo: 12 },
+  { id: 'tijolinho', nome: 'Tijolinho',          tipo: 'tijolo',    cores: ['#b8583a', '#c8644a', '#8a3a24'], trevo: 12 },
+  { id: 'estrelado', nome: 'Céu estrelado',      tipo: 'estrelas',  cores: ['#1f2a55', '#2a3870', '#ffd54a'], trevo: 15 },
+  { id: 'trevo',     nome: 'Trevos',             tipo: 'trevos',    cores: ['#d2eec0', '#e2f6d2', '#2f8a2f'], trevo: 15 },
+  { id: 'junino',    nome: 'Festa junina',       tipo: 'junino',    cores: ['#f8e08a', '#fdeba0', '#e53b2f'], trevo: 15 },
+];
+const PAPEL_PAREDE = Object.fromEntries(PAPEIS_PAREDE.map(p => [p.id, p]));
+const paredeLiberada = id => id === 'padrao' || temTrevoItem('parede:' + id);
+const papelParedeAtual = s => { const p = s && PAPEL_PAREDE[s.papelParede]; return p && p.id !== 'padrao' && (s !== state || paredeLiberada(p.id)) ? p : null; };
+const BUNTING = ['#e53b2f', '#ffd54a', '#4aa3df', '#4f9a2f', '#f06292'];
+function drawPapelParede(s, H) {
+  const pp = papelParedeAtual(s); if (!pp) return false;
+  const [cEsq, cFun, c2] = pp.cores, W = L.W;
+  const wp = (side, a, h) => side === 'l' ? P(0, a, h) : P(a, 0, h);
+  const q = (side, a0, a1, h0, h1, c) => quad(wp(side, a0, h0), wp(side, a1, h0), wp(side, a1, h1), wp(side, a0, h1), c);
+  for (const side of ['l', 'b']) {
+    q(side, 0, ROOM, 0.08, H, side === 'l' ? cEsq : cFun);
+    const tom = side === 'l' ? 0.84 : 1;
+    if (pp.tipo === 'listras') for (let k = 1; k < ROOM * 4; k += 2) q(side, k / 4, (k + 1) / 4, 0.08, H, c2);
+    else if (pp.tipo === 'xadrez') { for (let i = 0; i < ROOM * 4; i++) for (let j = 0; j < 5; j++) if ((i + j) % 2) q(side, i / 4, (i + 1) / 4, 0.08 + j * (H - 0.08) / 5, 0.08 + (j + 1) * (H - 0.08) / 5, c2); }
+    else if (pp.tipo === 'floral') for (let i = 0; i < ROOM * 2; i++) for (let j = 0; j < 3; j++) { const a = 0.25 + i * 0.5 + (j % 2) * 0.25, h = 0.3 + j * 0.35, c = wp(side, a, h); ctx.fillStyle = c2; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(c.x + Math.cos(k * 1.257) * W * 0.022, c.y + Math.sin(k * 1.257) * W * 0.022, W * 0.014, 0, 7); ctx.fill(); } ctx.fillStyle = '#ffd54a'; ctx.beginPath(); ctx.arc(c.x, c.y, W * 0.01, 0, 7); ctx.fill(); }
+    else if (pp.tipo === 'tijolo') { for (let j = 0; j <= 8; j++) { const h = 0.08 + j * (H - 0.08) / 8; line(wp(side, 0, h), wp(side, ROOM, h), c2, 1.2); } for (let j = 0; j < 8; j++) for (let i = 0; i < ROOM * 2; i++) { const a = i / 2 + (j % 2) * 0.25, h0 = 0.08 + j * (H - 0.08) / 8, h1 = 0.08 + (j + 1) * (H - 0.08) / 8; if (a > 0 && a < ROOM) line(wp(side, a, h0), wp(side, a, h1), c2, 1.2); } }
+    else if (pp.tipo === 'estrelas') for (let k = 0; k < 26; k++) { const a = hash01(k * 3.1 + (side === 'l' ? 7 : 0)) * ROOM, h = 0.14 + hash01(k * 5.3 + 1) * (H - 0.22), c = wp(side, a, h), tw = 0.6 + 0.4 * Math.sin(Date.now() / 600 + k); ctx.fillStyle = k % 3 ? `rgba(255,255,255,${tw})` : `rgba(255,213,74,${tw})`; ctx.beginPath(); ctx.arc(c.x, c.y, W * (k % 4 ? 0.011 : 0.018), 0, 7); ctx.fill(); }
+    else if (pp.tipo === 'trevos') for (let i = 0; i < ROOM * 2; i++) for (let j = 0; j < 3; j++) { const c = wp(side, 0.25 + i * 0.5 + (j % 2) * 0.25, 0.3 + j * 0.35); ctx.globalAlpha = 0.55; desenhaTrevo(ctx, c.x, c.y, W * 0.028); ctx.globalAlpha = 1; }
+    else if (pp.tipo === 'junino') for (let i = 0; i < ROOM * 3; i++) { const a0 = i / 3, a1 = (i + 1) / 3, am = (a0 + a1) / 2; ctx.fillStyle = BUNTING[i % 5]; ctx.beginPath(); const p0 = wp(side, a0 + 0.04, H), p1 = wp(side, a1 - 0.04, H), pm = wp(side, am, H - 0.3); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.lineTo(pm.x, pm.y); ctx.closePath(); ctx.fill(); }
+    if (pp.tipo === 'estrelas' && side === 'b') { const m = wp('b', 3.4, 1.0); ctx.fillStyle = '#f4f1d0'; ctx.beginPath(); ctx.arc(m.x, m.y, W * 0.05, 0, 7); ctx.fill(); ctx.fillStyle = cFun; ctx.beginPath(); ctx.arc(m.x + W * 0.025, m.y - W * 0.01, W * 0.045, 0, 7); ctx.fill(); }
+    if (side === 'l') { ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.beginPath(); const a = wp('l', 0, 0.08), b = wp('l', ROOM, 0.08), c = wp('l', ROOM, H), d = wp('l', 0, H); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fill(); }
+  }
+  return true;
+}
+const paredeIcon = id => makeIcon('parede:' + id, () => {
+  const pp = PAPEL_PAREDE[id], [c0, c1, c2] = pp.cores;
+  ctx.fillStyle = c1; ctx.beginPath(); ctx.roundRect(8, 8, 80, 80, 8); ctx.fill(); ctx.save(); ctx.beginPath(); ctx.roundRect(8, 8, 80, 80, 8); ctx.clip();
+  if (pp.tipo === 'listras') { ctx.fillStyle = c2; for (let k = 1; k < 8; k += 2) ctx.fillRect(8 + k * 10, 8, 10, 80); }
+  else if (pp.tipo === 'xadrez') { ctx.fillStyle = c2; for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) if ((i + j) % 2) ctx.fillRect(8 + i * 10, 8 + j * 10, 10, 10); }
+  else if (pp.tipo === 'floral') for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { const cx = 22 + i * 26 + (j % 2) * 8, cy = 22 + j * 26; ctx.fillStyle = c2; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(cx + Math.cos(k * 1.257) * 6, cy + Math.sin(k * 1.257) * 6, 4, 0, 7); ctx.fill(); } ctx.fillStyle = '#ffd54a'; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, 7); ctx.fill(); }
+  else if (pp.tipo === 'tijolo') { ctx.fillStyle = c0; ctx.fillRect(8, 8, 80, 80); ctx.strokeStyle = c2; ctx.lineWidth = 1.5; for (let j = 0; j < 8; j++) { ctx.beginPath(); ctx.moveTo(8, 8 + j * 10); ctx.lineTo(88, 8 + j * 10); ctx.stroke(); for (let i = 0; i < 5; i++) { const xx = 8 + i * 20 + (j % 2) * 10; ctx.beginPath(); ctx.moveTo(xx, 8 + j * 10); ctx.lineTo(xx, 18 + j * 10); ctx.stroke(); } } }
+  else if (pp.tipo === 'estrelas') { ctx.fillStyle = c0; ctx.fillRect(8, 8, 80, 80); for (let k = 0; k < 18; k++) { ctx.fillStyle = k % 3 ? '#fff' : c2; ctx.beginPath(); ctx.arc(14 + hash01(k * 3.1) * 68, 14 + hash01(k * 5.3 + 1) * 68, k % 4 ? 1.4 : 2.4, 0, 7); ctx.fill(); } ctx.fillStyle = '#f4f1d0'; ctx.beginPath(); ctx.arc(66, 28, 9, 0, 7); ctx.fill(); ctx.fillStyle = c0; ctx.beginPath(); ctx.arc(70, 25, 8, 0, 7); ctx.fill(); }
+  else if (pp.tipo === 'trevos') { ctx.globalAlpha = 0.6; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) desenhaTrevo(ctx, 22 + i * 26 + (j % 2) * 8, 22 + j * 26, 8); ctx.globalAlpha = 1; }
+  else if (pp.tipo === 'junino') for (let i = 0; i < 8; i++) { ctx.fillStyle = BUNTING[i % 5]; ctx.beginPath(); ctx.moveTo(8 + i * 10, 8); ctx.lineTo(18 + i * 10, 8); ctx.lineTo(13 + i * 10, 24); ctx.closePath(); ctx.fill(); }
+  ctx.restore(); ctx.strokeStyle = 'rgba(60,40,20,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(8, 8, 80, 80, 8); ctx.stroke();
+});
 function drawRoom(s, t, home) {
   const W = L.W, H = 1.3, tod = timeOfDay();
   const g = ctx.createRadialGradient(L.cw / 2, L.ch * 0.55, W * 0.5, L.cw / 2, L.ch * 0.55, L.cw * 0.7);
@@ -4677,11 +4760,13 @@ function drawRoom(s, t, home) {
     for (let j = 1; j <= 2; j++) { const r = (k * 1.7 + j * 2.1) % ROOM; line(P(k / 2, r), P((k + 1) / 2, r), 'rgba(0,0,0,.15)', 1); }
   }
   // paredes
+  if (!drawPapelParede(s, H)) {
   quad(P(0, 0), P(0, ROOM), P(0, ROOM, H), P(0, 0, H), '#e6cf9c');
   quad(P(0, 0), P(ROOM, 0), P(ROOM, 0, H), P(0, 0, H), '#f1dcae');
   for (let k = 0.25; k < ROOM; k += 0.5) {
     line(P(0, k, 0.08), P(0, k, H), 'rgba(160,110,60,.13)', 2);
     line(P(k, 0, 0.08), P(k, 0, H), 'rgba(160,110,60,.13)', 2);
+  }
   }
   quad(P(0, 0), P(0, ROOM), P(0, ROOM, 0.08), P(0, 0, 0.08), '#8a5a33');
   quad(P(0, 0), P(ROOM, 0), P(ROOM, 0, 0.08), P(0, 0, 0.08), '#9a6a3e');
@@ -5083,6 +5168,14 @@ const FOTOS_PERFIL = [
   { id: 'trevo',      nome: 'Trevo',       emoji: '🍀', bg: ['#d4f5c0', '#256a20'], requer: () => ((state.trevos && state.trevos.saldo) || 0) >= 20, dica: 'Tenha 20 trevos 🍀' },
   { id: 'chupacabra', nome: 'Chupa-cabra', emoji: '🦇', bg: ['#c8b0e6', '#241634'], requer: () => !!(state.caca && state.caca.trofeu), dica: 'Pegue o lendário Chupa-cabra' },
   { id: 'alien',      nome: 'Alienígena',  emoji: '👽', bg: ['#c0f0d8', '#0f3a2e'] },
+  { id: 'sanfoneiro', nome: 'Sanfoneiro', emoji: '🪗', bg: ['#ffe0c0', '#c8402f'], requer: () => temTrevoItem('foto:sanfoneiro'), dica: 'Troque na Loja do Trevo 🍀' },
+  { id: 'fogueira', nome: 'Fogueira', emoji: '🔥', bg: ['#ffe0a0', '#a82a10'], requer: () => temTrevoItem('foto:fogueira'), dica: 'Troque na Loja do Trevo 🍀' },
+  { id: 'cerrado', nome: 'Cerrado', emoji: '🌵', bg: ['#e8f0b8', '#6a8a2a'], requer: () => temTrevoItem('foto:cerrado'), dica: 'Troque na Loja do Trevo 🍀' },
+  { id: 'arara', nome: 'Arara', emoji: '🦜', bg: ['#ffd8d0', '#2a6ac8'], requer: () => temTrevoItem('foto:arara'), dica: 'Troque na Loja do Trevo 🍀' },
+  { id: 'jacare', nome: 'Jacaré', emoji: '🐊', bg: ['#d0f0c8', '#2f6a2a'], requer: () => temTrevoItem('foto:jacare'), dica: 'Troque na Loja do Trevo 🍀' },
+  { id: 'boi', nome: 'Boi', emoji: '🐂', bg: ['#f4e0cc', '#5a3a20'], requer: () => temTrevoItem('foto:boi'), dica: 'Troque na Loja do Trevo 🍀' },
+  { id: 'ipeflor', nome: 'Ipê em flor', emoji: '🌼', bg: ['#fff3b0', '#e0a010'], requer: () => temTrevoItem('foto:ipeflor'), dica: 'Troque na Loja do Trevo 🍀' },
+  { id: 'lua', nome: 'Lua', emoji: '🌙', bg: ['#dcd8ff', '#1a1a50'], requer: () => temTrevoItem('foto:lua'), dica: 'Troque na Loja do Trevo 🍀' },
 ];
 const FOTO_PERFIL = Object.fromEntries(FOTOS_PERFIL.map(f => [f.id, f]));
 function fotoIconUrl(f) {
@@ -5543,7 +5636,7 @@ function renderPane() {
       html += trevoLojaHTML();
     } else if (shopSeg === 'temas') {
       html += `<p class="hint">Os temas mudam o estilo das cercas que você põe (Loja › Enfeites) e o jeito da sua roça. Os amigos veem o seu tema quando visitam.</p>`;
-      html += `<h3>Casa e celeiro</h3>` + casaTemasHTML() + `<h3>Cerca e roça</h3>`;
+      html += `<h3>Casa e celeiro</h3>` + casaTemasHTML() + `<h3>Papel de parede da casa</h3><p class="hint">Cada papel é exclusivo da Loja do Trevo 🍀. Os amigos veem o seu quando visitam a sua casa.</p>${paredeEscolhaHTML()}<h3>Cerca e roça</h3>`;
       for (const t of TEMAS) {
         const locked = t.nivel > state.level, owned = !!state.temas[t.id], using = state.tema === t.id;
         html += `<div class="row ${locked ? 'locked' : ''} ${using ? 'sel' : ''}"><img alt="" src="${temaIcon(t.id)}">
@@ -5631,11 +5724,12 @@ function renderPane() {
   } else if (tab === 'correio') {
     // Caixa de correio: as novidades da sua roça (visitas, presentes, cachorro, animais…)
     podarNews();
+    html += `<p class="hint">✉️ Papel de carta:</p>${cartasEscolhaHTML()}`;
     html += `<p class="hint">Tudo o que aconteceu na sua roça (visitas dos amigos, presentes, o que o cachorro fez, recados da vila) e as novidades do jogo 📰. As cartas somem sozinhas depois de ${NEWS_DIAS} dias.</p>`;
     if (!state.news.length) html += `<div class="empty">A caixa de correio está vazia.</div>`;
     else {
       html += `<div class="newsbar"><button class="btn ghost" type="button" data-news-limpar="1">🗑️ Apagar todas</button></div>`;
-      html += `<div class="news">${state.news.map(n =>
+      html += `<div class="news papel-${papelCartaAtual()}">${state.news.map(n =>
         `<div class="${n.at > state.newsSeen ? 'new' : ''}"><button class="newsdel" type="button" data-news-del="${n.at}" aria-label="Apagar esta carta" title="Apagar">✕</button><time>${quando(n.at)}</time>${esc(n.msg)}</div>`).join('')}</div>`;
       if (state.news[0].at > state.newsSeen) { state.newsSeen = state.news[0].at; setTimeout(renderTabs, 0); save(); }
     }
@@ -5763,6 +5857,8 @@ $('#pane').addEventListener('click', e => {
   if (d.comprarArmadilha) { comprarArmadilha(); return renderPane(); }
   if (d.trevoBichos) { resgatarBichos(); return renderPane(); }
   if (d.trevoDomcaca) { resgatarDomCaca(); return renderPane(); }
+  if (d.papelCarta) { state.papelCarta = d.papelCarta; sfx('click'); save(); return renderPane(); }
+  if (d.papelParede) { if (!paredeLiberada(d.papelParede)) return; state.papelParede = d.papelParede === 'padrao' ? '' : d.papelParede; sfx('click'); done(); return renderPane(); }
   if (d.newsDel) { state.news = state.news.filter(n => String(n.at) !== d.newsDel); sfx('click'); save(); renderTabs(); return renderPane(); }
   if (d.newsLimpar) return confirmTwice('news-limpar', 'Apagar todas as cartas do correio? Toque de novo para confirmar.', () => { state.news = []; sfx('water'); toast('Correio limpo! 📭', 'good'); save(); renderTabs(); renderPane(); });
   if (d.trevoComprar) return comprarTrevoItem(d.trevoComprar);
@@ -5996,7 +6092,8 @@ function tipEnfeite(id, key, sc) {
   const e = ENFEITE[id]; if (!e) return null;
   if (e.chocadeira) return isHome() ? tipChocadeira() : `<b>${e.nome}</b>`;
   if (e.fruteira) { const o = key && objetosDe(S(), sc || scene)[Number(String(key).slice(4))]; if (o) return tipFruteira(o); }
-  return `<b>${e.nome}</b><br>+${e.conforto}% de XP${e.especial ? `<br>${origemEnfeite(e, S())}` : ''}${isHome() ? '<br>Mude de lugar com o botão Mover.' : ''}`;
+  const saz = ARV_SAZ[id] ? `<br>${TXT_MODO[modoArvore(id)]} · floresce ${ARV_SAZ[id].florEm.map(k => NOME_EST[k]).join(' e ')}` : '';
+  return `<b>${e.nome}</b><br>+${e.conforto}% de XP${saz}${e.especial ? `<br>${origemEnfeite(e, S())}` : ''}${isHome() ? '<br>Mude de lugar com o botão Mover.' : ''}`;
 }
 function tipLand() {
   const next = EXPANSOES[state.exp + 1];
@@ -9856,14 +9953,14 @@ const ENFEITES = [
   { id: 'moinho',     nome: 'Cata-vento',             nivel: 14, custo: 5000, conforto: 3 },
   // Árvores e arbustos só de enfeite (não dão fruta, não secam): `deco` = 'arvore' | 'arbusto'
   { id: 'buxinho',    nome: 'Buxinho aparado',        nivel: 2,  custo: 250,  conforto: 1, deco: 'arbusto', copa: '#2f7a3a', desc: 'Arbusto verdinho, podado redondinho.' },
-  { id: 'hortensia',  nome: 'Hortênsia',              nivel: 4,  custo: 400,  conforto: 1, deco: 'arbusto', copa: '#3f8a3a', flor: '#6f9be8', desc: 'Arbusto cheio de flores azuis.' },
-  { id: 'hibisco',    nome: 'Hibisco',                nivel: 7,  custo: 600,  conforto: 1, deco: 'arbusto', copa: '#2f7a2a', flor: '#e8334a', desc: 'Arbusto com flores vermelhas.' },
-  { id: 'azaleia',    nome: 'Azaleia',                nivel: 10, custo: 900,  conforto: 2, deco: 'arbusto', copa: '#3a7a33', flor: '#f07ab8', desc: 'Arbusto coberto de flores rosa.' },
+  { id: 'hortensia',  nome: 'Hortênsia',              nivel: 4,  custo: 400,  conforto: 1, deco: 'arbusto', copa: '#3f8a3a', flor: '#6f9be8', epocaFlor: ['primavera', 'verao'], desc: 'Arbusto cheio de flores azuis (primavera e verão).' },
+  { id: 'hibisco',    nome: 'Hibisco',                nivel: 7,  custo: 600,  conforto: 1, deco: 'arbusto', copa: '#2f7a2a', flor: '#e8334a', epocaFlor: ['verao', 'outono'], desc: 'Arbusto com flores vermelhas (verão e outono).' },
+  { id: 'azaleia',    nome: 'Azaleia',                nivel: 10, custo: 900,  conforto: 2, deco: 'arbusto', copa: '#3a7a33', flor: '#f07ab8', epocaFlor: ['inverno', 'primavera'], desc: 'Arbusto coberto de flores rosa (inverno e primavera).' },
   { id: 'pinheiro',   nome: 'Pinheiro',               nivel: 5,  custo: 900,  conforto: 2, deco: 'arvore', copa: '#1f5a33', forma: 'pinheiro', desc: 'Árvore alta e pontuda.' },
   { id: 'palmeira',   nome: 'Palmeira',               nivel: 8,  custo: 1300, conforto: 2, deco: 'arvore', copa: '#3a9a3a', forma: 'palmeira', desc: 'Tronco fino e folhas compridas.' },
   { id: 'salgueiro',  nome: 'Salgueiro',              nivel: 11, custo: 1800, conforto: 2, deco: 'arvore', copa: '#6aa83a', forma: 'salgueiro', desc: 'Galhos caídos até o chão.' },
-  { id: 'ipe_roxo',   nome: 'Ipê-roxo',               nivel: 14, custo: 2500, conforto: 3, deco: 'arvore', copa: '#3f8a2a', flor: '#b46ad8', desc: 'Copa toda florida de roxo.' },
-  { id: 'cerejeira',  nome: 'Cerejeira',              nivel: 18, custo: 3500, conforto: 3, deco: 'arvore', copa: '#e89ab8', flor: '#f8c4d8', desc: 'Copa de flores cor-de-rosa.' },
+  { id: 'ipe_roxo',   nome: 'Ipê-roxo',               nivel: 14, custo: 2500, conforto: 3, deco: 'arvore', copa: '#3f8a2a', flor: '#b46ad8', desc: 'Copa toda florida de roxo no inverno e na primavera; muda com as estações.' },
+  { id: 'cerejeira',  nome: 'Cerejeira',              nivel: 18, custo: 3500, conforto: 3, deco: 'arvore', copa: '#e89ab8', flor: '#f8c4d8', desc: 'Flores cor-de-rosa na primavera; folhas no verão, vermelhas no outono, sem folhas no inverno.' },
   { id: 'agua',       nome: 'Bloco de água',          nivel: 4,  custo: 30,   conforto: 1, agua: true, desc: 'Do tamanho de uma plantação. Encoste um no outro para virar um laguinho, com peixinhos pulando.' },
   // Cerca: um pedaço de uma casa de comprimento, no estilo do tema da roça. Só enfeita (não dá XP).
   { id: 'cerca',      nome: 'Cerca da roça',          nivel: 1,  custo: 40,   conforto: 0, cerca: true, desc: 'No estilo do tema da roça (Loja › Temas).' },
@@ -10764,8 +10861,53 @@ function drawPeixesRoca(s, t) {
   }
 }
 // Desenho dos enfeites, com a base em (x, y). s = escala (1 = casa de 100px).
+// Árvores de flor que mudam com a estação (a estação troca toda segunda-feira):
+// ipês florescem no inverno e na primavera, a cerejeira só na primavera, o flamboyant no verão.
+const ARV_SAZ = {
+  ipe:        { flor: ['#f2c14e', '#ffd54a', '#e8b020'], petala: '#ffd54a', florEm: ['inverno', 'primavera'] },
+  ipebranco:  { flor: ['#ffffff', '#f6f0fa', '#ece4f4'], petala: '#ffffff', florEm: ['inverno', 'primavera'] },
+  ipe_roxo:   { flor: ['#b46ad8', '#c88ae8', '#9a52c0'], petala: '#c88ae8', florEm: ['inverno', 'primavera'] },
+  cerejeira:  { flor: ['#f8c4d8', '#f4a8c4', '#fbd8e6'], petala: '#f8c4d8', florEm: ['primavera'] },
+  flamboyant: { flor: ['#d83a22', '#e8502a', '#f06030'], petala: '#e8402a', florEm: ['verao'], larga: true, perene: true },
+};
+const NOME_EST = { primavera: 'na primavera', verao: 'no verão', outono: 'no outono', inverno: 'no inverno' };
+function modoArvore(id) {
+  const a = ARV_SAZ[id]; if (!a) return 'verde';
+  const est = estacao().id;
+  if (a.florEm.includes(est)) return 'flor';
+  if (a.perene) return 'verde';
+  return est === 'outono' ? 'outono' : est === 'inverno' ? 'nua' : 'verde';
+}
+const TXT_MODO = { flor: '🌸 Em flor agora!', verde: '🌿 Folhagem verde', outono: '🍂 Folhas de outono', nua: '❄️ Sem folhas no inverno' };
+function drawArvoreSazonal(id, x, y, s, t) {
+  const a = ARV_SAZ[id], modo = modoArvore(id), est = estacao();
+  ctx.fillStyle = '#6b4a2a'; ctx.beginPath(); ctx.moveTo(x - 3 * s, y); ctx.lineTo(x - 1.5 * s, y - 36 * s); ctx.lineTo(x + 1.5 * s, y - 36 * s); ctx.lineTo(x + 3 * s, y); ctx.fill();
+  ctx.strokeStyle = '#6b4a2a'; ctx.lineWidth = 2 * s; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x, y - 28 * s); ctx.lineTo(x - 13 * s, y - 40 * s); ctx.moveTo(x, y - 30 * s); ctx.lineTo(x + 14 * s, y - 42 * s); ctx.stroke();
+  if (modo === 'nua') {
+    ctx.lineWidth = 1.5 * s; ctx.beginPath();
+    for (const [x1, y1, x2, y2] of [[-13, -40, -22, -52], [-13, -40, -9, -56], [14, -42, 23, -53], [14, -42, 10, -58], [0, -36, 0, -60], [0, -50, -6, -62], [0, -50, 6, -63]]) { ctx.moveTo(x + x1 * s, y + y1 * s); ctx.lineTo(x + x2 * s, y + y2 * s); }
+    ctx.stroke();
+    if (est.neve) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2 * s; ctx.beginPath(); for (const [x1, y1, x2, y2] of [[-13, -41, -22, -53], [-13, -41, -9, -57], [14, -43, 23, -54], [14, -43, 10, -59]]) { ctx.moveTo(x + x1 * s, y + y1 * s); ctx.lineTo(x + x2 * s, y + y2 * s); } ctx.stroke(); }
+    ctx.lineCap = 'butt'; return;
+  }
+  ctx.lineCap = 'butt';
+  const copa = a.larga ? [[-20, -42, 11], [19, -43, 12], [0, -50, 14], [-8, -40, 10], [9, -40, 10], [-10, -48, 9], [12, -50, 9]] : [[-14, -44, 11], [13, -46, 12], [0, -52, 13], [-6, -40, 9], [7, -41, 9]];
+  const verdes = ['#3f8a2a', '#4a9a32', '#2f7a22'], outonos = ['#d9822b', '#c8602a', '#e8a030'];
+  copa.forEach(([dx, dy, r], k) => {
+    const c = modo === 'flor' ? (a.larga && (k === 3 || k === 4) ? '#2f8a2a' : a.flor[k % 3]) : modo === 'outono' ? outonos[k % 3] : verdes[k % 3];
+    ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(x + dx * s, y + dy * s, r * s * (a.larga ? 1.2 : 1), r * s * (a.larga ? 0.8 : 1), 0, 0, 7); ctx.fill();
+  });
+  if (modo === 'flor') { ctx.fillStyle = a.flor[0]; for (let k = 0; k < 8; k++) { ctx.globalAlpha = 0.7; ctx.beginPath(); ctx.arc(x + ((k * 13) % 30 - 15) * s, y - (40 + (k * 7) % 16) * s, 1.3 * s, 0, 7); ctx.fill(); } ctx.globalAlpha = 1; }
+  if (modo !== 'verde') { // pétalas (ou folhas, no outono) caindo
+    ctx.fillStyle = modo === 'flor' ? a.petala : '#d9822b';
+    for (let k = 0; k < 4; k++) { const f = ((t / 3000) + k / 4) % 1; ctx.globalAlpha = 1 - f; ctx.beginPath(); ctx.ellipse(x + (k * 9 - 13 + Math.sin(f * 6 + k) * 5) * s, y - (42 - f * 40) * s, 1.8 * s, 1 * s, f * 3, 0, 7); ctx.fill(); } ctx.globalAlpha = 1;
+  }
+}
 // Árvores e arbustos de enfeite (sem fruta): copa colorida, com flores quando o item tem `flor`.
 function drawPlantaDeco(e, x, y, s, t) {
+  if (ARV_SAZ[e.id]) { ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(x, y, 28 * s, 8 * s, 0, 0, 7); ctx.fill(); return drawArvoreSazonal(e.id, x, y, s, t); }
+  const flor = e.flor && (!e.epocaFlor || e.epocaFlor.includes(estacao().id)) ? e.flor : null;
   const sway = Math.sin(t / 900 + x * 0.03) * 0.6 * s, arv = e.deco === 'arvore';
   const bola = (cx, cy, r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + cx * s, y + cy * s, r * s, 0, 7); ctx.fill(); };
   const tronco = (pts, w, c) => { ctx.strokeStyle = c; ctx.lineWidth = w * s; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); pts.forEach(([px, py], k) => k ? ctx.lineTo(x + px * s, y + py * s) : ctx.moveTo(x + px * s, y + py * s)); ctx.stroke(); ctx.lineCap = 'butt'; };
@@ -10773,7 +10915,8 @@ function drawPlantaDeco(e, x, y, s, t) {
   ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(x, y, (arv ? 28 : 20) * s, (arv ? 8 : 6) * s, 0, 0, 7); ctx.fill();
   if (!arv) {
     for (const [cx, cy, r, k] of [[-10, -9, 9, 0], [10, -9, 9, 0], [0, -14, 11, 1], [-6, -20, 8, 1], [7, -21, 8, 2]]) bola(cx + (cy < -15 ? sway / s : 0), cy, r, k === 0 ? '#2a5a2c' : k === 1 ? e.copa : '#5aa844');
-    flores([[-12, -10], [-4, -22], [8, -24], [12, -10], [0, -14], [-9, -18], [4, -8], [14, -17]], e.flor);
+    flores([[-12, -10], [-4, -22], [8, -24], [12, -10], [0, -14], [-9, -18], [4, -8], [14, -17]], flor);
+    if (estacao().neve) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(x + sway / s, y - 28 * s, 9 * s, 3 * s, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(x - 9 * s, y - 17 * s, 6 * s, 2.2 * s, 0, 0, 7); ctx.ellipse(x + 10 * s, y - 17 * s, 6 * s, 2.2 * s, 0, 0, 7); ctx.fill(); }
     return;
   }
   if (e.forma === 'pinheiro') {
@@ -10786,7 +10929,7 @@ function drawPlantaDeco(e, x, y, s, t) {
     bola(1, -46, 3, '#6b4a22');
   } else if (e.forma === 'salgueiro') {
     tronco([[0, 0], [-1, -22], [-4, -34]], 5, '#6b4a2a'); tronco([[-1, -24], [10, -36]], 3, '#6b4a2a');
-    bola(0, -42, 18, e.copa);
+    bola(0, -42, 18, estacao().id === 'outono' ? '#c9b24a' : e.copa);
     for (let k = 0; k < 11; k++) { const bx = -24 + k * 4.8; ctx.strokeStyle = k % 2 ? '#7ab84a' : '#5a9a38'; ctx.lineWidth = 1.8 * s; ctx.beginPath(); ctx.moveTo(x + bx * s, y - 44 * s); ctx.quadraticCurveTo(x + (bx * 1.1) * s + sway, y - 30 * s, x + (bx * 1.15) * s + sway * 1.6, y + (-8 - (k % 3) * 5) * s); ctx.stroke(); }
   } else {
     tronco([[0, 0], [0, -22]], 5, '#6b4a2a'); tronco([[0, -18], [-10, -30]], 3, '#6b4a2a'); tronco([[0, -20], [10, -32]], 3, '#6b4a2a');
@@ -10994,13 +11137,8 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#ffd54a'; ctx.beginPath(); ctx.moveTo(x + 19 * s, y - 66 * s + w(3)); ctx.lineTo(x + 34 * s, y - 56 * s + w(5)); ctx.lineTo(x + 19 * s, y - 46 * s + w(3)); ctx.lineTo(x + 4 * s, y - 56 * s + w(1)); ctx.closePath(); ctx.fill();
     star(x + 19 * s, y - 56 * s + w(3), 5 * s);
-  } else if (id === 'ipe') {
-    // ipê-amarelo, a flor do cerrado, soltando pétalas
-    ctx.fillStyle = '#6b4a2a'; ctx.beginPath(); ctx.moveTo(x - 3 * s, y); ctx.lineTo(x - 1.5 * s, y - 36 * s); ctx.lineTo(x + 1.5 * s, y - 36 * s); ctx.lineTo(x + 3 * s, y); ctx.fill();
-    ctx.strokeStyle = '#6b4a2a'; ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.moveTo(x, y - 28 * s); ctx.lineTo(x - 12 * s, y - 40 * s); ctx.moveTo(x, y - 30 * s); ctx.lineTo(x + 13 * s, y - 42 * s); ctx.stroke();
-    for (const [dx, dy, r, c] of [[-14, -44, 11, '#f2c14e'], [13, -46, 12, '#f2c14e'], [0, -52, 13, '#ffd54a'], [-6, -40, 9, '#e8b020'], [7, -41, 9, '#ffd54a']]) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + dx * s, y + dy * s, r * s, 0, 7); ctx.fill(); }
-    ctx.fillStyle = '#fff4a0'; for (let k = 0; k < 8; k++) { ctx.beginPath(); ctx.arc(x + ((k * 13) % 26 - 13) * s, y - (40 + (k * 7) % 16) * s, 1.4 * s, 0, 7); ctx.fill(); }
-    ctx.fillStyle = '#ffd54a'; for (let k = 0; k < 3; k++) { const f = ((t / 3000) + k / 3) % 1; ctx.globalAlpha = 1 - f; ctx.beginPath(); ctx.ellipse(x + (k * 9 - 9 + Math.sin(f * 6 + k) * 4) * s, y - (40 - f * 38) * s, 1.8 * s, 1 * s, f * 3, 0, 7); ctx.fill(); } ctx.globalAlpha = 1;
+  } else if (id === 'ipe' || id === 'ipebranco' || id === 'flamboyant') {
+    drawArvoreSazonal(id, x, y, s, t);
   } else if (id === 'fogueira') {
     ctx.fillStyle = '#9a9488'; for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2; ctx.beginPath(); ctx.ellipse(x + Math.cos(a) * 14 * s, y - 4 * s + Math.sin(a) * 4.5 * s, 3.5 * s, 2.4 * s, 0, 0, 7); ctx.fill(); }
     ctx.strokeStyle = '#6b3f1f'; ctx.lineWidth = 3.5 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - 11 * s, y - 2 * s); ctx.lineTo(x + 8 * s, y - 18 * s); ctx.moveTo(x + 11 * s, y - 2 * s); ctx.lineTo(x - 8 * s, y - 18 * s); ctx.moveTo(x, y); ctx.lineTo(x, y - 20 * s); ctx.stroke(); ctx.lineCap = 'butt';
@@ -11074,15 +11212,6 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.lineWidth = 1.6 * s; for (let k = 0; k < 8; k++) { const a = rot + k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); ctx.stroke(); ctx.fillStyle = '#a4703f'; ctx.fillRect(cx + Math.cos(a) * R - 1.8 * s, cy + Math.sin(a) * R - 1.8 * s, 3.6 * s, 3.6 * s); }
     ctx.fillStyle = '#4a2c14'; ctx.beginPath(); ctx.arc(cx, cy, 2.2 * s, 0, 7); ctx.fill();
     ctx.strokeStyle = 'rgba(120,200,240,.8)'; ctx.lineWidth = 1.4 * s; for (let k = 0; k < 3; k++) { const f = ((t / 500) + k / 3) % 1; ctx.beginPath(); ctx.moveTo(cx - R * 0.6, cy - R - 2 * s + f * 8 * s); ctx.lineTo(cx - R * 0.6, cy - R + f * 8 * s + 2 * s); ctx.stroke(); }
-  } else if (id === 'ipebranco' || id === 'flamboyant') {
-    const branco = id === 'ipebranco';
-    ctx.fillStyle = '#6b4a2a'; ctx.beginPath(); ctx.moveTo(x - 3 * s, y); ctx.lineTo(x - 1.5 * s, y - 36 * s); ctx.lineTo(x + 1.5 * s, y - 36 * s); ctx.lineTo(x + 3 * s, y); ctx.fill();
-    ctx.strokeStyle = '#6b4a2a'; ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.moveTo(x, y - 28 * s); ctx.lineTo(x - 14 * s, y - 40 * s); ctx.moveTo(x, y - 30 * s); ctx.lineTo(x + 15 * s, y - 42 * s); ctx.stroke();
-    const copa = branco ? [[-14, -44, 11, '#ffffff'], [13, -46, 12, '#f6f0fa'], [0, -52, 13, '#ffffff'], [-6, -40, 9, '#ece4f4'], [7, -41, 9, '#fbf6ff']]
-      : [[-20, -42, 11, '#d83a22'], [19, -43, 12, '#e8502a'], [0, -50, 14, '#e8402a'], [-8, -40, 10, '#2f8a2a'], [9, -40, 10, '#3a9a30'], [-10, -48, 9, '#f06030'], [12, -50, 9, '#d83a22']];
-    for (const [dx, dy, r, c] of copa) { ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(x + dx * s, y + dy * s, r * s * (branco ? 1 : 1.2), r * s * (branco ? 1 : 0.8), 0, 0, 7); ctx.fill(); }
-    ctx.fillStyle = branco ? '#d8c8ec' : '#ffb04a'; for (let k = 0; k < 8; k++) { ctx.beginPath(); ctx.arc(x + ((k * 13) % 30 - 15) * s, y - (40 + (k * 7) % 16) * s, 1.3 * s, 0, 7); ctx.fill(); }
-    ctx.fillStyle = branco ? '#ffffff' : '#e8402a'; for (let k = 0; k < 3; k++) { const f = ((t / 3000) + k / 3) % 1; ctx.globalAlpha = 1 - f; ctx.beginPath(); ctx.ellipse(x + (k * 9 - 9 + Math.sin(f * 6 + k) * 4) * s, y - (40 - f * 38) * s, 1.8 * s, 1 * s, f * 3, 0, 7); ctx.fill(); } ctx.globalAlpha = 1;
   } else if (id === 'postelampiao') {
     // poste de ferro com lampião; brilha forte à noite
     const noite = timeOfDay() === 'noite';
@@ -12510,7 +12639,7 @@ const TREVO_LOJA = [
   { id: 'mao:buque',            nome: 'Buquê de flores',            tipo: 'Avatar',  preco: 15, desc: 'Flores do campo na mão.' },
   { id: 'mao:regador',          nome: 'Regador dourado',            tipo: 'Avatar',  preco: 20, desc: 'O regador de quem cuida bem da roça.' },
   { id: 'musica:6',             nome: 'Música "Seresta ao Luar"',   tipo: 'Música',  preco: 25, desc: 'Valsa de flauta e violão, para a noite.' },
-  { id: 'enfeite:ipe',          nome: 'Ipê-amarelo',                tipo: 'Enfeite', preco: 25, desc: 'A árvore do cerrado, soltando pétalas (+3% XP).' },
+  { id: 'enfeite:ipe',          nome: 'Ipê-amarelo',                tipo: 'Enfeite', preco: 25, desc: 'A árvore do cerrado, que floresce no inverno e na primavera e solta pétalas (+3% XP).' },
   { id: 'enfeite:fogueira',     nome: 'Fogueira de São João',       tipo: 'Enfeite', preco: 25, desc: 'Fogueira acesa com faíscas (+2% XP).' },
   { id: 'enfeite:balanco',      nome: 'Balanço de madeira',         tipo: 'Enfeite', preco: 20, desc: 'Um balanço que vai e vem (+2% XP).' },
   { id: 'enfeite:carrodeboi',   nome: 'Carro de boi',               tipo: 'Enfeite', preco: 35, desc: 'O carro de boi com rodas de madeira (+3% XP).' },
@@ -12534,8 +12663,8 @@ const TREVO_LOJA = [
   { id: 'enfeite:coreto',       nome: 'Coreto da praça',            tipo: 'Enfeite', preco: 40, desc: 'Palco de madeira com telhado vermelho e bandeirinhas (+3% XP).' },
   { id: 'enfeite:festajunina',  nome: 'Festa junina',               tipo: 'Enfeite', preco: 25, desc: 'Varal de bandeirinhas balançando entre dois mastros (+2% XP).' },
   { id: 'enfeite:moinhoagua',   nome: 'Moinho d\'água',             tipo: 'Enfeite', preco: 45, desc: 'Roda girando, com a água caindo (+3% XP).' },
-  { id: 'enfeite:ipebranco',    nome: 'Ipê-branco',                 tipo: 'Enfeite', preco: 25, desc: 'Par do ipê-amarelo, soltando pétalas brancas (+3% XP).' },
-  { id: 'enfeite:flamboyant',   nome: 'Flamboyant',                 tipo: 'Enfeite', preco: 25, desc: 'Copa larga e vermelha, cheia de flores (+3% XP).' },
+  { id: 'enfeite:ipebranco',    nome: 'Ipê-branco',                 tipo: 'Enfeite', preco: 25, desc: 'Par do ipê-amarelo: floresce no inverno e na primavera (+3% XP).' },
+  { id: 'enfeite:flamboyant',   nome: 'Flamboyant',                 tipo: 'Enfeite', preco: 25, desc: 'Copa larga que fica vermelha de flores no verão (+3% XP).' },
   { id: 'enfeite:postelampiao', nome: 'Lampião de rua',             tipo: 'Enfeite', preco: 15, desc: 'Poste que brilha mais à noite (+1% XP).' },
   { id: 'enfeite:rede',         nome: 'Rede na varanda',            tipo: 'Enfeite', preco: 20, desc: 'Rede listrada que balança devagar (+2% XP).' },
   { id: 'enfeite:boibumba',     nome: 'Boi-bumbá',                  tipo: 'Enfeite', preco: 35, desc: 'O boi do folclore, com a saia cheia de fitas (+3% XP).' },
@@ -12550,6 +12679,27 @@ const TREVO_LOJA = [
   { id: 'tema:trevo',           nome: 'Cerca do Trevo',             tipo: 'Tema',    preco: 40, desc: 'Cerca verde-clarinha com um trevo em cada moirão (Loja › Temas).' },
   { id: 'cao:dourado',          nome: 'Cachorro caramelo-dourado',  tipo: 'Animal',  preco: 50, desc: 'Pelagem rara. Depois de trocar, sai de graça em Loja › Cães.' },
   { id: 'cao:malhado',          nome: 'Cachorro preto-e-branco',    tipo: 'Animal',  preco: 50, desc: 'Pelagem rara. Depois de trocar, sai de graça em Loja › Cães.' },
+  { id: 'foto:sanfoneiro', nome: 'Selo Sanfoneiro', tipo: 'Perfil', preco: 12, desc: 'Selo exclusivo para a sua foto de perfil (🪗).' },
+  { id: 'foto:fogueira', nome: 'Selo Fogueira', tipo: 'Perfil', preco: 12, desc: 'Selo exclusivo para a sua foto de perfil (🔥).' },
+  { id: 'foto:cerrado', nome: 'Selo Cerrado', tipo: 'Perfil', preco: 12, desc: 'Selo exclusivo para a sua foto de perfil (🌵).' },
+  { id: 'foto:arara', nome: 'Selo Arara', tipo: 'Perfil', preco: 15, desc: 'Selo exclusivo para a sua foto de perfil (🦜).' },
+  { id: 'foto:jacare', nome: 'Selo Jacaré', tipo: 'Perfil', preco: 15, desc: 'Selo exclusivo para a sua foto de perfil (🐊).' },
+  { id: 'foto:boi', nome: 'Selo Boi', tipo: 'Perfil', preco: 15, desc: 'Selo exclusivo para a sua foto de perfil (🐂).' },
+  { id: 'foto:ipeflor', nome: 'Selo Ipê em flor', tipo: 'Perfil', preco: 15, desc: 'Selo exclusivo para a sua foto de perfil (🌼).' },
+  { id: 'foto:lua', nome: 'Selo Lua', tipo: 'Perfil', preco: 15, desc: 'Selo exclusivo para a sua foto de perfil (🌙).' },
+  { id: 'parede:listrado', nome: 'Papel de parede Listras de fazenda', tipo: 'Casa', preco: 10, desc: 'Para as paredes da sua casa (Loja › Temas).' },
+  { id: 'parede:xadrez', nome: 'Papel de parede Xadrez de toalha', tipo: 'Casa', preco: 10, desc: 'Para as paredes da sua casa (Loja › Temas).' },
+  { id: 'parede:floral', nome: 'Papel de parede Florzinhas', tipo: 'Casa', preco: 12, desc: 'Para as paredes da sua casa (Loja › Temas).' },
+  { id: 'parede:tijolinho', nome: 'Papel de parede Tijolinho', tipo: 'Casa', preco: 12, desc: 'Para as paredes da sua casa (Loja › Temas).' },
+  { id: 'parede:estrelado', nome: 'Papel de parede Céu estrelado', tipo: 'Casa', preco: 15, desc: 'Para as paredes da sua casa (Loja › Temas).' },
+  { id: 'parede:trevo', nome: 'Papel de parede Trevos', tipo: 'Casa', preco: 15, desc: 'Para as paredes da sua casa (Loja › Temas).' },
+  { id: 'parede:junino', nome: 'Papel de parede Festa junina', tipo: 'Casa', preco: 15, desc: 'Para as paredes da sua casa (Loja › Temas).' },
+  { id: 'papel:florido', nome: 'Papel de carta Florido', tipo: 'Carta', preco: 12, desc: 'Deixa as cartas do seu Correio com esse visual.' },
+  { id: 'papel:junino', nome: 'Papel de carta Junino', tipo: 'Carta', preco: 15, desc: 'Deixa as cartas do seu Correio com esse visual.' },
+  { id: 'papel:estrelado', nome: 'Papel de carta Estrelado', tipo: 'Carta', preco: 15, desc: 'Deixa as cartas do seu Correio com esse visual.' },
+  { id: 'papel:trevo', nome: 'Papel de carta Trevo', tipo: 'Carta', preco: 12, desc: 'Deixa as cartas do seu Correio com esse visual.' },
+  { id: 'papel:pergaminho', nome: 'Papel de carta Pergaminho', tipo: 'Carta', preco: 12, desc: 'Deixa as cartas do seu Correio com esse visual.' },
+  { id: 'papel:coracao', nome: 'Papel de carta Coração', tipo: 'Carta', preco: 12, desc: 'Deixa as cartas do seu Correio com esse visual.' },
   { id: 'util:iscaouro',  nome: 'Isca dourada',             tipo: 'Útil', preco: 10, repete: true, desc: 'Na pescaria, garante o peixe mais raro que o ponto tiver (escolha 🌟 na janela da pesca).', usar: () => { iscasDe().dourada = (iscasDe().dourada || 0) + 1; } },
   { id: 'util:ovo',       nome: 'Ovo misterioso',           tipo: 'Útil', preco: 30, repete: true, desc: 'Vai direto para a chocadeira e nasce de cor ou raça rara.', pode: podeOvoMisterioso, naoPode: 'Precisa de uma chocadeira no rancho com espaço livre.', usar: ovoMisterioso },
   { id: 'util:plantas',   nome: 'Pacote de plantas',        tipo: 'Útil', preco: 8,  repete: true, desc: '4 de cada de 3 plantas sorteadas dentro do seu nível.', usar: pacoteDePlantas },
@@ -12558,7 +12708,7 @@ const TREVO_LOJA = [
   { id: 'util:kitmina',   nome: 'Kit da mina',              tipo: 'Útil', preco: 12, repete: true, desc: '5 picaretas, 1 dinamite e 1 TNT.', usar: () => { darFerr('pic', 5); darFerr('din', 1); darFerr('tnt', 1); } },
   { id: 'util:nome',      nome: 'Troca de nome grátis',     tipo: 'Útil', preco: 5,  repete: true, desc: 'Renomeia um animal ou cachorro sem gastar moedas.', usar: () => { state.nomeGratis = (state.nomeGratis || 0) + 1; } },
 ];
-const TREVO_TIPOS = ['Útil', 'Avatar', 'Enfeite', 'Tema', 'Animal', 'Música'];
+const TREVO_TIPOS = ['Útil', 'Avatar', 'Enfeite', 'Tema', 'Casa', 'Carta', 'Perfil', 'Animal', 'Música'];
 const musicaLiberada = k => !(window.RFAudio && window.RFAudio.exclusivas && window.RFAudio.exclusivas[k]) || temTrevoItem('musica:' + k);
 function iconeTrevoItem(it) {
   const [tipo, id] = it.id.split(':');
@@ -12566,6 +12716,9 @@ function iconeTrevoItem(it) {
   if (tipo === 'enfeite') return enfeiteIcon(id);
   if (tipo === 'tema') return temaIcon(id);
   if (tipo === 'cao') return dogIcon(id);
+  if (tipo === 'parede') return paredeIcon(id);
+  if (tipo === 'papel') return papelIcon(id);
+  if (tipo === 'foto') return fotoIconUrl(FOTO_PERFIL[id]);
   return makeIcon('trevoitem:' + it.id, () => {
     if (tipo === 'musica') { ctx.fillStyle = '#2f8a2f'; ctx.font = '56px system-ui'; ctx.textAlign = 'center'; ctx.fillText({ 4: '🪕', 5: '🪗', 6: '🌙' }[id] || '🎵', 48, 70); return; }
     if (tipo === 'util' && id === 'motosserra') return drawMotosserra(52, 54, 0.95);
@@ -12588,7 +12741,7 @@ function comprarTrevoItem(id) {
     if (tipo === 'tema') state.temas[x] = true;
     if (tipo === 'enfeite') { state.enfeites[x] = (state.enfeites[x] || 0) + 1; state.invNovos = (state.invNovos || 0) + 1; }
     sfx('buy');
-    toast(`🍀 ${it.nome} é seu! ${tipo === 'casa' ? 'Use clicando na sua casa.' : tipo === 'tema' ? 'Use em Loja › Temas.' : tipo === 'cao' ? 'Pegue de graça em Loja › Cães.' : tipo === 'enfeite' ? 'Está no Inventário.' : tipo === 'musica' ? 'Escolha em ⚙️ › Música.' : 'Escolha em ⚙️ › Seu avatar.'}`, 'good');
+    toast(`🍀 ${it.nome} é seu! ${tipo === 'casa' ? 'Use clicando na sua casa.' : tipo === 'tema' ? 'Use em Loja › Temas.' : tipo === 'cao' ? 'Pegue de graça em Loja › Cães.' : tipo === 'parede' ? 'Escolha em Loja › Temas.' : tipo === 'papel' ? 'Escolha no Correio.' : tipo === 'foto' ? 'Escolha em ⚙️ › Sua foto.' : tipo === 'enfeite' ? 'Está no Inventário.' : tipo === 'musica' ? 'Escolha em ⚙️ › Música.' : 'Escolha em ⚙️ › Seu avatar.'}`, 'good');
     done(); renderPane(); renderTabs(); renderHUD();
   });
 }
@@ -12640,7 +12793,7 @@ function trevoLojaHTML() {
   let html = `<div class="row sel"><div class="avatar" style="background:#2f8a2f;font-size:26px">🍀</div><div><div class="name">Você tem ${t.saldo} trevo${t.saldo === 1 ? '' : 's'}</div><div class="meta">Ganhe resgatando peixes, domínio de pesca e conquistas em Missões › 🍀 Trevos.</div></div><button class="btn ghost" data-abrir-trevos="1">Ganhar</button></div>
     <p class="hint">Itens exclusivos: só se conseguem com trevos. Os úteis dá para trocar quantas vezes quiser.</p>`;
   for (const it of TREVO_TIPOS.flatMap(tp => { const l = TREVO_LOJA.filter(x => x.tipo === tp); return l.length ? [{ cab: tp }, ...l] : []; })) {
-    if (it.cab) { html += `<p class="trevocab">${{ 'Útil': '🧺 Úteis', Avatar: '🧑‍🌾 Para o avatar', Enfeite: '🌼 Enfeites', Tema: '🏡 Temas da casa e da cerca', Animal: '🐾 Animais', 'Música': '🎵 Músicas' }[it.cab]}</p>`; continue; }
+    if (it.cab) { html += `<p class="trevocab">${{ 'Útil': '🧺 Úteis', Avatar: '🧑‍🌾 Para o avatar', Enfeite: '🌼 Enfeites', Tema: '🏡 Temas da casa e da cerca', Casa: '🧱 Papel de parede da casa', Carta: '✉️ Papel de carta', Perfil: '🪪 Selo de perfil', Animal: '🐾 Animais', 'Música': '🎵 Músicas' }[it.cab]}</p>`; continue; }
     const tem = t.itens[it.id] && !it.repete;
     html += `<div class="row ${tem ? 'sel' : ''}"><img alt="" src="${iconeTrevoItem(it)}"><div><div class="name">${it.nome} <span class="tag">${it.tipo}</span></div><div class="meta">${it.desc}</div></div>
       ${tem ? '<button class="btn ghost" disabled>Já é seu</button>' : `<button class="btn gold" data-trevo-comprar="${it.id}" ${t.saldo < it.preco ? 'disabled' : ''}>🍀 ${it.preco}</button>`}</div>`;
