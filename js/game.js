@@ -1335,6 +1335,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 267, txt: "Chegaram árvores e arbustos só de enfeite na Loja › Enfeites: buxinho, hortênsia, hibisco, azaleia, pinheiro, palmeira, salgueiro, ipê-roxo e cerejeira. Não dão fruta nem secam, e cada um dá conforto (+XP)." },
   { v: 266, txt: "Corrigido: o olho da raposa (e dos outros canídeos da caçada) aparecia lá em cima; agora fica na cabeça." },
   { v: 264, txt: "Atualização automática mais firme: ao abrir o jogo (e a cada poucos minutos com ele aberto) ele confere se há versão nova e se atualiza sozinho, avisando na tela. Se a primeira tentativa não pegar, tenta de novo com limpeza completa, sem precisar ir em Configurações › Atualizar." },
   { v: 263, txt: "Corrigido: o botão 🆘 Precisa de ajuda de um amigo continuava aceso mesmo depois de você ajudar a árvore dele. Agora ele apaga assim que você ajuda (e volta a acender se a ajuda não chegar em 12 horas)." },
@@ -9776,6 +9777,16 @@ const ENFEITES = [
   { id: 'poco',       nome: 'Poço',                   nivel: 6,  custo: 1500, conforto: 2 },
   { id: 'fonte',      nome: 'Fonte',                  nivel: 10, custo: 3000, conforto: 2 },
   { id: 'moinho',     nome: 'Cata-vento',             nivel: 14, custo: 5000, conforto: 3 },
+  // Árvores e arbustos só de enfeite (não dão fruta, não secam): `deco` = 'arvore' | 'arbusto'
+  { id: 'buxinho',    nome: 'Buxinho aparado',        nivel: 2,  custo: 250,  conforto: 1, deco: 'arbusto', copa: '#2f7a3a', desc: 'Arbusto verdinho, podado redondinho.' },
+  { id: 'hortensia',  nome: 'Hortênsia',              nivel: 4,  custo: 400,  conforto: 1, deco: 'arbusto', copa: '#3f8a3a', flor: '#6f9be8', desc: 'Arbusto cheio de flores azuis.' },
+  { id: 'hibisco',    nome: 'Hibisco',                nivel: 7,  custo: 600,  conforto: 1, deco: 'arbusto', copa: '#2f7a2a', flor: '#e8334a', desc: 'Arbusto com flores vermelhas.' },
+  { id: 'azaleia',    nome: 'Azaleia',                nivel: 10, custo: 900,  conforto: 2, deco: 'arbusto', copa: '#3a7a33', flor: '#f07ab8', desc: 'Arbusto coberto de flores rosa.' },
+  { id: 'pinheiro',   nome: 'Pinheiro',               nivel: 5,  custo: 900,  conforto: 2, deco: 'arvore', copa: '#1f5a33', forma: 'pinheiro', desc: 'Árvore alta e pontuda.' },
+  { id: 'palmeira',   nome: 'Palmeira',               nivel: 8,  custo: 1300, conforto: 2, deco: 'arvore', copa: '#3a9a3a', forma: 'palmeira', desc: 'Tronco fino e folhas compridas.' },
+  { id: 'salgueiro',  nome: 'Salgueiro',              nivel: 11, custo: 1800, conforto: 2, deco: 'arvore', copa: '#6aa83a', forma: 'salgueiro', desc: 'Galhos caídos até o chão.' },
+  { id: 'ipe_roxo',   nome: 'Ipê-roxo',               nivel: 14, custo: 2500, conforto: 3, deco: 'arvore', copa: '#3f8a2a', flor: '#b46ad8', desc: 'Copa toda florida de roxo.' },
+  { id: 'cerejeira',  nome: 'Cerejeira',              nivel: 18, custo: 3500, conforto: 3, deco: 'arvore', copa: '#e89ab8', flor: '#f8c4d8', desc: 'Copa de flores cor-de-rosa.' },
   { id: 'agua',       nome: 'Bloco de água',          nivel: 4,  custo: 30,   conforto: 1, agua: true, desc: 'Do tamanho de uma plantação. Encoste um no outro para virar um laguinho, com peixinhos pulando.' },
   // Cerca: um pedaço de uma casa de comprimento, no estilo do tema da roça. Só enfeita (não dá XP).
   { id: 'cerca',      nome: 'Cerca da roça',          nivel: 1,  custo: 40,   conforto: 0, cerca: true, desc: 'No estilo do tema da roça (Loja › Temas).' },
@@ -9859,7 +9870,7 @@ const objetosDe = (s, sc) => (s.objetos && Array.isArray(s.objetos[sc]) ? s.obje
 function objList(s, sc) {
   const l = Object.keys(POS_PADRAO[sc]).filter(key => (key !== 'armadilha' || s.armadilha) && (key !== 'mina' || minaLiberada(s))).map(key => { const [u, v] = posOf(s, sc, key); return { key, u, v, r: OBJ_INFO[key].r, rot: (s.rotPos && s.rotPos[sc] && s.rotPos[sc][key]) | 0 }; });
   objetosDe(s, sc).forEach((o, i) => l.push(ehCerca(o.id) ? { key: 'enf:' + i, id: o.id, u: o.u, v: o.v, r: 0.3, obj: o, cerca: true, rot: o.rot ? 1 : 0 }
-    : { key: 'enf:' + i, id: o.id, u: o.u, v: o.v, r: ['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.65 : o.id === 'chocadeira' ? 0.75 : 0.55, obj: o, rot: (o.rot | 0) % 4 }));
+    : { key: 'enf:' + i, id: o.id, u: o.u, v: o.v, r: ['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) || ENFEITE[o.id].deco === 'arvore' ? 0.65 : o.id === 'chocadeira' ? 0.75 : 0.55, obj: o, rot: (o.rot | 0) % 4 }));
   return l;
 }
 const confortoEnfeites = s => ['roca', 'animais'].reduce((t, sc) => t + objetosDe(s, sc).reduce((u, o) => u + ENFEITE[o.id].conforto, 0), 0);
@@ -10290,7 +10301,7 @@ function drawObjetos(s, sc, t, home, stage, d0 = -Infinity, d1 = Infinity) {
         if (ENFEITE[o.id].fruteira && o.obj) drawFruteira(o.obj, q.x, q.y, W / 100, t, home);
         else drawEnfeite(o.id, q.x, q.y, W / 100, t, o.rot);
       });
-      if (!moveMode) hits.push({ kind: 'enfeite', sc, key: o.key, id: o.id, x: q.x, y: q.y - W * (['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.45 : o.id === 'chocadeira' ? 0.4 : 0.25), r: W * (['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) ? 0.45 : o.id === 'chocadeira' ? 0.55 : 0.32) });
+      if (!moveMode) hits.push({ kind: 'enfeite', sc, key: o.key, id: o.id, x: q.x, y: q.y - W * (['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) || ENFEITE[o.id].deco === 'arvore' ? 0.45 : o.id === 'chocadeira' ? 0.4 : 0.25), r: W * (['arvore', 'colmeia'].includes(ENFEITE[o.id].fruteira) || ENFEITE[o.id].deco === 'arvore' ? 0.45 : o.id === 'chocadeira' ? 0.55 : 0.32) });
     }
   }
   return cachorroDepois;
@@ -10667,8 +10678,39 @@ function drawPeixesRoca(s, t) {
   }
 }
 // Desenho dos enfeites, com a base em (x, y). s = escala (1 = casa de 100px).
+// Árvores e arbustos de enfeite (sem fruta): copa colorida, com flores quando o item tem `flor`.
+function drawPlantaDeco(e, x, y, s, t) {
+  const sway = Math.sin(t / 900 + x * 0.03) * 0.6 * s, arv = e.deco === 'arvore';
+  const bola = (cx, cy, r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + cx * s, y + cy * s, r * s, 0, 7); ctx.fill(); };
+  const tronco = (pts, w, c) => { ctx.strokeStyle = c; ctx.lineWidth = w * s; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); pts.forEach(([px, py], k) => k ? ctx.lineTo(x + px * s, y + py * s) : ctx.moveTo(x + px * s, y + py * s)); ctx.stroke(); ctx.lineCap = 'butt'; };
+  const flores = (pts, c, r = 1.8) => { if (c) for (const [fx, fy] of pts) { bola(fx, fy, r, c); bola(fx, fy, r * 0.4, '#fff3b0'); } };
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(x, y, (arv ? 28 : 20) * s, (arv ? 8 : 6) * s, 0, 0, 7); ctx.fill();
+  if (!arv) {
+    for (const [cx, cy, r, k] of [[-10, -9, 9, 0], [10, -9, 9, 0], [0, -14, 11, 1], [-6, -20, 8, 1], [7, -21, 8, 2]]) bola(cx + (cy < -15 ? sway / s : 0), cy, r, k === 0 ? '#2a5a2c' : k === 1 ? e.copa : '#5aa844');
+    flores([[-12, -10], [-4, -22], [8, -24], [12, -10], [0, -14], [-9, -18], [4, -8], [14, -17]], e.flor);
+    return;
+  }
+  if (e.forma === 'pinheiro') {
+    tronco([[0, 0], [0, -22]], 4, '#6b4a2a');
+    for (const [w, h, c] of [[22, -14, '#1a4a2c'], [18, -28, '#1f5a33'], [14, -42, '#256a3a'], [9, -56, '#2c7a42']]) { ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x - w * s + sway * (h < -40 ? 1 : 0.3), y + h * s + 14 * s); ctx.lineTo(x + sway * (h < -40 ? 1.4 : 0.4), y + (h - 20) * s); ctx.lineTo(x + w * s + sway * (h < -40 ? 1 : 0.3), y + h * s + 14 * s); ctx.closePath(); ctx.fill(); }
+  } else if (e.forma === 'palmeira') {
+    tronco([[0, 0], [3, -24], [1, -46]], 4.5, '#8a6a44');
+    ctx.strokeStyle = 'rgba(60,40,20,.35)'; ctx.lineWidth = 1 * s; for (const h of [-10, -20, -30, -40]) { ctx.beginPath(); ctx.moveTo(x - 3 * s, y + h * s); ctx.lineTo(x + 5 * s, y + (h - 2) * s); ctx.stroke(); }
+    for (const [dx, dy] of [[-28, -40], [-22, -56], [-8, -62], [10, -62], [24, -56], [30, -40]]) { ctx.strokeStyle = e.copa; ctx.lineWidth = 3.2 * s; ctx.beginPath(); ctx.moveTo(x + 1 * s, y - 46 * s); ctx.quadraticCurveTo(x + dx * 0.6 * s + sway, y + (dy - 6) * s, x + dx * s + sway * 1.5, y + (dy + 12) * s); ctx.stroke(); }
+    bola(1, -46, 3, '#6b4a22');
+  } else if (e.forma === 'salgueiro') {
+    tronco([[0, 0], [-1, -22], [-4, -34]], 5, '#6b4a2a'); tronco([[-1, -24], [10, -36]], 3, '#6b4a2a');
+    bola(0, -42, 18, e.copa);
+    for (let k = 0; k < 11; k++) { const bx = -24 + k * 4.8; ctx.strokeStyle = k % 2 ? '#7ab84a' : '#5a9a38'; ctx.lineWidth = 1.8 * s; ctx.beginPath(); ctx.moveTo(x + bx * s, y - 44 * s); ctx.quadraticCurveTo(x + (bx * 1.1) * s + sway, y - 30 * s, x + (bx * 1.15) * s + sway * 1.6, y + (-8 - (k % 3) * 5) * s); ctx.stroke(); }
+  } else {
+    tronco([[0, 0], [0, -22]], 5, '#6b4a2a'); tronco([[0, -18], [-10, -30]], 3, '#6b4a2a'); tronco([[0, -20], [10, -32]], 3, '#6b4a2a');
+    for (const [cx, cy, r] of [[-15, -36, 12], [15, -38, 13], [0, -46, 15], [-6, -34, 11], [8, -34, 11]]) bola(cx + sway / s, cy, r, e.copa);
+    if (e.flor) { for (const [cx, cy, r] of [[-12, -44, 7], [12, -46, 8], [0, -54, 8]]) bola(cx + sway / s, cy, r, e.flor); flores([[-16, -36], [-6, -50], [8, -52], [18, -38], [2, -40], [-8, -30], [10, -30]], e.flor, 2.2); }
+  }
+}
 function drawEnfeite(id, x, y, s, t, rot) {
   if (ENFEITE[id] && ENFEITE[id].fruteira) return drawFruteira({ id }, x, y, s, t, false);
+  if (ENFEITE[id] && ENFEITE[id].deco) return drawPlantaDeco(ENFEITE[id], x, y, s, t);
   if (id === 'chocadeira') return drawChocadeira(x, y, s * 100, (S().chocadeira && S().chocadeira.ovos) || [], t);
   if (ENFEITE[id] && ENFEITE[id].cerca && id !== 'cerca') {
     // ícone: um pedaço de frente, no estilo do item
@@ -10912,7 +10954,7 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.fillStyle = '#ffb300'; ctx.beginPath(); ctx.ellipse(x, y - 54 * s + Math.sin(t / 120) * 0.5 * s, 2 * s, 3.5 * s, 0, 0, 7); ctx.fill();
   }
 }
-const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && ['arvore', 'colmeia'].includes(ENFEITE[id].fruteira) ? 1.1 : { chocadeira: 0.78, bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4 }[id] || 1.6, 0));
+const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && (['arvore', 'colmeia'].includes(ENFEITE[id].fruteira) || ENFEITE[id].deco === 'arvore') ? 1.1 : ENFEITE[id] && ENFEITE[id].deco ? 1.7 : { chocadeira: 0.78, bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4 }[id] || 1.6, 0));
 
 // ============================================================
 // Pomar: frutíferas (arbustos e árvores) plantadas no gramado. Dão frutas de tempos em tempos
