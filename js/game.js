@@ -361,11 +361,12 @@ const nomeBicho = a => a.nome && a.nome !== ANIMAL[a.k].nome ? `${a.nome} (${ANI
 // Cães de guarda: um vigia a roça, outro o rancho. Só protegem acordados (com comida).
 const DOGS = [
   { id: 'caramelo', nome: 'Vira-lata caramelo', custo: 1000, nivel: 3, vida: 15, protege: 0.55, morde: 0.4, xpDia: 10, xpPega: 15, cor: '#d99a4e', cor2: '#b8793a' },
+  { id: 'pinscher', nome: 'Pinscher',           custo: 1800, nivel: 5, vida: 14, protege: 0.5,  morde: 0.55, xpDia: 12, xpPega: 16, cor: '#2a2420', cor2: '#b8783e', escala: 0.8 },
   { id: 'pastor',   nome: 'Pastor-alemão',      custo: 3000, nivel: 8, vida: 25, protege: 0.7,  morde: 0.5, xpDia: 20, xpPega: 25, cor: '#8a5a2e', cor2: '#2a221c' },
+  { id: 'bordercollie', nome: 'Border collie',  custo: 4500, nivel: 11, vida: 22, protege: 0.72, morde: 0.45, xpDia: 22, xpPega: 28, cor: '#23232a', cor2: '#14141a' },
+  { id: 'heeler',   nome: 'Blue heeler',        custo: 5200, nivel: 13, vida: 22, protege: 0.76, morde: 0.6,  xpDia: 25, xpPega: 32, cor: '#6f8aa8', cor2: '#b8783e' },
   { id: 'fila',     nome: 'Fila brasileiro',    custo: 6000, nivel: 15, vida: 35, protege: 0.85, morde: 0.6, xpDia: 30, xpPega: 40, cor: '#b8783e', cor2: '#3a2a20' },
-  // exclusivos da Loja do Trevo: depois de trocar por trevos, saem de graça aqui
-  { id: 'dourado',  nome: 'Caramelo-dourado',   custo: 0, nivel: 3, vida: 20, protege: 0.65, morde: 0.45, xpDia: 15, xpPega: 20, cor: '#f2c455', cor2: '#c8902a', trevo: 50 },
-  { id: 'malhado',  nome: 'Preto-e-branco',     custo: 0, nivel: 3, vida: 20, protege: 0.65, morde: 0.45, xpDia: 15, xpPega: 20, cor: '#2c2c32', cor2: '#141418', trevo: 50 },
+  { id: 'corso',    nome: 'Cane corso',         custo: 9000, nivel: 20, vida: 30, protege: 0.9,  morde: 0.65, xpDia: 35, xpPega: 45, cor: '#55555c', cor2: '#222226', escala: 1.12 },
 ];
 const DOG = Object.fromEntries(DOGS.map(d => [d.id, d]));
 const DOG_FOOD = { custo: 50, horas: 8 };
@@ -627,7 +628,7 @@ function migrate(s) {
   if (s.mina && (typeof s.mina !== 'object' || (!s.mina.ferr && !Array.isArray(s.mina.vs)))) s.mina = null;
   const dogs = s.dogs && typeof s.dogs === 'object' ? s.dogs : {};
   s.dogs = {};
-  for (const slot of SLOTS_CAO) { const d = dogs[slot]; s.dogs[slot] = d && DOG[d.raca] ? d : null; }
+  for (const slot of SLOTS_CAO) { const d = dogs[slot]; if (d && (d.raca === 'dourado' || d.raca === 'malhado')) { d.skin = d.raca; d.raca = 'caramelo'; } if (d && d.skin && !SKIN_CAO[d.skin]) delete d.skin; s.dogs[slot] = d && DOG[d.raca] ? d : null; }
   s.vagaCao = s.vagaCao && typeof s.vagaCao === 'object' ? s.vagaCao : {};
   for (const b of ['roca', 'animais']) if (s.dogs[b + '2']) s.vagaCao[b] = 1; // quem já tinha o 2º cachorro mantém a vaga
   s.dogFood = Math.max(0, Number(s.dogFood) || 0);
@@ -1332,7 +1333,6 @@ function buyDog(raca, slot) {
   const b = DOG[raca];
   if (state.dogs[slot]) return toast(`Já tem um cachorro vigiando ${SLOT[slot].a}.`);
   if (ehSegundo(slot) && !temVagaCao(baseSlot(slot))) return toast(`Antes, compre a vaga do 2º cachorro d${SLOT[slot].a} (Loja › Cães).`, 'bad');
-  if (b.trevo && !temTrevoItem('cao:' + b.id)) return toast(`${b.nome} é exclusivo da Loja do Trevo 🍀.`);
   if (state.level < b.nivel) return toast(`${b.nome} libera no nível ${b.nivel}.`);
   if (state.coins < b.custo) return toast(`${b.nome} custa ${b.custo} moedas.`, 'bad');
   const used = Object.values(state.dogs).filter(Boolean).map(d => d.nome);
@@ -1360,6 +1360,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 272, txt: "Chegaram 4 raças de cachorro novas na Loja › Cães: Pinscher (nível 5), Border collie (11), Blue heeler (13) e Cane corso (20). E as pelagens da Loja do Trevo 🍀 (caramelo-dourado e preto-e-branco) agora são skins: valem para qualquer cachorro seu, e você escolhe na lista dos seus cachorros em Loja › Cães." },
   { v: 271, txt: "Os dois cachorros da roça agora correm atrás das pragas (cada um acordado tem 3 chances em 4 de ir; se forem os dois, ganham o XP dos dois). E o 2º cachorro de cada lugar precisa de uma vaga na casinha: compre em Loja › Cães por 2.500 moedas (nível 5), uma para a roça e outra para o rancho." },
   { v: 270, txt: "Agora dá para ter até dois cachorros por lugar: dois na roça e dois no rancho, dividindo a mesma casinha. Depois de comprar o primeiro, aparece um + ao lado dele para o segundo. Na Loja › Cães, o botão pega a primeira vaga livre. Quando um amigo tenta pegar algo, cada cachorro acordado tem a sua chance de espantar (ou morder) e o amigo vê os dois quando visita." },
   { v: 269, txt: "Árvores com estações: ipês florescem no inverno e na primavera, a cerejeira só na primavera (e fica sem folhas no inverno), o flamboyant no verão, e no outono as folhas ficam alaranjadas e caem. Os arbustos também só florescem na época certa. Na Loja do Trevo 🍀: 8 selos de perfil, 7 papéis de parede para a casa (Loja › Temas) e 6 papéis de carta para o Correio." },
@@ -1720,7 +1721,7 @@ function trocarNome(alvo) {
     $('#nomeInput').value = a.nome || d.nome;
   } else {
     const c = state.dogs[alvo.dog]; if (!c) return;
-    $('#nomeImg').src = dogIcon(c.raca);
+    $('#nomeImg').src = dogIcon(c.raca, c.skin);
     $('#nomeTxt').textContent = `Qual vai ser o novo nome de ${c.nome}, que vigia ${SLOT[alvo.dog].a}?`;
     $('#nomeInput').value = c.nome;
   }
@@ -3189,19 +3190,29 @@ function drawTree(x, y, s, t, coqueiro) {
   for (const [dx, dy] of [[-.15, -.7], [.12, -.8], [.2, -.55], [-.25, -.5]]) { ctx.beginPath(); ctx.arc(x + dx * s + sw, y + dy * s, s * 0.035, 0, 7); ctx.fill(); }
 }
 // Cachorro virado para a esquerda. raca muda as cores; sleeping = deitado dormindo.
-function drawDog(x, y, s, t, raca = 'caramelo', sleeping = false) {
-  const b = DOG[raca] || DOG.caramelo, body = b.cor, dark = b.cor2;
+// Pelagens da Loja do Trevo: valem para qualquer raça (o cachorro guarda a sua em dog.skin).
+const SKIN_CAO = { dourado: { nome: 'Caramelo-dourado', cor: '#f2c455', cor2: '#c8902a' }, malhado: { nome: 'Preto-e-branco', cor: '#2c2c32', cor2: '#141418' } };
+function drawDog(x, y, s, t, raca = 'caramelo', sleeping = false, pel = '') {
+  const b = DOG[raca] || DOG.caramelo, sk = SKIN_CAO[pel] || null;
+  const body = sk ? sk.cor : b.cor, dark = sk ? sk.cor2 : b.cor2, orelha = sk ? dark : raca === 'caramelo' ? '#a8692f' : dark;
+  const BR = '#f4f1ea', col = raca === 'bordercollie' && !sk, hee = raca === 'heeler' && !sk, pin = raca === 'pinscher' && !sk, cor = raca === 'corso';
+  s *= b.escala || 1;
+  const tri = (x1, y1, x2, y2, x3, y3) => { ctx.beginPath(); ctx.moveTo(x + s * x1, y + s * y1); ctx.lineTo(x + s * x2, y + s * y2); ctx.lineTo(x + s * x3, y + s * y3); ctx.fill(); };
   ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x, y, s * 0.32, s * 0.06, 0, 0, 7); ctx.fill();
   ctx.lineCap = 'round';
   if (sleeping) {
-    ctx.strokeStyle = body; ctx.lineWidth = s * 0.05;
+    ctx.strokeStyle = body; ctx.lineWidth = s * (col ? 0.08 : 0.05);
     ctx.beginPath(); ctx.moveTo(x + s * 0.26, y - s * 0.07); ctx.quadraticCurveTo(x + s * 0.38, y - s * 0.02, x + s * 0.3, y); ctx.stroke();
-    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(x + s * 0.04, y - s * 0.08, s * 0.25, s * 0.09, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(x + s * 0.04, y - s * 0.08, s * (cor ? 0.27 : 0.25), s * (cor ? 0.1 : 0.09), 0, 0, 7); ctx.fill();
     if (raca === 'pastor') { ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x + s * 0.08, y - s * 0.13, s * 0.15, s * 0.05, 0, 0, 7); ctx.fill(); }
-    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(x - s * 0.22, y - s * 0.08, s * 0.11, s * 0.08, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = raca === 'caramelo' ? '#a8692f' : dark;
+    if (pin || hee) { ctx.fillStyle = b.cor2; ctx.beginPath(); ctx.ellipse(x - s * 0.1, y - s * 0.04, s * 0.1, s * 0.035, 0, 0, 7); ctx.fill(); }
+    if (col) { ctx.fillStyle = BR; ctx.beginPath(); ctx.ellipse(x - s * 0.12, y - s * 0.05, s * 0.09, s * 0.04, 0, 0, 7); ctx.fill(); }
+    if (pel === 'malhado') { ctx.fillStyle = BR; ctx.beginPath(); ctx.ellipse(x + s * 0.06, y - s * 0.09, s * 0.1, s * 0.04, 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(x - s * 0.22, y - s * 0.08, s * (cor ? 0.12 : 0.11), s * (cor ? 0.09 : 0.08), 0, 0, 7); ctx.fill();
+    if (col) { ctx.fillStyle = BR; ctx.beginPath(); ctx.ellipse(x - s * 0.27, y - s * 0.075, s * 0.04, s * 0.05, 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = orelha;
     ctx.beginPath(); ctx.ellipse(x - s * 0.19, y - s * 0.13, s * 0.045, s * 0.07, 0.9, 0, 7); ctx.fill();
-    if (raca === 'fila') { ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x - s * 0.3, y - s * 0.07, s * 0.05, s * 0.04, 0, 0, 7); ctx.fill(); }
+    if (raca === 'fila' || cor) { ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x - s * 0.3, y - s * 0.07, s * 0.05, s * 0.04, 0, 0, 7); ctx.fill(); }
     line({ x: x - s * 0.27, y: y - s * 0.095 }, { x: x - s * 0.225, y: y - s * 0.09 }, '#222', Math.max(1, s * 0.018));
     ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(x - s * 0.33, y - s * 0.075, s * 0.02, 0, 7); ctx.fill();
     const k = (t / 1600) % 1;
@@ -3214,20 +3225,35 @@ function drawDog(x, y, s, t, raca = 'caramelo', sleeping = false) {
     return;
   }
   const wag = Math.sin(t / 120) * 0.5;
-  ctx.strokeStyle = body; ctx.lineWidth = s * 0.06;
+  // rabo (o do border collie é peludo e tem a ponta branca)
+  ctx.strokeStyle = body; ctx.lineWidth = s * (col ? 0.1 : cor ? 0.07 : 0.06);
   ctx.beginPath(); ctx.moveTo(x + s * 0.22, y - s * 0.22); ctx.lineTo(x + s * 0.36, y - s * 0.34 + wag * s * 0.1); ctx.stroke();
+  if (col) { ctx.fillStyle = BR; ctx.beginPath(); ctx.arc(x + s * 0.36, y - s * 0.34 + wag * s * 0.1, s * 0.05, 0, 7); ctx.fill(); }
   ctx.fillStyle = body;
-  ctx.beginPath(); ctx.ellipse(x + s * 0.05, y - s * 0.18, s * 0.22, s * 0.12, 0, 0, 7); ctx.fill();
-  if (raca === 'malhado') { ctx.fillStyle = '#f4f1ea'; ctx.beginPath(); ctx.ellipse(x + s * 0.02, y - s * 0.14, s * 0.13, s * 0.06, 0, 0, 7); ctx.fill(); ctx.fillRect(x - s * 0.12, y - s * 0.05, s * 0.06, s * 0.05); ctx.fillRect(x + s * 0.16, y - s * 0.05, s * 0.06, s * 0.05); }
+  ctx.beginPath(); ctx.ellipse(x + s * 0.05, y - s * 0.18, s * (cor ? 0.24 : 0.22), s * (cor ? 0.13 : pin ? 0.1 : 0.12), 0, 0, 7); ctx.fill();
   ctx.fillRect(x - s * 0.12, y - s * 0.12, s * 0.06, s * 0.12); ctx.fillRect(x + s * 0.16, y - s * 0.12, s * 0.06, s * 0.12);
+  if (pel === 'malhado') { ctx.fillStyle = BR; ctx.beginPath(); ctx.ellipse(x + s * 0.02, y - s * 0.14, s * 0.13, s * 0.06, 0, 0, 7); ctx.fill(); ctx.fillRect(x - s * 0.12, y - s * 0.05, s * 0.06, s * 0.05); ctx.fillRect(x + s * 0.16, y - s * 0.05, s * 0.06, s * 0.05); }
   if (raca === 'pastor') { ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x + s * 0.09, y - s * 0.25, s * 0.15, s * 0.06, 0, 0, 7); ctx.fill(); }
-  ctx.fillStyle = body; ctx.beginPath(); ctx.arc(x - s * 0.17, y - s * 0.3, s * 0.13, 0, 7); ctx.fill();
-  if (raca === 'malhado') { ctx.fillStyle = '#f4f1ea'; ctx.beginPath(); ctx.ellipse(x - s * 0.2, y - s * 0.28, s * 0.06, s * 0.1, 0.2, 0, 7); ctx.fill(); }
-  ctx.fillStyle = raca === 'caramelo' ? '#a8692f' : dark;
-  ctx.beginPath(); ctx.ellipse(x - s * 0.26, y - s * 0.28, s * 0.05, s * 0.1, 0.4, 0, 7); ctx.fill();
-  if (raca === 'pastor') { ctx.beginPath(); ctx.moveTo(x - s * 0.12, y - s * 0.4); ctx.lineTo(x - s * 0.08, y - s * 0.52); ctx.lineTo(x - s * 0.03, y - s * 0.39); ctx.fill(); }
+  if (col) { ctx.fillStyle = BR; ctx.beginPath(); ctx.ellipse(x - s * 0.1, y - s * 0.16, s * 0.07, s * 0.08, 0, 0, 7); ctx.fill(); ctx.fillRect(x - s * 0.12, y - s * 0.045, s * 0.06, s * 0.045); ctx.fillRect(x + s * 0.16, y - s * 0.045, s * 0.06, s * 0.045); }
+  if (hee || pin) { ctx.fillStyle = b.cor2; ctx.fillRect(x - s * 0.12, y - s * 0.05, s * 0.06, s * 0.05); ctx.fillRect(x + s * 0.16, y - s * 0.05, s * 0.06, s * 0.05); ctx.beginPath(); ctx.ellipse(x - s * 0.1, y - s * 0.15, s * 0.05, s * 0.06, 0, 0, 7); ctx.fill(); }
+  if (hee) { ctx.fillStyle = 'rgba(190,210,235,.75)'; for (const [dx, dy] of [[-0.02, -0.22], [0.06, -0.24], [0.12, -0.2], [0.02, -0.16], [0.1, -0.15], [0.17, -0.22], [-0.06, -0.19]]) { ctx.beginPath(); ctx.arc(x + s * dx, y + s * dy, s * 0.016, 0, 7); ctx.fill(); } }
+  if (cor) { ctx.strokeStyle = 'rgba(20,20,24,.35)'; ctx.lineWidth = s * 0.012; for (const dx of [-0.08, 0, 0.08, 0.15]) { ctx.beginPath(); ctx.moveTo(x + s * dx, y - s * 0.28); ctx.lineTo(x + s * (dx - 0.03), y - s * 0.1); ctx.stroke(); } }
+  // cabeça
+  ctx.fillStyle = body; ctx.beginPath(); ctx.arc(x - s * 0.17, y - s * 0.3, s * (cor ? 0.15 : pin ? 0.11 : 0.13), 0, 7); ctx.fill();
+  if (pel === 'malhado') { ctx.fillStyle = BR; ctx.beginPath(); ctx.ellipse(x - s * 0.2, y - s * 0.28, s * 0.06, s * 0.1, 0.2, 0, 7); ctx.fill(); }
+  if (col) { ctx.fillStyle = BR; ctx.beginPath(); ctx.ellipse(x - s * 0.2, y - s * 0.31, s * 0.035, s * 0.1, 0.15, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(x - s * 0.26, y - s * 0.25, s * 0.05, s * 0.04, 0, 0, 7); ctx.fill(); }
+  if (hee) { ctx.fillStyle = '#2a3a50'; ctx.beginPath(); ctx.ellipse(x - s * 0.22, y - s * 0.31, s * 0.06, s * 0.045, 0, 0, 7); ctx.fill(); ctx.fillStyle = b.cor2; ctx.beginPath(); ctx.ellipse(x - s * 0.27, y - s * 0.25, s * 0.045, s * 0.035, 0, 0, 7); ctx.fill(); }
+  if (cor) { ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x - s * 0.29, y - s * 0.26, s * 0.07, s * 0.055, 0, 0, 7); ctx.fill(); }
+  // orelhas
+  ctx.fillStyle = orelha;
+  if (raca === 'pastor' || raca === 'heeler') { ctx.beginPath(); ctx.ellipse(x - s * 0.26, y - s * 0.28, s * 0.05, s * 0.1, 0.4, 0, 7); ctx.fill(); tri(-0.12, -0.4, -0.08, -0.52, -0.03, -0.39); tri(-0.2, -0.4, -0.2, -0.52, -0.14, -0.4); }
+  else if (raca === 'pinscher') { tri(-0.22, -0.37, -0.25, -0.52, -0.15, -0.4); tri(-0.14, -0.4, -0.1, -0.53, -0.07, -0.34); }
+  else if (raca === 'bordercollie') { ctx.beginPath(); ctx.ellipse(x - s * 0.26, y - s * 0.28, s * 0.045, s * 0.09, 0.4, 0, 7); ctx.fill(); tri(-0.16, -0.4, -0.12, -0.51, -0.06, -0.38); }
+  else if (raca === 'corso') { ctx.beginPath(); ctx.ellipse(x - s * 0.27, y - s * 0.28, s * 0.045, s * 0.09, 0.4, 0, 7); ctx.fill(); tri(-0.21, -0.41, -0.18, -0.5, -0.1, -0.4); }
+  else { ctx.beginPath(); ctx.ellipse(x - s * 0.26, y - s * 0.28, s * 0.05, s * 0.1, 0.4, 0, 7); ctx.fill(); }
   if (raca === 'fila') { ctx.beginPath(); ctx.ellipse(x - s * 0.28, y - s * 0.26, s * 0.06, s * 0.05, 0, 0, 7); ctx.fill(); }
   ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(x - s * 0.21, y - s * 0.32, s * 0.02, 0, 7); ctx.arc(x - s * 0.3, y - s * 0.27, s * 0.025, 0, 7); ctx.fill();
+  if (pin) { ctx.fillStyle = b.cor2; for (const dx of [-0.215, -0.19]) { ctx.beginPath(); ctx.arc(x + s * dx, y - s * 0.345, s * 0.012, 0, 7); ctx.fill(); } }
   ctx.lineCap = 'butt';
 }
 // Casinha de cachorro, com a base centrada em (x, y).
@@ -3298,7 +3324,7 @@ function drawDogSpot(slot, s, t, home) {
       ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.ellipse(p.x, p.y, W * 0.26, W * 0.08, 0, 0, 7); ctx.stroke();
     }
-    drawDog(p.x, p.y, W * 0.72, t, d.raca, !dogAwake(d));
+    drawDog(p.x, p.y, W * 0.72, t, d.raca, !dogAwake(d), d.skin);
   } else {
     const R = clamp(W * 0.1, 9, 14), m = seg ? { x: p.x, y: p.y - W * 0.18 } : { x: k.x, y: k.y - W * 0.52 };
     ctx.fillStyle = 'rgba(255,253,242,.95)'; ctx.strokeStyle = '#6b4220'; ctx.lineWidth = 2;
@@ -5002,7 +5028,7 @@ const potionIcon = () => makeIcon('pocao', () => {
   ctx.fillStyle = '#e0d4f5'; ctx.fillRect(40, 22, 16, 16); ctx.fillStyle = '#8a5a2b'; ctx.fillRect(38, 14, 20, 9);
 });
 const itemIcon = id => PRODUCT[id] && PRODUCT[id].mina ? minerioIcon(id) : PRODUCE[id] ? cropIcon(PRODUCE[id].planta) : PRODUCT[id] && PRODUCT[id].muda ? cropIcon(PRODUCT[id].muda) : productIcon(id);
-const dogIcon = raca => makeIcon('dog:' + raca, () => drawDog(50, 88, 118, 0, raca, false));
+const dogIcon = (raca, pel = '') => makeIcon('dog:' + raca + pel, () => drawDog(50, 88, 118, 0, raca, false, pel));
 const bowlIcon = () => makeIcon('bowl', () => {
   ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.beginPath(); ctx.ellipse(48, 74, 32, 7, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#c8402f'; ctx.beginPath(); ctx.moveTo(18, 50); ctx.lineTo(78, 50); ctx.lineTo(70, 72); ctx.lineTo(26, 72); ctx.closePath(); ctx.fill();
@@ -5424,6 +5450,13 @@ function renderTabs() {
 // Preço nos botões da loja: ícone de moeda + valor (e a quantidade, quando tem).
 const moeda = (n, q) => `${q ? `<span class="qtd">×${q}</span>` : ''}<span class="coin" aria-hidden="true"></span>${n.toLocaleString('pt-BR')}`;
 // Os cachorros que você tem (roça e rancho): raça, nome, ração, vida, trocar o nome. Usado na Loja e na casinha.
+// Pelagens (da Loja do Trevo) que você já tem, para escolher em cada cachorro.
+function pelagensHTML(slot, d) {
+  const tem = Object.keys(SKIN_CAO).filter(k => temTrevoItem('cao:' + k));
+  if (!tem.length) return '';
+  const cur = SKIN_CAO[d.skin] ? d.skin : '';
+  return `<div class="papelrow" style="grid-column:1/-1">${['', ...tem].map(k => `<button type="button" class="papelchip" data-skin-cao="${slot}:${k || 'padrao'}" aria-pressed="${cur === k}">${k ? SKIN_CAO[k].nome : 'Natural'}</button>`).join('')}</div>`;
+}
 function caesHTML(naLoja) {
   let html = '';
   for (const slot of SLOTS_CAO) {
@@ -5437,9 +5470,10 @@ function caesHTML(naLoja) {
     if (!d) { html += `<div class="row"><div class="avatar" style="background:#b7b39c">?</div><div><div class="name">${baseSlot(slot) === 'roca' ? 'Roça' : 'Rancho'}${ehSegundo(slot) ? ': vaga do 2º cachorro' : ' sem cachorro'}</div><div class="meta">${naLoja ? 'Escolha uma raça aqui embaixo.' : 'Compre um na Loja › Cães.'}</div></div>${naLoja ? '<div></div>' : `<button class="btn ghost" data-ir-caes="1">Ver raças</button>`}</div>`; continue; }
     const b = DOG[d.raca], awake = dogAwake(d), dias = Math.max(1, Math.ceil((d.born + b.vida * DAY - Date.now()) / DAY));
     const armed = buyPending && buyPending.i === 'vendaDog' + slot && performance.now() < buyPending.until;
-    html += `<div class="row ${awake ? '' : 'sel'}"><img alt="" src="${dogIcon(d.raca)}">
+    html += `<div class="row ${awake ? '' : 'sel'}"><img alt="" src="${dogIcon(d.raca, d.skin)}">
       <div><div class="name">${esc(d.nome)} · ${baseSlot(slot) === 'roca' ? 'roça' : 'rancho'}${ehSegundo(slot) ? ' (2º)' : ''}</div>
       <div class="meta">Raça: <b>${b.nome}</b> · vive mais ${dias} ${dias > 1 ? 'dias' : 'dia'}<br>${awake ? `Acordado · ração por mais ${fmt((d.fedUntil - Date.now()) / 1000)}` : '<b>Dormindo de fome!</b> Não está vigiando.'}</div></div>
+      ${pelagensHTML(slot, d)}
       <div class="stack">${awake ? '' : `<button class="btn" data-feed-dog="${slot}">Dar ração</button>`}<button class="btn ghost" data-renomear-dog="${slot}">Trocar nome<br><small>${moeda(CUSTO_NOME_BICHO)}</small></button>
       <button class="btn ${armed ? 'danger' : 'ghost'}" data-sell-dog="${slot}" title="Vender">${armed ? 'Confirmar' : 'Vender ' + moeda(dogSellPrice(d))}</button></div></div>`;
   }
@@ -5637,12 +5671,12 @@ function renderPane() {
       html += caesHTML(true);
       html += `<h3>Raças</h3>`;
       for (const b of DOGS) {
-        const locked = b.nivel > state.level, trevoTrava = b.trevo && !temTrevoItem('cao:' + b.id);
+        const locked = b.nivel > state.level;
         const btn = cena => { const livre = [cena, cena + '2'].find(k => !state.dogs[k] && (!ehSegundo(k) || temVagaCao(cena))); return `<button class="btn ${cena === 'animais' ? 'ghost' : ''}" data-buy-dog="${b.id}" data-slot="${livre || cena}" ${!livre || state.coins < b.custo ? 'disabled' : ''}>${cena === 'roca' ? 'Para a roça' : 'Para o rancho'}</button>`; };
         html += `<div class="row wide ${locked ? 'locked' : ''}"><img alt="" src="${dogIcon(b.id)}">
           <div><div class="name">${b.nome}</div>
-          <div class="meta">${b.trevo ? 'Exclusivo da Loja do Trevo 🍀 · de graça aqui depois de trocar' : `${b.custo} moedas`} · vive ${b.vida} dias<br>espanta ${Math.round(b.protege * 100)}% dos ladrões · morde ${Math.round(b.morde * 100)}% deles<br>+${b.xpDia} XP por dia · +${b.xpPega} XP por ladrão</div></div>
-          <div class="actions">${trevoTrava ? '<button class="btn" disabled>🍀 Loja do Trevo</button>' : locked ? `<button class="btn" disabled>Nível ${b.nivel}</button>` : btn('roca') + btn('animais')}</div></div>`;
+          <div class="meta">${b.custo} moedas · vive ${b.vida} dias<br>espanta ${Math.round(b.protege * 100)}% dos ladrões · morde ${Math.round(b.morde * 100)}% deles<br>+${b.xpDia} XP por dia · +${b.xpPega} XP por ladrão</div></div>
+          <div class="actions">${locked ? `<button class="btn" disabled>Nível ${b.nivel}</button>` : btn('roca') + btn('animais')}</div></div>`;
       }
     } else if (shopSeg === 'enfeites') {
       html += `<p class="hint">Enfeites vão para o Inventário. De lá você escolhe onde pôr, na roça ou no rancho, fora dos canteiros e cercados. Cada um dá conforto (+XP).</p>`;
@@ -5892,6 +5926,7 @@ $('#pane').addEventListener('click', e => {
   if (d.trevoDomcaca) { resgatarDomCaca(); return renderPane(); }
   if (d.papelCarta) { state.papelCarta = d.papelCarta; sfx('click'); save(); return renderPane(); }
   if (d.papelParede) { if (!paredeLiberada(d.papelParede)) return; state.papelParede = d.papelParede === 'padrao' ? '' : d.papelParede; sfx('click'); done(); return renderPane(); }
+  if (d.skinCao) { const [sl, sk] = d.skinCao.split(':'), dg = state.dogs[sl]; if (dg && (sk === 'padrao' || (SKIN_CAO[sk] && temTrevoItem('cao:' + sk)))) { dg.skin = sk === 'padrao' ? '' : sk; sfx('click'); done(); renderPane(); if (isHome()) setScene(scene); } return; }
   if (d.comprarVaga) return comprarVagaCao(d.comprarVaga);
   if (d.newsDel) { state.news = state.news.filter(n => String(n.at) !== d.newsDel); sfx('click'); save(); renderTabs(); return renderPane(); }
   if (d.newsLimpar) return confirmTwice('news-limpar', 'Apagar todas as cartas do correio? Toque de novo para confirmar.', () => { state.news = []; sfx('water'); toast('Correio limpo! 📭', 'good'); save(); renderTabs(); renderPane(); });
@@ -12464,7 +12499,7 @@ function drawInvasor(t) {
     (v.caes && v.caes.length ? v.caes : ['roca']).forEach((k, n) => {
       const off = n ? [0.55, -0.35] : [0, 0]; // o 2º cachorro corre um pouco ao lado do 1º
       const cp2 = [cp[0] + off[0], cp[1] + off[1]], cq = iso(cp2[0], cp2[1]), d = state.dogs[k];
-      drawDog(cq.x, cq.y - Math.abs(Math.sin(t / 80 + n)) * W * 0.03, W * 0.7, t, d ? d.raca : 'caramelo');
+      drawDog(cq.x, cq.y - Math.abs(Math.sin(t / 80 + n)) * W * 0.03, W * 0.7, t, d ? d.raca : 'caramelo', false, d && d.skin);
       if (!n && (!v.fugindo || t - v.fugindo < 900)) { ctx.font = `900 ${Math.round(W * 0.12)}px system-ui`; ctx.textAlign = 'center'; ctx.fillStyle = '#7a3a12'; ctx.fillText('Au! Au!', cq.x, cq.y - W * 0.55); }
     });
   }
@@ -12715,8 +12750,8 @@ const TREVO_LOJA = [
   { id: 'casa:junina',          nome: 'Tema Casa Junina',           tipo: 'Tema',    preco: 45, desc: 'Amarelinha, com bandeirinhas coloridas no telhado.' },
   { id: 'casa:praiana',         nome: 'Tema Casa Praiana',          tipo: 'Tema',    preco: 45, desc: 'Azul-piscina com telhado azul-marinho.' },
   { id: 'tema:trevo',           nome: 'Cerca do Trevo',             tipo: 'Tema',    preco: 40, desc: 'Cerca verde-clarinha com um trevo em cada moirão (Loja › Temas).' },
-  { id: 'cao:dourado',          nome: 'Cachorro caramelo-dourado',  tipo: 'Animal',  preco: 50, desc: 'Pelagem rara. Depois de trocar, sai de graça em Loja › Cães.' },
-  { id: 'cao:malhado',          nome: 'Cachorro preto-e-branco',    tipo: 'Animal',  preco: 50, desc: 'Pelagem rara. Depois de trocar, sai de graça em Loja › Cães.' },
+  { id: 'cao:dourado',          nome: 'Pelagem caramelo-dourado',   tipo: 'Animal',  preco: 30, desc: 'Pelagem para qualquer cachorro seu: escolha em Loja › Cães, na lista dos seus cachorros.' },
+  { id: 'cao:malhado',          nome: 'Pelagem preto-e-branco',     tipo: 'Animal',  preco: 30, desc: 'Pelagem malhada para qualquer cachorro seu: escolha em Loja › Cães, na lista dos seus cachorros.' },
   { id: 'foto:sanfoneiro', nome: 'Selo Sanfoneiro', tipo: 'Perfil', preco: 12, desc: 'Selo exclusivo para a sua foto de perfil (🪗).' },
   { id: 'foto:fogueira', nome: 'Selo Fogueira', tipo: 'Perfil', preco: 12, desc: 'Selo exclusivo para a sua foto de perfil (🔥).' },
   { id: 'foto:cerrado', nome: 'Selo Cerrado', tipo: 'Perfil', preco: 12, desc: 'Selo exclusivo para a sua foto de perfil (🌵).' },
@@ -12753,7 +12788,7 @@ function iconeTrevoItem(it) {
   if (tipo === 'casa') return casaTemaIcon(id);
   if (tipo === 'enfeite') return enfeiteIcon(id);
   if (tipo === 'tema') return temaIcon(id);
-  if (tipo === 'cao') return dogIcon(id);
+  if (tipo === 'cao') return dogIcon('caramelo', id);
   if (tipo === 'parede') return paredeIcon(id);
   if (tipo === 'papel') return papelIcon(id);
   if (tipo === 'foto') return fotoIconUrl(FOTO_PERFIL[id]);
@@ -12779,7 +12814,7 @@ function comprarTrevoItem(id) {
     if (tipo === 'tema') state.temas[x] = true;
     if (tipo === 'enfeite') { state.enfeites[x] = (state.enfeites[x] || 0) + 1; state.invNovos = (state.invNovos || 0) + 1; }
     sfx('buy');
-    toast(`🍀 ${it.nome} é seu! ${tipo === 'casa' ? 'Use clicando na sua casa.' : tipo === 'tema' ? 'Use em Loja › Temas.' : tipo === 'cao' ? 'Pegue de graça em Loja › Cães.' : tipo === 'parede' ? 'Escolha em Loja › Temas.' : tipo === 'papel' ? 'Escolha no Correio.' : tipo === 'foto' ? 'Escolha em ⚙️ › Sua foto.' : tipo === 'enfeite' ? 'Está no Inventário.' : tipo === 'musica' ? 'Escolha em ⚙️ › Música.' : 'Escolha em ⚙️ › Seu avatar.'}`, 'good');
+    toast(`🍀 ${it.nome} é seu! ${tipo === 'casa' ? 'Use clicando na sua casa.' : tipo === 'tema' ? 'Use em Loja › Temas.' : tipo === 'cao' ? 'Escolha em Loja › Cães, na lista dos seus cachorros.' : tipo === 'parede' ? 'Escolha em Loja › Temas.' : tipo === 'papel' ? 'Escolha no Correio.' : tipo === 'foto' ? 'Escolha em ⚙️ › Sua foto.' : tipo === 'enfeite' ? 'Está no Inventário.' : tipo === 'musica' ? 'Escolha em ⚙️ › Música.' : 'Escolha em ⚙️ › Seu avatar.'}`, 'good');
     done(); renderPane(); renderTabs(); renderHUD();
   });
 }
