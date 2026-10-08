@@ -439,6 +439,28 @@
     bark: t => { for (const d of [0, 0.22]) { const o = ac.createOscillator(), b = ac.createBiquadFilter(), g = ac.createGain(); o.type = 'sawtooth'; b.type = 'bandpass'; b.frequency.value = 900; b.Q.value = 2; o.frequency.setValueAtTime(380, t + d); o.frequency.exponentialRampToValueAtTime(170, t + d + 0.14); o.connect(b); b.connect(g); g.connect(sfxBus); g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(0.35, t + d + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.16); o.start(t + d); o.stop(t + d + 0.2); } },
   };
 
+  // Cada raça de cachorro late de um jeito: tom (f0→f1), quantos latidos, intervalo, duração, timbre e volume.
+  const LATIDOS = {
+    caramelo:     { f0: 380, f1: 170, n: 2, gap: 0.22, dur: 0.16, filt: 900,  q: 2, type: 'sawtooth', vol: 0.35 },
+    pinscher:     { f0: 980, f1: 560, n: 4, gap: 0.12, dur: 0.08, filt: 2400, q: 3, type: 'square',   vol: 0.22 },
+    pastor:       { f0: 270, f1: 115, n: 2, gap: 0.32, dur: 0.24, filt: 700,  q: 2, type: 'sawtooth', vol: 0.45 },
+    bordercollie: { f0: 600, f1: 330, n: 3, gap: 0.15, dur: 0.11, filt: 1500, q: 2, type: 'sawtooth', vol: 0.3 },
+    heeler:       { f0: 500, f1: 230, n: 2, gap: 0.19, dur: 0.13, filt: 1900, q: 5, type: 'square',   vol: 0.28 },
+    fila:         { f0: 200, f1: 80,  n: 2, gap: 0.5,  dur: 0.34, filt: 500,  q: 1.5, type: 'sawtooth', vol: 0.5 },
+    corso:        { f0: 150, f1: 62,  n: 2, gap: 0.42, dur: 0.3,  filt: 380,  q: 1.5, type: 'sawtooth', vol: 0.55 },
+  };
+  const latir = (cfgL, t) => {
+    for (let k = 0; k < cfgL.n; k++) {
+      const d = k * cfgL.gap, o = ac.createOscillator(), b = ac.createBiquadFilter(), g = ac.createGain();
+      o.type = cfgL.type; b.type = 'bandpass'; b.frequency.value = cfgL.filt; b.Q.value = cfgL.q;
+      const f0 = cfgL.f0 * (1 - 0.04 * k), f1 = cfgL.f1 * (1 - 0.04 * k);
+      o.frequency.setValueAtTime(f0, t + d); o.frequency.exponentialRampToValueAtTime(f1, t + d + cfgL.dur * 0.9);
+      o.connect(b); b.connect(g); g.connect(sfxBus);
+      g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(cfgL.vol, t + d + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d + cfgL.dur);
+      o.start(t + d); o.stop(t + d + cfgL.dur + 0.04);
+    }
+  };
+
   let unlocked = false, rainSrc = null, rainGain = null;
   const RFAudio = {
     tracks: TRACKS.map(t => t.nome),
@@ -474,7 +496,7 @@
       }
     },
     play(name) {
-      const fn = SFX[name] || (name.startsWith('bicho_') && BICHOS[name.slice(6)]);
+      const fn = SFX[name] || (name.startsWith('bicho_') && BICHOS[name.slice(6)]) || (name.startsWith('bark_') && (t => latir(LATIDOS[name.slice(5)] || LATIDOS.caramelo, t)));
       if (!ac || !unlocked || !cfg.sfx || !fn) return;
       try { fn(ac.currentTime + 0.01); } catch (e) { /* som é enfeite: nunca quebra o jogo */ }
     },

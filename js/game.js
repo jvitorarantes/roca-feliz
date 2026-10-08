@@ -1298,6 +1298,14 @@ const FALAS_AVATAR = ['Cê tá bão?', 'Ô trem bão!', 'Bora trabaiá!', 'Que d
 const FALAS_DONO = ['Seja bem-vindo na minha roça!', 'Fique à vontade, sô!', 'Aceita um cafezinho?', 'Dá uma ajudinha na horta?', 'Que bom que cê veio!', 'Repara na bagunça não!'];
 const FALAS_PINSCHER = ['AU AU AU AU! 😠', 'Ei! Você! Eu tô de olho!', 'Au! Sai daqui, sô!', 'Cê tá olhando o quê?! Au!', 'Grrr… vem, vem!', 'AU! Eu sou pequeno mas sou bravo!', 'Au au! Tem alguém aí?!', 'Quem mexeu no meu osso?! 🦴', 'Au! Isso aqui é MEU!', 'Pode vir, eu encaro! Au!', 'AU! Passa longe da minha casinha!', 'Au au au! Barulho suspeito!'];
 const FALAS_CAO_AMB = ['Au!', 'Au au!', '*olha em volta*', '*abana o rabo*', 'Au! Tá tudo certo!'];
+const FALAS_PASTOR = ['Au! Au! Tudo sob controle.', 'Au! Fico de guarda, pode descansar.', 'Hmm… senti algo. Au!', 'Au! Eu protejo a roça.', '*orelhas em pé*', 'Au! Ninguém passa por mim.', 'Au! Que dia bom pra trabalhar!'];
+const FALAS_COLLIE = ['Au au! Bora pastorear?!', 'Au! Tem ovelha pra reunir? 🐑', 'Au au au! Brinca comigo!', 'Au! Tô cheio de energia!', 'Au! Joga a bolinha! 🎾', 'Au au! Eu sei fazer truque!', '*corre em círculos*'];
+const FALAS_HEELER = ['Au! Eu que mando aqui.', 'Grr… vou beliscar o calcanhar!', 'Au! Eu sou teimoso, e daí?', 'Au! Gado, cadê o gado?', 'Au! Nem vem!', 'Au! Eu aguento qualquer sol!', '*cara de poucos amigos*'];
+const FALAS_FILA = ['UAU. Quem é vivo sempre aparece.', 'Uau! Eu não largo o que pego.', 'Grrr… estranho à vista.', 'UAU! Respeita a porteira!', 'Uau… calmo, mas atento.', '*olhar desconfiado*'];
+const FALAS_CORSO = ['WUF. Isso aqui é território meu.', 'Wuf! Pode vir se quiser…', 'Grrrr… cheiro de intruso.', 'WUF WUF! Respeita!', 'Wuf. Dormir? Só com um olho aberto.', '*rosna baixinho*'];
+const FALAS_POR_RACA = { caramelo: FALAS_CAO, pinscher: FALAS_PINSCHER, pastor: FALAS_PASTOR, bordercollie: FALAS_COLLIE, heeler: FALAS_HEELER, fila: FALAS_FILA, corso: FALAS_CORSO };
+const falasDe = raca => FALAS_POR_RACA[raca] || FALAS_CAO;
+const somLatido = raca => sfx('bark_' + (DOG[raca] ? raca : 'caramelo'));
 const proxLatido = {};
 // Cachorros acordados latem de vez em quando. O pinscher late por tudo: a cada poucos segundos, com xingamento e tudo.
 function latidosAmbiente() {
@@ -1310,16 +1318,16 @@ function latidosAmbiente() {
     if (!proxLatido[slot]) proxLatido[slot] = now + 2000 + Math.random() * (pin ? 6000 : 40000);
     if (now < proxLatido[slot]) continue;
     proxLatido[slot] = now + (pin ? 6000 + Math.random() * 10000 : 50000 + Math.random() * 70000);
-    falar('dog:' + slot, d.nome, sorteia(pin ? FALAS_PINSCHER : FALAS_CAO_AMB));
-    if (pin ? Math.random() < 0.7 : false) sfx('bark');
+    falar('dog:' + slot, d.nome, sorteia(falasDe(d.raca)));
+    if (pin && Math.random() < 0.7) somLatido(d.raca);
   }
 }
 // Motivo na hora: os pinschers acordados da roça reclamam de tudo (praga chegando, chuva…).
 function pinscherReclama(txt) {
   if (!state || !state.dogs || scene !== 'roca') return;
-  for (const slot of ['roca', 'roca2']) { const d = state.dogs[slot]; if (dogAwake(d) && DOG[d.raca] && DOG[d.raca].latidor) { falar('dog:' + slot, d.nome, txt); sfx('bark'); proxLatido[slot] = performance.now() + 5000; } }
+  for (const slot of ['roca', 'roca2']) { const d = state.dogs[slot]; if (dogAwake(d) && DOG[d.raca] && DOG[d.raca].latidor) { falar('dog:' + slot, d.nome, txt); somLatido(d.raca); proxLatido[slot] = performance.now() + 5000; } }
 }
-const latir = (slot, nome) => { falar('dog:' + slot, nome, sorteia(FALAS_CAO)); sfx('bark'); };
+const latir = (slot, nome) => { const dg = S().dogs && S().dogs[slot], raca = dg ? dg.raca : 'caramelo'; falar('dog:' + slot, nome, sorteia(falasDe(raca))); somLatido(raca); };
 function actDog(slot) {
   const d = S().dogs && S().dogs[slot];
   if (!isHome()) {
@@ -1364,7 +1372,7 @@ function buyDog(raca, slot) {
   state.coins -= b.custo;
   // O cachorro chega de barriga cheia.
   state.dogs[slot] = { raca, nome, born: Date.now(), fedUntil: Date.now() + DOG_FOOD.horas * 3600e3, lastXp: Date.now() };
-  sfx('buy'); sfx('bark');
+  sfx('buy'); somLatido(raca);
   addXP(5, null);
   toast(`${nome}, ${b.nome.toLowerCase()}, agora vigia ${SLOT[slot].aSua}!`, 'good');
   if (isHome()) setScene(baseSlot(slot) === 'roca' ? 'roca' : 'animais');
@@ -1384,6 +1392,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 276, txt: "Cada raça de cachorro agora late de um jeito: o Pinscher dá latidinhos agudos e rápidos, o Pastor-alemão late grosso e firme, o Border collie late animado em sequência, o Blue heeler tem um latido seco e rouco, o Fila e o Cane corso têm latidos bem graves e demorados. Cada raça também tem as suas falas, com a personalidade dela. E na Loja do Trevo 🍀 os itens úteis ganharam ícones certos (picareta, dinamite, TNT, animal surpresa, animal raro, kit da mina) no lugar da cestinha." },
   { v: 275, txt: "O Pinscher é pequeno, mas é bravo e afrontoso: late por tudo, a cada poucos segundos, com xingamento e tudo, reclama da chuva e avisa quando chega praga na plantação. Morde mais que antes (75% das vezes que espanta um ladrão), mas protege pouco. Os outros cachorros também dão um latidinho de vez em quando." },
   { v: 274, txt: "A onça-pintada agora também aparece na Serra Dourada, e com uma chance um pouquinho maior. E chegou o Pantanal 🐊 na caçada (nível 35, 45.000 moedas): jacaré, sucuri, ariranha, tuiuiú, arara-vermelha, cervo-do-pantanal, tatu-canastra, capivara-gigante e jaburu. No Pantanal a onça aparece o dobro." },
   { v: 273, txt: "Mais pelagens para os cachorros na Loja do Trevo 🍀: toda preta, toda branca, toda marrom, cinza, creme e tigrada (20 a 30 🍀). Escolha em Loja › Cães, na lista dos seus cachorros." },
@@ -2037,17 +2046,17 @@ const farmsToday = () => Object.values(state.limits).filter(l => l && l.d === lo
 // O cachorro do dono pode espantar (e às vezes morder) quem tenta pegar.
 // Nos vizinhos da vila o cachorro está sempre acordado; nos amigos, só se tiver comida.
 function guarded(slot, pos, visit) {
-  let nome, protege, morde;
+  let nome, protege, morde, racaLat = 'caramelo';
   if (view.kind === 'friend') {
     const base = baseSlot(slot), acordados = [base, base + '2'].map(k => view.data.dogs && view.data.dogs[k]).filter(dogAwake);
     const d = acordados.find(x => Math.random() < DOG[x.raca].protege); // com dois cachorros, cada um tem a sua chance
     if (!d) return false;
-    nome = d.nome; protege = 1; morde = DOG[d.raca].morde;
+    nome = d.nome; protege = 1; morde = DOG[d.raca].morde; racaLat = d.raca;
   } else { nome = view.cao; protege = view.pega; morde = 0.7; }
   if (Math.random() >= protege) return false;
   const bitten = Math.random() < morde, loss = bitten ? Math.min(state.coins, 10) : 0;
   if (loss) addCoins(-loss, pos);
-  sfx('bark');
+  somLatido(racaLat);
   toast(bitten ? `${nome}, o cachorro de ${view.nome}, te mordeu! −${loss} moedas` : `${nome}, o cachorro de ${view.nome}, te espantou!`, 'bad');
   sendVisit(Object.assign(visit, { caught: true, coins: loss }));
   return true;
@@ -12518,14 +12527,14 @@ function passoInvasao(t) {
   if (v.fase === 'chegando' && dt > 2200) {
     v.t0 = t;
     if (v.destino === 'armadilha') { v.fase = 'presa'; sfx('armadilha'); }
-    else if (v.destino === 'cachorro') { v.fase = 'cachorro'; sfx('bark'); const c = posOf(state, 'roca', 'canil'); v.cao = [c[0], c[1]]; }
+    else if (v.destino === 'cachorro') { v.fase = 'cachorro'; somLatido((state.dogs[(v.caes || ['roca'])[0]] || {}).raca); const c = posOf(state, 'roca', 'canil'); v.cao = [c[0], c[1]]; }
     else { v.fase = 'espera'; v.limite = Date.now() + INVASAO_ESPERA; }
   } else if (v.fase === 'presa' && dt > 2600) {
     state.armadilha.pronta = Date.now() + ARMADILHA.recarga;
     const b = CACA_BICHO[v.tipo]; addCoins(b.moedas, null); const dropTxt = aplicaDropsCaca(b);
     const msg = `🪤 A armadilha pegou ${nomePraga(v)} na plantação! +${b.moedas} moedas${dropTxt}. Ela recarrega em ${fmt(ARMADILHA.recarga / 1000)}.`;
     toast(msg, 'good'); addNews(msg); invasor = null; done();
-  } else if (v.fase === 'cachorro' && dt > 1500 && !v.fugindo) { v.fugindo = t; sfx('bark'); }
+  } else if (v.fase === 'cachorro' && dt > 1500 && !v.fugindo) { v.fugindo = t; (v.caes || ['roca']).forEach((k, n) => setTimeout(() => somLatido((state.dogs[k] || {}).raca), n * 250)); }
   else if (v.fase === 'cachorro' && v.fugindo && t - v.fugindo > 1800) {
     const ds = (v.caes || ['roca']).map(k => state.dogs[k]).filter(Boolean), nomes = ds.map(x => x.nome).join(' e ') || 'Seu cachorro';
     const msg = `🐕 ${nomes} ${ds.length > 1 ? 'correram' : 'correu'} atrás ${v.tipo === 'javali' ? 'do javali' : 'do rato'} e ${ds.length > 1 ? 'espantaram' : 'espantou'} da plantação!`;
@@ -12878,8 +12887,14 @@ function iconeTrevoItem(it) {
   if (tipo === 'parede') return paredeIcon(id);
   if (tipo === 'papel') return papelIcon(id);
   if (tipo === 'foto') return fotoIconUrl(FOTO_PERFIL[id]);
+  if (tipo === 'util' && id === 'picaretas') return ferrIcon('pic');
+  if (tipo === 'util' && id === 'dinamite') return ferrIcon('din');
+  if (tipo === 'util' && id === 'tnt') return ferrIcon('tnt');
   return makeIcon('trevoitem:' + it.id, () => {
     if (tipo === 'musica') { ctx.fillStyle = '#2f8a2f'; ctx.font = '56px system-ui'; ctx.textAlign = 'center'; ctx.fillText({ 4: '🪕', 5: '🪗', 6: '🌙' }[id] || '🎵', 48, 70); return; }
+    if (tipo === 'util' && id === 'animal') { drawAnimal('vaca', 38, 88, 1.55, 0, 1, false); ctx.font = '34px system-ui'; ctx.textAlign = 'center'; ctx.fillText('❓', 74, 34); return; }
+    if (tipo === 'util' && id === 'animalraro') { drawAnimal('onca', 38, 88, 1.7, 0, 1, false); ctx.font = '34px system-ui'; ctx.textAlign = 'center'; ctx.fillText('💎', 74, 34); return; }
+    if (tipo === 'util' && id === 'kitmina') { for (const [f, X, Y, k] of [['pic', 34, 52, 1.3], ['din', 62, 44, 1.5], ['tnt', 62, 78, 1.1]]) { const c = { pic: [3, 1], din: [0, 11], tnt: [0, 12] }[f]; ctx.save(); ctx.translate(X - c[0] * k, Y - c[1] * k); ctx.scale(k, k); drawNaMao(ctx, MINA_FERR[f].mao, 0, false); ctx.restore(); } return; }
     if (tipo === 'util' && id === 'motosserra') return drawMotosserra(52, 54, 0.95);
     if (tipo === 'util' && id === 'enxada') return drawEnxada(38, 54, 0.9);
     if (tipo === 'util') { ctx.font = '54px system-ui'; ctx.textAlign = 'center'; ctx.fillText({ camarao: '🦐', artificial: '🎏', tarrafa: '🕸️', racao: '🌾', pontos: '🎣', enxada: '🪓', motosserra: '⛓️', iscaouro: '🌟', ovo: '🥚', plantas: '🌱', pular: '⏩', fertouro: '✨', kitmina: '⛏️', nome: '✏️' }[id] || '🧺', 48, 70); return; }
