@@ -1392,6 +1392,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 277, txt: "Na mina, cada ferramenta (picareta, dinamite e TNT) ganhou um botão 'Usar tudo' embaixo: gasta todas de uma vez, sem esperar cada animação, e mostra o total de minério que você juntou. Pergunta antes, com Sim e Não." },
   { v: 276, txt: "Cada raça de cachorro agora late de um jeito: o Pinscher dá latidinhos agudos e rápidos, o Pastor-alemão late grosso e firme, o Border collie late animado em sequência, o Blue heeler tem um latido seco e rouco, o Fila e o Cane corso têm latidos bem graves e demorados. Cada raça também tem as suas falas, com a personalidade dela. E na Loja do Trevo 🍀 os itens úteis ganharam ícones certos (picareta, dinamite, TNT, animal surpresa, animal raro, kit da mina) no lugar da cestinha." },
   { v: 275, txt: "O Pinscher é pequeno, mas é bravo e afrontoso: late por tudo, a cada poucos segundos, com xingamento e tudo, reclama da chuva e avisa quando chega praga na plantação. Morde mais que antes (75% das vezes que espanta um ladrão), mas protege pouco. Os outros cachorros também dão um latidinho de vez em quando." },
   { v: 274, txt: "A onça-pintada agora também aparece na Serra Dourada, e com uma chance um pouquinho maior. E chegou o Pantanal 🐊 na caçada (nível 35, 45.000 moedas): jacaré, sucuri, ariranha, tuiuiú, arara-vermelha, cervo-do-pantanal, tatu-canastra, capivara-gigante e jaburu. No Pantanal a onça aparece o dobro." },
@@ -9730,7 +9731,7 @@ function minaSorteio(raro) {
   return l[l.length - 1];
 }
 // Gasta uma ferramenta e entrega os minérios. Devolve [{ m, n }] para a animação mostrar.
-function minaUsar(f) {
+function minaUsar(f, lote) {
   const M = minaDe(), F = MINA_FERR[f];
   if (M.ferr[f] <= 0) return null;
   M.ferr[f]--;
@@ -9740,7 +9741,7 @@ function minaUsar(f) {
   let xp = 0;
   for (const { m, n } of res) { state.barn[m.id] = (state.barn[m.id] || 0) + n; xp += m.xp * n; }
   addXP(xp, null); track('minerar', total); state.stats.minerado = (state.stats.minerado || 0) + total;
-  done();
+  if (!lote) done();
   return res;
 }
 function drawRocha(x, y, W, m, frac, shake) {
@@ -9809,7 +9810,7 @@ function abrirMinaModal() {
 function fecharMinaModal() { $('#minaModal').hidden = true; cancelAnimationFrame(minaLoopId); minaAnim = null; if (minaDrag) { minaDrag.ghost.remove(); minaDrag = null; } }
 function renderMinaFerrs() {
   const M = minaDe();
-  $('#minaFerrs').innerHTML = Object.entries(MINA_FERR).map(([f, F]) => `<button type="button" class="mina-ferr ${M.sel === f ? 'sel' : ''} ${M.ferr[f] <= 0 ? 'vazio' : ''}" data-mina-ferr="${f}"><img alt="" draggable="false" src="${ferrIcon(f)}"><b>${F.nome}</b><small>${F.desc}</small><span class="qtd">${M.ferr[f]}</span></button>`).join('');
+  $('#minaFerrs').innerHTML = Object.entries(MINA_FERR).map(([f, F]) => `<div class="mina-cel"><button type="button" class="mina-ferr ${M.sel === f ? 'sel' : ''} ${M.ferr[f] <= 0 ? 'vazio' : ''}" data-mina-ferr="${f}"><img alt="" draggable="false" src="${ferrIcon(f)}"><b>${F.nome}</b><small>${F.desc}</small><span class="qtd">${M.ferr[f]}</span></button><button type="button" class="btn ghost mina-tudo" data-mina-tudo="${f}" ${M.ferr[f] <= 0 ? 'disabled' : ''}>Usar tudo</button></div>`).join('');
 }
 function minaIniciar(f) {
   if (minaAnim) return;
@@ -9819,11 +9820,26 @@ function minaIniciar(f) {
   M.sel = f; minaAnim = { f, ini: performance.now(), res, mostrou: false }; sfx('click');
   renderMinaFerrs();
 }
-function minaMostrarGanho(res) {
+// Usa todas as ferramentas de um tipo de uma vez (sem a animação de cada batida) e mostra o total ganho.
+function minaUsarTudo(f) {
+  if (minaAnim) return;
+  const M = minaDe(), F = MINA_FERR[f], n = M.ferr[f];
+  if (n <= 0) return toast(`Você está sem ${F.nomePl}.`, 'bad');
+  perguntar(`Usar ${n > 1 ? `todas as ${n} ${F.nomePl}` : `a ${F.nome.toLowerCase()}`} de uma vez?`, () => {
+    const soma = {};
+    let usadas = 0;
+    while (M.ferr[f] > 0) { const res = minaUsar(f, true); if (!res) break; usadas++; for (const { m, n: q } of res) soma[m.id] = (soma[m.id] || 0) + q; }
+    if (!usadas) return;
+    M.sel = f; done(); renderMinaFerrs();
+    minaMostrarGanho(Object.entries(soma).map(([id, q]) => ({ m: MINERIO[id], n: q })), 5000);
+    toast(`${F.emoji} Usou ${usadas} ${usadas > 1 ? F.nomePl : F.nome.toLowerCase()} e juntou ${Object.values(soma).reduce((a, b) => a + b, 0)} minérios!`, 'good');
+  });
+}
+function minaMostrarGanho(res, ms = 1900) {
   const box = $('#minaGanho');
   box.innerHTML = res.map(({ m, n }) => `<div class="mina-chip"><img alt="" src="${minerioIcon(m.id)}"><b>+${n}</b><span>${esc(m.nome)}</span></div>`).join('');
   sfx('harvest');
-  setTimeout(() => { if (minaAnim === null) box.innerHTML = ''; }, 1900);
+  setTimeout(() => { if (minaAnim === null) box.innerHTML = ''; }, ms);
 }
 function minaLoop(now) {
   if ($('#minaModal').hidden) return;
@@ -9871,6 +9887,7 @@ function minaLoop(now) {
   minaLoopId = requestAnimationFrame(minaLoop);
 }
 // Arrastar: a ferramenta vira um "fantasma" que segue o dedo/mouse; soltou em cima da pedra, usa. Tocar na ferramenta e depois na pedra também funciona.
+$('#minaFerrs').addEventListener('click', e => { const b = e.target.closest('[data-mina-tudo]'); if (b && !b.disabled) minaUsarTudo(b.dataset.minaTudo); });
 $('#minaFerrs').addEventListener('pointerdown', e => {
   const b = e.target.closest('[data-mina-ferr]'); if (!b || minaAnim) return;
   const f = b.dataset.minaFerr; e.preventDefault();

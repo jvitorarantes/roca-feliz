@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="276">
+<meta name="rf-version" content="277">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -226,6 +226,8 @@
   @keyframes minaChip { from { transform: translateY(14px) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
   .mina-ferrs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .mina-ferr { position: relative; display: grid; justify-items: center; gap: 2px; background: var(--card); border: 2px solid var(--panel-2); border-radius: 12px; padding: 8px 4px; font: inherit; color: inherit; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .mina-cel { display: grid; gap: 6px; align-content: start; }
+  .mina-tudo { font-size: 12px; padding: 6px 4px; min-height: 0; }
   .mina-ferr.sel { border-color: var(--gold); background: var(--sel); }
   .mina-ferr.vazio { opacity: .5; }
   .mina-ferr img { width: 54px; height: 54px; pointer-events: none; }
@@ -1112,6 +1114,6 @@
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
 <script src="js/audio.js?v=276"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=276"></script>
+<script src="js/game.js?v=277"></script>
 </body>
 </html>
