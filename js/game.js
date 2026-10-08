@@ -361,7 +361,7 @@ const nomeBicho = a => a.nome && a.nome !== ANIMAL[a.k].nome ? `${a.nome} (${ANI
 // Cães de guarda: um vigia a roça, outro o rancho. Só protegem acordados (com comida).
 const DOGS = [
   { id: 'caramelo', nome: 'Vira-lata caramelo', custo: 1000, nivel: 3, vida: 15, protege: 0.55, morde: 0.4, xpDia: 10, xpPega: 15, cor: '#d99a4e', cor2: '#b8793a' },
-  { id: 'pinscher', nome: 'Pinscher',           custo: 1800, nivel: 5, vida: 14, protege: 0.5,  morde: 0.55, xpDia: 12, xpPega: 16, cor: '#2a2420', cor2: '#b8783e', escala: 0.8 },
+  { id: 'pinscher', nome: 'Pinscher',           custo: 1800, nivel: 5, vida: 14, protege: 0.5,  morde: 0.75, xpDia: 12, xpPega: 16, cor: '#2a2420', cor2: '#b8783e', escala: 0.8, latidor: true, obs: 'Pequeno, mas bravo e afrontoso: late por tudo e morde mais.' },
   { id: 'pastor',   nome: 'Pastor-alemão',      custo: 3000, nivel: 8, vida: 25, protege: 0.7,  morde: 0.5, xpDia: 20, xpPega: 25, cor: '#8a5a2e', cor2: '#2a221c' },
   { id: 'bordercollie', nome: 'Border collie',  custo: 4500, nivel: 11, vida: 22, protege: 0.72, morde: 0.45, xpDia: 22, xpPega: 28, cor: '#23232a', cor2: '#14141a' },
   { id: 'heeler',   nome: 'Blue heeler',        custo: 5200, nivel: 13, vida: 22, protege: 0.76, morde: 0.6,  xpDia: 25, xpPega: 32, cor: '#6f8aa8', cor2: '#b8783e' },
@@ -821,6 +821,7 @@ const friendInfo = {};
 const pedeAjuda = uid => { const f = friendInfo[uid]; return f && typeof f === 'object' && !f.erro ? f.ajuda || 0 : 0; };
 const amigosPedindo = () => (state && user ? state.friends.filter(pedeAjuda) : []);
 // De tempos em tempos vê quem está pedindo ajuda (para o número no botão Amigos)
+setInterval(() => { try { latidosAmbiente(); } catch (e) { /* sem latido */ } }, 1500);
 setInterval(() => { if (user && state && !document.hidden) state.friends.forEach(uid => fetchFriendInfo(uid)); }, 150e3);
 
 const $ = s => document.querySelector(s);
@@ -1295,6 +1296,29 @@ const sorteia = l => l[Math.floor(Math.random() * l.length)];
 const FALAS_CAO = ['Au au! 🐶', 'Au! Tô de olho!', 'Cadê meu osso? 🦴', 'Aqui ninguém pega nada!', 'Au au! Brinca comigo?', 'Grrr… quem vem lá?', 'Au! Bora passear?', '*abana o rabo*'];
 const FALAS_AVATAR = ['Cê tá bão?', 'Ô trem bão!', 'Bora trabaiá!', 'Que dia bonito, sô!', 'Essa roça tá uma belezura!', 'Uai, cadê meu chapéu?', 'Hoje tem colheita boa!', 'Vou tomar um cafezin ☕', 'Nó, que calor!', 'Bão demais da conta!'];
 const FALAS_DONO = ['Seja bem-vindo na minha roça!', 'Fique à vontade, sô!', 'Aceita um cafezinho?', 'Dá uma ajudinha na horta?', 'Que bom que cê veio!', 'Repara na bagunça não!'];
+const FALAS_PINSCHER = ['AU AU AU AU! 😠', 'Ei! Você! Eu tô de olho!', 'Au! Sai daqui, sô!', 'Cê tá olhando o quê?! Au!', 'Grrr… vem, vem!', 'AU! Eu sou pequeno mas sou bravo!', 'Au au! Tem alguém aí?!', 'Quem mexeu no meu osso?! 🦴', 'Au! Isso aqui é MEU!', 'Pode vir, eu encaro! Au!', 'AU! Passa longe da minha casinha!', 'Au au au! Barulho suspeito!'];
+const FALAS_CAO_AMB = ['Au!', 'Au au!', '*olha em volta*', '*abana o rabo*', 'Au! Tá tudo certo!'];
+const proxLatido = {};
+// Cachorros acordados latem de vez em quando. O pinscher late por tudo: a cada poucos segundos, com xingamento e tudo.
+function latidosAmbiente() {
+  if (!state || document.hidden || !['roca', 'animais'].includes(scene) || isGated()) return;
+  const now = performance.now();
+  for (const slot of SLOTS_CAO) {
+    if (baseSlot(slot) !== scene) continue;
+    const d = S().dogs && S().dogs[slot]; if (!dogAwake(d)) continue;
+    const pin = !!(DOG[d.raca] && DOG[d.raca].latidor);
+    if (!proxLatido[slot]) proxLatido[slot] = now + 2000 + Math.random() * (pin ? 6000 : 40000);
+    if (now < proxLatido[slot]) continue;
+    proxLatido[slot] = now + (pin ? 6000 + Math.random() * 10000 : 50000 + Math.random() * 70000);
+    falar('dog:' + slot, d.nome, sorteia(pin ? FALAS_PINSCHER : FALAS_CAO_AMB));
+    if (pin ? Math.random() < 0.7 : false) sfx('bark');
+  }
+}
+// Motivo na hora: os pinschers acordados da roça reclamam de tudo (praga chegando, chuva…).
+function pinscherReclama(txt) {
+  if (!state || !state.dogs || scene !== 'roca') return;
+  for (const slot of ['roca', 'roca2']) { const d = state.dogs[slot]; if (dogAwake(d) && DOG[d.raca] && DOG[d.raca].latidor) { falar('dog:' + slot, d.nome, txt); sfx('bark'); proxLatido[slot] = performance.now() + 5000; } }
+}
 const latir = (slot, nome) => { falar('dog:' + slot, nome, sorteia(FALAS_CAO)); sfx('bark'); };
 function actDog(slot) {
   const d = S().dogs && S().dogs[slot];
@@ -1360,6 +1384,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 275, txt: "O Pinscher é pequeno, mas é bravo e afrontoso: late por tudo, a cada poucos segundos, com xingamento e tudo, reclama da chuva e avisa quando chega praga na plantação. Morde mais que antes (75% das vezes que espanta um ladrão), mas protege pouco. Os outros cachorros também dão um latidinho de vez em quando." },
   { v: 274, txt: "A onça-pintada agora também aparece na Serra Dourada, e com uma chance um pouquinho maior. E chegou o Pantanal 🐊 na caçada (nível 35, 45.000 moedas): jacaré, sucuri, ariranha, tuiuiú, arara-vermelha, cervo-do-pantanal, tatu-canastra, capivara-gigante e jaburu. No Pantanal a onça aparece o dobro." },
   { v: 273, txt: "Mais pelagens para os cachorros na Loja do Trevo 🍀: toda preta, toda branca, toda marrom, cinza, creme e tigrada (20 a 30 🍀). Escolha em Loja › Cães, na lista dos seus cachorros." },
   { v: 272, txt: "Chegaram 4 raças de cachorro novas na Loja › Cães: Pinscher (nível 5), Border collie (11), Blue heeler (13) e Cane corso (20). E as pelagens da Loja do Trevo 🍀 (caramelo-dourado e preto-e-branco) agora são skins: valem para qualquer cachorro seu, e você escolhe na lista dos seus cachorros em Loja › Cães." },
@@ -5686,7 +5711,7 @@ function renderPane() {
         const btn = cena => { const livre = [cena, cena + '2'].find(k => !state.dogs[k] && (!ehSegundo(k) || temVagaCao(cena))); return `<button class="btn ${cena === 'animais' ? 'ghost' : ''}" data-buy-dog="${b.id}" data-slot="${livre || cena}" ${!livre || state.coins < b.custo ? 'disabled' : ''}>${cena === 'roca' ? 'Para a roça' : 'Para o rancho'}</button>`; };
         html += `<div class="row wide ${locked ? 'locked' : ''}"><img alt="" src="${dogIcon(b.id)}">
           <div><div class="name">${b.nome}</div>
-          <div class="meta">${b.custo} moedas · vive ${b.vida} dias<br>espanta ${Math.round(b.protege * 100)}% dos ladrões · morde ${Math.round(b.morde * 100)}% deles<br>+${b.xpDia} XP por dia · +${b.xpPega} XP por ladrão</div></div>
+          <div class="meta">${b.custo} moedas · vive ${b.vida} dias${b.obs ? `<br><i>${b.obs}</i>` : ''}<br>espanta ${Math.round(b.protege * 100)}% dos ladrões · morde ${Math.round(b.morde * 100)}% deles<br>+${b.xpDia} XP por dia · +${b.xpPega} XP por ladrão</div></div>
           <div class="actions">${locked ? `<button class="btn" disabled>Nível ${b.nivel}</button>` : btn('roca') + btn('animais')}</div></div>`;
       }
     } else if (shopSeg === 'enfeites') {
@@ -7322,6 +7347,7 @@ function weatherTick() {
   if (r) for (const p of state.plots) if (p.s === 'growing') p.dry = false; // a chuva rega tudo
   if (r !== wasRaining) {
     wasRaining = r;
+    if (r && !isGated()) pinscherReclama(estacao().neve ? 'Neve?! Au! Que frio, sô!' : 'Chuva?! Au! Eu tô molhando!');
     if (r && !isGated()) toast(estacao().neve ? 'Começou a nevar! A neve está molhando a roça.' : 'Começou a chover! A chuva está regando a roça.', 'good');
   }
   if (window.RFAudio && window.RFAudio.rain) window.RFAudio.rain(r && scene !== 'casa' && !isGated());
@@ -12480,6 +12506,7 @@ function invasaoTick(forca) {
   const caes = ['roca', 'roca2'].filter(k => state.dogs && dogAwake(state.dogs[k]) && Math.random() < 0.75); // cada cachorro acordado tem 3 chances em 4 de ir
   invasor = { tipo, i, u, v, fase: 'chegando', t0: performance.now(), de: [u + 4 * lado, v + 3.5], dir: lado > 0 ? -1 : 1, caes,
     destino: armadilhaPronta() ? 'armadilha' : caes.length ? 'cachorro' : 'espera' };
+  pinscherReclama('AU AU AU! BICHO NA PLANTAÇÃO! 😡');
   sfx('alarme'); try { if (navigator.vibrate) navigator.vibrate([120, 80, 120]); } catch (e) { /* sem vibração */ }
   toast(`⚠️ ${tipo === 'javali' ? '🐗 Um javali' : '🐀 Um rato'} está invadindo a plantação!`, 'bad');
 }
