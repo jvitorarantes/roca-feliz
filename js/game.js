@@ -374,6 +374,11 @@ const dogSellPrice = d => { const b = DOG[d.raca]; return Math.max(1, Math.round
 const DOG_NAMES = ['Totó', 'Rex', 'Pipoca', 'Thor', 'Mel', 'Bidu', 'Paçoca', 'Nina', 'Bolinha', 'Faísca', 'Pretinha', 'Caramelo'];
 // Nome de cada lugar com o artigo certo ("a roça", "o rancho"…)
 const SLOT = { roca: { a: 'a roça', aSua: 'a sua roça', daSua: 'da sua roça', A: 'A roça' }, animais: { a: 'o rancho', aSua: 'o seu rancho', daSua: 'do seu rancho', A: 'O rancho' } };
+// Até dois cachorros por lugar: 'roca' e 'roca2' (roça), 'animais' e 'animais2' (rancho). Os dois dividem a mesma casinha.
+SLOT.roca2 = SLOT.roca; SLOT.animais2 = SLOT.animais;
+const SLOTS_CAO = ['roca', 'roca2', 'animais', 'animais2'];
+const baseSlot = sl => sl.replace('2', '');
+const ehSegundo = sl => sl.endsWith('2');
 const STEAL_MAX = { roca: 4, animais: 3 }; // itens por amigo por dia (roca conta plantação e pomar juntos)
 function stealMaxForLevel(uid, slot) {
   // sobe com os corações: roça de 4 a 6 itens (3 e 6 corações), animais de 3 a 5 (4 e 8 corações)
@@ -610,7 +615,7 @@ function migrate(s) {
   if (s.mina && (typeof s.mina !== 'object' || (!s.mina.ferr && !Array.isArray(s.mina.vs)))) s.mina = null;
   const dogs = s.dogs && typeof s.dogs === 'object' ? s.dogs : {};
   s.dogs = {};
-  for (const slot of ['roca', 'animais']) { const d = dogs[slot]; s.dogs[slot] = d && DOG[d.raca] ? d : null; }
+  for (const slot of SLOTS_CAO) { const d = dogs[slot]; s.dogs[slot] = d && DOG[d.raca] ? d : null; }
   s.dogFood = Math.max(0, Number(s.dogFood) || 0);
   s.news = Array.isArray(s.news) ? s.news.filter(n => n && n.at > Date.now() - NEWS_DIAS * 86400e3).slice(0, 30) : [];
   s.newsSeen = Number(s.newsSeen) || 0;
@@ -1322,7 +1327,7 @@ function buyDog(raca, slot) {
   sfx('buy'); sfx('bark');
   addXP(5, null);
   toast(`${nome}, ${b.nome.toLowerCase()}, agora vigia ${SLOT[slot].aSua}!`, 'good');
-  if (isHome()) setScene(slot === 'roca' ? 'roca' : 'animais');
+  if (isHome()) setScene(baseSlot(slot) === 'roca' ? 'roca' : 'animais');
   done();
 }
 function buyDogFood(n) {
@@ -1339,6 +1344,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 270, txt: "Agora dá para ter até dois cachorros por lugar: dois na roça e dois no rancho, dividindo a mesma casinha. Depois de comprar o primeiro, aparece um + ao lado dele para o segundo. Na Loja › Cães, o botão pega a primeira vaga livre. Quando um amigo tenta pegar algo, cada cachorro acordado tem a sua chance de espantar (ou morder) e o amigo vê os dois quando visita." },
   { v: 269, txt: "Árvores com estações: ipês florescem no inverno e na primavera, a cerejeira só na primavera (e fica sem folhas no inverno), o flamboyant no verão, e no outono as folhas ficam alaranjadas e caem. Os arbustos também só florescem na época certa. Na Loja do Trevo 🍀: 8 selos de perfil, 7 papéis de parede para a casa (Loja › Temas) e 6 papéis de carta para o Correio." },
   { v: 268, txt: "Loja do Trevo 🍀 bem maior! Enfeites: lago com vitória-régia, coreto, festa junina, moinho d'água, ipê-branco, flamboyant, lampião de rua, rede e boi-bumbá. Avatar: chapéu de palha de festa, chapéu de bandeirinhas, poncho, violão, triângulo e cesta de frutas. Temas: Casa Junina, Casa Praiana e Cerca do Trevo. Cães de pelagem rara (caramelo-dourado e preto-e-branco). E itens úteis: isca dourada (peixe raro garantido), ovo misterioso, pacote de plantas, pular 1 hora de espera, fertilizante dourado, kit da mina e troca de nome grátis." },
   { v: 267, txt: "Chegaram árvores e arbustos só de enfeite na Loja › Enfeites: buxinho, hortênsia, hibisco, azaleia, pinheiro, palmeira, salgueiro, ipê-roxo e cerejeira. Não dão fruta nem secam, e cada um dá conforto (+XP)." },
@@ -1570,13 +1576,13 @@ function tickLife() {
     addNews(msg); toast(msg);
     changed = true;
   }
-  for (const slot of ['roca', 'animais']) {
+  for (const slot of SLOTS_CAO) {
     const d = state.dogs[slot];
     if (!d) continue;
     const b = DOG[d.raca];
     if (!dogAlive(d)) {
       state.dogs[slot] = null;
-      const msg = `${d.nome} ficou velhinho e foi descansar. ${SLOT[slot].A} está sem cachorro.`;
+      const msg = `${d.nome} ficou velhinho e foi descansar. ${SLOT[slot].A} ficou com um cachorro a menos.`;
       addNews(msg); toast(msg); changed = true;
       continue;
     }
@@ -1988,9 +1994,10 @@ const farmsToday = () => Object.values(state.limits).filter(l => l && l.d === lo
 function guarded(slot, pos, visit) {
   let nome, protege, morde;
   if (view.kind === 'friend') {
-    const d = view.data.dogs && view.data.dogs[slot];
-    if (!dogAwake(d)) return false;
-    nome = d.nome; protege = DOG[d.raca].protege; morde = DOG[d.raca].morde;
+    const base = baseSlot(slot), acordados = [base, base + '2'].map(k => view.data.dogs && view.data.dogs[k]).filter(dogAwake);
+    const d = acordados.find(x => Math.random() < DOG[x.raca].protege); // com dois cachorros, cada um tem a sua chance
+    if (!d) return false;
+    nome = d.nome; protege = 1; morde = DOG[d.raca].morde;
   } else { nome = view.cao; protege = view.pega; morde = 0.7; }
   if (Math.random() >= protege) return false;
   const bitten = Math.random() < morde, loss = bitten ? Math.min(state.coins, 10) : 0;
@@ -2075,7 +2082,7 @@ function applyVisits(list) {
     if (!state.friends.includes(v.from)) continue;
     if (v.caught && (v.t === 'steal' || v.t === 'stealA' || v.t === 'stealF')) {
       // Seu cachorro espantou (ou mordeu) um amigo que tentou pegar coisas.
-      const slot = v.t === 'steal' ? 'roca' : v.t === 'stealA' ? 'animais' : (v.sc === 'animais' ? 'animais' : 'roca'), d = state.dogs[slot];
+      const slot = v.t === 'steal' ? 'roca' : v.t === 'stealA' ? 'animais' : (v.sc === 'animais' ? 'animais' : 'roca'), d = [slot, slot + '2'].map(k => state.dogs[k]).find(dogAwake) || state.dogs[slot] || state.dogs[slot + '2'];
       const coins = clamp(Math.round(Number(v.coins) || 0), 0, 10), nome = d ? d.nome : 'Seu cachorro';
       if (coins) state.coins += coins;
       addXP(d ? DOG[d.raca].xpPega : 5, null);
@@ -3242,10 +3249,10 @@ function drawKennel(x, y, s, skin, costas) {
 // Onde fica o cachorro de cada lugar (na cena atual).
 // A casinha fica à esquerda do celeiro, com o cachorro na frente dela.
 const KENNEL_AT = () => { const [u, v] = posOf(S(), scene === 'animais' ? 'animais' : 'roca', 'canil'); return iso(u, v); };
-const DOG_AT = () => { const [u, v] = posOf(S(), scene === 'animais' ? 'animais' : 'roca', 'canil'); return iso(u + 1.15, v + 0.65); };
+const DOG_AT = seg => { const [u, v] = posOf(S(), scene === 'animais' ? 'animais' : 'roca', 'canil'); return seg ? iso(u + 0.65, v + 1.2) : iso(u + 1.15, v + 0.65); };
 function dogPos(slot) {
-  if (scene !== (slot === 'roca' ? 'roca' : 'animais')) return null;
-  const p = DOG_AT(); return { x: p.x, y: p.y - L.W * 0.25 };
+  if (scene !== (baseSlot(slot) === 'roca' ? 'roca' : 'animais')) return null;
+  const p = DOG_AT(ehSegundo(slot)); return { x: p.x, y: p.y - L.W * 0.25 };
 }
 // Casinha + cachorro (ou o lugar vazio) na sua roça ou na de um amigo.
 // A casinha vai atrás da cerca; o cachorro, na frente, para aparecer bem.
@@ -3264,9 +3271,10 @@ function tipCaminha(id) {
   return `<b>Caminha do ${esc(g.nome || 'gato')}</b>${isHome() ? `<br>Clique para trocar o nome dele (${CUSTO_NOME_BICHO} moedas).` : ''}`;
 }
 function drawDogSpot(slot, s, t, home) {
-  const W = L.W, k = KENNEL_AT(), p = DOG_AT();
+  const seg = ehSegundo(slot), W = L.W, k = KENNEL_AT(), p = DOG_AT(seg);
   const d = s.dogs && s.dogs[slot];
   if (!home && !dogAlive(d)) return;
+  if (seg && !dogAlive(d) && !dogAlive(s.dogs && s.dogs[baseSlot(slot)])) return; // o espaço do 2º cachorro só aparece depois do 1º
   if (home && slot === 'roca' && invasor && invasor.fase === 'cachorro') return; // saiu correndo atrás da praga
   if (dogAlive(d)) {
     if (hover && hover.kind === 'dog' && hover.slot === slot) {
@@ -3275,14 +3283,15 @@ function drawDogSpot(slot, s, t, home) {
     }
     drawDog(p.x, p.y, W * 0.72, t, d.raca, !dogAwake(d));
   } else {
-    const R = clamp(W * 0.1, 9, 14), m = { x: k.x, y: k.y - W * 0.52 };
+    const R = clamp(W * 0.1, 9, 14), m = seg ? { x: p.x, y: p.y - W * 0.18 } : { x: k.x, y: k.y - W * 0.52 };
     ctx.fillStyle = 'rgba(255,253,242,.95)'; ctx.strokeStyle = '#6b4220'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(m.x, m.y, R, 0, 7); ctx.fill(); ctx.stroke();
     line({ x: m.x - R * 0.5, y: m.y }, { x: m.x + R * 0.5, y: m.y }, '#4f9a2f', 2.5);
     line({ x: m.x, y: m.y - R * 0.5 }, { x: m.x, y: m.y + R * 0.5 }, '#4f9a2f', 2.5);
     hits.push({ kind: 'dog', slot, x: m.x, y: m.y, r: Math.max(R * 1.8, 22) }); // o + também abre a loja de cães
   }
-  hits.push({ kind: 'dog', slot, x: (k.x + p.x) / 2, y: p.y - W * 0.2, r: W * 0.4 });
+  if (seg) { if (dogAlive(d)) hits.push({ kind: 'dog', slot, x: p.x, y: p.y - W * 0.2, r: W * 0.3 }); }
+  else hits.push({ kind: 'dog', slot, x: (k.x + p.x) / 2, y: p.y - W * 0.2, r: W * 0.4 });
   // a casinha em si: clicar troca o nome do cachorro
   if (dogAlive(d)) {
     hits.push({ kind: 'canil', slot, x: k.x, y: k.y - W * 0.32, r: W * 0.3 });
@@ -3292,7 +3301,7 @@ function drawDogSpot(slot, s, t, home) {
 function dogBubble(slot, s, t, home) {
   const d = s.dogs && s.dogs[slot];
   if (!home || !dogAlive(d) || dogAwake(d)) return;
-  const p = DOG_AT();
+  const p = DOG_AT(ehSegundo(slot));
   drawBubbleAt(p.x, p.y - L.W * 0.55, 'bone', d, t, 3);
 }
 
@@ -4302,7 +4311,7 @@ function drawRoca(s, t, home) {
   // casa, celeiro, casinha, árvores e enfeites: cada um no seu lugar (dá para mudar no modo Mover)
   const cachorroDepois = drawObjetos(s, 'roca', t, home, 'tras');
   // (a roça não tem mais cerca em volta: as cercas agora são compradas e postas onde quiser)
-  if (cachorroDepois) drawDogSpot('roca', s, t, home);
+  if (cachorroDepois) { drawDogSpot('roca', s, t, home); drawDogSpot('roca2', s, t, home); }
   // canteiros e o que está no gramado entre eles, do fundo para a frente
   const mov = home && moveMode && moving && moving.plot !== undefined ? moving.plot : -1;
   let d0 = -Infinity;
@@ -4330,7 +4339,7 @@ function drawRoca(s, t, home) {
     const k = plotBubble(s.plots[i], home);
     if (k) { const m = cellCenter(i); drawBubbleAt(m.x, m.y - W * 0.55, k, s.plots[i], t, i); }
   }
-  dogBubble('roca', s, t, home);
+  dogBubble('roca', s, t, home); dogBubble('roca2', s, t, home);
 }
 
 // ============================================================
@@ -4523,7 +4532,7 @@ function drawPen(s, t, home, dt) {
   nightOverlay(tod);
   drawWeather(t);
   for (const [a, m, k, sc] of bubbles) { const p = iso(m.u, m.v); drawBubbleAt(p.x, p.y - ANIMAL_H[drawKind(a)] * sc - W * 0.2, k, a, t, m.u * 7); }
-  dogBubble('animais', s, t, home);
+  dogBubble('animais', s, t, home); dogBubble('animais2', s, t, home);
 }
 
 // ============================================================
@@ -5399,13 +5408,14 @@ const moeda = (n, q) => `${q ? `<span class="qtd">×${q}</span>` : ''}<span clas
 // Os cachorros que você tem (roça e rancho): raça, nome, ração, vida, trocar o nome. Usado na Loja e na casinha.
 function caesHTML(naLoja) {
   let html = '';
-  for (const slot of ['roca', 'animais']) {
+  for (const slot of SLOTS_CAO) {
     const d = state.dogs[slot];
-    if (!d) { html += `<div class="row"><div class="avatar" style="background:#b7b39c">?</div><div><div class="name">${slot === 'roca' ? 'Roça' : 'Rancho'} sem cachorro</div><div class="meta">${naLoja ? 'Escolha uma raça aqui embaixo.' : 'Compre um na Loja › Cães.'}</div></div>${naLoja ? '<div></div>' : `<button class="btn ghost" data-ir-caes="1">Ver raças</button>`}</div>`; continue; }
+    if (!d && ehSegundo(slot) && !state.dogs[baseSlot(slot)]) continue;
+    if (!d) { html += `<div class="row"><div class="avatar" style="background:#b7b39c">?</div><div><div class="name">${baseSlot(slot) === 'roca' ? 'Roça' : 'Rancho'}${ehSegundo(slot) ? ': vaga do 2º cachorro' : ' sem cachorro'}</div><div class="meta">${naLoja ? 'Escolha uma raça aqui embaixo.' : 'Compre um na Loja › Cães.'}</div></div>${naLoja ? '<div></div>' : `<button class="btn ghost" data-ir-caes="1">Ver raças</button>`}</div>`; continue; }
     const b = DOG[d.raca], awake = dogAwake(d), dias = Math.max(1, Math.ceil((d.born + b.vida * DAY - Date.now()) / DAY));
     const armed = buyPending && buyPending.i === 'vendaDog' + slot && performance.now() < buyPending.until;
     html += `<div class="row ${awake ? '' : 'sel'}"><img alt="" src="${dogIcon(d.raca)}">
-      <div><div class="name">${esc(d.nome)} · ${slot === 'roca' ? 'roça' : 'rancho'}</div>
+      <div><div class="name">${esc(d.nome)} · ${baseSlot(slot) === 'roca' ? 'roça' : 'rancho'}${ehSegundo(slot) ? ' (2º)' : ''}</div>
       <div class="meta">Raça: <b>${b.nome}</b> · vive mais ${dias} ${dias > 1 ? 'dias' : 'dia'}<br>${awake ? `Acordado · ração por mais ${fmt((d.fedUntil - Date.now()) / 1000)}` : '<b>Dormindo de fome!</b> Não está vigiando.'}</div></div>
       <div class="stack">${awake ? '' : `<button class="btn" data-feed-dog="${slot}">Dar ração</button>`}<button class="btn ghost" data-renomear-dog="${slot}">Trocar nome<br><small>${moeda(CUSTO_NOME_BICHO)}</small></button>
       <button class="btn ${armed ? 'danger' : 'ghost'}" data-sell-dog="${slot}" title="Vender">${armed ? 'Confirmar' : 'Vender ' + moeda(dogSellPrice(d))}</button></div></div>`;
@@ -5600,12 +5610,12 @@ function renderPane() {
           <div class="meta">${quem}<br>${lv ? `${livesIn(state, b.id).length} de ${ABRIGO_CAP[lv]} animais${max ? '' : ` · nível ${lv + 1} cabe ${ABRIGO_CAP[lv + 1]}`}` : `cabe ${ABRIGO_CAP[1]} animais`}</div></div>${btn}</div>`;
       }
     } else if (shopSeg === 'caes') {
-      html += `<p class="hint">Um cachorro vigia a roça e outro o rancho. Acordado (com ração), ele espanta quem tenta pegar suas coisas e às vezes morde, ganhando até 10 moedas do ladrão. A ração dura ${DOG_FOOD.horas}h.</p>`;
+      html += `<p class="hint">Cada lugar (roça e rancho) pode ter até dois cachorros, dividindo a mesma casinha. Acordado (com ração), ele espanta quem tenta pegar suas coisas e às vezes morde, ganhando até 10 moedas do ladrão. A ração dura ${DOG_FOOD.horas}h.</p>`;
       html += caesHTML(true);
       html += `<h3>Raças</h3>`;
       for (const b of DOGS) {
         const locked = b.nivel > state.level, trevoTrava = b.trevo && !temTrevoItem('cao:' + b.id);
-        const btn = slot => `<button class="btn ${slot === 'animais' ? 'ghost' : ''}" data-buy-dog="${b.id}" data-slot="${slot}" ${state.dogs[slot] || state.coins < b.custo ? 'disabled' : ''}>${slot === 'roca' ? 'Para a roça' : 'Para o rancho'}</button>`;
+        const btn = cena => { const livre = [cena, cena + '2'].find(k => !state.dogs[k]); return `<button class="btn ${cena === 'animais' ? 'ghost' : ''}" data-buy-dog="${b.id}" data-slot="${livre || cena}" ${!livre || state.coins < b.custo ? 'disabled' : ''}>${cena === 'roca' ? 'Para a roça' : 'Para o rancho'}</button>`; };
         html += `<div class="row wide ${locked ? 'locked' : ''}"><img alt="" src="${dogIcon(b.id)}">
           <div><div class="name">${b.nome}</div>
           <div class="meta">${b.trevo ? 'Exclusivo da Loja do Trevo 🍀 · de graça aqui depois de trocar' : `${b.custo} moedas`} · vive ${b.vida} dias<br>espanta ${Math.round(b.protege * 100)}% dos ladrões · morde ${Math.round(b.morde * 100)}% deles<br>+${b.xpDia} XP por dia · +${b.xpPega} XP por ladrão</div></div>
@@ -6068,7 +6078,7 @@ function tipAnimal(id) {
 }
 function tipDog(slot) {
   const d = S().dogs && S().dogs[slot];
-  if (!dogAlive(d)) return isHome() ? `<b>Casinha vazia</b><br>Compre um cachorro para vigiar ${SLOT[slot].a}.` : null;
+  if (!dogAlive(d)) return isHome() ? (ehSegundo(slot) ? `<b>Vaga do 2º cachorro</b><br>Clique para comprar mais um para vigiar ${SLOT[slot].a}.` : `<b>Casinha vazia</b><br>Compre um cachorro para vigiar ${SLOT[slot].a}.`) : null;
   const b = DOG[d.raca], awake = dogAwake(d);
   let h = `<b>${esc(d.nome)}</b> · ${b.nome}<br>`;
   if (!isHome()) return h + (awake ? 'Acordado e de olho em você!' : 'Dormindo… pode ser a sua chance.');
@@ -10469,7 +10479,7 @@ function drawObjetos(s, sc, t, home, stage, d0 = -Infinity, d1 = Infinity) {
       if (view.kind === 'npc') { const d = DOG_AT(); drawDog(d.x, d.y, W * 0.7, t); hits.push({ kind: 'dog', slot, x: d.x, y: d.y - W * 0.2, r: W * 0.4 }); continue; }
       { const kk = KENNEL_AT(); comGiro(kk.x, o.rot, () => drawKennelSpot(slot, s, home, o.rot >= 2)); }
       if (stage === 'tras' && sc === 'roca') cachorroDepois = true; // o cachorro vai na frente da cerca
-      else drawDogSpot(slot, s, t, home);
+      else { drawDogSpot(slot, s, t, home); drawDogSpot(slot + '2', s, t, home); }
     } else if (o.key === 'arv1' || o.key === 'arv2') comGiro(q.x, o.rot, () => drawTree(q.x, q.y, W * (sc === 'roca' ? (o.key === 'arv1' ? 1.0 : 0.8) : (o.key === 'arv1' ? 1.0 : 1.1)), t, sc === 'roca' && tm.coqueiro));
     else if (ENFEITE[o.id].agua) {
       drawAgua(s, sc, o, t);
