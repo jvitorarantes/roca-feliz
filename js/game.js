@@ -1360,6 +1360,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 273, txt: "Mais pelagens para os cachorros na Loja do Trevo 🍀: toda preta, toda branca, toda marrom, cinza, creme e tigrada (20 a 30 🍀). Escolha em Loja › Cães, na lista dos seus cachorros." },
   { v: 272, txt: "Chegaram 4 raças de cachorro novas na Loja › Cães: Pinscher (nível 5), Border collie (11), Blue heeler (13) e Cane corso (20). E as pelagens da Loja do Trevo 🍀 (caramelo-dourado e preto-e-branco) agora são skins: valem para qualquer cachorro seu, e você escolhe na lista dos seus cachorros em Loja › Cães." },
   { v: 271, txt: "Os dois cachorros da roça agora correm atrás das pragas (cada um acordado tem 3 chances em 4 de ir; se forem os dois, ganham o XP dos dois). E o 2º cachorro de cada lugar precisa de uma vaga na casinha: compre em Loja › Cães por 2.500 moedas (nível 5), uma para a roça e outra para o rancho." },
   { v: 270, txt: "Agora dá para ter até dois cachorros por lugar: dois na roça e dois no rancho, dividindo a mesma casinha. Depois de comprar o primeiro, aparece um + ao lado dele para o segundo. Na Loja › Cães, o botão pega a primeira vaga livre. Quando um amigo tenta pegar algo, cada cachorro acordado tem a sua chance de espantar (ou morder) e o amigo vê os dois quando visita." },
@@ -3191,7 +3192,13 @@ function drawTree(x, y, s, t, coqueiro) {
 }
 // Cachorro virado para a esquerda. raca muda as cores; sleeping = deitado dormindo.
 // Pelagens da Loja do Trevo: valem para qualquer raça (o cachorro guarda a sua em dog.skin).
-const SKIN_CAO = { dourado: { nome: 'Caramelo-dourado', cor: '#f2c455', cor2: '#c8902a' }, malhado: { nome: 'Preto-e-branco', cor: '#2c2c32', cor2: '#141418' } };
+const SKIN_CAO = {
+  dourado: { nome: 'Caramelo-dourado', cor: '#f2c455', cor2: '#c8902a', preco: 30 }, malhado: { nome: 'Preto-e-branco', cor: '#2c2c32', cor2: '#141418', preco: 30 },
+  preto: { nome: 'Todo preto', cor: '#1f1f24', cor2: '#101014', preco: 20 }, branco: { nome: 'Todo branco', cor: '#f6f3ec', cor2: '#d9d4c8', preco: 20 },
+  marrom: { nome: 'Todo marrom', cor: '#7a4a2a', cor2: '#5a3318', preco: 20 }, cinza: { nome: 'Cinza', cor: '#8e949c', cor2: '#6a7078', preco: 20 },
+  creme: { nome: 'Creme', cor: '#efdcb4', cor2: '#d4bd8a', preco: 20 }, tigrado: { nome: 'Tigrado', cor: '#a8794a', cor2: '#6a4426', preco: 30 },
+};
+const corEscura = hex => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) < 70; };
 function drawDog(x, y, s, t, raca = 'caramelo', sleeping = false, pel = '') {
   const b = DOG[raca] || DOG.caramelo, sk = SKIN_CAO[pel] || null;
   const body = sk ? sk.cor : b.cor, dark = sk ? sk.cor2 : b.cor2, orelha = sk ? dark : raca === 'caramelo' ? '#a8692f' : dark;
@@ -3215,6 +3222,7 @@ function drawDog(x, y, s, t, raca = 'caramelo', sleeping = false, pel = '') {
     if (raca === 'fila' || cor) { ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x - s * 0.3, y - s * 0.07, s * 0.05, s * 0.04, 0, 0, 7); ctx.fill(); }
     line({ x: x - s * 0.27, y: y - s * 0.095 }, { x: x - s * 0.225, y: y - s * 0.09 }, '#222', Math.max(1, s * 0.018));
     ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(x - s * 0.33, y - s * 0.075, s * 0.02, 0, 7); ctx.fill();
+    if (pel === 'tigrado') { ctx.strokeStyle = dark; ctx.lineWidth = s * 0.02; for (const dx of [-0.08, 0, 0.08, 0.16]) { ctx.beginPath(); ctx.moveTo(x + s * dx, y - s * 0.16); ctx.lineTo(x + s * (dx - 0.02), y - s * 0.03); ctx.stroke(); } }
     const k = (t / 1600) % 1;
     ctx.fillStyle = `rgba(255,255,255,${0.95 - k * 0.9})`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `800 ${Math.max(9, Math.round(s * 0.17))}px 'Baloo 2', sans-serif`;
@@ -3233,11 +3241,12 @@ function drawDog(x, y, s, t, raca = 'caramelo', sleeping = false, pel = '') {
   ctx.beginPath(); ctx.ellipse(x + s * 0.05, y - s * 0.18, s * (cor ? 0.24 : 0.22), s * (cor ? 0.13 : pin ? 0.1 : 0.12), 0, 0, 7); ctx.fill();
   ctx.fillRect(x - s * 0.12, y - s * 0.12, s * 0.06, s * 0.12); ctx.fillRect(x + s * 0.16, y - s * 0.12, s * 0.06, s * 0.12);
   if (pel === 'malhado') { ctx.fillStyle = BR; ctx.beginPath(); ctx.ellipse(x + s * 0.02, y - s * 0.14, s * 0.13, s * 0.06, 0, 0, 7); ctx.fill(); ctx.fillRect(x - s * 0.12, y - s * 0.05, s * 0.06, s * 0.05); ctx.fillRect(x + s * 0.16, y - s * 0.05, s * 0.06, s * 0.05); }
+  if (pel === 'tigrado') { ctx.strokeStyle = dark; ctx.lineWidth = s * 0.022; for (const dx of [-0.1, -0.03, 0.04, 0.11, 0.18]) { ctx.beginPath(); ctx.moveTo(x + s * dx, y - s * 0.28); ctx.quadraticCurveTo(x + s * (dx + 0.02), y - s * 0.19, x + s * (dx - 0.01), y - s * 0.09); ctx.stroke(); } }
   if (raca === 'pastor') { ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x + s * 0.09, y - s * 0.25, s * 0.15, s * 0.06, 0, 0, 7); ctx.fill(); }
   if (col) { ctx.fillStyle = BR; ctx.beginPath(); ctx.ellipse(x - s * 0.1, y - s * 0.16, s * 0.07, s * 0.08, 0, 0, 7); ctx.fill(); ctx.fillRect(x - s * 0.12, y - s * 0.045, s * 0.06, s * 0.045); ctx.fillRect(x + s * 0.16, y - s * 0.045, s * 0.06, s * 0.045); }
   if (hee || pin) { ctx.fillStyle = b.cor2; ctx.fillRect(x - s * 0.12, y - s * 0.05, s * 0.06, s * 0.05); ctx.fillRect(x + s * 0.16, y - s * 0.05, s * 0.06, s * 0.05); ctx.beginPath(); ctx.ellipse(x - s * 0.1, y - s * 0.15, s * 0.05, s * 0.06, 0, 0, 7); ctx.fill(); }
   if (hee) { ctx.fillStyle = 'rgba(190,210,235,.75)'; for (const [dx, dy] of [[-0.02, -0.22], [0.06, -0.24], [0.12, -0.2], [0.02, -0.16], [0.1, -0.15], [0.17, -0.22], [-0.06, -0.19]]) { ctx.beginPath(); ctx.arc(x + s * dx, y + s * dy, s * 0.016, 0, 7); ctx.fill(); } }
-  if (cor) { ctx.strokeStyle = 'rgba(20,20,24,.35)'; ctx.lineWidth = s * 0.012; for (const dx of [-0.08, 0, 0.08, 0.15]) { ctx.beginPath(); ctx.moveTo(x + s * dx, y - s * 0.28); ctx.lineTo(x + s * (dx - 0.03), y - s * 0.1); ctx.stroke(); } }
+  if (cor && !sk) { ctx.strokeStyle = 'rgba(20,20,24,.35)'; ctx.lineWidth = s * 0.012; for (const dx of [-0.08, 0, 0.08, 0.15]) { ctx.beginPath(); ctx.moveTo(x + s * dx, y - s * 0.28); ctx.lineTo(x + s * (dx - 0.03), y - s * 0.1); ctx.stroke(); } }
   // cabeça
   ctx.fillStyle = body; ctx.beginPath(); ctx.arc(x - s * 0.17, y - s * 0.3, s * (cor ? 0.15 : pin ? 0.11 : 0.13), 0, 7); ctx.fill();
   if (pel === 'malhado') { ctx.fillStyle = BR; ctx.beginPath(); ctx.ellipse(x - s * 0.2, y - s * 0.28, s * 0.06, s * 0.1, 0.2, 0, 7); ctx.fill(); }
@@ -3253,6 +3262,7 @@ function drawDog(x, y, s, t, raca = 'caramelo', sleeping = false, pel = '') {
   else { ctx.beginPath(); ctx.ellipse(x - s * 0.26, y - s * 0.28, s * 0.05, s * 0.1, 0.4, 0, 7); ctx.fill(); }
   if (raca === 'fila') { ctx.beginPath(); ctx.ellipse(x - s * 0.28, y - s * 0.26, s * 0.06, s * 0.05, 0, 0, 7); ctx.fill(); }
   ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(x - s * 0.21, y - s * 0.32, s * 0.02, 0, 7); ctx.arc(x - s * 0.3, y - s * 0.27, s * 0.025, 0, 7); ctx.fill();
+  if (corEscura(body)) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x - s * 0.213, y - s * 0.327, s * 0.007, 0, 7); ctx.fill(); }
   if (pin) { ctx.fillStyle = b.cor2; for (const dx of [-0.215, -0.19]) { ctx.beginPath(); ctx.arc(x + s * dx, y - s * 0.345, s * 0.012, 0, 7); ctx.fill(); } }
   ctx.lineCap = 'butt';
 }
@@ -12773,6 +12783,12 @@ const TREVO_LOJA = [
   { id: 'papel:trevo', nome: 'Papel de carta Trevo', tipo: 'Carta', preco: 12, desc: 'Deixa as cartas do seu Correio com esse visual.' },
   { id: 'papel:pergaminho', nome: 'Papel de carta Pergaminho', tipo: 'Carta', preco: 12, desc: 'Deixa as cartas do seu Correio com esse visual.' },
   { id: 'papel:coracao', nome: 'Papel de carta Coração', tipo: 'Carta', preco: 12, desc: 'Deixa as cartas do seu Correio com esse visual.' },
+  { id: 'cao:preto', nome: 'Pelagem toda preta', tipo: 'Animal', preco: 20, desc: 'Para qualquer cachorro seu. Escolha em Loja › Cães.' },
+  { id: 'cao:branco', nome: 'Pelagem toda branca', tipo: 'Animal', preco: 20, desc: 'Para qualquer cachorro seu. Escolha em Loja › Cães.' },
+  { id: 'cao:marrom', nome: 'Pelagem toda marrom', tipo: 'Animal', preco: 20, desc: 'Para qualquer cachorro seu. Escolha em Loja › Cães.' },
+  { id: 'cao:cinza', nome: 'Pelagem cinza', tipo: 'Animal', preco: 20, desc: 'Para qualquer cachorro seu. Escolha em Loja › Cães.' },
+  { id: 'cao:creme', nome: 'Pelagem creme', tipo: 'Animal', preco: 20, desc: 'Para qualquer cachorro seu. Escolha em Loja › Cães.' },
+  { id: 'cao:tigrado', nome: 'Pelagem tigrada', tipo: 'Animal', preco: 30, desc: 'Com listras de onça… digo, de gato. Para qualquer cachorro seu. Escolha em Loja › Cães.' },
   { id: 'util:iscaouro',  nome: 'Isca dourada',             tipo: 'Útil', preco: 10, repete: true, desc: 'Na pescaria, garante o peixe mais raro que o ponto tiver (escolha 🌟 na janela da pesca).', usar: () => { iscasDe().dourada = (iscasDe().dourada || 0) + 1; } },
   { id: 'util:ovo',       nome: 'Ovo misterioso',           tipo: 'Útil', preco: 30, repete: true, desc: 'Vai direto para a chocadeira e nasce de cor ou raça rara.', pode: podeOvoMisterioso, naoPode: 'Precisa de uma chocadeira no rancho com espaço livre.', usar: ovoMisterioso },
   { id: 'util:plantas',   nome: 'Pacote de plantas',        tipo: 'Útil', preco: 8,  repete: true, desc: '4 de cada de 3 plantas sorteadas dentro do seu nível.', usar: pacoteDePlantas },
