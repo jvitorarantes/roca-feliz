@@ -363,6 +363,9 @@ const DOGS = [
   { id: 'caramelo', nome: 'Vira-lata caramelo', custo: 1000, nivel: 3, vida: 15, protege: 0.55, morde: 0.4, xpDia: 10, xpPega: 15, cor: '#d99a4e', cor2: '#b8793a' },
   { id: 'pastor',   nome: 'Pastor-alemão',      custo: 3000, nivel: 8, vida: 25, protege: 0.7,  morde: 0.5, xpDia: 20, xpPega: 25, cor: '#8a5a2e', cor2: '#2a221c' },
   { id: 'fila',     nome: 'Fila brasileiro',    custo: 6000, nivel: 15, vida: 35, protege: 0.85, morde: 0.6, xpDia: 30, xpPega: 40, cor: '#b8783e', cor2: '#3a2a20' },
+  // exclusivos da Loja do Trevo: depois de trocar por trevos, saem de graça aqui
+  { id: 'dourado',  nome: 'Caramelo-dourado',   custo: 0, nivel: 3, vida: 20, protege: 0.65, morde: 0.45, xpDia: 15, xpPega: 20, cor: '#f2c455', cor2: '#c8902a', trevo: 50 },
+  { id: 'malhado',  nome: 'Preto-e-branco',     custo: 0, nivel: 3, vida: 20, protege: 0.65, morde: 0.45, xpDia: 15, xpPega: 20, cor: '#2c2c32', cor2: '#141418', trevo: 50 },
 ];
 const DOG = Object.fromEntries(DOGS.map(d => [d.id, d]));
 const DOG_FOOD = { custo: 50, horas: 8 };
@@ -1038,7 +1041,7 @@ function plant(p, pos) {
   if (plantaQtd(crop) <= 0) { state.tool = 'hand'; return toast(`Você não tem ${crop.nome.toLowerCase()} para plantar.`, 'bad'); }
   gastaPlanta(crop);
   if (plantaQtd(crop) <= 0) { state.tool = 'hand'; toast(`Acabaram as plantas de ${crop.nome.toLowerCase()}.`, 'bad'); }
-  Object.assign(p, emptyPlot('growing'), { c: crop.id, id: newId(), ouro: Math.random() < OURO_CHANCE });
+  Object.assign(p, emptyPlot('growing'), { c: crop.id, id: newId(), ouro: (state.ouroProx > 0 && (state.ouroProx--, true)) || Math.random() < OURO_CHANCE });
   sfx('plant'); useFx('seed', pos); track('plantar');
   if (xpAllowed(crop.id)) addXP(1, pos);
   done();
@@ -1308,6 +1311,7 @@ function feedDog(slot) {
 function buyDog(raca, slot) {
   const b = DOG[raca];
   if (state.dogs[slot]) return toast(`Já tem um cachorro vigiando ${SLOT[slot].a}.`);
+  if (b.trevo && !temTrevoItem('cao:' + b.id)) return toast(`${b.nome} é exclusivo da Loja do Trevo 🍀.`);
   if (state.level < b.nivel) return toast(`${b.nome} libera no nível ${b.nivel}.`);
   if (state.coins < b.custo) return toast(`${b.nome} custa ${b.custo} moedas.`, 'bad');
   const used = Object.values(state.dogs).filter(Boolean).map(d => d.nome);
@@ -1335,6 +1339,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 268, txt: "Loja do Trevo 🍀 bem maior! Enfeites: lago com vitória-régia, coreto, festa junina, moinho d'água, ipê-branco, flamboyant, lampião de rua, rede e boi-bumbá. Avatar: chapéu de palha de festa, chapéu de bandeirinhas, poncho, violão, triângulo e cesta de frutas. Temas: Casa Junina, Casa Praiana e Cerca do Trevo. Cães de pelagem rara (caramelo-dourado e preto-e-branco). E itens úteis: isca dourada (peixe raro garantido), ovo misterioso, pacote de plantas, pular 1 hora de espera, fertilizante dourado, kit da mina e troca de nome grátis." },
   { v: 267, txt: "Chegaram árvores e arbustos só de enfeite na Loja › Enfeites: buxinho, hortênsia, hibisco, azaleia, pinheiro, palmeira, salgueiro, ipê-roxo e cerejeira. Não dão fruta nem secam, e cada um dá conforto (+XP)." },
   { v: 266, txt: "Corrigido: o olho da raposa (e dos outros canídeos da caçada) aparecia lá em cima; agora fica na cabeça." },
   { v: 264, txt: "Atualização automática mais firme: ao abrir o jogo (e a cada poucos minutos com ele aberto) ele confere se há versão nova e se atualiza sozinho, avisando na tela. Se a primeira tentativa não pegar, tenta de novo com limpeza completa, sem precisar ir em Configurações › Atualizar." },
@@ -1674,10 +1679,11 @@ function askName(a) {
 }
 function abrirNome() {
   const btn = $('#nomeForm button');
-  btn.textContent = nomeDe.troca ? `Salvar · ${CUSTO_NOME_BICHO} moedas` : 'Salvar';
-  btn.disabled = nomeDe.troca && state.coins < CUSTO_NOME_BICHO;
+  const gratis = (state.nomeGratis || 0) > 0;
+  btn.textContent = nomeDe.troca ? (gratis ? 'Salvar · grátis 🍀' : `Salvar · ${CUSTO_NOME_BICHO} moedas`) : 'Salvar';
+  btn.disabled = nomeDe.troca && !gratis && state.coins < CUSTO_NOME_BICHO;
   $('#nomeCusto').hidden = !nomeDe.troca;
-  $('#nomeCusto').textContent = state.coins < CUSTO_NOME_BICHO ? `Trocar o nome custa ${CUSTO_NOME_BICHO} moedas. Faltam ${CUSTO_NOME_BICHO - state.coins}.` : `Trocar o nome custa ${CUSTO_NOME_BICHO} moedas.`;
+  $('#nomeCusto').textContent = gratis ? `Você tem ${state.nomeGratis} troca${state.nomeGratis > 1 ? 's' : ''} de nome grátis (Loja do Trevo 🍀).` : state.coins < CUSTO_NOME_BICHO ? `Trocar o nome custa ${CUSTO_NOME_BICHO} moedas. Faltam ${CUSTO_NOME_BICHO - state.coins}.` : `Trocar o nome custa ${CUSTO_NOME_BICHO} moedas.`;
   $('#nome').hidden = false; $('#nomeInput').select(); $('#nomeInput').focus();
 }
 function trocarNome(alvo) {
@@ -1704,13 +1710,15 @@ function saveName(e) {
   const a = nomeDe.animal && state.animals.find(x => x.id === nomeDe.animal), c = nomeDe.dog && state.dogs[nomeDe.dog];
   const atual = a ? a.nome : c ? c.nome : '';
   if (!v || !(a || c)) return fecharNome();
+  let custo = ' (grátis 🍀)';
   if (nomeDe.troca) {
     if (v === atual) return fecharNome();
-    if (state.coins < CUSTO_NOME_BICHO) { sfx('error'); return toast(`Trocar o nome custa ${CUSTO_NOME_BICHO} moedas.`, 'bad'); }
-    state.coins -= CUSTO_NOME_BICHO; sfx('buy');
+    if ((state.nomeGratis || 0) > 0) state.nomeGratis--;
+    else { if (state.coins < CUSTO_NOME_BICHO) { sfx('error'); return toast(`Trocar o nome custa ${CUSTO_NOME_BICHO} moedas.`, 'bad'); } state.coins -= CUSTO_NOME_BICHO; custo = ` (−${CUSTO_NOME_BICHO} moedas)`; }
+    sfx('buy');
   }
-  if (a) { a.nome = v; delete a.nomeGrat; toast(nomeDe.troca ? `Agora ${ANIMAL[a.k].f ? 'ela' : 'ele'} se chama ${v}! (−${CUSTO_NOME_BICHO} moedas)` : `Bem-vind${ANIMAL[a.k].f ? 'a' : 'o'}, ${v}!`, 'good'); }
-  else { c.nome = v; toast(`Agora o cachorro se chama ${v}! (−${CUSTO_NOME_BICHO} moedas)`, 'good'); }
+  if (a) { a.nome = v; delete a.nomeGrat; toast(nomeDe.troca ? `Agora ${ANIMAL[a.k].f ? 'ela' : 'ele'} se chama ${v}!${custo}` : `Bem-vind${ANIMAL[a.k].f ? 'a' : 'o'}, ${v}!`, 'good'); }
+  else { c.nome = v; toast(`Agora o cachorro se chama ${v}!${custo}`, 'good'); }
   done(); fecharNome(); renderPane();
 }
 function fecharNome() { $('#nome').hidden = true; nomeDe = null; }
@@ -2593,6 +2601,7 @@ function hatcharOvos() {
       const a = newAnimal(ovo.especie); a.nomeGrat = 1; a.nasc = Date.now();
       if (Math.random() * 100 < info.cor) a.cor = 1 + Math.floor(Math.random() * 3);
       if (Math.random() * 100 < info.raro) a.raro = 1;
+      if (ovo.mist && !a.cor && !a.raro) { if (Math.random() < 0.7) a.cor = 1 + Math.floor(Math.random() * 3); else a.raro = 1; } // ovo misterioso da Loja do Trevo
       state.animals.push(a); nascerPerto(a, ovo.especie);
       nasceu.push(`${ANIMAL[ovo.especie].nome.toLowerCase()}${a.raro ? ' de raça rara 💎' : ''}${a.cor ? ' de cor rara 🌈' : ''}`);
     }
@@ -2982,6 +2991,10 @@ const TEMAS_CASA = [
     parede: '#e8b878', telhado: '#9a4a24', porta: '#5a3a1f', moldura: '#f6e7c8', celeiro: '#c8702f', celTelhado: '#6a3a18', friso: '#f6e7c8' },
   { id: 'estrelada', nome: 'Casa Estrelada',    desc: 'Azul da noite com detalhes dourados. Exclusiva da Loja do Trevo 🍀.', trevo: 50,
     parede: '#34487a', telhado: '#1a2440', porta: '#e0b030', moldura: '#ffd54a', celeiro: '#3f5690', celTelhado: '#1a2440', friso: '#ffd54a', estrela: true },
+  { id: 'junina',   nome: 'Casa Junina',        desc: 'Amarelinha, com bandeirinhas coloridas no telhado. Exclusiva da Loja do Trevo 🍀.', trevo: 45,
+    parede: '#ffe9b0', telhado: '#d9482f', porta: '#2f8a5a', moldura: '#ffd54a', celeiro: '#e8b030', celTelhado: '#b8402a', friso: '#ffffff', bandeirinhas: true },
+  { id: 'praiana',  nome: 'Casa Praiana',       desc: 'Azul-piscina com telhado azul-marinho, de casa de praia. Exclusiva da Loja do Trevo 🍀.', trevo: 45,
+    parede: '#bfe9f0', telhado: '#1f6a88', porta: '#f4f1ea', moldura: '#ffffff', celeiro: '#4fb0c8', celTelhado: '#1f6a88', friso: '#ffffff' },
   { id: 'real',     nome: 'Rancho Real',        desc: 'Vinho e dourado, de fazenda de novela. Exclusiva da Loja do Trevo 🍀.', trevo: 60,
     parede: '#f6e7c8', telhado: '#8a1f2a', porta: '#8a1f2a', moldura: '#e0b030', celeiro: '#9a2530', celTelhado: '#5a1018', friso: '#e0b030', estrela: true },
 ];
@@ -3014,6 +3027,11 @@ function temaCasa(skin, cor) {
   const tm = TEMA_CASA[skin] && skin !== 'classico' ? TEMA_CASA[skin] : TEMA_CASA.classico;
   return cor && !TEMA_CASA[skin] ? Object.assign({}, tm, { parede: cor }) : tm;
 }
+// Fio de bandeirinhas coloridas penduradas ao longo de uma linha quebrada (festa junina).
+function bandeirinhasCasa(pts, s) {
+  const cores = ['#e53b2f', '#ffd54a', '#4aa3df', '#4f9a2f', '#f06292'], w = s * 0.022; let k = 0;
+  for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; for (let j = 0; j < 5; j++) { const f = (j + 0.5) / 5, x = a[0] + (b[0] - a[0]) * f, y = a[1] + (b[1] - a[1]) * f + w * 0.4; ctx.fillStyle = cores[k++ % 5]; ctx.beginPath(); ctx.moveTo(x - w, y); ctx.lineTo(x + w, y); ctx.lineTo(x, y + w * 2.3); ctx.closePath(); ctx.fill(); } }
+}
 function drawHouse(x, y, s, cor, skin, costas) {
   const tm = temaCasa(skin, cor), fw = s * 0.66, fh = s * 0.4, rh = s * 0.3, dx = s * 0.34, dy = -s * 0.17, ov = s * 0.05;
   const X0 = x - (fw + dx) / 2, Y = y - dy / 2;
@@ -3038,6 +3056,7 @@ function drawHouse(x, y, s, cor, skin, costas) {
   ctx.strokeStyle = tomCor(tm.telhado, -0.3); ctx.lineWidth = Math.max(2, s * 0.045); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.beginPath(); ctx.moveTo(X0 - ov, Y - fh + ov * 0.9); ctx.lineTo(cume[0], cume[1]); ctx.lineTo(beiralD[0], beiralD[1]); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(cume[0], cume[1]); ctx.lineTo(cume[0] + dx, cume[1] + dy); ctx.stroke(); ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
+  if (tm.bandeirinhas) bandeirinhasCasa([[X0 - ov, Y - fh + ov * 0.9], cume, beiralD], s);
   // janelinha redonda na empena
   ctx.fillStyle = tm.moldura; ctx.beginPath(); ctx.arc(cume[0], Y - fh - rh * 0.4, s * 0.045, 0, 7); ctx.fill();
   ctx.fillStyle = '#ffe9a8'; ctx.beginPath(); ctx.arc(cume[0], Y - fh - rh * 0.4, s * 0.03, 0, 7); ctx.fill();
@@ -3076,6 +3095,7 @@ function drawBarn(x, y, s, skin, costas) {
   ctx.strokeStyle = tm.friso; ctx.lineWidth = Math.max(2, s * 0.035); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(X0 - ov, Y - fh + ov); ctx.lineTo(q1[0], q1[1]); ctx.lineTo(cume[0], cume[1]); ctx.lineTo(q2[0], q2[1]); ctx.lineTo(bD[0], bD[1]); ctx.stroke();
   ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
+  if (tm.bandeirinhas) bandeirinhasCasa([[X0 - ov, Y - fh + ov], q1, cume, q2, bD], s);
   // porta grande com X e a janela do feno
   ctx.lineWidth = Math.max(1.5, s * 0.025);
   const dw = fw * 0.44, dh = fh * 0.72, dxp = X0 + fw / 2 - dw / 2;
@@ -3173,9 +3193,11 @@ function drawDog(x, y, s, t, raca = 'caramelo', sleeping = false) {
   ctx.beginPath(); ctx.moveTo(x + s * 0.22, y - s * 0.22); ctx.lineTo(x + s * 0.36, y - s * 0.34 + wag * s * 0.1); ctx.stroke();
   ctx.fillStyle = body;
   ctx.beginPath(); ctx.ellipse(x + s * 0.05, y - s * 0.18, s * 0.22, s * 0.12, 0, 0, 7); ctx.fill();
+  if (raca === 'malhado') { ctx.fillStyle = '#f4f1ea'; ctx.beginPath(); ctx.ellipse(x + s * 0.02, y - s * 0.14, s * 0.13, s * 0.06, 0, 0, 7); ctx.fill(); ctx.fillRect(x - s * 0.12, y - s * 0.05, s * 0.06, s * 0.05); ctx.fillRect(x + s * 0.16, y - s * 0.05, s * 0.06, s * 0.05); }
   ctx.fillRect(x - s * 0.12, y - s * 0.12, s * 0.06, s * 0.12); ctx.fillRect(x + s * 0.16, y - s * 0.12, s * 0.06, s * 0.12);
   if (raca === 'pastor') { ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x + s * 0.09, y - s * 0.25, s * 0.15, s * 0.06, 0, 0, 7); ctx.fill(); }
   ctx.fillStyle = body; ctx.beginPath(); ctx.arc(x - s * 0.17, y - s * 0.3, s * 0.13, 0, 7); ctx.fill();
+  if (raca === 'malhado') { ctx.fillStyle = '#f4f1ea'; ctx.beginPath(); ctx.ellipse(x - s * 0.2, y - s * 0.28, s * 0.06, s * 0.1, 0.2, 0, 7); ctx.fill(); }
   ctx.fillStyle = raca === 'caramelo' ? '#a8692f' : dark;
   ctx.beginPath(); ctx.ellipse(x - s * 0.26, y - s * 0.28, s * 0.05, s * 0.1, 0.4, 0, 7); ctx.fill();
   if (raca === 'pastor') { ctx.beginPath(); ctx.moveTo(x - s * 0.12, y - s * 0.4); ctx.lineTo(x - s * 0.08, y - s * 0.52); ctx.lineTo(x - s * 0.03, y - s * 0.39); ctx.fill(); }
@@ -3291,6 +3313,7 @@ function fenceRun(a, b, steps, skipFirst, tm) {
     ctx.fillStyle = tm.poste; ctx.fillRect(p.x - W * 0.025, p.y - W * 0.2, W * 0.05, W * 0.2);
     ctx.fillStyle = estacao().neve ? '#ffffff' : tm.topo; ctx.fillRect(p.x - W * 0.025, p.y - W * 0.2 - (estacao().neve ? W * 0.015 : 0), W * 0.05, W * 0.03 + (estacao().neve ? W * 0.015 : 0));
     if (tm.bambu) for (const h of [0.07, 0.14]) { ctx.fillStyle = 'rgba(60,80,20,.5)'; ctx.fillRect(p.x - W * 0.025, p.y - W * h, W * 0.05, 1.5); }
+    if (tm.trevos) desenhaTrevo(ctx, p.x, p.y - W * 0.26, W * 0.075);
     if (tm.rosas) { ctx.fillStyle = '#3f8a2a'; ctx.beginPath(); ctx.arc(p.x, p.y - W * 0.03, W * 0.05, 0, 7); ctx.fill(); ctx.fillStyle = '#e53b2f'; ctx.beginPath(); ctx.arc(p.x + W * 0.02, p.y - W * 0.06, W * 0.022, 0, 7); ctx.fill(); }
   };
   if (tm.arame) {
@@ -5488,12 +5511,12 @@ function renderPane() {
       html += caesHTML(true);
       html += `<h3>Raças</h3>`;
       for (const b of DOGS) {
-        const locked = b.nivel > state.level;
+        const locked = b.nivel > state.level, trevoTrava = b.trevo && !temTrevoItem('cao:' + b.id);
         const btn = slot => `<button class="btn ${slot === 'animais' ? 'ghost' : ''}" data-buy-dog="${b.id}" data-slot="${slot}" ${state.dogs[slot] || state.coins < b.custo ? 'disabled' : ''}>${slot === 'roca' ? 'Para a roça' : 'Para o rancho'}</button>`;
         html += `<div class="row wide ${locked ? 'locked' : ''}"><img alt="" src="${dogIcon(b.id)}">
           <div><div class="name">${b.nome}</div>
-          <div class="meta">${b.custo} moedas · vive ${b.vida} dias<br>espanta ${Math.round(b.protege * 100)}% dos ladrões · morde ${Math.round(b.morde * 100)}% deles<br>+${b.xpDia} XP por dia · +${b.xpPega} XP por ladrão</div></div>
-          <div class="actions">${locked ? `<button class="btn" disabled>Nível ${b.nivel}</button>` : btn('roca') + btn('animais')}</div></div>`;
+          <div class="meta">${b.trevo ? 'Exclusivo da Loja do Trevo 🍀 · de graça aqui depois de trocar' : `${b.custo} moedas`} · vive ${b.vida} dias<br>espanta ${Math.round(b.protege * 100)}% dos ladrões · morde ${Math.round(b.morde * 100)}% deles<br>+${b.xpDia} XP por dia · +${b.xpPega} XP por ladrão</div></div>
+          <div class="actions">${trevoTrava ? '<button class="btn" disabled>🍀 Loja do Trevo</button>' : locked ? `<button class="btn" disabled>Nível ${b.nivel}</button>` : btn('roca') + btn('animais')}</div></div>`;
       }
     } else if (shopSeg === 'enfeites') {
       html += `<p class="hint">Enfeites vão para o Inventário. De lá você escolhe onde pôr, na roça ou no rancho, fora dos canteiros e cercados. Cada um dá conforto (+XP).</p>`;
@@ -5525,7 +5548,7 @@ function renderPane() {
         const locked = t.nivel > state.level, owned = !!state.temas[t.id], using = state.tema === t.id;
         html += `<div class="row ${locked ? 'locked' : ''} ${using ? 'sel' : ''}"><img alt="" src="${temaIcon(t.id)}">
           <div><div class="name">${t.nome}</div><div class="meta">${t.desc}</div></div>
-          ${using ? '<button class="btn ghost" disabled>Em uso</button>' : owned ? `<button class="btn" data-tema-roca="${t.id}">Usar</button>` : locked ? `<button class="btn" disabled>Nível ${t.nivel}</button>` : `<button class="btn" data-tema-roca="${t.id}" ${state.coins < t.custo ? 'disabled' : ''}>${moeda(t.custo)}</button>`}</div>`;
+          ${using ? '<button class="btn ghost" disabled>Em uso</button>' : t.trevo && !owned ? '<button class="btn" disabled>🍀 Loja do Trevo</button>' : owned ? `<button class="btn" data-tema-roca="${t.id}">Usar</button>` : locked ? `<button class="btn" disabled>Nível ${t.nivel}</button>` : `<button class="btn" data-tema-roca="${t.id}" ${state.coins < t.custo ? 'disabled' : ''}>${moeda(t.custo)}</button>`}</div>`;
       }
     } else {
       html += `<p class="hint">Decore a sua casa. Cada lugar tem vários modelos: compre os que quiser e escolha qual fica em uso. O conforto do modelo em uso vale +1% de XP por ponto. Agora: +${comfort(state)}%.</p>`;
@@ -7085,6 +7108,7 @@ const TEMAS = [
   { id: 'branca', nome: 'Cerca branca', nivel: 5, custo: 3000, desc: 'Cerca branca com roseiras.', trilho: '#f4f1ea', poste: '#dcd6ca', topo: '#ffffff', rosas: true },
   { id: 'pedra', nome: 'Muro de pedra', nivel: 10, custo: 6000, desc: 'Muro baixo de pedra, bem de sítio.', trilho: '#a8a294', poste: '#8f897b', topo: '#c7c1b3', pedra: true },
   { id: 'tropical', nome: 'Tropical', nivel: 15, custo: 10000, desc: 'Cerca de bambu e coqueiros.', trilho: '#c9b35a', poste: '#8fae3e', topo: '#b5cf5a', bambu: true, coqueiro: true },
+  { id: 'trevo', nome: 'Cerca do Trevo', nivel: 1, custo: 0, trevo: 40, desc: 'Cerca verde-clarinha com um trevo em cada moirão. Exclusiva da Loja do Trevo 🍀.', trilho: '#eef5e0', poste: '#2f7a2a', topo: '#4f9a2f', trevos: true },
   { id: 'lago', nome: 'Lago dos patos', nivel: 20, custo: 15000, desc: 'Cerca azul e um lago com patinhos.', trilho: '#6b8fb5', poste: '#4f7299', topo: '#8fb0d1', lago: true },
 ];
 const TEMA = Object.fromEntries(TEMAS.map(t => [t.id, t]));
@@ -7092,6 +7116,7 @@ const temaDe = s => TEMA[s && s.tema] || TEMA.classico;
 function buyTema(id) {
   const t = TEMA[id];
   if (state.temas[id]) { state.tema = id; toast(`Tema ${t.nome} na roça!`, 'good'); if (isHome()) setScene('roca'); return done(); }
+  if (t.trevo) return toast(`${t.nome} é exclusivo da Loja do Trevo 🍀.`);
   if (state.level < t.nivel) return toast(`${t.nome} libera no nível ${t.nivel}.`);
   if (state.coins < t.custo) return toast(`${t.nome} custa ${t.custo.toLocaleString('pt-BR')} moedas.`, 'bad');
   state.coins -= t.custo; state.temas[id] = true; state.tema = id;
@@ -7279,18 +7304,18 @@ const AV_CORES_CABELO = ['#2a1a10', '#5a3614', '#a8481e', '#e0b44a', '#b9b4ac'];
 const AV_OPC = {
   sexo: [['m', 'Menino'], ['f', 'Menina']],
   cabelo: [['curto', 'Curto'], ['cacheado', 'Cacheado'], ['comprido', 'Comprido'], ['rabo', 'Rabo de cavalo']],
-  chapeu: [['sem', 'Sem'], ['palha', 'Palha'], ['bone', 'Boné'], ['cowboy', 'Cowboy'], ['couro', 'Couro'], ['flores', 'Coroa de flores'], ['cangaceiro', 'Cangaceiro'], ['boina', 'Boina'], ['panama', 'Panamá'], ['gorro', 'Gorro de lã']],
-  mao: [['nada', 'Nada'], ['vara', 'Vara de pesca'], ['espingarda', 'Espingarda'], ['enxada', 'Enxada'], ['facao', 'Facão'], ['foice', 'Foice'], ['laco', 'Laço'], ['viola', 'Viola'], ['machado', 'Machado'], ['lampiao', 'Lampião'], ['sanfona', 'Sanfona'], ['buque', 'Buquê'], ['regador', 'Regador dourado']],
+  chapeu: [['sem', 'Sem'], ['palha', 'Palha'], ['bone', 'Boné'], ['cowboy', 'Cowboy'], ['couro', 'Couro'], ['flores', 'Coroa de flores'], ['cangaceiro', 'Cangaceiro'], ['boina', 'Boina'], ['panama', 'Panamá'], ['gorro', 'Gorro de lã'], ['festa', 'Palha de festa'], ['bandeirinhas', 'Chapéu de bandeirinhas']],
+  mao: [['nada', 'Nada'], ['vara', 'Vara de pesca'], ['espingarda', 'Espingarda'], ['enxada', 'Enxada'], ['facao', 'Facão'], ['foice', 'Foice'], ['laco', 'Laço'], ['viola', 'Viola'], ['machado', 'Machado'], ['lampiao', 'Lampião'], ['sanfona', 'Sanfona'], ['buque', 'Buquê'], ['regador', 'Regador dourado'], ['violao', 'Violão'], ['triangulo', 'Triângulo'], ['cesta', 'Cesta de frutas']],
 };
 // Roupas: cada um tem as suas (menino e menina têm peças e cores diferentes).
 const AV_ROUPAS = {
   m: {
-    camisa: [['camiseta', 'Camiseta'], ['xadrez', 'Xadrez'], ['regata', 'Regata']],
+    camisa: [['camiseta', 'Camiseta'], ['xadrez', 'Xadrez'], ['regata', 'Regata'], ['poncho', 'Poncho listrado']],
     calca: [['jeans', 'Jeans'], ['bermuda', 'Bermuda'], ['macacao', 'Macacão']],
     sapato: [['bota', 'Bota'], ['tenis', 'Tênis'], ['chinelo', 'Chinelo']],
   },
   f: {
-    camisa: [['blusa', 'Blusa de babado'], ['florida', 'Florida'], ['regatinha', 'Regatinha']],
+    camisa: [['blusa', 'Blusa de babado'], ['florida', 'Florida'], ['regatinha', 'Regatinha'], ['poncho', 'Poncho listrado']],
     calca: [['saia', 'Saia rodada'], ['jardineira', 'Jardineira'], ['jeansclara', 'Calça jeans']],
     sapato: [['sapatilha', 'Sapatilha'], ['botinha', 'Botinha'], ['sandalia', 'Sandália']],
   },
@@ -7298,7 +7323,7 @@ const AV_ROUPAS = {
 // Itens de avatar que liberam ao subir de nível (os outros já vêm liberados).
 const AV_NIVEL = { facao: 5, foice: 10, laco: 15, viola: 20, machado: 25 };
 // Itens exclusivos da Loja do Trevo (só depois de comprar com 🍀).
-const AV_TREVO = { couro: 'chapeu:couro', flores: 'chapeu:flores', lampiao: 'mao:lampiao', cangaceiro: 'chapeu:cangaceiro', boina: 'chapeu:boina', panama: 'chapeu:panama', gorro: 'chapeu:gorro', sanfona: 'mao:sanfona', buque: 'mao:buque', regador: 'mao:regador' };
+const AV_TREVO = { couro: 'chapeu:couro', flores: 'chapeu:flores', lampiao: 'mao:lampiao', cangaceiro: 'chapeu:cangaceiro', boina: 'chapeu:boina', panama: 'chapeu:panama', gorro: 'chapeu:gorro', sanfona: 'mao:sanfona', buque: 'mao:buque', regador: 'mao:regador', festa: 'chapeu:festa', bandeirinhas: 'chapeu:bandeirinhas', violao: 'mao:violao', triangulo: 'mao:triangulo', cesta: 'mao:cesta', poncho: 'camisa:poncho' };
 const avTravado = (k, id) => (k === 'mao' && AV_NIVEL[id] > (state ? state.level : 1)) || (!!AV_TREVO[id] && !temTrevoItem(AV_TREVO[id]));
 const ROUPA_PADRAO = { m: { camisa: 'xadrez', calca: 'jeans', sapato: 'bota' }, f: { camisa: 'blusa', calca: 'saia', sapato: 'sapatilha' } };
 const opcoesAvatar = (av, k) => AV_OPC[k] || AV_ROUPAS[av.sexo === 'f' ? 'f' : 'm'][k];
@@ -7355,6 +7380,20 @@ function drawChapeu(g, tipo) {
     g.strokeStyle = '#4f9a2f'; g.lineWidth = 2; g.beginPath(); g.ellipse(0, -64, 10.5, 3, 0, 0, 7); g.stroke();
     const cores = ['#e53b2f', '#ffd54a', '#f06292', '#ffffff', '#ba68c8', '#ff9a3a'];
     for (let k = 0; k < 7; k++) { const a = Math.PI + k * Math.PI / 6, fx = Math.cos(a) * 10.5, fy = -64 + Math.sin(a) * 3; g.fillStyle = cores[k % cores.length]; g.beginPath(); g.arc(fx, fy - 1, 2.4, 0, 7); g.fill(); g.fillStyle = '#f2a900'; g.beginPath(); g.arc(fx, fy - 1, 0.9, 0, 7); g.fill(); }
+  } else if (tipo === 'festa') {
+    g.fillStyle = '#e8c65a'; g.beginPath(); g.ellipse(0, -63, 17, 4.5, 0, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(0, -67, 9.5, 7, 0, Math.PI, 0); g.fill(); g.fillRect(-9.5, -67, 19, 4);
+    g.fillStyle = '#2f8a2f'; g.fillRect(-9.5, -66, 19, 2.4);
+    for (const [x, y, c] of [[-6, -64.4, '#e53b2f'], [-1, -64.2, '#4aa3df'], [4, -64.4, '#ffd54a']]) { g.fillStyle = c; g.fillRect(x, y, 2.6, 1.6); }
+    g.strokeStyle = 'rgba(140,100,30,.5)'; g.lineWidth = 0.8; g.beginPath(); g.ellipse(0, -63, 13, 3, 0, 0, 7); g.stroke();
+    g.fillStyle = '#f06292'; for (let a = 0; a < 6; a++) { g.beginPath(); g.arc(9 + Math.cos(a * 1.05) * 2, -68 + Math.sin(a * 1.05) * 2, 1.5, 0, 7); g.fill(); }
+    g.fillStyle = '#ffd54a'; g.beginPath(); g.arc(9, -68, 1.1, 0, 7); g.fill();
+  } else if (tipo === 'bandeirinhas') {
+    g.fillStyle = '#f1d98a'; g.beginPath(); g.ellipse(0, -63, 16, 4, 0, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(-9, -63); g.lineTo(-5, -75); g.lineTo(5, -75); g.lineTo(9, -63); g.closePath(); g.fill();
+    g.strokeStyle = '#7a5a2a'; g.lineWidth = 0.9; g.beginPath(); g.ellipse(0, -63, 16, 4, 0, 0, Math.PI); g.stroke();
+    const fc = ['#e53b2f', '#ffd54a', '#4aa3df', '#4f9a2f', '#f06292'];
+    for (let k = 0; k < 7; k++) { const a = Math.PI * (k + 0.5) / 7, fx = Math.cos(a) * 15.5, fy = -63 + Math.sin(a) * 3.8; g.fillStyle = fc[k % 5]; g.beginPath(); g.moveTo(fx - 1.8, fy); g.lineTo(fx + 1.8, fy); g.lineTo(fx, fy + 4.2); g.closePath(); g.fill(); }
   } else if (tipo === 'cowboy') {
     g.fillStyle = '#8a5a33'; g.beginPath(); g.moveTo(-19, -64); g.quadraticCurveTo(0, -58, 19, -64); g.quadraticCurveTo(0, -61.5, -19, -64); g.fill();
     g.beginPath(); g.ellipse(0, -62.5, 16, 3.4, 0, 0, 7); g.fill();
@@ -7422,6 +7461,29 @@ function drawNaMao(g, tipo, t, agir) {
     g.fillStyle = '#e0b030'; g.beginPath(); g.roundRect(-5, -6, 10, 9, 2); g.fill();
     g.strokeStyle = '#e0b030'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(5, -2); g.lineTo(11, -7); g.stroke(); g.beginPath(); g.arc(0, -7, 3.5, Math.PI, 0); g.stroke();
     g.fillStyle = '#fff4c0'; g.fillRect(-3.5, -4.5, 2, 5);
+    g.restore();
+  } else if (tipo === 'violao') {
+    g.save(); g.translate(0, 16.5); g.rotate(-0.35);
+    g.fillStyle = '#4a2c14'; g.fillRect(-1.2, -14, 2.4, 18); g.fillRect(-1.9, -17, 3.8, 4);
+    g.fillStyle = '#c9702a'; g.beginPath(); g.ellipse(0, 8.5, 5.2, 4.2, 0, 0, 7); g.ellipse(0, 15.5, 7, 5.8, 0, 0, 7); g.fill();
+    g.strokeStyle = '#7a3a12'; g.lineWidth = 0.8; g.beginPath(); g.ellipse(0, 8.5, 5.2, 4.2, 0, 0, 7); g.ellipse(0, 15.5, 7, 5.8, 0, 0, 7); g.stroke();
+    g.fillStyle = '#2a1608'; g.beginPath(); g.arc(0, 12, 2.1, 0, 7); g.fill(); g.fillRect(-2.6, 18, 5.2, 1.2);
+    g.strokeStyle = 'rgba(245,240,225,.85)'; g.lineWidth = 0.3; for (const x of [-0.7, 0, 0.7]) { g.beginPath(); g.moveTo(x, -14); g.lineTo(x, 18); g.stroke(); }
+    g.restore();
+  } else if (tipo === 'triangulo') {
+    const tr = Math.sin(t / 110) * (agir ? 0.12 : 0.03);
+    g.save(); g.translate(0, 19); g.rotate(tr);
+    g.strokeStyle = '#a4703f'; g.lineWidth = 0.9; g.beginPath(); g.moveTo(0, -3); g.lineTo(0, 3); g.stroke();
+    g.strokeStyle = '#d4dbe2'; g.lineWidth = 1.7; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-1, 3); g.lineTo(-7, 13); g.lineTo(7, 13); g.lineTo(1, 3); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 0.5; g.beginPath(); g.moveTo(-1.5, 4.5); g.lineTo(-6, 12); g.stroke();
+    g.strokeStyle = '#8a5a33'; g.lineWidth = 1.2; g.lineCap = 'round'; g.beginPath(); g.moveTo(9, 6); g.lineTo(4, 12); g.stroke(); g.lineCap = 'butt';
+    g.restore();
+  } else if (tipo === 'cesta') {
+    g.save(); g.translate(0, 21);
+    g.strokeStyle = '#8a5a33'; g.lineWidth = 1.4; g.beginPath(); g.arc(0, -1, 7, Math.PI, 0); g.stroke();
+    for (const [x, y, c] of [[-3.5, -3, '#f2a030'], [0.5, -4.5, '#e53b2f'], [4, -2.5, '#ffd54a'], [-0.5, -1.5, '#7ab83a']]) { g.fillStyle = c; g.beginPath(); g.arc(x, y, 2.6, 0, 7); g.fill(); }
+    g.fillStyle = '#b07a44'; g.beginPath(); g.moveTo(-8, -1); g.lineTo(8, -1); g.lineTo(6, 8); g.lineTo(-6, 8); g.closePath(); g.fill();
+    g.strokeStyle = '#7a5428'; g.lineWidth = 0.7; for (const y of [2, 5]) { g.beginPath(); g.moveTo(-7.5 + (y - 2) * 0.2, y); g.lineTo(7.5 - (y - 2) * 0.2, y); g.stroke(); }
     g.restore();
   } else if (tipo === 'rastelo') {
     // rastelo puxando as folhas: vai e vem
@@ -7517,7 +7579,7 @@ function drawAvatar(g, x, y, s, av, t, andando, dir = 1) {
   // cores e mangas de cada peça
   const LOOK = {
     camiseta: ['#d8402f', 8], xadrez: ['#c8402f', 16], regata: ['#f2c14e', 0],
-    blusa: ['#f48fb1', 6], florida: ['#b39ddb', 12], regatinha: ['#7fd1b9', 0],
+    blusa: ['#f48fb1', 6], florida: ['#b39ddb', 12], regatinha: ['#7fd1b9', 0], poncho: ['#d94a3a', 9],
   };
   const [corCamisa, manga] = LOOK[av.camisa] || LOOK.xadrez;
   const corManga = av.camisa === 'xadrez' ? '#a53325' : av.camisa === 'blusa' ? '#f8a8c4' : corCamisa;
@@ -7548,6 +7610,10 @@ function drawAvatar(g, x, y, s, av, t, andando, dir = 1) {
       g.fillStyle = '#f2c14e'; g.beginPath(); g.arc(fx, fy, 0.7, 0, 7); g.fill();
     }
   }
+  if (av.camisa === 'poncho') {
+    for (const [yy, c] of [[-45, '#f2c14e'], [-39, '#2f8a5a'], [-33, '#f4f1ea'], [-27, '#4aa3df']]) { g.fillStyle = c; g.fillRect(-11, yy, 22, 2.4); }
+    g.fillStyle = '#7a2a1a'; g.beginPath(); g.moveTo(-3.5, -45); g.lineTo(0, -39); g.lineTo(3.5, -45); g.closePath(); g.fill(); // gola em V
+  }
   if (av.camisa === 'regata') { g.fillStyle = pele; g.beginPath(); g.ellipse(-11, -44, 5, 7, 0, 0, 7); g.ellipse(11, -44, 5, 7, 0, 0, 7); g.ellipse(0, -45, 5, 3.5, 0, 0, 7); g.fill(); }
   if (av.camisa === 'regatinha') { g.fillStyle = pele; g.beginPath(); g.ellipse(-10, -44, 5.5, 7, 0, 0, 7); g.ellipse(10, -44, 5.5, 7, 0, 0, 7); g.ellipse(0, -45, 5, 3, 0, 0, 7); g.fill(); g.strokeStyle = corCamisa; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-4.5, -39); g.lineTo(-5.5, -45); g.moveTo(4.5, -39); g.lineTo(5.5, -45); g.stroke(); }
   if (av.camisa === 'blusa') { g.fillStyle = '#fff'; for (let k = -5; k <= 5; k += 2.5) { g.beginPath(); g.arc(k, -43.5, 1.6, 0, 7); g.fill(); } }
@@ -7563,6 +7629,12 @@ function drawAvatar(g, x, y, s, av, t, andando, dir = 1) {
     g.fillStyle = '#ff9fb5'; g.beginPath(); g.arc(0, -30, 1.8, 0, 7); g.fill(); // coraçãozinho no bolso
   } else if (av.calca === 'jeansclara') { g.fillStyle = jeansFD; g.fillRect(-11, -26, 22, 3.5); }
   g.restore();
+  if (av.camisa === 'poncho') { // a barra do poncho cai por cima da cintura, com franjinha
+    const roda = andando ? ph * 0.8 : 0;
+    g.fillStyle = '#d94a3a'; g.beginPath(); g.moveTo(-11, -30); g.lineTo(11, -30); g.lineTo(13 + roda, -19); g.lineTo(-13 + roda, -19); g.closePath(); g.fill();
+    g.fillStyle = '#f2c14e'; g.fillRect(-12 + roda * 0.9, -23, 24, 2.2); g.fillStyle = '#2f8a5a'; g.fillRect(-12.6 + roda, -20.6, 25.2, 1.6);
+    g.strokeStyle = '#f4f1ea'; g.lineWidth = 0.8; for (let k = -12; k <= 12; k += 2.4) { g.beginPath(); g.moveTo(k + roda, -19); g.lineTo(k + roda * 1.1, -16.8); g.stroke(); }
+  }
   // saias (por cima das pernas, rodando um pouquinho ao andar)
   if (f && (av.calca === 'saia' || av.calca === 'jardineira')) {
     const roda = andando ? ph * 1.2 : 0, cor = av.calca === 'saia' ? '#e25b8f' : jeansF, bar = av.calca === 'saia' ? '#b83a6b' : jeansFD;
@@ -8258,6 +8330,7 @@ const ISCAS = [
   { id: 'milho',      nome: 'Milho',           emoji: '🌽', nivel: 1,  doCeleiro: 'milho' },
   { id: 'camarao',    nome: 'Camarão',         emoji: '🦐', nivel: 6,  pacote: 10, custo: 180, plural: 'camarões' },
   { id: 'artificial', nome: 'Isca artificial', emoji: '🎏', nivel: 12, pacote: 5,  custo: 400, plural: 'iscas artificiais' },
+  { id: 'dourada',    nome: 'Isca dourada',    emoji: '🌟', nivel: 1,  ouro: true, plural: 'iscas douradas' }, // só da Loja do Trevo
 ];
 const ISCA = Object.fromEntries(ISCAS.map(i => [i.id, i]));
 const ISCA_GRATIS_DIA = 5;
@@ -8367,8 +8440,12 @@ function comprarPonto(id) {
     toast(`${d.emoji} ${d.nome} é seu! Peixe raro morde mais por lá.`, 'good'); done(); renderPesca();
   });
 }
-function sortearPeixe(isca, sorte = 1, semLixo = false, ponto = 'casa') {
+function sortearPeixe(isca, sorte = 1, semLixo = false, ponto = 'casa', soRaro = false) {
   let ok = PEIXES.filter(p => p.nivel <= state.level && (!isca || p.iscas.includes(isca)) && !(semLixo && p.lixo) && peixeNoPonto(p, ponto));
+  if (soRaro) { // isca dourada: raro ou melhor (se o ponto não tem raro, incomum ou melhor)
+    const r = ok.filter(p => ['raro', 'épico', 'lendário'].includes(p.raro)), i = ok.filter(p => ['incomum', 'raro', 'épico', 'lendário'].includes(p.raro));
+    if (r.length) ok = r; else if (i.length) ok = i;
+  }
   if (!ok.length) ok = PEIXES.filter(p => p.id === 'lambari');
   const peso0 = p => p.lixo ? p.peso / sorte : ['raro', 'épico', 'lendário'].includes(p.raro) ? p.peso * sorte : p.raro === 'incomum' ? p.peso * Math.sqrt(sorte) : p.peso;
   const peso = p => peso0(p) * (p.lixo ? 1 : 1 + 0.15 * estrelasDe(p)); // cada estrela do domínio da espécie: morde 15% mais
@@ -8421,13 +8498,13 @@ function lancar() {
   const isca = iscaSel(), def = ISCA[isca];
   if (pt.solte) { // no pesque e solte a isca é por conta da casa
     const agora = performance.now();
-    pesca = { fase: 'esperando', t0: agora, isca, ponto: pt.id, mordida: agora + 1800 + Math.random() * 3800, beliscos: [agora + 700 + Math.random() * 900] };
+    pesca = { fase: 'esperando', t0: agora, isca: def.ouro ? 'minhoca' : isca, ponto: pt.id, mordida: agora + 1800 + Math.random() * 3800, beliscos: [agora + 700 + Math.random() * 900] };
     sfx('water'); return renderPesca();
   }
   if (qtdIsca(isca) <= 0) {
     // o aviso aparece dentro da própria janela da pescaria (antes ia para um aviso escondido atrás dela)
     const temOutra = ISCAS.find(i => i.id !== isca && i.nivel <= state.level && qtdIsca(i.id) > 0);
-    pesca = { fase: 'pronto', t0: performance.now(), aviso: (def.doCeleiro ? '🌽 Sem milho no celeiro! Colha milho para usar de isca.' : `🪱 Acabou a isca de ${def.nome.toLowerCase()}!${isca === 'minhoca' ? ' Amanhã chegam 5 minhocas grátis.' : ''} Compre mais aqui embaixo.`)
+    pesca = { fase: 'pronto', t0: performance.now(), aviso: (def.doCeleiro ? '🌽 Sem milho no celeiro! Colha milho para usar de isca.' : def.ouro ? '🌟 Acabaram as iscas douradas! Troque mais na Loja › 🍀 Trevo.' : `🪱 Acabou a isca de ${def.nome.toLowerCase()}!${isca === 'minhoca' ? ' Amanhã chegam 5 minhocas grátis.' : ''} Compre mais aqui embaixo.`)
       + (temOutra ? ` Ou use ${temOutra.emoji} ${temOutra.nome.toLowerCase()} (você tem ${qtdIsca(temOutra.id)}).` : '') + (temPonto('solte') ? ' No 🔄 Pesque e Solte dá para pescar sem isca.' : '') };
     sfx('error'); return renderPesca();
   }
@@ -8589,9 +8666,9 @@ function renderPesca() {
     return `<button type="button" class="iscabtn" data-isca="${i.id}" aria-pressed="${sel === i.id}" ${trava ? 'disabled' : ''} title="${i.nome}">${i.emoji}<small>${trava ? `Nv ${i.nivel}` : qtdIsca(i.id)}</small></button>`;
   }).join(''));
   const d = ISCA[sel], cb = $('#pescaComprar');
-  cb.hidden = !!d.doCeleiro || !!pt.solte;
-  if (!d.doCeleiro) { setHtml(cb, `Comprar ${d.pacote} ${d.plural} · ${moeda(d.custo)}`); cb.disabled = state.coins < d.custo; }
-  $('#pescaDica').textContent = pt.solte ? `🔄 Aqui a isca é grátis e dá para pescar sem parar. Os peixes são soltos: não contam para o livro nem para as conquistas.` : `${d.emoji} ${d.nome}${d.doCeleiro ? ' (do celeiro)' : ''}: atrai ${PEIXES.filter(p => !p.lixo && p.iscas.includes(sel) && peixeNoPonto(p, pt.id)).map(p => p.nivel > state.level ? '???' : p.nome + (state.col[p.id] ? '' : ' ✨')).join(', ')}.${PEIXES.some(p => !p.lixo && p.iscas.includes(sel) && peixeNoPonto(p, pt.id) && p.nivel <= state.level && !state.col[p.id]) ? ' (✨ = nunca pegou)' : ''}`;
+  cb.hidden = !!d.doCeleiro || !!d.ouro || !!pt.solte;
+  if (!d.doCeleiro && !d.ouro) { setHtml(cb, `Comprar ${d.pacote} ${d.plural} · ${moeda(d.custo)}`); cb.disabled = state.coins < d.custo; }
+  $('#pescaDica').textContent = d.ouro ? '🌟 Isca dourada: atrai qualquer peixe e a pescaria vem com peixe raro ou melhor! (Só da Loja do Trevo.)' : pt.solte ? `🔄 Aqui a isca é grátis e dá para pescar sem parar. Os peixes são soltos: não contam para o livro nem para as conquistas.` : `${d.emoji} ${d.nome}${d.doCeleiro ? ' (do celeiro)' : ''}: atrai ${PEIXES.filter(p => !p.lixo && p.iscas.includes(sel) && peixeNoPonto(p, pt.id)).map(p => p.nivel > state.level ? '???' : p.nome + (state.col[p.id] ? '' : ' ✨')).join(', ')}.${PEIXES.some(p => !p.lixo && p.iscas.includes(sel) && peixeNoPonto(p, pt.id) && p.nivel <= state.level && !state.col[p.id]) ? ' (✨ = nunca pegou)' : ''}`;
   $('#pescaLivro').hidden = !pescaLivro; $('#pescaCv').hidden = pescaLivro;
   const nn = (state.peixesNovos || []).length;
   $('#pescaLivroBtn').textContent = pescaLivro ? '🎣 Voltar a pescar' : `📖 Livro de peixes${nn ? ` · ✨ ${nn} novo${nn > 1 ? 's' : ''}` : ''}`;
@@ -8628,7 +8705,7 @@ function desenharPesca(t) {
   if (c.width !== Math.round(cw * dpr)) { c.width = Math.round(cw * dpr); c.height = Math.round(ch * dpr); }
   const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
   // fases que mudam com o tempo
-  if (pesca.fase === 'esperando' && t >= pesca.mordida) { pesca = { fase: 'fisgou', t0: t, ponto: pesca.ponto, peixe: sortearPeixe(pesca.isca, PONTO[pesca.ponto || 'casa'].sorte, !!PONTO[pesca.ponto || 'casa'].solte, pesca.ponto || 'casa') }; pesca.janela = { comum: 950, lixo: 1000, incomum: 850, raro: 720, 'épico': 620, 'lendário': 520 }[pesca.peixe.raro]; sfx('water'); renderPesca(); }
+  if (pesca.fase === 'esperando' && t >= pesca.mordida) { pesca = { fase: 'fisgou', t0: t, ponto: pesca.ponto, peixe: sortearPeixe(pesca.isca === 'dourada' ? null : pesca.isca, PONTO[pesca.ponto || 'casa'].sorte, !!PONTO[pesca.ponto || 'casa'].solte || pesca.isca === 'dourada', pesca.ponto || 'casa', pesca.isca === 'dourada') }; pesca.janela = { comum: 950, lixo: 1000, incomum: 850, raro: 720, 'épico': 620, 'lendário': 520 }[pesca.peixe.raro]; sfx('water'); renderPesca(); }
   if (pesca.fase === 'fisgou' && t - pesca.t0 > pesca.janela) { pesca = { fase: 'resultado', t0: t, msg: 'Ah, escapou… tente de novo!' }; renderPesca(); }
   if (pesca.fase === 'tarrafa' && t - pesca.t0 > 2200) recolherTarrafa();
   if (pesca.fase === 'brigando') passoBriga(t);
@@ -9832,6 +9909,15 @@ const ENFEITES = [
   { id: 'carrodeboi',   nome: 'Carro de boi',              especial: true, trevo: true, conforto: 3 },
   { id: 'trofeuchupa',  nome: 'Troféu do Chupa-cabra',     especial: true, caca: true, conforto: 3 },
   { id: 'chocadeira',   nome: 'Chocadeira',                especial: true, chocadeira: true, soRancho: true, conforto: 0 },
+  { id: 'lagovitoria',  nome: 'Lago com vitória-régia',    especial: true, trevo: true, conforto: 2 },
+  { id: 'coreto',       nome: 'Coreto da praça',           especial: true, trevo: true, conforto: 3 },
+  { id: 'festajunina',  nome: 'Festa junina',              especial: true, trevo: true, conforto: 2 },
+  { id: 'moinhoagua',   nome: 'Moinho d\'água',            especial: true, trevo: true, conforto: 3 },
+  { id: 'ipebranco',    nome: 'Ipê-branco',                especial: true, trevo: true, conforto: 3 },
+  { id: 'flamboyant',   nome: 'Flamboyant',                especial: true, trevo: true, conforto: 3 },
+  { id: 'postelampiao', nome: 'Lampião de rua',            especial: true, trevo: true, conforto: 1 },
+  { id: 'rede',         nome: 'Rede na varanda',           especial: true, trevo: true, conforto: 2 },
+  { id: 'boibumba',     nome: 'Boi-bumbá',                 especial: true, trevo: true, conforto: 3 },
 ];
 // Etiqueta de onde veio um item especial.
 const origemEnfeite = (e, s) => e.chocadeira ? 'Choca os ovos das aves do rancho 🥚' : e.caca ? 'Troféu da caçada 🎯' : e.trevo ? 'Exclusivo da Loja do Trevo 🍀' : e.vila ? 'Presente da vila' : `Especial dos pioneiros · ${obtidoEm(s)}`;
@@ -10944,6 +11030,91 @@ function drawEnfeite(id, x, y, s, t, rot) {
     const cores = ['#e53b2f', '#ffd54a', '#f06292', '#ffffff', '#ba68c8'];
     for (let k = 0; k <= 14; k++) { const f = k / 14; let fx, fy; if (f < 0.3) { fx = x - 20 * s; fy = y - f / 0.3 * 34 * s; } else if (f > 0.7) { fx = x + 20 * s; fy = y - (1 - f) / 0.3 * 34 * s; } else { const a = Math.PI + (f - 0.3) / 0.4 * Math.PI; fx = x + Math.cos(a) * 20 * s; fy = y - 34 * s + Math.sin(a) * 20 * s; }
       ctx.fillStyle = '#4f9a2f'; ctx.beginPath(); ctx.arc(fx + 2 * s, fy + 1 * s, 3 * s, 0, 7); ctx.fill(); ctx.fillStyle = cores[k % 5]; ctx.beginPath(); ctx.arc(fx, fy, 2.6 * s, 0, 7); ctx.fill(); }
+  } else if (id === 'lagovitoria') {
+    // lago com vitórias-régias, uma garça e ondinhas
+    ctx.fillStyle = '#8a8672'; ctx.beginPath(); ctx.ellipse(x, y - 5 * s, 32 * s, 12.5 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#3f8ac8'; ctx.beginPath(); ctx.ellipse(x, y - 6 * s, 29 * s, 10.5 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#5aa9e6'; ctx.beginPath(); ctx.ellipse(x - 3 * s, y - 7.5 * s, 22 * s, 7 * s, 0, 0, 7); ctx.fill();
+    const rip = (t / 1800) % 1; ctx.strokeStyle = `rgba(255,255,255,${0.5 * (1 - rip)})`; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.ellipse(x - 8 * s, y - 4 * s, (4 + rip * 9) * s, (1.6 + rip * 3) * s, 0, 0, 7); ctx.stroke();
+    for (const [dx, dy, r] of [[-15, -6, 7], [4, -10, 6.5], [-3, -3, 6], [13, -6, 5.5]]) { ctx.fillStyle = '#3f9a3a'; ctx.beginPath(); ctx.ellipse(x + dx * s, y + dy * s, r * s, r * 0.42 * s, 0, 0.35, Math.PI * 2 - 0.15); ctx.lineTo(x + dx * s, y + dy * s); ctx.fill(); }
+    for (const [dx, dy, c] of [[-14, -8, '#f8a8c8'], [5, -12, '#ffffff']]) { ctx.fillStyle = c; for (let a = 0; a < 6; a++) { ctx.beginPath(); ctx.ellipse(x + (dx + Math.cos(a * 1.05) * 2.2) * s, y + (dy + Math.sin(a * 1.05) * 0.9) * s, 1.6 * s, 0.9 * s, a * 1.05, 0, 7); ctx.fill(); } ctx.fillStyle = '#ffd54a'; ctx.beginPath(); ctx.arc(x + dx * s, y + dy * s, 1 * s, 0, 7); ctx.fill(); }
+    const gb = Math.sin(t / 1300) * 1 * s;
+    ctx.strokeStyle = '#d98a3a'; ctx.lineWidth = 1.2 * s; ctx.beginPath(); ctx.moveTo(x + 19 * s, y - 6 * s); ctx.lineTo(x + 19 * s, y - 17 * s); ctx.moveTo(x + 22 * s, y - 6 * s); ctx.lineTo(x + 22 * s, y - 17 * s); ctx.stroke();
+    ctx.fillStyle = '#fafafa'; ctx.beginPath(); ctx.ellipse(x + 21 * s, y - 21 * s, 7 * s, 4 * s, -0.25, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#fafafa'; ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.moveTo(x + 26 * s, y - 23 * s); ctx.quadraticCurveTo(x + 31 * s, y - 28 * s + gb, x + 27 * s, y - 35 * s + gb); ctx.stroke();
+    ctx.fillStyle = '#fafafa'; ctx.beginPath(); ctx.arc(x + 27 * s, y - 36 * s + gb, 2.2 * s, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e8a030'; ctx.beginPath(); ctx.moveTo(x + 28.5 * s, y - 36.6 * s + gb); ctx.lineTo(x + 36 * s, y - 35.5 * s + gb); ctx.lineTo(x + 28.5 * s, y - 34.8 * s + gb); ctx.fill();
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(x + 27.6 * s, y - 36.6 * s + gb, 0.5 * s, 0, 7); ctx.fill();
+  } else if (id === 'coreto') {
+    // coreto de praça: piso, colunas brancas, telhado vermelho e bandeirinhas
+    ctx.fillStyle = '#b9a07a'; ctx.beginPath(); ctx.ellipse(x, y - 3 * s, 27 * s, 9.5 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#d6c19c'; ctx.beginPath(); ctx.ellipse(x, y - 6 * s, 27 * s, 9.5 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#c8b48c'; ctx.fillRect(x - 27 * s, y - 6 * s, 54 * s, 3 * s);
+    for (const [dx, dy] of [[-21, 0], [-8, 5], [8, 5], [21, 0], [-14, -4], [14, -4]]) { ctx.fillStyle = '#f4efe2'; ctx.fillRect(x + (dx - 1.5) * s, y + (dy - 38) * s, 3 * s, 33 * s); ctx.fillStyle = '#d9d2c0'; ctx.fillRect(x + (dx + 0.6) * s, y + (dy - 38) * s, 0.9 * s, 33 * s); }
+    ctx.fillStyle = '#a8432f'; ctx.beginPath(); ctx.moveTo(x - 31 * s, y - 40 * s); ctx.lineTo(x, y - 62 * s); ctx.lineTo(x + 31 * s, y - 40 * s); ctx.quadraticCurveTo(x, y - 34 * s, x - 31 * s, y - 40 * s); ctx.fill();
+    ctx.fillStyle = '#e0584a'; ctx.beginPath(); ctx.moveTo(x - 15 * s, y - 46 * s); ctx.lineTo(x, y - 62 * s); ctx.lineTo(x + 6 * s, y - 40 * s); ctx.quadraticCurveTo(x - 4 * s, y - 38 * s, x - 15 * s, y - 46 * s); ctx.fill();
+    ctx.fillStyle = '#fff'; for (let k = 0; k < 6; k++) { const bx = x - 28 * s + k * 11.2 * s; ctx.beginPath(); ctx.arc(bx + 2.8 * s, y - 38.5 * s + Math.sin(k * 0.9) * 1.2 * s, 2.1 * s, 0, Math.PI); ctx.fill(); }
+    ctx.fillStyle = '#ffd54a'; ctx.beginPath(); ctx.arc(x, y - 64 * s, 2.4 * s, 0, 7); ctx.fill();
+    const fc = ['#e53b2f', '#ffd54a', '#4aa3df', '#4f9a2f']; for (let k = 0; k < 9; k++) { const q = k / 8; ctx.fillStyle = fc[k % 4]; ctx.beginPath(); const fx = x - 25 * s + q * 50 * s, fy = y - 35 * s + Math.sin(q * Math.PI) * 4 * s; ctx.moveTo(fx - 2 * s, fy); ctx.lineTo(fx + 2 * s, fy); ctx.lineTo(fx, fy + 4.5 * s); ctx.fill(); }
+  } else if (id === 'festajunina') {
+    // dois mastros com um varal de bandeirinhas coloridas balançando
+    ctx.strokeStyle = '#7a4a24'; ctx.lineWidth = 2.6 * s; ctx.beginPath(); ctx.moveTo(x - 30 * s, y); ctx.lineTo(x - 30 * s, y - 50 * s); ctx.moveTo(x + 30 * s, y); ctx.lineTo(x + 30 * s, y - 50 * s); ctx.stroke();
+    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(x - 30 * s, y - 48 * s); ctx.quadraticCurveTo(x, y - 36 * s, x + 30 * s, y - 48 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 30 * s, y - 40 * s); ctx.quadraticCurveTo(x, y - 28 * s, x + 30 * s, y - 40 * s); ctx.stroke();
+    const fc = ['#e53b2f', '#ffd54a', '#4aa3df', '#4f9a2f', '#f06292', '#ff9a3a'];
+    for (const [off, n] of [[0, 11], [8, 11]]) for (let k = 0; k < n; k++) { const q = (k + 0.5) / n, fx = x - 30 * s + q * 60 * s, fy = y - (48 - off) * s + Math.sin(q * Math.PI) * 9.3 * s, sw = Math.sin(t / 500 + k * 0.8) * 0.8 * s; ctx.fillStyle = fc[(k + off) % 6]; ctx.beginPath(); ctx.moveTo(fx - 2.4 * s, fy); ctx.lineTo(fx + 2.4 * s, fy); ctx.lineTo(fx + sw, fy + 6.5 * s); ctx.closePath(); ctx.fill(); }
+  } else if (id === 'moinhoagua') {
+    // casinha de moinho com a roda d'água girando e um fiozinho de água
+    ctx.fillStyle = '#d9b98a'; ctx.fillRect(x - 24 * s, y - 28 * s, 24 * s, 28 * s); ctx.fillStyle = '#c9a874'; ctx.fillRect(x - 24 * s, y - 28 * s, 24 * s, 3 * s);
+    ctx.fillStyle = '#8a5a33'; ctx.beginPath(); ctx.moveTo(x - 28 * s, y - 27 * s); ctx.lineTo(x - 12 * s, y - 43 * s); ctx.lineTo(x + 4 * s, y - 27 * s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#5a3a1f'; ctx.fillRect(x - 17 * s, y - 16 * s, 8 * s, 16 * s); ctx.fillStyle = '#ffe9a8'; ctx.fillRect(x - 20 * s, y - 24 * s, 4 * s, 4 * s);
+    ctx.fillStyle = '#5aa9e6'; ctx.beginPath(); ctx.ellipse(x + 17 * s, y - 1 * s, 15 * s, 4.5 * s, 0, 0, 7); ctx.fill();
+    const rot = t / 900, cx = x + 15 * s, cy = y - 15 * s, R = 14 * s;
+    ctx.strokeStyle = '#6b3f1f'; ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+    ctx.lineWidth = 1.6 * s; for (let k = 0; k < 8; k++) { const a = rot + k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); ctx.stroke(); ctx.fillStyle = '#a4703f'; ctx.fillRect(cx + Math.cos(a) * R - 1.8 * s, cy + Math.sin(a) * R - 1.8 * s, 3.6 * s, 3.6 * s); }
+    ctx.fillStyle = '#4a2c14'; ctx.beginPath(); ctx.arc(cx, cy, 2.2 * s, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(120,200,240,.8)'; ctx.lineWidth = 1.4 * s; for (let k = 0; k < 3; k++) { const f = ((t / 500) + k / 3) % 1; ctx.beginPath(); ctx.moveTo(cx - R * 0.6, cy - R - 2 * s + f * 8 * s); ctx.lineTo(cx - R * 0.6, cy - R + f * 8 * s + 2 * s); ctx.stroke(); }
+  } else if (id === 'ipebranco' || id === 'flamboyant') {
+    const branco = id === 'ipebranco';
+    ctx.fillStyle = '#6b4a2a'; ctx.beginPath(); ctx.moveTo(x - 3 * s, y); ctx.lineTo(x - 1.5 * s, y - 36 * s); ctx.lineTo(x + 1.5 * s, y - 36 * s); ctx.lineTo(x + 3 * s, y); ctx.fill();
+    ctx.strokeStyle = '#6b4a2a'; ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.moveTo(x, y - 28 * s); ctx.lineTo(x - 14 * s, y - 40 * s); ctx.moveTo(x, y - 30 * s); ctx.lineTo(x + 15 * s, y - 42 * s); ctx.stroke();
+    const copa = branco ? [[-14, -44, 11, '#ffffff'], [13, -46, 12, '#f6f0fa'], [0, -52, 13, '#ffffff'], [-6, -40, 9, '#ece4f4'], [7, -41, 9, '#fbf6ff']]
+      : [[-20, -42, 11, '#d83a22'], [19, -43, 12, '#e8502a'], [0, -50, 14, '#e8402a'], [-8, -40, 10, '#2f8a2a'], [9, -40, 10, '#3a9a30'], [-10, -48, 9, '#f06030'], [12, -50, 9, '#d83a22']];
+    for (const [dx, dy, r, c] of copa) { ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(x + dx * s, y + dy * s, r * s * (branco ? 1 : 1.2), r * s * (branco ? 1 : 0.8), 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = branco ? '#d8c8ec' : '#ffb04a'; for (let k = 0; k < 8; k++) { ctx.beginPath(); ctx.arc(x + ((k * 13) % 30 - 15) * s, y - (40 + (k * 7) % 16) * s, 1.3 * s, 0, 7); ctx.fill(); }
+    ctx.fillStyle = branco ? '#ffffff' : '#e8402a'; for (let k = 0; k < 3; k++) { const f = ((t / 3000) + k / 3) % 1; ctx.globalAlpha = 1 - f; ctx.beginPath(); ctx.ellipse(x + (k * 9 - 9 + Math.sin(f * 6 + k) * 4) * s, y - (40 - f * 38) * s, 1.8 * s, 1 * s, f * 3, 0, 7); ctx.fill(); } ctx.globalAlpha = 1;
+  } else if (id === 'postelampiao') {
+    // poste de ferro com lampião; brilha forte à noite
+    const noite = timeOfDay() === 'noite';
+    ctx.fillStyle = '#3a3e43'; ctx.fillRect(x - 5 * s, y - 5 * s, 10 * s, 5 * s); ctx.fillRect(x - 1.6 * s, y - 52 * s, 3.2 * s, 48 * s);
+    ctx.fillRect(x - 6 * s, y - 52 * s, 12 * s, 2.5 * s);
+    ctx.fillStyle = `rgba(255,214,110,${noite ? 0.45 : 0.18})`; ctx.beginPath(); ctx.arc(x, y - 60 * s, (noite ? 22 : 13) * s, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ffe9a0'; ctx.beginPath(); ctx.roundRect(x - 5 * s, y - 68 * s, 10 * s, 16 * s, 2 * s); ctx.fill();
+    ctx.fillStyle = '#ff9a2a'; ctx.beginPath(); ctx.ellipse(x, y - 60 * s, 1.8 * s * (1 + Math.sin(t / 140) * 0.1), 3.4 * s, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#3a3e43'; ctx.lineWidth = 1 * s; ctx.strokeRect(x - 5 * s, y - 68 * s, 10 * s, 16 * s);
+    ctx.fillStyle = '#3a3e43'; ctx.beginPath(); ctx.moveTo(x - 7 * s, y - 68 * s); ctx.lineTo(x, y - 75 * s); ctx.lineTo(x + 7 * s, y - 68 * s); ctx.fill(); ctx.beginPath(); ctx.arc(x, y - 76.5 * s, 1.4 * s, 0, 7); ctx.fill();
+  } else if (id === 'rede') {
+    // duas palmeiras/postes e a rede listrada balançando
+    ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = 4 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - 26 * s, y); ctx.lineTo(x - 25 * s, y - 36 * s); ctx.moveTo(x + 26 * s, y); ctx.lineTo(x + 25 * s, y - 36 * s); ctx.stroke(); ctx.lineCap = 'butt';
+    ctx.fillStyle = '#4f9a2f'; for (const sx of [-25, 25]) for (const a of [-0.9, 0, 0.9]) { ctx.beginPath(); ctx.ellipse(x + sx * s + Math.sin(a) * 6 * s, y - 38 * s - Math.cos(a) * 2 * s, 7 * s, 2.2 * s, a, 0, 7); ctx.fill(); }
+    const sw = Math.sin(t / 900) * 2 * s, cores = ['#e53b2f', '#ffd54a', '#4aa3df', '#ffffff'];
+    for (let k = 0; k < 4; k++) { ctx.strokeStyle = cores[k]; ctx.lineWidth = 3.4 * s; ctx.beginPath(); ctx.moveTo(x - 25 * s, y - (32 - k * 1.1) * s); ctx.quadraticCurveTo(x + sw, y - (6 + k * -1.1) * s + 4 * s, x + 25 * s, y - (32 - k * 1.1) * s); ctx.stroke(); }
+    ctx.strokeStyle = '#d8c89a'; ctx.lineWidth = 1 * s; for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x + sx * 25 * s, y - 33 * s); ctx.lineTo(x + sx * 20 * s, y - 24 * s); ctx.stroke(); }
+  } else if (id === 'boibumba') {
+    // o boi do folclore: saia colorida cheia de fitas, cabeça preta com estrela e chifres
+    const bal = Math.sin(t / 400) * 1.2 * s;
+    ctx.fillStyle = '#1e1e1e'; ctx.fillRect(x - 11 * s, y - 8 * s, 3.4 * s, 8 * s); ctx.fillRect(x + 8 * s, y - 8 * s, 3.4 * s, 8 * s);
+    ctx.fillStyle = '#e53b2f'; ctx.beginPath(); ctx.moveTo(x - 18 * s, y - 26 * s); ctx.lineTo(x + 18 * s, y - 26 * s); ctx.lineTo(x + 23 * s, y - 6 * s); ctx.lineTo(x - 23 * s, y - 6 * s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffd54a'; ctx.fillRect(x - 21 * s, y - 11 * s, 42 * s, 3.4 * s); ctx.fillStyle = '#4aa3df'; for (let k = 0; k < 6; k++) ctx.fillRect(x - 20 * s + k * 7.2 * s, y - 11 * s, 3 * s, 3.4 * s);
+    ctx.fillStyle = '#fff'; for (const [dx, dy] of [[-10, -21], [0, -17], [9, -22], [-4, -23], [13, -15]]) { ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? 1 : 2.3; ctx.lineTo(x + dx * s + Math.cos(a) * r * s, y + dy * s + Math.sin(a) * r * s); } ctx.closePath(); ctx.fill(); }
+    for (const [dx, c] of [[-16, '#ff9a3a'], [-8, '#4f9a2f'], [0, '#f06292'], [8, '#4aa3df'], [16, '#ffd54a']]) { ctx.strokeStyle = c; ctx.lineWidth = 1.6 * s; ctx.beginPath(); ctx.moveTo(x + dx * s, y - 8 * s); ctx.lineTo(x + dx * s + bal, y - 1 * s); ctx.stroke(); }
+    ctx.fillStyle = '#1e1e1e'; ctx.beginPath(); ctx.ellipse(x + 3 * s, y - 31 * s, 19 * s, 7 * s, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(x - 17 * s, y - 31 * s); ctx.quadraticCurveTo(x - 24 * s, y - 28 * s, x - 22 * s, y - 20 * s); ctx.lineTo(x - 19 * s, y - 29 * s); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(x - 2 * s, y - 33 * s, 6 * s, 2 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#1e1e1e'; ctx.beginPath(); ctx.ellipse(x + 22 * s, y - 34 * s, 7.5 * s, 6.5 * s, 0.25, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e8c35a'; ctx.beginPath(); ctx.ellipse(x + 27 * s, y - 31 * s, 3.2 * s, 2.4 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + 21 * s, y - 36 * s, 1.5 * s, 0, 7); ctx.fill(); ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x + 21.4 * s, y - 36 * s, 0.7 * s, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#f4efe2'; ctx.lineWidth = 2.2 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x + 19 * s, y - 39 * s); ctx.quadraticCurveTo(x + 15 * s, y - 49 * s, x + 21 * s, y - 52 * s); ctx.moveTo(x + 26 * s, y - 39 * s); ctx.quadraticCurveTo(x + 31 * s, y - 49 * s, x + 25 * s, y - 52 * s); ctx.stroke(); ctx.lineCap = 'butt';
+    ctx.fillStyle = '#f06292'; ctx.beginPath(); ctx.arc(x + 23 * s, y - 40 * s, 1.8 * s, 0, 7); ctx.fill();
   } else if (id === 'bolo') {
     ctx.fillStyle = '#b07a44'; ctx.fillRect(x - 18 * s, y - 16 * s, 3 * s, 16 * s); ctx.fillRect(x + 15 * s, y - 16 * s, 3 * s, 16 * s);
     ctx.fillStyle = '#fff4e0'; ctx.fillRect(x - 22 * s, y - 20 * s, 44 * s, 5 * s); ctx.fillStyle = '#e0463a'; for (let k = 0; k < 6; k++) ctx.fillRect(x - 22 * s + k * 8 * s, y - 20 * s, 4 * s, 5 * s);
@@ -10954,7 +11125,7 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.fillStyle = '#ffb300'; ctx.beginPath(); ctx.ellipse(x, y - 54 * s + Math.sin(t / 120) * 0.5 * s, 2 * s, 3.5 * s, 0, 0, 7); ctx.fill();
   }
 }
-const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && (['arvore', 'colmeia'].includes(ENFEITE[id].fruteira) || ENFEITE[id].deco === 'arvore') ? 1.1 : ENFEITE[id] && ENFEITE[id].deco ? 1.7 : { chocadeira: 0.78, bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4 }[id] || 1.6, 0));
+const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && (['arvore', 'colmeia'].includes(ENFEITE[id].fruteira) || ENFEITE[id].deco === 'arvore') ? 1.1 : ENFEITE[id] && ENFEITE[id].deco ? 1.7 : { chocadeira: 0.78, bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4, lagovitoria: 1.3, coreto: 1.2, festajunina: 1.3, moinhoagua: 1.4, ipebranco: 1.2, flamboyant: 1.1, postelampiao: 1.3, rede: 1.4, boibumba: 1.4 }[id] || 1.6, 0));
 
 // ============================================================
 // Pomar: frutíferas (arbustos e árvores) plantadas no gramado. Dão frutas de tempos em tempos
@@ -12302,6 +12473,24 @@ function resgatarConquista(id) {
   const c = CONQUISTAS.find(x => x.id === id); if (!c || !conqPronta(c)) return;
   trevosDe().conq[id] = true; ganharTrevos(c.trevos, `Conquista: ${c.nome}.`);
 }
+// Efeitos dos itens úteis novos da Loja do Trevo.
+const temEsperaPraPular = () => state.plots.some(p => p.s === 'growing' && !ripe(p)) || ['roca', 'animais'].some(sc => objetosDe(state, sc).some(o => ENFEITE[o.id].fruteira && !o.seca && !estadoFruteira(o).pronto)) || (state.chocadeira && state.chocadeira.ovos.length > 0);
+function pularUmaHora() {
+  for (const p of state.plots) if (p.s === 'growing' && !ripe(p)) p.g = Math.min(phaseTempo(p), p.g + 3600);
+  for (const sc of ['roca', 'animais']) for (const o of objetosDe(state, sc)) if (ENFEITE[o.id].fruteira && !o.seca && !estadoFruteira(o).pronto) o.ult = (o.ult || o.t0 || Date.now()) - 3600e3;
+  for (const ovo of state.chocadeira.ovos) ovo.nascimento -= 3600e3;
+}
+function pacoteDePlantas() {
+  const l = CROPS.filter(c => c.nivel <= state.level).sort(() => Math.random() - 0.5).slice(0, 3);
+  for (const c of l) darPlanta(c, 4);
+  toast(`🌱 +4 de cada: ${l.map(c => c.nome.toLowerCase()).join(', ')}!`, 'good');
+}
+const podeOvoMisterioso = () => temChocadeira() && state.chocadeira.ovos.length < chocCap();
+function ovoMisterioso() {
+  const l = AVES.filter(k => ANIMAL[k] && ANIMAL[k].nivel <= state.level), k = l.length ? l[Math.floor(Math.random() * l.length)] : 'galinha', dur = chocHoras(k, chocNivel()) * 3600e3;
+  state.chocadeira.ovos.push({ especie: k, nascimento: Date.now() + dur, dur, mist: 1 });
+  toast('🥚 Ovo misterioso na chocadeira! Vai nascer de cor ou raça rara.', 'good');
+}
 // Loja do Trevo: só coisas exclusivas.
 const TREVO_LOJA = [
   { id: 'chapeu:couro',         nome: 'Chapéu de couro',            tipo: 'Avatar',  preco: 15, desc: 'Chapéu de vaqueiro com cordão dourado.' },
@@ -12341,19 +12530,48 @@ const TREVO_LOJA = [
   { id: 'util:animalraro', nome: 'Animal raro',             tipo: 'Útil', preco: 45, repete: true, desc: 'Um dos 3 animais mais raros que você já liberou (se tiver só comuns, vem um comum).', usar: () => { const l = animaisLiberados(state).sort((a, b) => b.nivel - a.nivel).slice(0, 3); const d = l[Math.floor(Math.random() * l.length)]; if (d) { darAnimal(d.id); toast(`🐾 ${d.nome} para resgatar em Loja › Animais!`, 'good'); } } },
   { id: 'util:racao',     nome: '3 rações especiais',       tipo: 'Útil', preco: 6,  repete: true, desc: 'Cada uma faz um animal produzir em dobro.', usar: () => { state.racaoEsp = (state.racaoEsp || 0) + 3; } },
   { id: 'util:pontos',    nome: 'Pontos de pesca descansados', tipo: 'Útil', preco: 10, repete: true, desc: 'Todos os seus pontos de pesca voltam a ter 3 pescarias.', pode: () => PONTOS.some(p => faltaPonto(p.id) > 0), naoPode: 'Seus pontos de pesca já estão prontos!', usar: () => { const pp = pontosDe(); pp.prox = {}; pp.usos = {}; } },
+  { id: 'enfeite:lagovitoria',  nome: 'Lago com vitória-régia',    tipo: 'Enfeite', preco: 30, desc: 'Laguinho pronto com vitórias-régias e uma garça (+2% XP).' },
+  { id: 'enfeite:coreto',       nome: 'Coreto da praça',            tipo: 'Enfeite', preco: 40, desc: 'Palco de madeira com telhado vermelho e bandeirinhas (+3% XP).' },
+  { id: 'enfeite:festajunina',  nome: 'Festa junina',               tipo: 'Enfeite', preco: 25, desc: 'Varal de bandeirinhas balançando entre dois mastros (+2% XP).' },
+  { id: 'enfeite:moinhoagua',   nome: 'Moinho d\'água',             tipo: 'Enfeite', preco: 45, desc: 'Roda girando, com a água caindo (+3% XP).' },
+  { id: 'enfeite:ipebranco',    nome: 'Ipê-branco',                 tipo: 'Enfeite', preco: 25, desc: 'Par do ipê-amarelo, soltando pétalas brancas (+3% XP).' },
+  { id: 'enfeite:flamboyant',   nome: 'Flamboyant',                 tipo: 'Enfeite', preco: 25, desc: 'Copa larga e vermelha, cheia de flores (+3% XP).' },
+  { id: 'enfeite:postelampiao', nome: 'Lampião de rua',             tipo: 'Enfeite', preco: 15, desc: 'Poste que brilha mais à noite (+1% XP).' },
+  { id: 'enfeite:rede',         nome: 'Rede na varanda',            tipo: 'Enfeite', preco: 20, desc: 'Rede listrada que balança devagar (+2% XP).' },
+  { id: 'enfeite:boibumba',     nome: 'Boi-bumbá',                  tipo: 'Enfeite', preco: 35, desc: 'O boi do folclore, com a saia cheia de fitas (+3% XP).' },
+  { id: 'chapeu:festa',         nome: 'Chapéu de palha de festa',   tipo: 'Avatar',  preco: 12, desc: 'Palha com faixa verde remendada e uma florzinha.' },
+  { id: 'chapeu:bandeirinhas',  nome: 'Chapéu de bandeirinhas',     tipo: 'Avatar',  preco: 15, desc: 'Fio de bandeirinhas coloridas em volta da aba.' },
+  { id: 'camisa:poncho',        nome: 'Poncho listrado',            tipo: 'Avatar',  preco: 25, desc: 'Poncho colorido com franjas (menino e menina).' },
+  { id: 'mao:violao',           nome: 'Violão',                     tipo: 'Avatar',  preco: 20, desc: 'Um violão de seresta na mão.' },
+  { id: 'mao:triangulo',        nome: 'Triângulo',                  tipo: 'Avatar',  preco: 20, desc: 'Para tocar forró, junto com a sanfona.' },
+  { id: 'mao:cesta',            nome: 'Cesta de frutas',            tipo: 'Avatar',  preco: 15, desc: 'Cesta cheia de frutas frescas.' },
+  { id: 'casa:junina',          nome: 'Tema Casa Junina',           tipo: 'Tema',    preco: 45, desc: 'Amarelinha, com bandeirinhas coloridas no telhado.' },
+  { id: 'casa:praiana',         nome: 'Tema Casa Praiana',          tipo: 'Tema',    preco: 45, desc: 'Azul-piscina com telhado azul-marinho.' },
+  { id: 'tema:trevo',           nome: 'Cerca do Trevo',             tipo: 'Tema',    preco: 40, desc: 'Cerca verde-clarinha com um trevo em cada moirão (Loja › Temas).' },
+  { id: 'cao:dourado',          nome: 'Cachorro caramelo-dourado',  tipo: 'Animal',  preco: 50, desc: 'Pelagem rara. Depois de trocar, sai de graça em Loja › Cães.' },
+  { id: 'cao:malhado',          nome: 'Cachorro preto-e-branco',    tipo: 'Animal',  preco: 50, desc: 'Pelagem rara. Depois de trocar, sai de graça em Loja › Cães.' },
+  { id: 'util:iscaouro',  nome: 'Isca dourada',             tipo: 'Útil', preco: 10, repete: true, desc: 'Na pescaria, garante o peixe mais raro que o ponto tiver (escolha 🌟 na janela da pesca).', usar: () => { iscasDe().dourada = (iscasDe().dourada || 0) + 1; } },
+  { id: 'util:ovo',       nome: 'Ovo misterioso',           tipo: 'Útil', preco: 30, repete: true, desc: 'Vai direto para a chocadeira e nasce de cor ou raça rara.', pode: podeOvoMisterioso, naoPode: 'Precisa de uma chocadeira no rancho com espaço livre.', usar: ovoMisterioso },
+  { id: 'util:plantas',   nome: 'Pacote de plantas',        tipo: 'Útil', preco: 8,  repete: true, desc: '4 de cada de 3 plantas sorteadas dentro do seu nível.', usar: pacoteDePlantas },
+  { id: 'util:pular',     nome: 'Pular 1 hora de espera',   tipo: 'Útil', preco: 6,  repete: true, desc: 'Adianta 1 hora em todas as plantações, frutíferas e ovos da chocadeira.', pode: temEsperaPraPular, naoPode: 'Não há nada esperando agora.', usar: pularUmaHora },
+  { id: 'util:fertouro',  nome: 'Fertilizante dourado',     tipo: 'Útil', preco: 10, repete: true, desc: 'Sua próxima plantação vira colheita dourada (rende 5 vezes mais).', usar: () => { state.ouroProx = (state.ouroProx || 0) + 1; } },
+  { id: 'util:kitmina',   nome: 'Kit da mina',              tipo: 'Útil', preco: 12, repete: true, desc: '5 picaretas, 1 dinamite e 1 TNT.', usar: () => { darFerr('pic', 5); darFerr('din', 1); darFerr('tnt', 1); } },
+  { id: 'util:nome',      nome: 'Troca de nome grátis',     tipo: 'Útil', preco: 5,  repete: true, desc: 'Renomeia um animal ou cachorro sem gastar moedas.', usar: () => { state.nomeGratis = (state.nomeGratis || 0) + 1; } },
 ];
-const TREVO_TIPOS = ['Útil', 'Avatar', 'Enfeite', 'Tema', 'Música'];
+const TREVO_TIPOS = ['Útil', 'Avatar', 'Enfeite', 'Tema', 'Animal', 'Música'];
 const musicaLiberada = k => !(window.RFAudio && window.RFAudio.exclusivas && window.RFAudio.exclusivas[k]) || temTrevoItem('musica:' + k);
 function iconeTrevoItem(it) {
   const [tipo, id] = it.id.split(':');
   if (tipo === 'casa') return casaTemaIcon(id);
   if (tipo === 'enfeite') return enfeiteIcon(id);
+  if (tipo === 'tema') return temaIcon(id);
+  if (tipo === 'cao') return dogIcon(id);
   return makeIcon('trevoitem:' + it.id, () => {
     if (tipo === 'musica') { ctx.fillStyle = '#2f8a2f'; ctx.font = '56px system-ui'; ctx.textAlign = 'center'; ctx.fillText({ 4: '🪕', 5: '🪗', 6: '🌙' }[id] || '🎵', 48, 70); return; }
     if (tipo === 'util' && id === 'motosserra') return drawMotosserra(52, 54, 0.95);
     if (tipo === 'util' && id === 'enxada') return drawEnxada(38, 54, 0.9);
-    if (tipo === 'util') { ctx.font = '54px system-ui'; ctx.textAlign = 'center'; ctx.fillText({ camarao: '🦐', artificial: '🎏', tarrafa: '🕸️', racao: '🌾', pontos: '🎣', enxada: '🪓', motosserra: '⛓️' }[id] || '🧺', 48, 70); return; }
-    const av = Object.assign({}, avatarOk(state.avatar), tipo === 'chapeu' ? { chapeu: id } : { mao: id });
+    if (tipo === 'util') { ctx.font = '54px system-ui'; ctx.textAlign = 'center'; ctx.fillText({ camarao: '🦐', artificial: '🎏', tarrafa: '🕸️', racao: '🌾', pontos: '🎣', enxada: '🪓', motosserra: '⛓️', iscaouro: '🌟', ovo: '🥚', plantas: '🌱', pular: '⏩', fertouro: '✨', kitmina: '⛏️', nome: '✏️' }[id] || '🧺', 48, 70); return; }
+    const av = Object.assign({}, avatarOk(state.avatar), tipo === 'chapeu' ? { chapeu: id } : tipo === 'camisa' ? { camisa: id } : { mao: id });
     drawAvatar(ctx, 48, 92, 1.2, av, 0, false, 1);
   });
 }
@@ -12367,9 +12585,10 @@ function comprarTrevoItem(id) {
     if (it.repete) { it.usar(); sfx('buy'); toast(`🍀 ${it.nome}: pronto!`, 'good'); done(); renderPane(); renderTabs(); renderHUD(); return; }
     t.itens[id] = true;
     if (tipo === 'casa') state.skins[x] = true;
+    if (tipo === 'tema') state.temas[x] = true;
     if (tipo === 'enfeite') { state.enfeites[x] = (state.enfeites[x] || 0) + 1; state.invNovos = (state.invNovos || 0) + 1; }
     sfx('buy');
-    toast(`🍀 ${it.nome} é seu! ${tipo === 'casa' ? 'Use clicando na sua casa.' : tipo === 'enfeite' ? 'Está no Inventário.' : tipo === 'musica' ? 'Escolha em ⚙️ › Música.' : 'Escolha em ⚙️ › Seu avatar.'}`, 'good');
+    toast(`🍀 ${it.nome} é seu! ${tipo === 'casa' ? 'Use clicando na sua casa.' : tipo === 'tema' ? 'Use em Loja › Temas.' : tipo === 'cao' ? 'Pegue de graça em Loja › Cães.' : tipo === 'enfeite' ? 'Está no Inventário.' : tipo === 'musica' ? 'Escolha em ⚙️ › Música.' : 'Escolha em ⚙️ › Seu avatar.'}`, 'good');
     done(); renderPane(); renderTabs(); renderHUD();
   });
 }
@@ -12421,7 +12640,7 @@ function trevoLojaHTML() {
   let html = `<div class="row sel"><div class="avatar" style="background:#2f8a2f;font-size:26px">🍀</div><div><div class="name">Você tem ${t.saldo} trevo${t.saldo === 1 ? '' : 's'}</div><div class="meta">Ganhe resgatando peixes, domínio de pesca e conquistas em Missões › 🍀 Trevos.</div></div><button class="btn ghost" data-abrir-trevos="1">Ganhar</button></div>
     <p class="hint">Itens exclusivos: só se conseguem com trevos. Os úteis dá para trocar quantas vezes quiser.</p>`;
   for (const it of TREVO_TIPOS.flatMap(tp => { const l = TREVO_LOJA.filter(x => x.tipo === tp); return l.length ? [{ cab: tp }, ...l] : []; })) {
-    if (it.cab) { html += `<p class="trevocab">${{ 'Útil': '🧺 Úteis', Avatar: '🧑‍🌾 Para o avatar', Enfeite: '🌼 Enfeites', Tema: '🏡 Temas da casa', 'Música': '🎵 Músicas' }[it.cab]}</p>`; continue; }
+    if (it.cab) { html += `<p class="trevocab">${{ 'Útil': '🧺 Úteis', Avatar: '🧑‍🌾 Para o avatar', Enfeite: '🌼 Enfeites', Tema: '🏡 Temas da casa e da cerca', Animal: '🐾 Animais', 'Música': '🎵 Músicas' }[it.cab]}</p>`; continue; }
     const tem = t.itens[it.id] && !it.repete;
     html += `<div class="row ${tem ? 'sel' : ''}"><img alt="" src="${iconeTrevoItem(it)}"><div><div class="name">${it.nome} <span class="tag">${it.tipo}</span></div><div class="meta">${it.desc}</div></div>
       ${tem ? '<button class="btn ghost" disabled>Já é seu</button>' : `<button class="btn gold" data-trevo-comprar="${it.id}" ${t.saldo < it.preco ? 'disabled' : ''}>🍀 ${it.preco}</button>`}</div>`;
