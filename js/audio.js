@@ -88,6 +88,15 @@
     const trem = ac.createOscillator(), tg = ac.createGain();
     trem.frequency.value = 4.5; tg.gain.value = vel * 0.25; trem.connect(tg); tg.connect(g.gain); trem.start(t); trem.stop(end + 0.25);
   }
+  // Sininho / xilofone de brinquedo: som cristalino que some rápido.
+  function sino(bus, t, m, dur, vel = 0.12) {
+    const g = ac.createGain(); g.connect(bus);
+    const end = t + Math.max(0.4, dur * 1.3);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vel, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, end);
+    osc('sine', mtof(m), t, end + 0.05, g);
+    osc('triangle', mtof(m + 12), t, t + end - t + 0.05, g, 3);
+    const g2 = ac.createGain(); g2.gain.value = 0.25; g2.connect(g); osc('sine', mtof(m + 19), t, t + 0.3, g2);
+  }
   function bass(bus, t, m, dur, vel = 0.16) {
     const g = ac.createGain(), f = lowpass(700); f.connect(g); g.connect(bus);
     const end = t + dur;
@@ -251,6 +260,21 @@
         [[N.C5, 6]],
       ],
     },
+    { // Dia das Crianças: cirandinha de sininhos, alegre e saltitante, 4/4
+      nome: 'Ciranda das Crianças', bpm: 126, steps: 8, lead: 'bell', shaker: true,
+      chords: [[48, 60, 64, 67], [53, 60, 65, 69], [48, 60, 64, 67], [43, 59, 62, 67], [48, 60, 64, 67], [53, 60, 65, 69], [43, 59, 62, 67], [48, 60, 64, 67]],
+      arp: [1, 2, 3, 2, 1, 2, 3, 2],
+      melody: [
+        [[N.E5, 1], [N.E5, 1], [N.G5, 2], [N.G5, 1], [N.E5, 1], [N.C5, 2]],
+        [[N.F5, 1], [N.F5, 1], [N.A5, 2], [N.A5, 1], [N.F5, 1], [N.C5, 2]],
+        [[N.E5, 1], [N.E5, 1], [N.G5, 2], [N.G5, 1], [N.E5, 1], [N.C5, 2]],
+        [[N.D5, 2], [N.B4, 2], [N.D5, 4]],
+        [[N.C5, 1], [N.E5, 1], [N.G5, 2], [N.C6, 2], [N.G5, 2]],
+        [[N.A5, 2], [N.G5, 2], [N.F5, 2], [N.A5, 2]],
+        [[N.G5, 2], [N.F5, 2], [N.D5, 2], [N.B4, 2]],
+        [[N.C5, 6], [0, 2]],
+      ],
+    },
   ];
   // Terça abaixo dentro de ré maior (a "segunda voz" da viola).
   const D_MAJOR = [2, 4, 6, 7, 9, 11, 1];
@@ -320,6 +344,7 @@
             const d = len * eighth;
             if (tr.lead === 'flute') flute(musicBus, t, m, d * 0.95);
             else if (tr.lead === 'accordion') accordion(musicBus, t, m, d * 0.92);
+            else if (tr.lead === 'bell') sino(musicBus, t, m, d);
             else { pluck(musicBus, t, m, d, 0.13, 3800); pluck(musicBus, t + 0.012, thirdBelow(m), d, 0.09, 3200); }
           }
           pos += len;

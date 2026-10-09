@@ -1399,6 +1399,8 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 280, txt: "Dia das Crianças: tirei as bandeirinhas, os balões e o confete que ficavam fixos na tela. Agora a decoração fica presa ao cenário (bandeirinhas ligando a casa, o celeiro e a casinha, balões amarrados, e os balões de estourar sobem da roça e acompanham o zoom). Também deixei a tela mais leve." },
+  { v: 279, txt: "🎵 Música nova do Dia das Crianças: 'Ciranda das Crianças', uma cirandinha de sininhos, alegre e saltitante. Ela toca sozinha na primeira vez que você abre o jogo no evento, e fica na lista de músicas em ⚙️ › Música para você escolher quando quiser." },
   { v: 278, txt: "🎈 Dia das Crianças! De sexta (09/10) até segunda (12/10), às 23:59, a roça, o rancho e a casa estão de festa: bandeirinhas, confete e balões. Ao abrir o jogo você ganha um Balanço colorido e a Casa do Brincar (telhado de arco-íris). Tem missões do evento (Missões › 🎈 Evento) com moedas, balas, pirulitos e brinquedos; balões subindo para estourar na roça e no rancho; e a barraquinha na Loja (Loja › 🎈 Evento) com balanço, escorregador e castelinho de areia. Passou a data, o tema some e o que você ganhou fica." },
   { v: 277, txt: "Na mina, cada ferramenta (picareta, dinamite e TNT) ganhou um botão 'Usar tudo' embaixo: gasta todas de uma vez, sem esperar cada animação, e mostra o total de minério que você juntou. Pergunta antes, com Sim e Não." },
   { v: 276, txt: "Cada raça de cachorro agora late de um jeito: o Pinscher dá latidinhos agudos e rápidos, o Pastor-alemão late grosso e firme, o Border collie late animado em sequência, o Blue heeler tem um latido seco e rouco, o Fila e o Cane corso têm latidos bem graves e demorados. Cada raça também tem as suas falas, com a personalidade dela. E na Loja do Trevo 🍀 os itens úteis ganharam ícones certos (picareta, dinamite, TNT, animal surpresa, animal raro, kit da mina) no lugar da cestinha." },
@@ -6456,7 +6458,6 @@ cv.addEventListener('click', e => {
   else if (target.kind === 'folhas') rastelarFolhas(target.id);
   else if (target.kind === 'invasor') espantarInvasor();
   else if (target.kind === 'balao') estourarBalao(target.id);
-  else if (target.kind === 'eventoBanner') { missSeg = 'evento'; openPanel('missoes'); }
   else if (target.kind === 'armadilha') toast(armadilhaPronta() ? '🪤 Armadilha carregada: pega a próxima praga que invadir a plantação.' : `🪤 Armadilha recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`);
   else if (target.kind === 'mural') { abrirCaca(); if (caca) { cacaLivro = true; renderCaca(); } }
   else if (target.kind === 'avatar' && target.quem === 'dono') { falar('avatar:dono', view.nome, sorteia(FALAS_DONO.concat(FALAS_AVATAR))); sfx('fala'); }
@@ -6487,7 +6488,7 @@ function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* sem armazenamento */ }
   applySettings();
 }
-const TRACK_INFO = ['Violão e flauta, bem tranquila', 'Valsa lenta de sanfona', 'Viola caipira no fim da tarde', 'Rock rural: guitarra, bateria e viola', 'Viola de raiz em terças', 'Sanfona, zabumba e triângulo', 'Valsa de flauta e violão ao luar'];
+const TRACK_INFO = ['Violão e flauta, bem tranquila', 'Valsa lenta de sanfona', 'Viola caipira no fim da tarde', 'Rock rural: guitarra, bateria e viola', 'Viola de raiz em terças', 'Sanfona, zabumba e triângulo', 'Valsa de flauta e violão ao luar', 'Cirandinha de sininhos, alegre (Dia das Crianças)'];
 // Nomes: dar o primeiro nome é de graça; trocar um nome que já existe custa 100 moedas (cada um).
 const CUSTO_NOME = 100;
 function custoNomes() {
@@ -13133,6 +13134,7 @@ const EV_TXT_FIM = 'segunda, 12/10, às 23:59';
 function eventoEntrada() {
   if (!state || !eventoAtivo()) return;
   const E = eventoDe();
+  if (!settings.evCriancasMusica && window.RFAudio && window.RFAudio.tracks.length > 7) { settings.evCriancasMusica = 1; settings.track = 7; saveSettings(); if (settings.music) setTimeout(() => toast('🎵 Tocando a Ciranda das Crianças, a música do evento! Troque em ⚙️ › Música.', 'good'), 4000); }
   if (!E.presente) {
     E.presente = 1;
     state.enfeites.ev_balanco = (state.enfeites.ev_balanco || 0) + 1; state.skins.brincar = true; state.invNovos = (state.invNovos || 0) + 1;
@@ -13187,6 +13189,7 @@ function comprarEnfeiteEvento(id) {
 }
 
 // ---- Balões que sobem na roça e no rancho: toque para estourar (moedas, XP e às vezes doces) ----
+// Ficam presos ao cenário (acompanham a câmera e o zoom), nunca fixos na tela.
 let evBaloes = [], evProxBalao = 0;
 const EV_CORES = ['#e53b2f', '#ff9a3a', '#ffd54a', '#4f9a2f', '#4aa3df', '#8a5ac8', '#f06292'];
 function baloesTick(now) {
@@ -13194,10 +13197,12 @@ function baloesTick(now) {
   evBaloes = evBaloes.filter(b => now - b.t0 < b.dur);
   if (!evProxBalao) evProxBalao = now + 12000;
   if (now >= evProxBalao && evBaloes.length < 3) {
-    evBaloes.push({ id: newId(), x0: 0.12 + Math.random() * 0.76, t0: now, dur: 30000 + Math.random() * 14000, cor: EV_CORES[Math.floor(Math.random() * EV_CORES.length)], fase: Math.random() * 6 });
+    const a = avatarArea(scene);
+    evBaloes.push({ id: newId(), sc: scene, u: a.u0 + Math.random() * (a.u1 - a.u0), v: a.v0 + Math.random() * (a.v1 - a.v0), t0: now, dur: 30000 + Math.random() * 14000, cor: EV_CORES[Math.floor(Math.random() * EV_CORES.length)], fase: Math.random() * 6 });
     evProxBalao = now + 35000 + Math.random() * 45000;
   }
 }
+function balaoPos(b, now) { const f = (now - b.t0) / b.dur, q = iso(b.u, b.v); return { x: q.x + Math.sin((now - b.t0) / 1400 + b.fase) * L.W * 0.05, y: q.y - L.W * (0.35 + f * 3.4) }; }
 function estourarBalao(id) {
   const i = evBaloes.findIndex(b => b.id === id); if (i < 0) return;
   const b = evBaloes[i], q = balaoPos(b, performance.now()); evBaloes.splice(i, 1);
@@ -13207,54 +13212,62 @@ function estourarBalao(id) {
   if (doce) state.barn[doce] = (state.barn[doce] || 0) + 1;
   eventoDe().baloes++; track('balao'); done();
 }
-function balaoPos(b, now) { const f = (now - b.t0) / b.dur; return { x: L.cw * (b.x0 + Math.sin((now - b.t0) / 1400 + b.fase) * 0.03), y: L.ch * (0.96 - f * 0.9) }; }
-
-// ---- O tema: bandeirinhas, confete, balões nos cantos e o aviso do evento (em todas as cenas) ----
+function desenhaBalao(x, y, r, cor) {
+  ctx.fillStyle = cor; ctx.beginPath(); ctx.ellipse(x, y, r * 0.82, r, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = tomCor(cor, -0.2); ctx.beginPath(); ctx.moveTo(x, y + r); ctx.lineTo(x - 3, y + r + 5); ctx.lineTo(x + 3, y + r + 5); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(x - r * 0.3, y - r * 0.38, r * 0.14, r * 0.28, 0.3, 0, 7); ctx.fill();
+}
+// Fio de bandeirinhas entre dois pontos do cenário.
+function bandeirasMundo(a, b, sag, t) {
+  const n = Math.max(5, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / (L.W * 0.2))), w = Math.max(4, L.W * 0.035);
+  ctx.strokeStyle = 'rgba(80,60,40,.75)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo((a.x + b.x) / 2, (a.y + b.y) / 2 + sag * 2, b.x, b.y); ctx.stroke();
+  for (let k = 0; k < n; k++) {
+    const f = (k + 0.5) / n, x = (1 - f) * (1 - f) * a.x + 2 * f * (1 - f) * ((a.x + b.x) / 2) + f * f * b.x, y = (1 - f) * (1 - f) * a.y + 2 * f * (1 - f) * ((a.y + b.y) / 2 + sag * 2) + f * f * b.y, sw = Math.sin(t / 500 + k * 0.7) * 1.6;
+    ctx.fillStyle = EV_CORES[k % EV_CORES.length]; ctx.beginPath(); ctx.moveTo(x - w, y); ctx.lineTo(x + w, y); ctx.lineTo(x + sw, y + w * 2.2); ctx.closePath(); ctx.fill();
+  }
+}
+// Cacho de balões amarrado no chão em (x, y).
+function cachoBaloes(x, y, t, seed) {
+  const r = clamp(L.W * 0.06, 8, 16);
+  for (let k = 0; k < 3; k++) {
+    const bx = x + (k - 1) * r * 1.1 + Math.sin(t / 900 + seed + k) * 2, by = y - L.W * (0.42 + (k % 2) * 0.1) + Math.sin(t / 1100 + seed + k * 2) * 2;
+    ctx.strokeStyle = 'rgba(70,70,70,.55)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx, by + r); ctx.lineTo(x, y); ctx.stroke();
+    desenhaBalao(bx, by, r, EV_CORES[(seed + k * 2) % EV_CORES.length]);
+  }
+}
+// O tema: bandeirinhas e balões presos às coisas do cenário (casa, celeiro, casinha, paredes da casa).
 function drawTemaCriancas(t) {
   if (!eventoAtivo() || isGated()) return;
-  const cw = L.cw, ch = L.ch, now = performance.now();
-  // fio de bandeirinhas logo abaixo do topo
-  const y0 = clamp(ch * 0.2, 140, 210), sag = ch * 0.03;
-  ctx.strokeStyle = 'rgba(80,60,40,.7)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(0, y0 - 6); ctx.quadraticCurveTo(cw / 2, y0 + sag, cw, y0 - 6); ctx.stroke();
-  const n = Math.max(9, Math.round(cw / 38));
-  for (let k = 0; k < n; k++) {
-    const f = (k + 0.5) / n, x = cw * f, sw = Math.sin(t / 500 + k * 0.7) * 2;
-    const yy = (y0 - 6) * ((1 - f) * (1 - f) + f * f) + (y0 + sag) * 2 * f * (1 - f);
-    ctx.fillStyle = EV_CORES[k % EV_CORES.length]; ctx.beginPath(); ctx.moveTo(x - 9, yy - 1); ctx.lineTo(x + 9, yy - 1); ctx.lineTo(x + sw, yy + 20); ctx.closePath(); ctx.fill();
+  const W = L.W, s = S(), now = performance.now();
+  if (scene === 'roca') {
+    const c = posOf(s, 'roca', 'casa'), g = posOf(s, 'roca', 'celeiro'), k = posOf(s, 'roca', 'canil');
+    const pc = iso(c[0], c[1]), pg = iso(g[0], g[1]), pk = iso(k[0], k[1]);
+    bandeirasMundo({ x: pc.x, y: pc.y - W * 0.62 }, { x: pg.x, y: pg.y - W * 0.66 }, W * 0.05, now);
+    bandeirasMundo({ x: pg.x, y: pg.y - W * 0.66 }, { x: pk.x, y: pk.y - W * 0.38 }, W * 0.04, now);
+    cachoBaloes(pc.x + W * 0.6, pc.y + W * 0.05, now, 0); cachoBaloes(pg.x - W * 0.62, pg.y + W * 0.05, now, 3);
+  } else if (scene === 'animais') {
+    const k = posOf(s, 'animais', 'canil'), pk = iso(k[0], k[1]), a = iso(0.4, RANCH_R + 0.5), b = iso(RANCH_C - 0.4, RANCH_R + 0.5);
+    for (const q of [a, b]) { ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x, q.y - W * 0.5); ctx.stroke(); }
+    bandeirasMundo({ x: a.x, y: a.y - W * 0.5 }, { x: b.x, y: b.y - W * 0.5 }, W * 0.07, now);
+    cachoBaloes(pk.x - W * 0.45, pk.y + W * 0.05, now, 1);
+  } else if (scene === 'casa') {
+    const H = 1.18;
+    bandeirasMundo(P(0, ROOM, H), P(0, 0, H), W * 0.05, now); bandeirasMundo(P(0, 0, H), P(ROOM, 0, H), W * 0.05, now);
+    const q = P(ROOM - 0.5, 0.5, 0); cachoBaloes(q.x, q.y, now, 2);
   }
-  // confete caindo devagar
-  for (let k = 0; k < 34; k++) {
-    const dur = 7000 + (k % 5) * 1100, f = (now / dur + k * 0.137) % 1, x = ((k * 97) % 100) / 100 * cw + Math.sin(now / 900 + k) * 14, y = f * (ch + 20) - 10;
-    ctx.save(); ctx.translate(x, y); ctx.rotate(now / 400 + k); ctx.globalAlpha = 0.75; ctx.fillStyle = EV_CORES[(k * 3) % EV_CORES.length]; ctx.fillRect(-3, -1.5, 6, 3); ctx.restore();
-  }
-  ctx.globalAlpha = 1;
-  // cachos de balões decorativos nos cantos de baixo
-  for (const [cx, dir] of [[cw * 0.05, 1], [cw * 0.95, -1]]) for (let k = 0; k < 3; k++) {
-    const bx = cx + dir * (k - 1) * 14, by = ch - 130 - k % 2 * 18 + Math.sin(now / 1100 + k + cx) * 4, r = 15;
-    ctx.strokeStyle = 'rgba(70,70,70,.55)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx, by + r); ctx.quadraticCurveTo(cx, by + 40, cx, ch - 92); ctx.stroke();
-    ctx.fillStyle = EV_CORES[(k * 2 + (dir > 0 ? 0 : 3)) % EV_CORES.length]; ctx.beginPath(); ctx.ellipse(bx, by, r * 0.82, r, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.ellipse(bx - 4, by - 5, 2.4, 4.2, 0, 0, 7); ctx.fill();
-  }
-  // balões que dá para estourar
+  // balões que dá para estourar (só na sua roça e no seu rancho)
   if (isHome() && ['roca', 'animais'].includes(scene)) {
     baloesTick(now);
     for (const b of evBaloes) {
-      const p = balaoPos(b, now), r = clamp(L.W * 0.075, 15, 26);
-      ctx.strokeStyle = 'rgba(70,70,70,.6)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(p.x, p.y + r); ctx.quadraticCurveTo(p.x + Math.sin(now / 500 + b.fase) * 6, p.y + r * 2.2, p.x, p.y + r * 3); ctx.stroke();
-      ctx.fillStyle = b.cor; ctx.beginPath(); ctx.ellipse(p.x, p.y, r * 0.82, r, 0, 0, 7); ctx.fill();
-      ctx.fillStyle = tomCor(b.cor, -0.2); ctx.beginPath(); ctx.moveTo(p.x, p.y + r); ctx.lineTo(p.x - 3, p.y + r + 5); ctx.lineTo(p.x + 3, p.y + r + 5); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(p.x - r * 0.3, p.y - r * 0.38, r * 0.14, r * 0.28, 0.3, 0, 7); ctx.fill();
+      if (b.sc !== scene) continue;
+      const p = balaoPos(b, now), r = clamp(W * 0.07, 12, 24);
+      ctx.strokeStyle = 'rgba(70,70,70,.6)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(p.x, p.y + r); ctx.quadraticCurveTo(p.x + Math.sin(now / 500 + b.fase) * 5, p.y + r * 2.2, p.x, p.y + r * 3); ctx.stroke();
+      desenhaBalao(p.x, p.y, r, b.cor);
       if (hover && hover.kind === 'balao' && hover.id === b.id) { ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(p.x, p.y, r, r * 1.2, 0, 0, 7); ctx.stroke(); }
-      hits.push({ kind: 'balao', id: b.id, x: p.x, y: p.y, r: Math.max(r * 1.7, 28) });
+      hits.push({ kind: 'balao', id: b.id, x: p.x, y: p.y, r: Math.max(r * 1.8, 28) });
     }
   }
-  // aviso do evento (toque abre as missões)
-  const txt = '🎈 Dia das Crianças · até 12/10', pw = Math.min(cw - 20, 250), py = ch - 98;
-  ctx.fillStyle = 'rgba(240,98,146,.95)'; ctx.strokeStyle = '#a82a58'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(cw / 2 - pw / 2, py - 14, pw, 28, 14); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#fff'; ctx.font = `800 13px 'Baloo 2', system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt + (evProntas() ? ` · ${evProntas()} 🎁` : ''), cw / 2, py + 1); ctx.textBaseline = 'alphabetic';
-  hits.push({ kind: 'eventoBanner', x: cw / 2, y: py, r: pw / 2 });
 }
-
 // ============================================================
 // Laço principal
 // ============================================================
