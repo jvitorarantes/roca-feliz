@@ -125,6 +125,12 @@ const PRESENTES_ARARA = [
   { id: 'ovoarara',  nome: 'Ovo de arara',  nomePl: 'ovos de arara',  preco: 520, peso: 3 },
 ];
 for (const p of PRESENTES_ARARA) PRODUCT[p.id] = { ...p, gato: true };
+// Doces do Dia das Crianças 2026: ganhos nas missões e nos balões do evento; dá para vender no Celeiro.
+const DOCES_EVENTO = [
+  { id: 'bala',     nome: 'Bala colorida', nomePl: 'balas coloridas', preco: 45 },
+  { id: 'pirulito', nome: 'Pirulito',      nomePl: 'pirulitos',       preco: 70 },
+];
+for (const p of DOCES_EVENTO) PRODUCT[p.id] = { ...p, evento: true };
 const PET_PRESENTES = { gato: PRESENTES_GATO, arara: PRESENTES_ARARA };
 const PET_EMOJI = { gato: '🐱', arara: '🦜' };
 function sortearPresentePet(pool) {
@@ -822,6 +828,7 @@ const pedeAjuda = uid => { const f = friendInfo[uid]; return f && typeof f === '
 const amigosPedindo = () => (state && user ? state.friends.filter(pedeAjuda) : []);
 // De tempos em tempos vê quem está pedindo ajuda (para o número no botão Amigos)
 setInterval(() => { try { latidosAmbiente(); } catch (e) { /* sem latido */ } }, 1500);
+setInterval(() => { try { if (state && !isGated()) eventoEntrada(); } catch (e) { /* sem evento */ } }, 60e3);
 setInterval(() => { if (user && state && !document.hidden) state.friends.forEach(uid => fetchFriendInfo(uid)); }, 150e3);
 
 const $ = s => document.querySelector(s);
@@ -1392,6 +1399,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 278, txt: "🎈 Dia das Crianças! De sexta (09/10) até segunda (12/10), às 23:59, a roça, o rancho e a casa estão de festa: bandeirinhas, confete e balões. Ao abrir o jogo você ganha um Balanço colorido e a Casa do Brincar (telhado de arco-íris). Tem missões do evento (Missões › 🎈 Evento) com moedas, balas, pirulitos e brinquedos; balões subindo para estourar na roça e no rancho; e a barraquinha na Loja (Loja › 🎈 Evento) com balanço, escorregador e castelinho de areia. Passou a data, o tema some e o que você ganhou fica." },
   { v: 277, txt: "Na mina, cada ferramenta (picareta, dinamite e TNT) ganhou um botão 'Usar tudo' embaixo: gasta todas de uma vez, sem esperar cada animação, e mostra o total de minério que você juntou. Pergunta antes, com Sim e Não." },
   { v: 276, txt: "Cada raça de cachorro agora late de um jeito: o Pinscher dá latidinhos agudos e rápidos, o Pastor-alemão late grosso e firme, o Border collie late animado em sequência, o Blue heeler tem um latido seco e rouco, o Fila e o Cane corso têm latidos bem graves e demorados. Cada raça também tem as suas falas, com a personalidade dela. E na Loja do Trevo 🍀 os itens úteis ganharam ícones certos (picareta, dinamite, TNT, animal surpresa, animal raro, kit da mina) no lugar da cestinha." },
   { v: 275, txt: "O Pinscher é pequeno, mas é bravo e afrontoso: late por tudo, a cada poucos segundos, com xingamento e tudo, reclama da chuva e avisa quando chega praga na plantação. Morde mais que antes (75% das vezes que espanta um ladrão), mas protege pouco. Os outros cachorros também dão um latidinho de vez em quando." },
@@ -2363,7 +2371,7 @@ function enterGame() {
   root.classList.remove('gated');
   if (state) { state.tool = 'hand'; renderTools(); }
   resize(); setScene(scene);
-  presentePioneiro(); checarNovidades();
+  presentePioneiro(); eventoEntrada(); checarNovidades();
   if (state.boasVindas && isHome()) setTimeout(abrirBoasVindas, 400);
   else setTimeout(() => { if (giftReady() && !isGated()) showGift(); }, 1500);
 }
@@ -3054,6 +3062,8 @@ const TEMAS_CASA = [
     parede: '#e8b878', telhado: '#9a4a24', porta: '#5a3a1f', moldura: '#f6e7c8', celeiro: '#c8702f', celTelhado: '#6a3a18', friso: '#f6e7c8' },
   { id: 'estrelada', nome: 'Casa Estrelada',    desc: 'Azul da noite com detalhes dourados. Exclusiva da Loja do Trevo 🍀.', trevo: 50,
     parede: '#34487a', telhado: '#1a2440', porta: '#e0b030', moldura: '#ffd54a', celeiro: '#3f5690', celTelhado: '#1a2440', friso: '#ffd54a', estrela: true },
+  { id: 'brincar',  nome: 'Casa do Brincar',    desc: 'Colorida, com telhado de arco-íris e bandeirinhas. Presente do Dia das Crianças 2026.', especial: true, tag: '🎈 Dia das Crianças',
+    parede: '#ffe3f0', telhado: '#6ab0f0', porta: '#ff7aa8', moldura: '#ffd54a', celeiro: '#ffb84a', celTelhado: '#4aa3df', friso: '#ffffff', bandeirinhas: true, arcoiris: true, estrela: true },
   { id: 'junina',   nome: 'Casa Junina',        desc: 'Amarelinha, com bandeirinhas coloridas no telhado. Exclusiva da Loja do Trevo 🍀.', trevo: 45,
     parede: '#ffe9b0', telhado: '#d9482f', porta: '#2f8a5a', moldura: '#ffd54a', celeiro: '#e8b030', celTelhado: '#b8402a', friso: '#ffffff', bandeirinhas: true },
   { id: 'praiana',  nome: 'Casa Praiana',       desc: 'Azul-piscina com telhado azul-marinho, de casa de praia. Exclusiva da Loja do Trevo 🍀.', trevo: 45,
@@ -3091,6 +3101,11 @@ function temaCasa(skin, cor) {
   return cor && !TEMA_CASA[skin] ? Object.assign({}, tm, { parede: cor }) : tm;
 }
 // Fio de bandeirinhas coloridas penduradas ao longo de uma linha quebrada (festa junina).
+// Telhado de arco-íris: faixas coloridas ao longo de uma água do telhado (de a até b, empurradas por dx, dy).
+function listrasArcoiris(a, b, dx, dy) {
+  const cores = ['#e53b2f', '#ff9a3a', '#ffd54a', '#4f9a2f', '#4aa3df', '#8a5ac8'];
+  cores.forEach((c, k) => { const p0 = [a[0] + (b[0] - a[0]) * k / 6, a[1] + (b[1] - a[1]) * k / 6], p1 = [a[0] + (b[0] - a[0]) * (k + 1) / 6, a[1] + (b[1] - a[1]) * (k + 1) / 6]; forma([p0, p1, [p1[0] + dx, p1[1] + dy], [p0[0] + dx, p0[1] + dy]], c); });
+}
 function bandeirinhasCasa(pts, s) {
   const cores = ['#e53b2f', '#ffd54a', '#4aa3df', '#4f9a2f', '#f06292'], w = s * 0.022; let k = 0;
   for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; for (let j = 0; j < 5; j++) { const f = (j + 0.5) / 5, x = a[0] + (b[0] - a[0]) * f, y = a[1] + (b[1] - a[1]) * f + w * 0.4; ctx.fillStyle = cores[k++ % 5]; ctx.beginPath(); ctx.moveTo(x - w, y); ctx.lineTo(x + w, y); ctx.lineTo(x, y + w * 2.3); ctx.closePath(); ctx.fill(); } }
@@ -3113,6 +3128,7 @@ function drawHouse(x, y, s, cor, skin, costas) {
   // telhado: a água da direita (vista de cima) e a borda da frente
   const cume = [X0 + fw / 2, Y - fh - rh], beiralD = [X0 + fw + ov, Y - fh + ov * 0.9];
   forma([cume, beiralD, [beiralD[0] + dx, beiralD[1] + dy], [cume[0] + dx, cume[1] + dy]], tm.telhado);
+  if (tm.arcoiris) listrasArcoiris(cume, beiralD, dx, dy);
   ctx.strokeStyle = tomCor(tm.telhado, -0.25); ctx.lineWidth = 1;
   for (let k = 1; k < 4; k++) { const a = k / 4, p = [cume[0] + (beiralD[0] - cume[0]) * a, cume[1] + (beiralD[1] - cume[1]) * a]; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0] + dx, p[1] + dy); ctx.stroke(); }
   if (estacao().neve) forma([cume, [cume[0] + (beiralD[0] - cume[0]) * 0.45, cume[1] + (beiralD[1] - cume[1]) * 0.45], [cume[0] + (beiralD[0] - cume[0]) * 0.45 + dx, cume[1] + (beiralD[1] - cume[1]) * 0.45 + dy], [cume[0] + dx, cume[1] + dy]], '#ffffff');
@@ -3154,6 +3170,7 @@ function drawBarn(x, y, s, skin, costas) {
   const bD = [X0 + fw + ov, Y - fh + ov * 0.9];
   forma([q2, bD, [bD[0] + dx, bD[1] + dy], [q2[0] + dx, q2[1] + dy]], tm.celTelhado);
   forma([cume, q2, [q2[0] + dx, q2[1] + dy], [cume[0] + dx, cume[1] + dy]], tomCor(tm.celTelhado, 0.12));
+  if (tm.arcoiris) { listrasArcoiris(cume, q2, dx, dy); listrasArcoiris(q2, bD, dx, dy); }
   if (estacao().neve) forma([cume, q2, [q2[0] + dx, q2[1] + dy], [cume[0] + dx, cume[1] + dy]], '#ffffff');
   ctx.strokeStyle = tm.friso; ctx.lineWidth = Math.max(2, s * 0.035); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(X0 - ov, Y - fh + ov); ctx.lineTo(q1[0], q1[1]); ctx.lineTo(cume[0], cume[1]); ctx.lineTo(q2[0], q2[1]); ctx.lineTo(bD[0], bD[1]); ctx.stroke();
@@ -3741,6 +3758,20 @@ function drawProduct(id, x, y, s) {
   if (RECEITA[id]) return drawGood(id, x, y, s);
   if (PEIXE[id]) return drawPeixe(ctx, x, y, s * 0.85 * cabePeixe(PEIXE[id]), PEIXE[id]);
   if (FRUTA[id] && id !== 'mel') return drawFruta(id, x, y, s);
+  if (id === 'bala') {
+    ctx.fillStyle = '#f06292'; ctx.strokeStyle = '#a82a58'; ctx.lineWidth = Math.max(1, 0.7 * s);
+    ctx.beginPath(); ctx.ellipse(x, y, 5 * s, 3.6 * s, -0.3, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffd54a'; ctx.beginPath(); ctx.moveTo(x - 5 * s, y + 1 * s); ctx.lineTo(x - 9 * s, y - 2 * s); ctx.lineTo(x - 9 * s, y + 4 * s); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(x + 5 * s, y - 1 * s); ctx.lineTo(x + 9 * s, y - 4 * s); ctx.lineTo(x + 9 * s, y + 2 * s); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.moveTo(x - 2 * s, y - 2.4 * s); ctx.lineTo(x + 1 * s, y + 2.4 * s); ctx.stroke();
+    return;
+  }
+  if (id === 'pirulito') {
+    ctx.strokeStyle = '#f4efe2'; ctx.lineWidth = 1.6 * s; ctx.beginPath(); ctx.moveTo(x + 1 * s, y + 8 * s); ctx.lineTo(x, y - 1 * s); ctx.stroke();
+    ctx.fillStyle = '#e53b2f'; ctx.beginPath(); ctx.arc(x, y - 4 * s, 5.5 * s, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.3 * s; ctx.beginPath(); ctx.arc(x, y - 4 * s, 3.6 * s, 0.4, 4.6); ctx.arc(x, y - 4 * s, 1.6 * s, 3.6, 7.2); ctx.stroke();
+    ctx.strokeStyle = '#7a1a10'; ctx.lineWidth = 0.7 * s; ctx.beginPath(); ctx.arc(x, y - 4 * s, 5.5 * s, 0, 7); ctx.stroke();
+    return;
+  }
   if (id === 'carnejavali') {
     ctx.fillStyle = '#b8403a'; ctx.strokeStyle = '#7a2420'; ctx.lineWidth = Math.max(1, 0.6 * s);
     ctx.beginPath(); ctx.ellipse(x - 1 * s, y + 1 * s, 6.5 * s, 5 * s, -0.3, 0, 7); ctx.fill(); ctx.stroke();
@@ -4424,6 +4455,7 @@ function drawRoca(s, t, home) {
   drawCritters(t, tod);
   nightOverlay(tod);
   drawWeather(t);
+  drawTemaCriancas(t);
   if (home) drawAlertaInvasao(t);
   for (let i = 0; i < N; i++) {
     const k = plotBubble(s.plots[i], home);
@@ -4621,6 +4653,7 @@ function drawPen(s, t, home, dt) {
   drawCritters(t, tod);
   nightOverlay(tod);
   drawWeather(t);
+  drawTemaCriancas(t);
   for (const [a, m, k, sc] of bubbles) { const p = iso(m.u, m.v); drawBubbleAt(p.x, p.y - ANIMAL_H[drawKind(a)] * sc - W * 0.2, k, a, t, m.u * 7); }
   dogBubble('animais', s, t, home); dogBubble('animais2', s, t, home);
 }
@@ -4898,6 +4931,7 @@ function drawRoom(s, t, home) {
   }
   const hv = hover && hover.kind === 'decor' && decorCenter(hover.id);
   if (hv) { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(hv.x, hv.y, W * 0.42, 0, 7); ctx.stroke(); }
+  drawTemaCriancas(t);
 }
 
 // Caminha do gato, no chão da sala. Clicar nela troca o nome dele.
@@ -5541,7 +5575,7 @@ function casaTemasHTML() {
       : trava ? `<button class="btn" disabled>Nível ${t.nivel}</button>`
       : `<button class="btn gold" data-casa-tema="${t.id}" ${state.coins < t.custo ? 'disabled' : ''}>${moeda(t.custo)}</button>`;
     return `<div class="row ${usando ? 'sel' : ''} ${trava ? 'locked' : ''}"><img alt="" src="${casaTemaIcon(t.id)}">
-      <div><div class="name">${t.nome}${t.especial ? ' <span class="tag">⭐ pioneiros</span>' : ''}</div><div class="meta">${t.desc}${tem && !usando ? ' · <b>já é seu</b>' : ''}</div></div>${btn}</div>`;
+      <div><div class="name">${t.nome}${t.especial ? ` <span class="tag">${t.tag || '⭐ pioneiros'}</span>` : ''}</div><div class="meta">${t.desc}${tem && !usando ? ' · <b>já é seu</b>' : ''}</div></div>${btn}</div>`;
   }).join('');
 }
 function usarCasaTema(id) {
@@ -5620,6 +5654,8 @@ function renderPane() {
   else if (tab === 'fabrica') html = fabricaHTML();
   else if (tab === 'loja') {
     const segs = [['sementes', 'Plantas'], ['pomar', 'Pomar'], ['adubo', 'Itens'], ['animais', 'Animais'], ['abrigos', 'Abrigos'], ['caes', 'Cães'], ['decor', 'Casa'], ['enfeites', 'Enfeites'], ['temas', 'Temas'], ['trevo', '🍀 Trevo']];
+    if (eventoAtivo()) segs.unshift(['evento', '🎈 Evento']);
+    else if (shopSeg === 'evento') shopSeg = 'sementes';
     html += `<div class="seg small" role="tablist">${segs.map(([id, n]) => `<button type="button" role="tab" data-seg="${id}" aria-selected="${shopSeg === id}">${n}</button>`).join('')}</div>`;
     if (shopSeg === 'sementes') {
       html += `<p class="hint">Não tem mais semente: você planta a própria planta (o que colheu e guardou no celeiro), e ela rende quantas vezes quiser. Escolha uma, clique nas terras aradas (uma por canteiro) e ela fica na mão até acabar. Ganhe mais plantas em missões, no caminhão, de amigos ou na banca deles.</p>`;
@@ -5745,6 +5781,8 @@ function renderPane() {
       }
     } else if (shopSeg === 'pomar') {
       html += pomarLojaHTML();
+    } else if (shopSeg === 'evento') {
+      html += eventoLojaHTML();
     } else if (shopSeg === 'trevo') {
       html += trevoLojaHTML();
     } else if (shopSeg === 'temas') {
@@ -5773,7 +5811,7 @@ function renderPane() {
     }
   } else if (tab === 'celeiro') {
     html += chaveAviso('celeiro', 'Mostrar a quantidade de itens no botão do Celeiro');
-    const items = [...Object.values(PRODUCE), ...PRODUCTS, ...PRODUTOS_CACA.map(p => PRODUCT[p.id]), ...PEIXES.map(p => PRODUCT[p.id]), ...FRUTAS.map(f => PRODUCT[f.id]), ...PRESENTES_GATO.map(p => PRODUCT[p.id]), ...PRESENTES_ARARA.map(p => PRODUCT[p.id]), ...PREMIOS_NIVEL.map(p => PRODUCT[p.id]), ...MINERIOS.map(m => PRODUCT[m.id]), ...RECEITAS].filter(it => state.barn[it.id] > 0);
+    const items = [...Object.values(PRODUCE), ...PRODUCTS, ...PRODUTOS_CACA.map(p => PRODUCT[p.id]), ...PEIXES.map(p => PRODUCT[p.id]), ...FRUTAS.map(f => PRODUCT[f.id]), ...PRESENTES_GATO.map(p => PRODUCT[p.id]), ...PRESENTES_ARARA.map(p => PRODUCT[p.id]), ...DOCES_EVENTO.map(p => PRODUCT[p.id]), ...PREMIOS_NIVEL.map(p => PRODUCT[p.id]), ...MINERIOS.map(m => PRODUCT[m.id]), ...RECEITAS].filter(it => state.barn[it.id] > 0);
     const dePlanta = it => !!PRODUCE[it.id], seg = celeiroSeg === 'plantas' ? 'plantas' : 'itens';
     const nPl = items.filter(dePlanta).length, nIt = items.filter(it => !dePlanta(it)).length;
     html += `<div class="seg small" role="tablist"><button type="button" role="tab" data-cseg="itens" aria-selected="${seg === 'itens'}">Itens${nIt ? ` (${nIt})` : ''}</button><button type="button" role="tab" data-cseg="plantas" aria-selected="${seg === 'plantas'}">Plantas${nPl ? ` (${nPl})` : ''}</button></div>`;
@@ -5973,6 +6011,8 @@ $('#pane').addEventListener('click', e => {
   if (d.papelCarta) { state.papelCarta = d.papelCarta; sfx('click'); save(); return renderPane(); }
   if (d.papelParede) { if (!paredeLiberada(d.papelParede)) return; state.papelParede = d.papelParede === 'padrao' ? '' : d.papelParede; sfx('click'); done(); return renderPane(); }
   if (d.skinCao) { const [sl, sk] = d.skinCao.split(':'), dg = state.dogs[sl]; if (dg && (sk === 'padrao' || (SKIN_CAO[sk] && temTrevoItem('cao:' + sk)))) { dg.skin = sk === 'padrao' ? '' : sk; sfx('click'); done(); renderPane(); if (isHome()) setScene(scene); } return; }
+  if (d.evResgatar) return resgatarEvento(d.evResgatar);
+  if (d.evComprar) return comprarEnfeiteEvento(d.evComprar);
   if (d.comprarVaga) return comprarVagaCao(d.comprarVaga);
   if (d.newsDel) { state.news = state.news.filter(n => String(n.at) !== d.newsDel); sfx('click'); save(); renderTabs(); return renderPane(); }
   if (d.newsLimpar) return confirmTwice('news-limpar', 'Apagar todas as cartas do correio? Toque de novo para confirmar.', () => { state.news = []; sfx('water'); toast('Correio limpo! 📭', 'good'); save(); renderTabs(); renderPane(); });
@@ -6415,6 +6455,8 @@ cv.addEventListener('click', e => {
   else if (target.kind === 'lago') abrirPesca();
   else if (target.kind === 'folhas') rastelarFolhas(target.id);
   else if (target.kind === 'invasor') espantarInvasor();
+  else if (target.kind === 'balao') estourarBalao(target.id);
+  else if (target.kind === 'eventoBanner') { missSeg = 'evento'; openPanel('missoes'); }
   else if (target.kind === 'armadilha') toast(armadilhaPronta() ? '🪤 Armadilha carregada: pega a próxima praga que invadir a plantação.' : `🪤 Armadilha recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`);
   else if (target.kind === 'mural') { abrirCaca(); if (caca) { cacaLivro = true; renderCaca(); } }
   else if (target.kind === 'avatar' && target.quem === 'dono') { falar('avatar:dono', view.nome, sorteia(FALAS_DONO.concat(FALAS_AVATAR))); sfx('fala'); }
@@ -6879,7 +6921,7 @@ function rollPeriods() {
 }
 function track(ev, n = 1) {
   if (!state) return;
-  rankPontos(ev);
+  rankPontos(ev); eventoTrack(ev, n);
   if (!state.missions) rollPeriods();
   let pronto = false;
   for (const m of [...state.missions.dia, ...state.missions.semana]) {
@@ -9298,13 +9340,16 @@ $('#pane').addEventListener('change', e => {
 let missSeg = 'dia';
 function missoesHTML() {
   rollPeriods();
+  if (missSeg === 'evento' && !eventoAtivo()) missSeg = 'dia';
   if (missSeg === 'colecao' && state.newStamps) { state.newStamps = 0; setTimeout(renderTabs, 0); save(); }
   const segs = [['dia', 'Diárias'], ['semana', 'Semanais'], ['vila', 'Vila'], ['colecao', 'Coleção'], ['trevos', '🍀 Trevos']];
-  const conta = { dia: prontasDe('dia'), semana: prontasDe('semana'), vila: vilaProntos(), colecao: state.newStamps || 0, trevos: trevosPendentes() };
+  if (eventoAtivo()) segs.unshift(['evento', '🎈 Evento']);
+  const conta = { evento: evProntas(), dia: prontasDe('dia'), semana: prontasDe('semana'), vila: vilaProntos(), colecao: state.newStamps || 0, trevos: trevosPendentes() };
   let html = `<div class="seg small" role="tablist">${segs.map(([id, n]) => `<button type="button" role="tab" data-mseg="${id}" aria-selected="${missSeg === id}">${n}${conta[id] ? `<span class="badge" aria-label="${conta[id]} novidades">${conta[id]}</span>` : ''}</button>`).join('')}</div>`;
   const est = estacao();
   html += `<div class="row sel"><div class="avatar" style="background:#7aa35a;font-size:26px">${est.icone}</div><div><div class="name">${est.nome}</div>
     <div class="meta">Esta semana rendem ${Math.round(ESTACAO_BONUS * 100)}% a mais: ${est.plantas.map(id => (CROP[id] || ENFEITE[id] || { nome: id }).nome.toLowerCase()).join(', ')}.</div></div><div></div></div>`;
+  if (missSeg === 'evento') return html + eventoHTML();
   if (missSeg === 'vila') return html + vilaHTML();
   if (missSeg === 'trevos') return html + trevosHTML();
   if (missSeg === 'colecao') {
@@ -10138,6 +10183,9 @@ const ENFEITES = [
   { id: 'carrodeboi',   nome: 'Carro de boi',              especial: true, trevo: true, conforto: 3 },
   { id: 'trofeuchupa',  nome: 'Troféu do Chupa-cabra',     especial: true, caca: true, conforto: 3 },
   { id: 'chocadeira',   nome: 'Chocadeira',                especial: true, chocadeira: true, soRancho: true, conforto: 0 },
+  { id: 'ev_balanco',   nome: 'Balanço colorido',          especial: true, evento: true, conforto: 2, custo: 600 },
+  { id: 'ev_escorrega', nome: 'Escorregador',              especial: true, evento: true, conforto: 2, custo: 900 },
+  { id: 'ev_castelo',   nome: 'Castelinho de areia',       especial: true, evento: true, conforto: 2, custo: 700 },
   { id: 'lagovitoria',  nome: 'Lago com vitória-régia',    especial: true, trevo: true, conforto: 2 },
   { id: 'coreto',       nome: 'Coreto da praça',           especial: true, trevo: true, conforto: 3 },
   { id: 'festajunina',  nome: 'Festa junina',              especial: true, trevo: true, conforto: 2 },
@@ -10149,7 +10197,7 @@ const ENFEITES = [
   { id: 'boibumba',     nome: 'Boi-bumbá',                 especial: true, trevo: true, conforto: 3 },
 ];
 // Etiqueta de onde veio um item especial.
-const origemEnfeite = (e, s) => e.chocadeira ? 'Choca os ovos das aves do rancho 🥚' : e.caca ? 'Troféu da caçada 🎯' : e.trevo ? 'Exclusivo da Loja do Trevo 🍀' : e.vila ? 'Presente da vila' : `Especial dos pioneiros · ${obtidoEm(s)}`;
+const origemEnfeite = (e, s) => e.evento ? 'Dia das Crianças 2026 🎈' : e.chocadeira ? 'Choca os ovos das aves do rancho 🥚' : e.caca ? 'Troféu da caçada 🎯' : e.trevo ? 'Exclusivo da Loja do Trevo 🍀' : e.vila ? 'Presente da vila' : `Especial dos pioneiros · ${obtidoEm(s)}`;
 const ENFEITE = Object.fromEntries(ENFEITES.map(e => [e.id, e]));
 // Lugares antigos (saves de antes do modo Mover): viram posições livres.
 const LUGARES = {
@@ -11376,6 +11424,33 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + 21 * s, y - 36 * s, 1.5 * s, 0, 7); ctx.fill(); ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x + 21.4 * s, y - 36 * s, 0.7 * s, 0, 7); ctx.fill();
     ctx.strokeStyle = '#f4efe2'; ctx.lineWidth = 2.2 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x + 19 * s, y - 39 * s); ctx.quadraticCurveTo(x + 15 * s, y - 49 * s, x + 21 * s, y - 52 * s); ctx.moveTo(x + 26 * s, y - 39 * s); ctx.quadraticCurveTo(x + 31 * s, y - 49 * s, x + 25 * s, y - 52 * s); ctx.stroke(); ctx.lineCap = 'butt';
     ctx.fillStyle = '#f06292'; ctx.beginPath(); ctx.arc(x + 23 * s, y - 40 * s, 1.8 * s, 0, 7); ctx.fill();
+  } else if (id === 'ev_balanco') {
+    // balanço de parquinho: pernas listradas, travessa azul, assento vermelho e um balão amarrado
+    for (const sx of [-1, 1]) { ctx.lineWidth = 4 * s; ctx.lineCap = 'round'; ctx.strokeStyle = '#e53b2f'; ctx.beginPath(); ctx.moveTo(x + sx * 24 * s, y); ctx.lineTo(x + sx * 12 * s, y - 46 * s); ctx.stroke(); ctx.strokeStyle = '#ffd54a'; ctx.lineWidth = 1.6 * s; ctx.beginPath(); ctx.moveTo(x + sx * 20 * s, y - 9 * s); ctx.lineTo(x + sx * 17 * s, y - 20 * s); ctx.stroke(); }
+    ctx.strokeStyle = '#4aa3df'; ctx.lineWidth = 4 * s; ctx.beginPath(); ctx.moveTo(x - 14 * s, y - 46 * s); ctx.lineTo(x + 14 * s, y - 46 * s); ctx.stroke(); ctx.lineCap = 'butt';
+    const bal = Math.sin(t / 650) * 0.2; ctx.save(); ctx.translate(x, y - 46 * s); ctx.rotate(bal);
+    ctx.strokeStyle = '#8a8a8a'; ctx.lineWidth = 1.2 * s; ctx.beginPath(); ctx.moveTo(-6 * s, 0); ctx.lineTo(-6 * s, 34 * s); ctx.moveTo(6 * s, 0); ctx.lineTo(6 * s, 34 * s); ctx.stroke();
+    ctx.fillStyle = '#e53b2f'; ctx.beginPath(); ctx.roundRect(-10 * s, 33 * s, 20 * s, 4.5 * s, 2 * s); ctx.fill(); ctx.restore();
+    const by = y - 62 * s + Math.sin(t / 800) * 2 * s; ctx.strokeStyle = '#999'; ctx.lineWidth = 0.8 * s; ctx.beginPath(); ctx.moveTo(x + 14 * s, y - 46 * s); ctx.lineTo(x + 18 * s, by + 8 * s); ctx.stroke();
+    ctx.fillStyle = '#ffd54a'; ctx.beginPath(); ctx.ellipse(x + 18 * s, by, 6 * s, 7.5 * s, 0, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(x + 16 * s, by - 2.5 * s, 1.6 * s, 2.6 * s, 0, 0, 7); ctx.fill();
+  } else if (id === 'ev_escorrega') {
+    // escorregador: escadinha à esquerda, plataforma azul e a rampa curva amarela
+    ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = 2.4 * s; ctx.beginPath(); ctx.moveTo(x - 24 * s, y); ctx.lineTo(x - 18 * s, y - 38 * s); ctx.moveTo(x - 14 * s, y); ctx.lineTo(x - 10 * s, y - 38 * s); ctx.stroke();
+    ctx.lineWidth = 1.6 * s; for (let k = 1; k <= 4; k++) { const f = k / 5; ctx.beginPath(); ctx.moveTo(x - (24 - 6 * f) * s, y - 38 * f * s); ctx.lineTo(x - (14 - 4 * f) * s, y - 38 * f * s); ctx.stroke(); }
+    ctx.fillStyle = '#4aa3df'; ctx.fillRect(x - 21 * s, y - 42 * s, 15 * s, 4.5 * s);
+    ctx.strokeStyle = '#e53b2f'; ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.moveTo(x - 20 * s, y - 42 * s); ctx.lineTo(x - 20 * s, y - 54 * s); ctx.moveTo(x - 7 * s, y - 42 * s); ctx.lineTo(x - 7 * s, y - 54 * s); ctx.stroke();
+    ctx.fillStyle = '#e53b2f'; ctx.fillRect(x - 21 * s, y - 56 * s, 15 * s, 3 * s);
+    ctx.strokeStyle = '#ffd54a'; ctx.lineWidth = 7 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - 6 * s, y - 40 * s); ctx.quadraticCurveTo(x + 12 * s, y - 34 * s, x + 28 * s, y - 4 * s); ctx.stroke();
+    ctx.strokeStyle = '#e8a010'; ctx.lineWidth = 1.4 * s; ctx.beginPath(); ctx.moveTo(x - 6 * s, y - 43.5 * s); ctx.quadraticCurveTo(x + 12 * s, y - 37.5 * s, x + 28 * s, y - 7.5 * s); ctx.stroke(); ctx.lineCap = 'butt';
+  } else if (id === 'ev_castelo') {
+    // castelinho de areia com torres, bandeirinhas, um baldinho e a pazinha
+    ctx.fillStyle = '#e8cf8a'; ctx.beginPath(); ctx.ellipse(x, y - 3 * s, 26 * s, 8 * s, 0, 0, 7); ctx.fill();
+    const torre = (cx, h, w) => { ctx.fillStyle = '#d9bd72'; ctx.fillRect(x + cx * s - w * s, y - h * s, 2 * w * s, h * s - 3 * s); ctx.fillStyle = '#e8cf8a'; for (let k = 0; k < 3; k++) ctx.fillRect(x + cx * s - w * s + k * (w * 0.7) * s, y - (h + 3) * s, (w * 0.5) * s, 3 * s); };
+    torre(-13, 24, 6); torre(13, 24, 6); torre(0, 32, 8);
+    ctx.fillStyle = '#c8a860'; ctx.beginPath(); ctx.arc(x, y - 6 * s, 4 * s, Math.PI, 0); ctx.fill();
+    for (const [fx, fy, c] of [[0, 35, '#e53b2f'], [-13, 27, '#4aa3df'], [13, 27, '#ffd54a']]) { ctx.strokeStyle = '#7a4a22'; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(x + fx * s, y - (fy - 3) * s); ctx.lineTo(x + fx * s, y - (fy + 7) * s); ctx.stroke(); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x + fx * s, y - (fy + 7) * s); ctx.lineTo(x + (fx + 6 + Math.sin(t / 300 + fx) * 1.2) * s, y - (fy + 4.5) * s); ctx.lineTo(x + fx * s, y - (fy + 2) * s); ctx.fill(); }
+    ctx.fillStyle = '#e53b2f'; ctx.beginPath(); ctx.moveTo(x + 22 * s, y - 2 * s); ctx.lineTo(x + 30 * s, y - 2 * s); ctx.lineTo(x + 29 * s, y - 10 * s); ctx.lineTo(x + 23 * s, y - 10 * s); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#4aa3df'; ctx.lineWidth = 1.8 * s; ctx.beginPath(); ctx.moveTo(x + 24 * s, y - 10 * s); ctx.lineTo(x + 28 * s, y - 16 * s); ctx.stroke();
   } else if (id === 'bolo') {
     ctx.fillStyle = '#b07a44'; ctx.fillRect(x - 18 * s, y - 16 * s, 3 * s, 16 * s); ctx.fillRect(x + 15 * s, y - 16 * s, 3 * s, 16 * s);
     ctx.fillStyle = '#fff4e0'; ctx.fillRect(x - 22 * s, y - 20 * s, 44 * s, 5 * s); ctx.fillStyle = '#e0463a'; for (let k = 0; k < 6; k++) ctx.fillRect(x - 22 * s + k * 8 * s, y - 20 * s, 4 * s, 5 * s);
@@ -11386,7 +11461,7 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.fillStyle = '#ffb300'; ctx.beginPath(); ctx.ellipse(x, y - 54 * s + Math.sin(t / 120) * 0.5 * s, 2 * s, 3.5 * s, 0, 0, 7); ctx.fill();
   }
 }
-const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && (['arvore', 'colmeia'].includes(ENFEITE[id].fruteira) || ENFEITE[id].deco === 'arvore') ? 1.1 : ENFEITE[id] && ENFEITE[id].deco ? 1.7 : { chocadeira: 0.78, bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4, lagovitoria: 1.3, coreto: 1.2, festajunina: 1.3, moinhoagua: 1.4, ipebranco: 1.2, flamboyant: 1.1, postelampiao: 1.3, rede: 1.4, boibumba: 1.4 }[id] || 1.6, 0));
+const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && (['arvore', 'colmeia'].includes(ENFEITE[id].fruteira) || ENFEITE[id].deco === 'arvore') ? 1.1 : ENFEITE[id] && ENFEITE[id].deco ? 1.7 : { chocadeira: 0.78, bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4, ev_balanco: 1.4, ev_escorrega: 1.3, ev_castelo: 1.5, lagovitoria: 1.3, coreto: 1.2, festajunina: 1.3, moinhoagua: 1.4, ipebranco: 1.2, flamboyant: 1.1, postelampiao: 1.3, rede: 1.4, boibumba: 1.4 }[id] || 1.6, 0));
 
 // ============================================================
 // Pomar: frutíferas (arbustos e árvores) plantadas no gramado. Dão frutas de tempos em tempos
@@ -13026,6 +13101,161 @@ function presentePioneiro() {
 }
 
 // ============================================================
+// Evento: Dia das Crianças 2026 (de sexta 09/10 até segunda 12/10, 23:59)
+// ============================================================
+// Tema de festa (bandeirinhas, confete, balões), presente de entrada, missões do evento, balões para estourar
+// e a barraquinha na Loja. Passou a data: o tema e as missões somem sozinhos; o que você ganhou fica.
+const EV_CRIANCAS = { id: 'criancas2026', ini: new Date(2026, 9, 9, 0, 0, 0).getTime(), fim: new Date(2026, 9, 12, 23, 59, 59).getTime() };
+const eventoAtivo = () => { const n = Date.now(); return n >= EV_CRIANCAS.ini && n <= EV_CRIANCAS.fim; };
+const eventoDe = () => (state.evento && state.evento.id === EV_CRIANCAS.id ? state.evento : (state.evento = { id: EV_CRIANCAS.id, presente: 0, prog: {}, feitas: {}, baloes: 0 }));
+const EV_MISSOES = [
+  { id: 'colher',     ev: 'colher',     txt: 'Colha {n} vezes',                      alvo: 20, moedas: 300, doce: ['bala', 3] },
+  { id: 'regar',      ev: 'regar',      txt: 'Regue {n} canteiros',                  alvo: 10, moedas: 200, doce: ['pirulito', 2] },
+  { id: 'coletar',    ev: 'coletar',    txt: 'Recolha {n} produtos dos animais',     alvo: 8,  item: 'ev_escorrega', need: () => state.animals.some(a => ANIMAL[a.k].tipo === 'prod') },
+  { id: 'pescar',     ev: 'pescar',     txt: 'Pesque {n} peixes',                    alvo: 3,  moedas: 250, doce: ['bala', 3] },
+  { id: 'presentear', ev: 'presentear', txt: 'Mande {n} presente a um amigo',        alvo: 1,  item: 'ev_castelo', need: () => state.friends.length > 0 },
+  { id: 'minerar',    ev: 'minerar',    txt: 'Quebre {n} pedras na mina',            alvo: 5,  moedas: 300, doce: ['pirulito', 3], need: () => state.level >= MINA_NIVEL },
+  { id: 'balao',      ev: 'balao',      txt: 'Estoure {n} balões na roça ou no rancho', alvo: 3, moedas: 200, doce: ['bala', 5] },
+];
+const evMissoes = () => EV_MISSOES.filter(m => !m.need || m.need());
+const evProntas = () => eventoAtivo() && state ? evMissoes().filter(m => (eventoDe().prog[m.id] || 0) >= m.alvo && !eventoDe().feitas[m.id]).length : 0;
+function eventoTrack(ev, n) {
+  if (!state || !eventoAtivo()) return;
+  const E = eventoDe(); let pronto = false;
+  for (const m of EV_MISSOES) {
+    if (m.ev !== ev || E.feitas[m.id] || (E.prog[m.id] || 0) >= m.alvo) continue;
+    E.prog[m.id] = Math.min(m.alvo, (E.prog[m.id] || 0) + n);
+    if (E.prog[m.id] >= m.alvo) pronto = true;
+  }
+  if (pronto) { toast('🎈 Missão do evento cumprida! Pegue o prêmio em Missões › Evento.', 'good'); sfx('level'); renderTabs(); }
+}
+const EV_TXT_FIM = 'segunda, 12/10, às 23:59';
+function eventoEntrada() {
+  if (!state || !eventoAtivo()) return;
+  const E = eventoDe();
+  if (!E.presente) {
+    E.presente = 1;
+    state.enfeites.ev_balanco = (state.enfeites.ev_balanco || 0) + 1; state.skins.brincar = true; state.invNovos = (state.invNovos || 0) + 1;
+    const msg = `🎈 Feliz Dia das Crianças! Até ${EV_TXT_FIM} a roça está de festa. Seu presente: um Balanço colorido (no Inventário) e a Casa do Brincar (em Loja › Temas, ou clicando na casa). Tem missões, balões para estourar e uma barraquinha na Loja!`;
+    addNews(msg); setTimeout(() => toast(msg, 'good'), 2200); done();
+  }
+  if (!E.avisoFim && Date.now() >= new Date(2026, 9, 12, 0, 0, 0).getTime()) {
+    E.avisoFim = 1; const msg = `🎈 Último dia do Dia das Crianças! Termina hoje, às 23:59. Pegue os prêmios das missões e passe na barraquinha da Loja.`;
+    addNews(msg); setTimeout(() => toast(msg, 'good'), 1500); done();
+  }
+}
+function resgatarEvento(id) {
+  if (!eventoAtivo()) return;
+  const m = EV_MISSOES.find(x => x.id === id), E = eventoDe(); if (!m || E.feitas[id] || (E.prog[id] || 0) < m.alvo) return;
+  E.feitas[id] = 1; const partes = [];
+  if (m.moedas) { state.coins += m.moedas; partes.push(`${m.moedas} moedas`); }
+  if (m.doce) { const [d, q] = m.doce; state.barn[d] = (state.barn[d] || 0) + q; partes.push(`${q} ${q > 1 ? PRODUCT[d].nomePl : PRODUCT[d].nome.toLowerCase()}`); }
+  if (m.item) { state.enfeites[m.item] = (state.enfeites[m.item] || 0) + 1; state.invNovos = (state.invNovos || 0) + 1; partes.push(`${ENFEITE[m.item].nome} (no Inventário)`); }
+  sfx('level'); addXP(5, null); toast(`🎈 Prêmio do evento: ${partes.join(' + ')}!`, 'good'); done(); renderPane(); renderHUD();
+}
+function eventoHTML() {
+  const E = eventoDe(), falta = EV_CRIANCAS.fim - Date.now(), d = Math.floor(falta / 86400e3), h = Math.floor((falta % 86400e3) / 3600e3);
+  let html = `<div class="row sel"><div class="avatar" style="background:#f06292;font-size:26px">🎈</div><div><div class="name">Dia das Crianças</div>
+    <div class="meta">Termina ${EV_TXT_FIM} · faltam ${d ? d + 'd ' : ''}${h}h. Estoure os balões que sobem na roça e no rancho, faça as missões e passe na barraquinha (Loja › 🎈 Evento).</div></div><div></div></div>`;
+  for (const m of evMissoes()) {
+    const v = Math.min(m.alvo, E.prog[m.id] || 0), feita = E.feitas[m.id], pronta = v >= m.alvo && !feita;
+    const premio = [m.moedas ? `${m.moedas} moedas` : '', m.doce ? `${m.doce[1]} ${m.doce[1] > 1 ? PRODUCT[m.doce[0]].nomePl : PRODUCT[m.doce[0]].nome.toLowerCase()}` : '', m.item ? ENFEITE[m.item].nome : ''].filter(Boolean).join(' + ');
+    html += `<div class="row ${pronta ? 'sel' : ''}"><div class="avatar" style="background:${feita ? '#b7b39c' : '#f06292'};font-size:20px">${feita ? '✔' : '🎈'}</div>
+      <div><div class="name">${m.txt.replace('{n}', m.alvo)}</div><div class="meta">${v}/${m.alvo} · prêmio: ${premio}</div><div class="mbar"><i style="width:${Math.round(v / m.alvo * 100)}%"></i></div></div>
+      ${feita ? '<button class="btn ghost" disabled>Resgatado</button>' : pronta ? `<button class="btn gold" data-ev-resgatar="${m.id}">Resgatar</button>` : '<button class="btn ghost" disabled>Em andamento</button>'}</div>`;
+  }
+  return html;
+}
+const EV_ENFEITES = ['ev_balanco', 'ev_escorrega', 'ev_castelo'];
+const evTemos = id => ['roca', 'animais'].reduce((n, sc) => n + objetosDe(state, sc).filter(o => o.id === id).length, 0) + (state.enfeites[id] || 0);
+function eventoLojaHTML() {
+  let html = `<p class="hint">🎈 Barraquinha do Dia das Crianças: só até ${EV_TXT_FIM}. Os brinquedos vão para o Inventário, dão +2% de XP cada e não se vendem. Até 3 de cada. Você também ganha brinquedos nas missões (Missões › 🎈 Evento).</p>`;
+  html += `<div class="row ${state.skins.brincar ? 'sel' : ''}"><img alt="" src="${casaTemaIcon('brincar')}"><div><div class="name">Casa do Brincar</div><div class="meta">Telhado de arco-íris com bandeirinhas. ${state.skins.brincar ? 'Já é sua: use clicando na casa.' : 'Presente de quem abre o jogo durante o evento.'}</div></div><div></div></div>`;
+  for (const id of EV_ENFEITES) {
+    const e = ENFEITE[id], tem = evTemos(id), cheio = tem >= 3;
+    html += `<div class="row"><img alt="" src="${enfeiteIcon(id)}"><div><div class="name">${e.nome}</div><div class="meta">+${e.conforto}% de XP · Dia das Crianças · você tem ${tem} de 3</div></div>
+      <button class="btn gold" data-ev-comprar="${id}" ${cheio || state.coins < e.custo ? 'disabled' : ''}>${cheio ? 'Limite' : moeda(e.custo)}</button></div>`;
+  }
+  return html;
+}
+function comprarEnfeiteEvento(id) {
+  const e = ENFEITE[id]; if (!eventoAtivo() || !e || !e.evento) return;
+  if (evTemos(id) >= 3) return toast('Limite de 3 de cada brinquedo.');
+  if (state.coins < e.custo) return toast(`${e.nome} custa ${e.custo} moedas.`, 'bad');
+  state.coins -= e.custo; state.enfeites[id] = (state.enfeites[id] || 0) + 1; state.invNovos = (state.invNovos || 0) + 1;
+  sfx('buy'); addXP(3, null); toast(`${e.nome} comprado! Está no Inventário.`, 'good'); renderTabs(); renderPane(); done();
+}
+
+// ---- Balões que sobem na roça e no rancho: toque para estourar (moedas, XP e às vezes doces) ----
+let evBaloes = [], evProxBalao = 0;
+const EV_CORES = ['#e53b2f', '#ff9a3a', '#ffd54a', '#4f9a2f', '#4aa3df', '#8a5ac8', '#f06292'];
+function baloesTick(now) {
+  if (!eventoAtivo() || !isHome() || !['roca', 'animais'].includes(scene) || isGated() || document.hidden) return;
+  evBaloes = evBaloes.filter(b => now - b.t0 < b.dur);
+  if (!evProxBalao) evProxBalao = now + 12000;
+  if (now >= evProxBalao && evBaloes.length < 3) {
+    evBaloes.push({ id: newId(), x0: 0.12 + Math.random() * 0.76, t0: now, dur: 30000 + Math.random() * 14000, cor: EV_CORES[Math.floor(Math.random() * EV_CORES.length)], fase: Math.random() * 6 });
+    evProxBalao = now + 35000 + Math.random() * 45000;
+  }
+}
+function estourarBalao(id) {
+  const i = evBaloes.findIndex(b => b.id === id); if (i < 0) return;
+  const b = evBaloes[i], q = balaoPos(b, performance.now()); evBaloes.splice(i, 1);
+  const moedas = 25 + Math.floor(Math.random() * 40) + Math.min(60, state.level * 2), doce = Math.random() < 0.4 ? (Math.random() < 0.5 ? 'bala' : 'pirulito') : '';
+  addCoins(moedas, { x: q.x, y: q.y }); addXP(3, { x: q.x, y: q.y }); sfx('coin');
+  popupAt({ x: q.x, y: q.y }, doce ? `Pop! +${PRODUCT[doce].nome.toLowerCase()} 🍬` : 'Pop! 🎈', b.cor);
+  if (doce) state.barn[doce] = (state.barn[doce] || 0) + 1;
+  eventoDe().baloes++; track('balao'); done();
+}
+function balaoPos(b, now) { const f = (now - b.t0) / b.dur; return { x: L.cw * (b.x0 + Math.sin((now - b.t0) / 1400 + b.fase) * 0.03), y: L.ch * (0.96 - f * 0.9) }; }
+
+// ---- O tema: bandeirinhas, confete, balões nos cantos e o aviso do evento (em todas as cenas) ----
+function drawTemaCriancas(t) {
+  if (!eventoAtivo() || isGated()) return;
+  const cw = L.cw, ch = L.ch, now = performance.now();
+  // fio de bandeirinhas logo abaixo do topo
+  const y0 = clamp(ch * 0.2, 140, 210), sag = ch * 0.03;
+  ctx.strokeStyle = 'rgba(80,60,40,.7)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(0, y0 - 6); ctx.quadraticCurveTo(cw / 2, y0 + sag, cw, y0 - 6); ctx.stroke();
+  const n = Math.max(9, Math.round(cw / 38));
+  for (let k = 0; k < n; k++) {
+    const f = (k + 0.5) / n, x = cw * f, sw = Math.sin(t / 500 + k * 0.7) * 2;
+    const yy = (y0 - 6) * ((1 - f) * (1 - f) + f * f) + (y0 + sag) * 2 * f * (1 - f);
+    ctx.fillStyle = EV_CORES[k % EV_CORES.length]; ctx.beginPath(); ctx.moveTo(x - 9, yy - 1); ctx.lineTo(x + 9, yy - 1); ctx.lineTo(x + sw, yy + 20); ctx.closePath(); ctx.fill();
+  }
+  // confete caindo devagar
+  for (let k = 0; k < 34; k++) {
+    const dur = 7000 + (k % 5) * 1100, f = (now / dur + k * 0.137) % 1, x = ((k * 97) % 100) / 100 * cw + Math.sin(now / 900 + k) * 14, y = f * (ch + 20) - 10;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(now / 400 + k); ctx.globalAlpha = 0.75; ctx.fillStyle = EV_CORES[(k * 3) % EV_CORES.length]; ctx.fillRect(-3, -1.5, 6, 3); ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  // cachos de balões decorativos nos cantos de baixo
+  for (const [cx, dir] of [[cw * 0.05, 1], [cw * 0.95, -1]]) for (let k = 0; k < 3; k++) {
+    const bx = cx + dir * (k - 1) * 14, by = ch - 130 - k % 2 * 18 + Math.sin(now / 1100 + k + cx) * 4, r = 15;
+    ctx.strokeStyle = 'rgba(70,70,70,.55)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx, by + r); ctx.quadraticCurveTo(cx, by + 40, cx, ch - 92); ctx.stroke();
+    ctx.fillStyle = EV_CORES[(k * 2 + (dir > 0 ? 0 : 3)) % EV_CORES.length]; ctx.beginPath(); ctx.ellipse(bx, by, r * 0.82, r, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.ellipse(bx - 4, by - 5, 2.4, 4.2, 0, 0, 7); ctx.fill();
+  }
+  // balões que dá para estourar
+  if (isHome() && ['roca', 'animais'].includes(scene)) {
+    baloesTick(now);
+    for (const b of evBaloes) {
+      const p = balaoPos(b, now), r = clamp(L.W * 0.075, 15, 26);
+      ctx.strokeStyle = 'rgba(70,70,70,.6)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(p.x, p.y + r); ctx.quadraticCurveTo(p.x + Math.sin(now / 500 + b.fase) * 6, p.y + r * 2.2, p.x, p.y + r * 3); ctx.stroke();
+      ctx.fillStyle = b.cor; ctx.beginPath(); ctx.ellipse(p.x, p.y, r * 0.82, r, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = tomCor(b.cor, -0.2); ctx.beginPath(); ctx.moveTo(p.x, p.y + r); ctx.lineTo(p.x - 3, p.y + r + 5); ctx.lineTo(p.x + 3, p.y + r + 5); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(p.x - r * 0.3, p.y - r * 0.38, r * 0.14, r * 0.28, 0.3, 0, 7); ctx.fill();
+      if (hover && hover.kind === 'balao' && hover.id === b.id) { ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(p.x, p.y, r, r * 1.2, 0, 0, 7); ctx.stroke(); }
+      hits.push({ kind: 'balao', id: b.id, x: p.x, y: p.y, r: Math.max(r * 1.7, 28) });
+    }
+  }
+  // aviso do evento (toque abre as missões)
+  const txt = '🎈 Dia das Crianças · até 12/10', pw = Math.min(cw - 20, 250), py = ch - 98;
+  ctx.fillStyle = 'rgba(240,98,146,.95)'; ctx.strokeStyle = '#a82a58'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(cw / 2 - pw / 2, py - 14, pw, 28, 14); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = `800 13px 'Baloo 2', system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt + (evProntas() ? ` · ${evProntas()} 🎁` : ''), cw / 2, py + 1); ctx.textBaseline = 'alphabetic';
+  hits.push({ kind: 'eventoBanner', x: cw / 2, y: py, r: pw / 2 });
+}
+
+// ============================================================
 // Laço principal
 // ============================================================
 // 30 fps bastam pra um jogo de fazenda (nada precisa de 60+) e o canvas é a maior parte do
@@ -13053,7 +13283,7 @@ function start(data) {
   state = (data && data.state && migrate(data.state)) || load() || newState();
   state.tool = 'hand'; // o jogo sempre começa com a Mão
   applySettings();
-  rollPeriods(); presentePioneiro(); checarNovidades();
+  rollPeriods(); presentePioneiro(); eventoEntrada(); checarNovidades();
   resize(); setScene('roca'); renderHUD(); renderAccount(); renderPane(); paintMenuIcons(); afterUpdate(); renderTabs();
   ultimaChecagem = Date.now(); autoUpdate();
   // app instalável (celular, tablet e o app de Android): abre mesmo sem internet
