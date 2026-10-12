@@ -1402,6 +1402,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 285, txt: "Outono: cai mais folha mesmo! No outono os montes de folhas aparecem a cada ~2h30 (nas outras estações, a cada ~4h), podem ficar até 8 no gramado e até 9 por dia. Continua um de cada vez." },
   { v: 284, txt: "Apodrecer: agora a planta apodrece exatamente 24 horas depois de ficar pronta para colher. Corrigi um erro: o relógio de apodrecer não zerava ao colher, então a planta nova podia apodrecer cedo demais por causa do tempo da anterior. As plantas prontas hoje ganharam um novo prazo de 24h." },
   { v: 283, txt: "Montes de folhas: agora aparece um de cada vez, mais ou menos a cada 4 horas (entre 3h30 e 4h30), em vez de vários juntos na virada do dia ou quando você voltava ao jogo. Continua até 5 por dia." },
   { v: 282, txt: "As plantas apodreciam rápido demais: agora uma planta pronta só apodrece depois de 48 horas sem colher (eram 24). As que já tinham apodrecido há menos de 48h voltam ao normal sozinhas, sem precisar de poção. Os avisos de 'vai estragar' também seguem o novo tempo." },
@@ -8030,8 +8031,9 @@ function drawAraraVoando(x, y, s, t, dir) {
   ctx.restore();
 }
 // ---------- Montes de folhas: de vez em quando aparecem no gramado; o avatar vai lá e rastela ----------
-const FOLHAS_MAX = 5, FOLHAS_DIA = 5; // até 5 montes por dia, espalhados ao longo do dia
-const folhasIntervalo = () => (3.5 + Math.random()) * 3600e3; // um monte a cada ~4h (3h30 a 4h30)
+const outono = () => estacao().id === 'outono';
+const folhasMax = () => outono() ? 8 : 5, folhasDia = () => outono() ? 9 : 5; // até 5 montes por dia (9 no outono), espalhados ao longo do dia
+const folhasIntervalo = () => (outono() ? 2 + Math.random() : 3.5 + Math.random()) * 3600e3; // um monte a cada ~4h (3h30 a 4h30); no outono cai mais folha: a cada ~2h30
 function folhasDe() { return state.folhas = Array.isArray(state.folhas) ? state.folhas : []; }
 function folhasTick() {
   if (!state || kicked) return;
@@ -8045,7 +8047,7 @@ function folhasTick() {
   // Aparece no máximo UM monte por vez (antes, quem ficava fora e voltava, ou virava o dia, via vários juntos).
   if (agora >= state.folhasProx) {
     let mudou = false;
-    if (l.length < FOLHAS_MAX && state.folhasDia.n < FOLHAS_DIA && novaFolha()) { mudou = true; state.folhasDia.n++; }
+    if (l.length < folhasMax() && state.folhasDia.n < folhasDia() && novaFolha()) { mudou = true; state.folhasDia.n++; }
     state.folhasProx = Math.max(state.folhasProx + folhasIntervalo(), agora + 30 * 60e3); // se estava atrasado, o próximo vem em ao menos 30 min
     if (mudou) save();
   }
