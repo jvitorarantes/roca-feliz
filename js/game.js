@@ -510,7 +510,7 @@ const EXPANSOES = [
 const XP_CAP = 50; // colheitas por planta por dia que ainda dão XP (evita ganhar XP infinito com o feijão)
 const newId = () => Math.random().toString(36).slice(2, 10);
 
-function emptyPlot(s = 'locked') { return { s, c: null, g: 0, dry: false, w: 0, b: 0, dmg: 0, id: null, th: [], fert: false }; }
+function emptyPlot(s = 'locked') { return { s, c: null, g: 0, dry: false, w: 0, b: 0, dmg: 0, id: null, th: [], fert: false, podre: false, pronto: 0 }; }
 function newAnimal(k) {
   const d = ANIMAL[k], a = { id: newId(), k, born: Date.now() };
   if (d.tipo === 'prod') Object.assign(a, { fed: true, g: 0, ready: false, n: 0 }); // a primeira refeição vem junto
@@ -733,6 +733,7 @@ function migrate(s) {
     if (!posta) { s.enfeites.chocadeira = (s.enfeites.chocadeira || 0) + 1; s.invNovos = (s.invNovos || 0) + 1; }
   }
   // a cerca em volta da roça saiu: quem já jogava ganha 40 pedaços de cerca para pôr onde quiser
+  if (!s.vPodre24) { s.vPodre24 = 1; for (const p of s.plots) if (p.s === 'growing' && !p.podre) p.pronto = 0; } // plantas prontas ganham um novo prazo de 24h (o relógio antigo estava errado)
   if (!s.cercaDada) { s.cercaDada = 1; s.enfeites = s.enfeites && typeof s.enfeites === 'object' ? s.enfeites : {}; s.enfeites.cerca = (s.enfeites.cerca || 0) + 40; s.invNovos = (s.invNovos || 0) + 1; }
   s.bloqueados = s.bloqueados && typeof s.bloqueados === 'object' ? s.bloqueados : {};
   s.chocadeira = s.chocadeira && typeof s.chocadeira === 'object' ? s.chocadeira : { ovos: [], level: 0 };
@@ -757,16 +758,17 @@ function migrate(s) {
 function phaseTempo(p) { return CROP[p.c].tempo; }
 // Faz a planta crescer "sec" segundos. Terra seca cresce mais devagar; pragas
 // vão comendo parte da colheita (no máximo 35%), proporcional ao tempo da planta.
-// Planta pronta que fica mais de 48h sem colher apodrece. Volta com uma poção ou com a ajuda de amigos.
-const PODRE_APOS = 48 * HOUR, POCAO = { custo: 150 }, CURA_MAX = 3;
+// Planta pronta que fica mais de 24h sem colher apodrece. Volta com uma poção ou com a ajuda de amigos.
+const PODRE_APOS = 24 * HOUR, POCAO = { custo: 150 }, CURA_MAX = 3;
 function growPlot(p, sec, events, s = state) {
   if (p.s !== 'growing') return;
   const crop = CROP[p.c], T = phaseTempo(p);
   if (p.g >= T) {
     if (!p.podre) p.pronto = (p.pronto || 0) + sec;
-    p.podre = (p.pronto || 0) >= PODRE_APOS; // quem apodreceu com a regra antiga de 24h e ainda está dentro das 48h volta ao normal
+    p.podre = (p.pronto || 0) >= PODRE_APOS;
     return;
   }
+  if (p.pronto) p.pronto = 0; // ainda não ficou pronta: o relógio de apodrecer começa do zero quando ficar
   if (events) {
     // Um problema de cada vez: ou a terra seca, ou aparecem insetos (de vez em quando).
     if (!p.dry && !p.b && Math.random() < 0.12 / T * sec) p.b = 1;
@@ -1159,7 +1161,7 @@ function harvestPlot(p, pos) {
   }
   if (xpAllowed(crop.id)) { state.xpDay.c[crop.id] = (state.xpDay.c[crop.id] || 0) + 1; addXP(crop.xp, pos); }
   else if (state.xpDay.c[crop.id] === XP_CAP) { state.xpDay.c[crop.id]++; toast(`Hoje ${crop.nome.toLowerCase()} já deu todo o XP (${XP_CAP} colheitas). Ainda rende moedas; o XP volta amanhã.`); }
-  Object.assign(p, { s: 'withered', g: 0, w: 0, b: 0, dry: false, th: [] });
+  Object.assign(p, { s: 'withered', g: 0, w: 0, b: 0, dry: false, th: [], podre: false, pronto: 0 });
 }
 // Colheita rápida: colhe de uma vez todo canteiro pronto da sua roça.
 function harvestAll() {
@@ -1400,6 +1402,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 284, txt: "Apodrecer: agora a planta apodrece exatamente 24 horas depois de ficar pronta para colher. Corrigi um erro: o relógio de apodrecer não zerava ao colher, então a planta nova podia apodrecer cedo demais por causa do tempo da anterior. As plantas prontas hoje ganharam um novo prazo de 24h." },
   { v: 283, txt: "Montes de folhas: agora aparece um de cada vez, mais ou menos a cada 4 horas (entre 3h30 e 4h30), em vez de vários juntos na virada do dia ou quando você voltava ao jogo. Continua até 5 por dia." },
   { v: 282, txt: "As plantas apodreciam rápido demais: agora uma planta pronta só apodrece depois de 48 horas sem colher (eram 24). As que já tinham apodrecido há menos de 48h voltam ao normal sozinhas, sem precisar de poção. Os avisos de 'vai estragar' também seguem o novo tempo." },
   { v: 281, txt: "Corrigido: o jogo travava ao passar o mouse ou clicar num balão do evento. A dica do balão não existia e o erro parava a tela. Agora tem a dica (Clique para estourar!) e, para qualquer erro futuro numa dica, o jogo continua rodando." },
@@ -5689,7 +5692,7 @@ function renderPane() {
         <div><div class="name">Ração especial</div><div class="meta">${RACAO_ESP} moedas · a próxima produção do animal rende em dobro. É usada quando você alimenta um animal clicando nele. Você tem <b>${state.racaoEsp}</b></div></div>
         <div class="stack"><button class="btn" data-racao-esp="1" ${state.coins < RACAO_ESP ? 'disabled' : ''}>${moeda(RACAO_ESP, 1)}</button><button class="btn ghost" data-racao-esp="5" ${state.coins < RACAO_ESP * 5 ? 'disabled' : ''}>${moeda(RACAO_ESP * 5, 5)}</button></div></div>`;
       html += `<div class="row"><img alt="" src="${potionIcon()}">
-        <div><div class="name">Poção</div><div class="meta">${POCAO.custo} moedas · salva uma planta que apodreceu (ficou mais de 48h pronta sem colher). Você tem <b>${state.pocao || 0}</b></div></div>
+        <div><div class="name">Poção</div><div class="meta">${POCAO.custo} moedas · salva uma planta que apodreceu (ficou mais de 24h pronta sem colher). Você tem <b>${state.pocao || 0}</b></div></div>
         <div class="stack"><button class="btn" data-pocao="1" ${state.coins < POCAO.custo ? 'disabled' : ''}>${moeda(POCAO.custo, 1)}</button><button class="btn ghost" data-pocao="3" ${state.coins < POCAO.custo * 3 ? 'disabled' : ''}>${moeda(POCAO.custo * 3, 3)}</button></div></div>`;
       html += `<p class="hint">O regador é grátis. Fertilizante corta uma parte do tempo total da planta; escolha o tipo e clique numa planta com a ferramenta Adubo. Dá para usar quantos quiser na mesma planta.</p>`;
       for (const f of FERTS) {
@@ -6192,7 +6195,7 @@ function tipPlot(i) {
   if (p.s === 'plowed') return home ? `<b>Terra arada</b><br>${state.tool === 'seed' ? `Clique para plantar ${CROP[state.seed].nome}.` : 'Clique para escolher o que plantar.'}` : '<b>Terra arada</b>';
   if (p.s === 'withered') return '<b>Planta seca</b><br>Use a Mão ou o enxadão para limpar.';
   const crop = CROP[p.c], st = stageOf(p), T = phaseTempo(p), k = Math.min(1, p.g / T);
-  if (p.podre) return `<b>${crop.nome} podre</b><br>Ficou mais de 48h sem colher.<br>${home ? `Clique para usar uma poção (você tem ${state.pocao || 0}) ou peça ajuda a um amigo.` : 'Clique para salvar a planta do seu amigo!'}`;
+  if (p.podre) return `<b>${crop.nome} podre</b><br>Ficou mais de 24h sem colher.<br>${home ? `Clique para usar uma poção (você tem ${state.pocao || 0}) ou peça ajuda a um amigo.` : 'Clique para salvar a planta do seu amigo!'}`;
   let h = `<b>${crop.nome}</b> · ${STAGE_NAMES[st]}`;
   if (st < 4 || k < 1) h += `<br>Fica pronto em ${fmt((T - p.g) / (p.dry ? 0.7 : 1) / acelera(S(), crop.prod))}`;
   else h += !home && (p.stolen || state.log[visitKey(p.id)]) ? '<br>Você já pegou daqui.' : `<br>Pronto para colher! Apodrece em ${fmt(Math.max(60, PODRE_APOS - (p.pronto || 0)))}`;
