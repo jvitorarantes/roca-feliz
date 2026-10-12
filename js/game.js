@@ -1400,6 +1400,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 283, txt: "Montes de folhas: agora aparece um de cada vez, mais ou menos a cada 4 horas (entre 3h30 e 4h30), em vez de vários juntos na virada do dia ou quando você voltava ao jogo. Continua até 5 por dia." },
   { v: 282, txt: "As plantas apodreciam rápido demais: agora uma planta pronta só apodrece depois de 48 horas sem colher (eram 24). As que já tinham apodrecido há menos de 48h voltam ao normal sozinhas, sem precisar de poção. Os avisos de 'vai estragar' também seguem o novo tempo." },
   { v: 281, txt: "Corrigido: o jogo travava ao passar o mouse ou clicar num balão do evento. A dica do balão não existia e o erro parava a tela. Agora tem a dica (Clique para estourar!) e, para qualquer erro futuro numa dica, o jogo continua rodando." },
   { v: 280, txt: "Dia das Crianças: tirei as bandeirinhas, os balões e o confete que ficavam fixos na tela. Agora a decoração fica presa ao cenário (bandeirinhas ligando a casa, o celeiro e a casinha, balões amarrados, e os balões de estourar sobem da roça e acompanham o zoom). Também deixei a tela mais leve." },
@@ -8027,7 +8028,7 @@ function drawAraraVoando(x, y, s, t, dir) {
 }
 // ---------- Montes de folhas: de vez em quando aparecem no gramado; o avatar vai lá e rastela ----------
 const FOLHAS_MAX = 5, FOLHAS_DIA = 5; // até 5 montes por dia, espalhados ao longo do dia
-const folhasIntervalo = () => (estacao().id === 'outono' ? 1.5 + Math.random() * 1.5 : 2.5 + Math.random() * 2.5) * 3600e3; // no outono cai mais folha
+const folhasIntervalo = () => (3.5 + Math.random()) * 3600e3; // um monte a cada ~4h (3h30 a 4h30)
 function folhasDe() { return state.folhas = Array.isArray(state.folhas) ? state.folhas : []; }
 function folhasTick() {
   if (!state || kicked) return;
@@ -8038,10 +8039,13 @@ function folhasTick() {
   for (const f of l) if (f.alvo && (!w || !w.tarefa || w.tarefa.id !== f.id)) f.alvo = false;
   if (!state.folhasProx) { state.folhasProx = agora + 3 * 60e3; return; }
   const hoje = localDay(); if (!state.folhasDia || state.folhasDia.d !== hoje) state.folhasDia = { d: hoje, n: 0 };
-  let n = 0, mudou = false;
-  while (agora >= state.folhasProx && n++ < FOLHAS_MAX) { if (l.length < FOLHAS_MAX && state.folhasDia.n < FOLHAS_DIA && novaFolha()) { mudou = true; state.folhasDia.n++; } state.folhasProx += folhasIntervalo(); }
-  if (agora >= state.folhasProx) state.folhasProx = agora + folhasIntervalo();
-  if (mudou) save();
+  // Aparece no máximo UM monte por vez (antes, quem ficava fora e voltava, ou virava o dia, via vários juntos).
+  if (agora >= state.folhasProx) {
+    let mudou = false;
+    if (l.length < FOLHAS_MAX && state.folhasDia.n < FOLHAS_DIA && novaFolha()) { mudou = true; state.folhasDia.n++; }
+    state.folhasProx = Math.max(state.folhasProx + folhasIntervalo(), agora + 30 * 60e3); // se estava atrasado, o próximo vem em ao menos 30 min
+    if (mudou) save();
+  }
 }
 // Um lugar livre no gramado da roça, dentro da cerca (fora dos canteiros e sem encostar em nada).
 function novaFolha() {
