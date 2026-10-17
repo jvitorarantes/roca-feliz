@@ -88,15 +88,6 @@
           }
         }
       },
-      "cabo": {
-        ".read": "auth != null",
-        "$slot": {
-          "$time": {
-            ".write": "auth != null && ($time === 'r' || $time === 'a')",
-            ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 40"
-          }
-        }
-      },
       "boss": {
         ".read": "auth != null",
         "$slot": {
@@ -205,6 +196,15 @@
             "$outro": {
               ".validate": false
             }
+          }
+        }
+      },
+      "mundo": {
+        ".read": "auth != null",
+        "$slot": {
+          "$i": {
+            ".write": "auth != null && !data.exists() && newData.val() === auth.uid",
+            ".validate": "newData.isString() && newData.val() === auth.uid"
           }
         }
       }
