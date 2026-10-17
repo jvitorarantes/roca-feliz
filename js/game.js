@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 293, txt: "🐺 Os lobos do Halloween não somem mais ao toque: eles saem correndo e ficam uivando. E a risada da bruxa saiu da música de fundo (ela só aparece ao abrir uma carta)." },
   { v: 292, txt: "🎃 Cartas de Halloween: só dá para mandar uma carta por dia para cada amigo (as 3 do dia vão para 3 amigos diferentes)." },
   { v: 291, txt: "🎃 Corrigido: o Halloween começava às 00:00 de 17/10 e, no horário de Brasília, ainda era dia 16, então o tema e a aba Halloween não apareciam. Agora o evento já está valendo (até 31/10, 23:59)." },
   { v: 290, txt: "Corrigido: o botão Enviar das cartas de Halloween (Missões › 🎃 Halloween) dizia que não havia amigos quando os dados deles ainda não tinham carregado. Agora lista todos os seus amigos na hora." },
@@ -13779,11 +13780,18 @@ function desenhaLobos(t, now) {
   }
 }
 function assustarLobo(id) {
-  const i = halLobos.findIndex(l => l.id === id); if (i < 0) return;
-  const l = halLobos[i], q = iso(halLoboPos(l, performance.now()).u, halLoboPos(l, performance.now()).v); halLobos.splice(i, 1); halLoboProx = performance.now() + 20000;
-  if (!isHome()) return toast('🐺 O lobo fugiu correndo!');
+  const l = halLobos.find(x => x.id === id); if (!l) return;
+  const now = performance.now(), p0 = halLoboPos(l, now), q = iso(p0.u, p0.v), a = avatarArea(scene);
+  // o lobo não some: corre para longe e fica uivando lá
+  const ang = Math.random() * Math.PI * 2, d = 3 + Math.random() * 2.5;
+  l.fu = p0.u; l.fv = p0.v; l.tu = clamp(p0.u + Math.cos(ang) * d, a.u0, a.u1); l.tv = clamp(p0.v + Math.sin(ang) * d, a.v0, a.v1);
+  const sx = (l.tu - l.fu) - (l.tv - l.fv); if (Math.abs(sx) > 0.01) l.dir = sx > 0 ? 1 : -1;
+  l.t0 = now; l.dur = Math.max(600, Math.hypot(l.tu - l.fu, l.tv - l.fv) / 2.2 * 1000); l.wait = 0; l.howlAte = 0; l.prox = now + l.dur;
+  const premiavel = !(l.calmoAte > now); l.calmoAte = now + 10000;
+  if (!premiavel) { sfx('bark'); return; }
+  if (!isHome()) return toast('🐺 O lobo saiu correndo!');
   const h = halDe(), hoje = localDay(); if (h.lobos.d !== hoje) h.lobos = { d: hoje, n: 0 };
-  let txt = '🐺 O lobo se assustou e fugiu!';
+  let txt = '🐺 O lobo se assustou e saiu correndo, uivando!';
   if (h.lobos.n < 3) { h.lobos.n++; const m = 20 + Math.floor(Math.random() * 25); addCoins(m, { x: q.x, y: q.y - 20 }); txt += ` Deixou ${m} moedas pra trás.`; }
   sfx('bark'); toast(txt, 'good'); track('lobo'); done();
 }
