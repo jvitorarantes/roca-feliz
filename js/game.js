@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 312, txt: "🎙️ Voz na Vila! Toque no ícone de microfone (🎤 → 🎙️) ao lado do zoom para ligar e desligar. Quem está perto ouve você, e a voz vai ficando mais baixa conforme a distância no mapa (e some no alcance). Aparece 🔊 ao lado do nome de quem está falando. Em 🎙️ Voz você escolhe ouvir ou não, voz só com amigos, e silencia pessoas (também no perfil). Funciona nos quartos e nas festas." },
   { v: 311, txt: "Vila: dá para pescar em qualquer beira do lago (não só no cais). Tocar na água da piscina agora faz o avatar andar até lá (antes só mostrava o nome). O avatar agora tem pose de sentado de verdade, em cima da cadeira, e nenhuma cadeira fica dentro da água." },
   { v: 310, txt: "🏘️ Vila: 5 novidades! (1) ✉️ Cartas: deixe cartas e presentes na caixa de correio 📮 de um amigo, mesmo offline. (2) ♟️ Damas entre dois jogadores nas mesas dos quartos e das festas. (3) 🐾 Escolha um bichinho seu para te acompanhar pela Vila. (4) 🏅 Títulos e selos por desafios, que aparecem no seu nome e perfil. (5) 📍 Lista de quem está onde, com botão para ir até lá. Você ganhou uma caixa de correio e uma mesa de damas grátis no inventário do quarto." },
   { v: 309, txt: "Vila: ao tocar numa cadeira, sofá ou cama, aparece a pergunta com os botões Sentar (ou Deitar) e Cancelar." },
@@ -13997,7 +13998,7 @@ async function pracaLigar() {
     pracaChip();
   } catch (e) { console.warn('praça:', e); praca.on = false; toast('Não consegui ligar a Vila agora. O Realtime Database está ativo no Firebase?', 'bad'); }
 }
-function pracaDesligouRede() { for (const k of ['jog', 'chat', 'mercado', 'casas', 'mundo', 'boss', 'rank', 'inter', 'interOut', 'quarto', 'onde', 'cartas', 'jogo']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; } praca.refs.eu = null; praca.sala = null; }
+function pracaDesligouRede() { for (const k of ['jog', 'chat', 'mercado', 'casas', 'mundo', 'boss', 'rank', 'inter', 'interOut', 'quarto', 'onde', 'cartas', 'jogo', 'voz']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; } praca.refs.eu = null; praca.sala = null; vozFecharTodos(); }
 async function pracaPing() {
   if (!praca.on || document.hidden) return;
   const t0 = performance.now();
@@ -14046,7 +14047,7 @@ function pracaAbrir() {
   pracaLigar().then(() => { if (praca.on && praca.aberta) pracaEntrar(); });
   requestAnimationFrame(pracaFrame);
 }
-function pracaNav() { if (praca.sala) { $('#pracaNav').innerHTML = '<button type="button" data-vila-ir="onde">📍 Onde estão</button><button type="button" data-vila-ir="pet">🐾 Meu pet</button><button type="button" data-vila-ir="convidar">📣 Convidar amigos</button><button type="button" data-vila-sair-sala>🏘️ Voltar à Vila</button>'; return; } $('#pracaNav').innerHTML = '<button type="button" data-vila-meuquarto>🛏️ Meu quarto</button><button type="button" data-vila-ir="onde">📍 Onde estão</button><button type="button" data-vila-ir="cartas">✉️ Cartas' + (Object.values(praca.cartas || {}).filter(c => c && state.friends.includes(c.de)).length ? ' (' + Object.values(praca.cartas).filter(c => c && state.friends.includes(c.de)).length + ')' : '') + '</button><button type="button" data-vila-ir="conq">🏅 Títulos</button><button type="button" data-vila-ir="pet">🐾 Meu pet</button><button type="button" data-vila-ir="convidar">📣 Convidar amigos</button><button type="button" data-vila-ir="mural">📋 Mural</button><button type="button" data-vila-ir="mercado">🏪 Mercado</button><button type="button" data-vila-ir="casa">🏠 Minha casa</button>' + Object.entries(VILA_ZONAS).map(([id, z]) => `<button type="button" data-vila-ir-z="${id}">🧭 ${z.nome}</button>`).join('') + `<button type="button" data-vila-bloq title="Ligar/desligar convites de interação">${settings.semInter ? '🚫 Interações: off' : '✨ Interações: on'}</button>`; }
+function pracaNav() { if (praca.sala) { $('#pracaNav').innerHTML = '<button type="button" data-vila-ir="voz">🎙️ Voz</button><button type="button" data-vila-ir="onde">📍 Onde estão</button><button type="button" data-vila-ir="pet">🐾 Meu pet</button><button type="button" data-vila-ir="convidar">📣 Convidar amigos</button><button type="button" data-vila-sair-sala>🏘️ Voltar à Vila</button>'; return; } $('#pracaNav').innerHTML = '<button type="button" data-vila-meuquarto>🛏️ Meu quarto</button><button type="button" data-vila-ir="voz">🎙️ Voz</button><button type="button" data-vila-ir="onde">📍 Onde estão</button><button type="button" data-vila-ir="cartas">✉️ Cartas' + (Object.values(praca.cartas || {}).filter(c => c && state.friends.includes(c.de)).length ? ' (' + Object.values(praca.cartas).filter(c => c && state.friends.includes(c.de)).length + ')' : '') + '</button><button type="button" data-vila-ir="conq">🏅 Títulos</button><button type="button" data-vila-ir="pet">🐾 Meu pet</button><button type="button" data-vila-ir="convidar">📣 Convidar amigos</button><button type="button" data-vila-ir="mural">📋 Mural</button><button type="button" data-vila-ir="mercado">🏪 Mercado</button><button type="button" data-vila-ir="casa">🏠 Minha casa</button>' + Object.entries(VILA_ZONAS).map(([id, z]) => `<button type="button" data-vila-ir-z="${id}">🧭 ${z.nome}</button>`).join('') + `<button type="button" data-vila-bloq title="Ligar/desligar convites de interação">${settings.semInter ? '🚫 Interações: off' : '✨ Interações: on'}</button>`; }
 function pracaOuvir(chave, ref, cb) { if (praca.refs[chave]) praca.refs[chave].off(); praca.refs[chave] = ref; ref.on('value', cb); }
 // Presença no mundo (praca/jogadores) ou dentro de uma sala (praca/salas/<id>/jog)
 function pracaPresenca(u0, v0) {
@@ -14076,6 +14077,10 @@ function pracaEntrar() {
     if (praca.cartasOk) for (const [k, c] of Object.entries(novo)) if (!antes[k] && c && state.friends.includes(c.de)) { toast(`✉️ ${c.n || 'Um amigo'} deixou uma carta para você! Veja em ✉️ Cartas.`, 'good'); sfx('level'); }
     praca.cartas = novo; praca.cartasOk = true; pracaNav(); if (praca.painel === 'cartas') pracaPainel();
   });
+  if (praca.refs.vozsinal) praca.refs.vozsinal.off();
+  praca.refs.vozsinal = rt.ref('praca/vozsinal/' + user.uid);
+  praca.refs.vozsinal.on('child_added', s => { const m = s.val(); s.ref.remove().catch(() => {}); if (m && pracaAgora() - (m.ts || 0) < 30000) vozSinal(m); });
+  vozTrocouSala(); vozMicUI();
   pracaSlots(true);
   // limpeza: mensagens com mais de 1 dia saem do servidor
   rt.ref('praca/chat').orderByChild('ts').endAt(Date.now() - 86400000).limitToFirst(15).once('value').then(s => s.forEach(c => { c.ref.remove().catch(() => {}); })).catch(() => {});
@@ -14091,8 +14096,9 @@ function pracaSlots(forca) {
 function pracaSair() {
   praca.aberta = false; $('#praca').hidden = true; pracaChip();
   pracaTick(true);
-  for (const k of ['jog', 'chat', 'mercado', 'casas', 'mundo', 'boss', 'rank', 'inter', 'interOut', 'quarto', 'onde', 'cartas', 'jogo']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; }
+  for (const k of ['jog', 'chat', 'mercado', 'casas', 'mundo', 'boss', 'rank', 'inter', 'interOut', 'quarto', 'onde', 'cartas', 'jogo', 'voz']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; }
   if (praca.sala && praca.sala.tipo === 'disco' && window.RFAudio) applySettings();
+  vozSair(); if (praca.refs.vozsinal) { praca.refs.vozsinal.off(); praca.refs.vozsinal = null; }
   praca.sala = null; quartoBarra();
   if (praca.rt && user) praca.rt.ref('praca/presenca/' + user.uid).remove().catch(() => {});
   if (praca.refs.eu) { praca.refs.eu.onDisconnect().cancel(); praca.refs.eu.remove().catch(() => {}); praca.refs.eu = null; }
@@ -14166,6 +14172,7 @@ function pracaPainel() {
   if (id === 'mural') box.innerHTML = topo('📋 Mural da Vila') + pracaHtmlMural();
   else if (id === 'mercado') box.innerHTML = topo('🏪 Mercado dos jogadores') + pracaHtmlMercado();
   else if (id === 'casa') box.innerHTML = topo('🏠 Minha casinha') + pracaHtmlCasa();
+  else if (id === 'voz') box.innerHTML = topo('🎙️ Voz da Vila') + pracaHtmlVoz();
   else if (id === 'onde') box.innerHTML = topo('📍 Quem está onde') + pracaHtmlOnde();
   else if (id === 'conq') box.innerHTML = topo('🏅 Títulos e selos') + pracaHtmlConq();
   else if (id === 'pet') box.innerHTML = topo('🐾 Meu pet') + pracaHtmlPet();
@@ -14350,7 +14357,7 @@ function pracaHtmlJogador(uid) {
     h += `<div>Só amigos podem trocar mensagens privadas.</div>`;
     h += recebeu ? `<button class="btn gold" type="button" data-vila-aceitar="${esc(uid)}">🤝 Aceitar o convite dele</button>` : enviou ? '<button class="btn ghost" type="button" disabled>⏳ Convite enviado</button>' : `<button class="btn gold" type="button" data-vila-convidar="${esc(uid)}">🤝 Convidar para ser amigo</button>`;
   }
-  h += `<button class="btn" type="button" data-vila-quarto="${esc(uid)}">🛏️ Visitar o quarto</button>${amigo ? `<button class="btn" type="button" data-vila-ir="cartaw:${esc(uid)}">✉️ Deixar uma carta</button>` : ''}`;
+  h += `<button class="btn ${voz.mudos.has(uid) ? 'gold' : 'ghost'}" type="button" data-vila-mudar="${esc(uid)}">${voz.mudos.has(uid) ? '🔇 Voz silenciada' : '🔇 Silenciar voz dele'}</button><button class="btn" type="button" data-vila-quarto="${esc(uid)}">🛏️ Visitar o quarto</button>${amigo ? `<button class="btn" type="button" data-vila-ir="cartaw:${esc(uid)}">✉️ Deixar uma carta</button>` : ''}`;
   h += '</div><div class="vp-card"><b>✨ Interagir</b><small>O outro jogador precisa aceitar.</small><div class="vp-inter">' + Object.entries(INTER).map(([k, I]) => `<button type="button" class="btn ${I.amigo && !amigo ? 'ghost' : ''}" data-vila-ia="${k}" data-uid="${esc(uid)}" ${I.amigo && !amigo ? 'disabled title="Só entre amigos"' : ''}>${I.e} ${I.nome}${I.amigo && !amigo ? ' 🔒' : ''}</button>`).join('') + '</div></div>';
   return h;
 }
@@ -14660,7 +14667,7 @@ function pracaDesenha(g, c, now, dpr) {
         g.font = `${Math.round(15 * dpr)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(k === 'dc6' ? '💤' : k === 'dc7' ? '✨' : '🎵', q.x + Math.sin(t / 250) * 14 * dpr, q.y - 78 * es - ((t / 40) % 14) * dpr); }
       else drawAvatar(g, q.x, q.y - hop, es, o.a, now, andando, e.dir);
       const top = q.y - 72 * es;
-      g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff'; g.strokeText(o.n, q.x, top); g.fillText(o.n, q.x, top); { const tt = o.me ? vilaTituloTxt() : o.e.tt; if (tt) { g.font = `700 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffd9a0'; g.strokeText(tt, q.x, top + 10 * dpr); g.fillText(tt, q.x, top + 10 * dpr); } }
+      g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff'; g.strokeText(o.n, q.x, top); g.fillText(o.n, q.x, top); if (vozFalando(o.uid, now)) { const nw = g.measureText(o.n).width; g.font = `${Math.round(13 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('🔊', q.x + nw / 2 + 11 * dpr, top); g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; } { const tt = o.me ? vilaTituloTxt() : o.e.tt; if (tt) { g.font = `700 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffd9a0'; g.strokeText(tt, q.x, top + 10 * dpr); g.fillText(tt, q.x, top + 10 * dpr); } }
       const fa = praca.falas[o.uid]; let yb = top - 8 * dpr;
       if (e.emote && e.emote.ate > now) { g.font = `${Math.round(24 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText(e.emote.k, q.x, yb - 2 * dpr); yb -= 26 * dpr; }
       if (o.me && praca.pesca && praca.pesca.fase === 'fisgou') { g.font = `900 ${Math.round(34 * dpr)}px system-ui`; g.fillStyle = '#e0463a'; g.fillText('❗', q.x, yb - 4 * dpr); yb -= 34 * dpr; }
@@ -14809,7 +14816,7 @@ function pracaIrSala(sid, dono, tipo) {
     else if (!tipo) { const v = quartoSt(); if (!praca.intro) { praca.intro = 1; toast('🏠 Este é o seu quarto! Toque em 🛠️ Editar para colocar móveis.', 'good'); } quartoPublicar(); }
     const sp = tipo ? FESTAS[tipo].spawn : [4.5, 8.5]; pracaPresenca(sp[0] + Math.random() * 0.8, sp[1] + Math.random() * 0.4);
   } else { praca.cam = null; praca.seguir = true; const vv = praca.volta || { u: 33, v: 41 }; praca.volta = null; pracaPresenca(vv.u + Math.random(), vv.v + Math.random()); }
-  pracaNav(); pracaHud(); quartoBarra();
+  pracaNav(); pracaHud(); quartoBarra(); vozTrocouSala();
 }
 function quartoMoveisHtml() {
   const v = quartoSt(), S = praca.sala; if (!S || S.dono !== user.uid) return '';
@@ -14928,7 +14935,7 @@ function quartoDesenha(g, c, now, dpr) {
       else if (naAgua) { g.save(); g.beginPath(); g.rect(qq.x - 80 * es, qq.y - 150 * es, 160 * es, 150 * es - 24 * es); g.clip(); drawAvatar(g, qq.x, qq.y - 3 * es, es, o.a, now, p.k < 1 && !!e.dur, dirV); g.restore(); g.fillStyle = 'rgba(59,159,224,.5)'; g.beginPath(); g.ellipse(qq.x, qq.y - 22 * es, 26 * es, 8 * es, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = Math.max(1, dpr); g.beginPath(); g.ellipse(qq.x, qq.y - 22 * es, 26 * es + Math.sin(now / 250) * 3, 8 * es + Math.sin(now / 250), 0, 0, 7); g.stroke(); }
       else drawAvatar(g, qq.x, qq.y, es, o.a, now, p.k < 1 && !!e.dur, dirV);
       const top = qq.y - 72 * es - (dorme ? -50 * es : 0), fa = praca.falas[o.uid]; let yb = top - 8 * dpr;
-      g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff'; g.strokeText(o.n, qq.x, top); g.fillText(o.n, qq.x, top); { const tt = o.me ? vilaTituloTxt() : o.e.tt; if (tt) { g.font = `700 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffd9a0'; g.strokeText(tt, qq.x, top + 10 * dpr); g.fillText(tt, qq.x, top + 10 * dpr); } }
+      g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff'; g.strokeText(o.n, qq.x, top); g.fillText(o.n, qq.x, top); if (vozFalando(o.uid, now)) { const nw = g.measureText(o.n).width; g.font = `${Math.round(13 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('🔊', qq.x + nw / 2 + 11 * dpr, top); g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; } { const tt = o.me ? vilaTituloTxt() : o.e.tt; if (tt) { g.font = `700 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffd9a0'; g.strokeText(tt, qq.x, top + 10 * dpr); g.fillText(tt, qq.x, top + 10 * dpr); } }
       if (e.emote && e.emote.ate > now) { g.font = `${Math.round(24 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText(e.emote.k, qq.x, yb - 2 * dpr); yb -= 26 * dpr; }
       if (fa && fa.ate > now) { g.font = `700 ${Math.round(11 * dpr)}px system-ui, sans-serif`; const bw = g.measureText(fa.t).width + 12 * dpr, bx = clamp(qq.x - bw / 2, 4, W - bw - 4), by = yb - 18 * dpr; g.fillStyle = '#fff'; g.beginPath(); g.roundRect(bx, by, bw, 18 * dpr, 8 * dpr); g.fill(); g.fillStyle = '#2f2a1f'; g.textAlign = 'left'; g.fillText(fa.t, bx + 6 * dpr, by + 13 * dpr); g.textAlign = 'center'; }
     });
@@ -15095,6 +15102,109 @@ function pracaCartaPegar(k) {
   const c = praca.cartas[k]; if (!c || !c.p) return; const v = quartoSt();
   const pr = c.p; praca.rt.ref(`praca/cartas/${user.uid}/${k}`).update({ p: null }).then(() => { if (pr[0] === 'c') state.coins += Number(pr.slice(1)) || 0; else { const id = pr.slice(2); if (MOVEIS[id]) v.inv[id] = (v.inv[id] || 0) + 1; } sfx('level'); toast('🎁 Presente guardado!', 'good'); done(); }).catch(() => toast('Não consegui pegar agora.', 'bad'));
 }
+
+// ============ Voz na Vila (WebRTC): microfone liga/desliga, volume cai com a distância ============
+// Quem liga o microfone vira "falante" (praca/voz/<sala>/<uid>). Quem ouve liga direto no falante (ponto a ponto);
+// o banco só leva os bilhetes de conexão (praca/vozsinal/<destino>). O áudio NÃO passa pelo banco.
+const VOZ_R = 16, VOZ_RX_MAX = 6, VOZ_TX_MAX = 8, VOZ_STUN = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
+const vozLS = (k, def) => { try { const v = localStorage.getItem(k); return v === null ? def : v; } catch (e) { return def; } };
+const voz = { mic: false, stream: null, ac: null, peers: {}, falando: {}, falantes: {}, mudos: new Set(JSON.parse(vozLS('rf-voz-mudos', '[]'))), soAmigos: vozLS('rf-voz-amigos', '0') === '1', ouvir: vozLS('rf-voz-ouvir', '1') === '1', fila: {}, nivelL: null, aviso: vozLS('rf-voz-aviso', '0') === '1' };
+const vozKey = () => praca.sala ? praca.sala.id : 'mundo';
+const vozPermitido = uid => !voz.mudos.has(uid) && (!voz.soAmigos || state.friends.includes(uid));
+function vozAudio() { if (!voz.ac) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; voz.ac = new A(); } if (voz.ac.state === 'suspended') voz.ac.resume().catch(() => {}); return voz.ac; }
+function vozPosDe(uid) { // posição (mundo ou sala) de alguém; null se não conhecemos
+  const now = performance.now();
+  if (uid === user.uid) return praca.eu ? pracaPos(praca.eu, now) : null;
+  const j = praca.jog[uid]; return j ? pracaPos(j, now) : null;
+}
+const vozDist = uid => { const a = vozPosDe(user.uid), b = vozPosDe(uid); return a && b ? Math.hypot(a.u - b.u, a.v - b.v) : null; };
+const vozVolume = d => d == null ? 0 : Math.pow(clamp(1 - d / VOZ_R, 0, 1), 1.4); // 1 perto → 0 no alcance
+function vozEnviarSinal(para, obj) { // bilhete de conexão
+  if (!praca.rt) return;
+  praca.rt.ref('praca/vozsinal/' + para).push(Object.assign({ de: user.uid, ts: firebase.database.ServerValue.TIMESTAMP }, obj, { d: String(obj.d).slice(0, 6000) })).catch(e => console.warn('voz sinal:', e));
+}
+function vozNivel(stream, uid) { // detecta quem está falando (para o ícone 🔊)
+  const ac = vozAudio(); if (!ac) return null; const an = ac.createAnalyser(); an.fftSize = 512; const src = ac.createMediaStreamSource(stream); src.connect(an); const buf = new Uint8Array(an.fftSize);
+  const t = setInterval(() => { an.getByteTimeDomainData(buf); let m = 0; for (let i = 0; i < buf.length; i++) m = Math.max(m, Math.abs(buf[i] - 128)); if (m > 9) voz.falando[uid] = performance.now(); }, 120);
+  return () => { clearInterval(t); try { src.disconnect(); } catch (e) { /* ok */ } };
+}
+const vozFalando = (uid, now) => voz.falando[uid] && now - voz.falando[uid] < 450;
+function vozFechar(uid) { const p = voz.peers[uid]; if (!p) return; try { p.pc.close(); } catch (e) { /* ok */ } if (p.stopNivel) p.stopNivel(); if (p.el) { try { p.el.srcObject = null; } catch (e) { /* ok */ } } if (p.gainNode) { try { p.gainNode.disconnect(); } catch (e) { /* ok */ } } delete voz.peers[uid]; }
+function vozFecharTodos(papel) { for (const u of Object.keys(voz.peers)) if (!papel || voz.peers[u].papel === papel) vozFechar(u); }
+function vozNovoPc(uid, papel) {
+  const pc = new RTCPeerConnection({ iceServers: VOZ_STUN }), p = voz.peers[uid] = { pc, papel, t: performance.now(), pend: [] };
+  pc.onicecandidate = e => { if (e.candidate) vozEnviarSinal(uid, { k: 'ice', d: JSON.stringify(e.candidate) }); };
+  pc.onconnectionstatechange = () => { if (['failed', 'closed', 'disconnected'].includes(pc.connectionState) && voz.peers[uid] === p) { setTimeout(() => { if (voz.peers[uid] === p && ['failed', 'closed', 'disconnected'].includes(pc.connectionState)) vozFechar(uid); }, 2500); } };
+  return p;
+}
+// Ouvinte: liga no falante
+async function vozConectar(uid) {
+  if (voz.peers[uid] || !vozAudio()) return;
+  const p = vozNovoPc(uid, 'rx'); const pc = p.pc;
+  pc.addTransceiver('audio', { direction: 'recvonly' });
+  pc.ontrack = e => { const stream = e.streams[0] || new MediaStream([e.track]); const el = new Audio(); el.srcObject = stream; el.muted = true; el.play().catch(() => {}); // o <audio> mudo "puxa" o fluxo para o WebAudio
+    const ac = vozAudio(), src = ac.createMediaStreamSource(stream), gn = ac.createGain(); gn.gain.value = 0; src.connect(gn); gn.connect(ac.destination); p.el = el; p.gainNode = gn; p.stopNivel = vozNivel(stream, uid); };
+  try { const off = await pc.createOffer(); await pc.setLocalDescription(off); vozEnviarSinal(uid, { k: 'offer', d: JSON.stringify(pc.localDescription) }); } catch (e) { console.warn('voz oferta:', e); vozFechar(uid); }
+}
+// Bilhetes recebidos
+async function vozSinal(m) {
+  if (!m || typeof m.de !== 'string' || typeof m.d !== 'string') return;
+  const de = m.de, p0 = voz.peers[de];
+  try {
+    if (m.k === 'offer') { // sou falante: aceito se o microfone está ligado e a pessoa é permitida
+      if (!voz.mic || !voz.stream || !vozPermitido(de) || Object.values(voz.peers).filter(x => x.papel === 'tx').length >= VOZ_TX_MAX) return;
+      if (p0) vozFechar(de);
+      const p = vozNovoPc(de, 'tx'), pc = p.pc; await pc.setRemoteDescription(JSON.parse(m.d));
+      const tr = pc.getTransceivers()[0]; tr.direction = 'sendonly'; await tr.sender.replaceTrack(voz.stream.getAudioTracks()[0]);
+      const ans = await pc.createAnswer(); await pc.setLocalDescription(ans); vozEnviarSinal(de, { k: 'answer', d: JSON.stringify(pc.localDescription) });
+      for (const c of p.pend.splice(0)) pc.addIceCandidate(c).catch(() => {});
+    } else if (m.k === 'answer') { if (p0 && p0.papel === 'rx' && !p0.pc.remoteDescription) { await p0.pc.setRemoteDescription(JSON.parse(m.d)); for (const c of p0.pend.splice(0)) p0.pc.addIceCandidate(c).catch(() => {}); } }
+    else if (m.k === 'ice') { const c = JSON.parse(m.d); if (p0 && p0.pc.remoteDescription) p0.pc.addIceCandidate(c).catch(() => {}); else (p0 || vozNovoPcFila(de)).pend.push(c); }
+  } catch (e) { console.warn('voz bilhete:', e); }
+}
+const vozNovoPcFila = uid => (voz.fila[uid] ||= { pend: [] });
+// Sincroniza: liga/desliga conexões conforme a distância; ajusta o volume
+function vozSync() {
+  if (!praca.on || !user || !praca.eu) return;
+  const key = vozKey(); let rx = Object.values(voz.peers).filter(x => x.papel === 'rx').length;
+  if (voz.ouvir) for (const uid of Object.keys(voz.falantes)) { if (uid === user.uid || voz.peers[uid] || !vozPermitido(uid)) continue; const d = vozDist(uid); if (d != null && d < VOZ_R && rx < VOZ_RX_MAX) { vozConectar(uid); rx++; } }
+  for (const [uid, p] of Object.entries(voz.peers)) {
+    if (p.papel === 'rx') { const d = vozDist(uid); if (!voz.ouvir || !voz.falantes[uid] || !vozPermitido(uid) || d == null || d > VOZ_R + 3) { vozFechar(uid); continue; } if (p.gainNode) p.gainNode.gain.setTargetAtTime(vozVolume(d), voz.ac.currentTime, 0.1); }
+    else if (!vozPermitido(uid) || !praca.jog[uid]) vozFechar(uid);
+  }
+}
+async function vozLigarMic() {
+  if (voz.mic) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.RTCPeerConnection) return toast('Este aparelho não permite voz no navegador.', 'bad');
+  if (!voz.aviso) { voz.aviso = true; try { localStorage.setItem('rf-voz-aviso', '1'); } catch (e) { /* ok */ } toast('🎙️ A voz é ao vivo: jogadores perto de você vão te ouvir. Toque no 🎙️ de novo para silenciar. Dá para silenciar alguém no perfil.', 'good'); }
+  try { voz.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
+  catch (e) { return toast('Não consegui usar o microfone. Libere a permissão do microfone no navegador/app.', 'bad'); }
+  voz.mic = true; vozAudio(); voz.stopNivelL = vozNivel(voz.stream, user.uid); vozPublicar(); vozMicUI(); sfx('click');
+}
+function vozDesligarMic() {
+  if (!voz.mic) return; voz.mic = false;
+  if (voz.stream) voz.stream.getTracks().forEach(t => t.stop()); voz.stream = null; if (voz.stopNivelL) { voz.stopNivelL(); voz.stopNivelL = null; }
+  vozFecharTodos('tx'); vozDespublicar(); delete voz.falando[user.uid]; vozMicUI(); sfx('click');
+}
+function vozPublicar() { if (!voz.mic || !praca.rt || !praca.refs.eu) return; const ref = praca.rt.ref(`praca/voz/${vozKey()}/${user.uid}`); voz.refPub = ref; ref.onDisconnect().remove(); ref.set(firebase.database.ServerValue.TIMESTAMP).catch(() => {}); }
+function vozDespublicar() { if (voz.refPub) { voz.refPub.onDisconnect().cancel(); voz.refPub.remove().catch(() => {}); voz.refPub = null; } }
+function vozTrocouSala() { // mudou de lugar: derruba conexões, escuta os falantes do novo lugar e republica o microfone
+  vozFecharTodos(); vozDespublicar(); voz.falantes = {};
+  if (praca.rt && praca.refs.eu) pracaOuvir('voz', praca.rt.ref('praca/voz/' + vozKey()), s => { voz.falantes = s.val() || {}; vozSync(); });
+  if (voz.mic) vozPublicar();
+}
+function vozSair() { vozDesligarMic(); vozFecharTodos(); vozDespublicar(); voz.falantes = {}; }
+function vozMicUI() { const b = $('#pracaMic'); if (!b) return; b.classList.toggle('on', voz.mic); b.textContent = voz.mic ? '🎙️' : '🎤'; b.title = voz.mic ? 'Microfone ligado (toque para desligar)' : 'Microfone desligado (toque para ligar)'; b.setAttribute('aria-pressed', String(voz.mic)); }
+function pracaHtmlVoz() {
+  const perto = Object.keys(voz.falantes).filter(u => u !== user.uid).map(u => ({ u, n: (praca.jog[u] && praca.jog[u].n) || (praca.onde[u] && praca.onde[u].n) || 'Jogador', d: vozDist(u) }));
+  return `<div class="vp-card"><b>🎙️ Voz da Vila</b><small>A voz fica mais baixa conforme a distância no mapa. Quem está longe você não ouve.</small>
+    <div class="vp-inter"><button type="button" class="btn ${voz.mic ? 'gold' : ''}" data-vila-micl>${voz.mic ? '🎙️ Microfone ligado' : '🎤 Ligar microfone'}</button>
+    <button type="button" class="btn ${voz.ouvir ? 'gold' : 'ghost'}" data-vila-ouvir>${voz.ouvir ? '🔊 Ouvindo os outros' : '🔇 Não estou ouvindo'}</button>
+    <button type="button" class="btn ${voz.soAmigos ? 'gold' : 'ghost'}" data-vila-vamigos>${voz.soAmigos ? '👥 Voz só com amigos' : '🌎 Voz com todos por perto'}</button></div></div>
+    <div class="vp-card"><b>Falando agora neste lugar</b>${perto.length ? perto.map(x => `<div class="vp-linha"><span>${esc(x.n)}${x.d != null ? ` <small>(${Math.round(vozVolume(x.d) * 100)}% do volume)</small>` : ''}</span><button type="button" class="btn ${voz.mudos.has(x.u) ? 'gold' : 'ghost'}" data-vila-mudar="${esc(x.u)}">${voz.mudos.has(x.u) ? '🔇 Silenciado' : 'Silenciar'}</button></div>`).join('') : '<div>Ninguém com o microfone ligado.</div>'}</div>`;
+}
+function vozMudar(uid) { if (voz.mudos.has(uid)) voz.mudos.delete(uid); else { voz.mudos.add(uid); vozFechar(uid); } try { localStorage.setItem('rf-voz-mudos', JSON.stringify([...voz.mudos])); } catch (e) { /* ok */ } }
+setInterval(() => { try { if (praca.aberta) vozSync(); } catch (e) { /* sem voz */ } }, 250);
 function pracaIrPara(u, v, extra) {
   if (praca.sala) return quartoIrPara(u, v, extra);
   const e = praca.eu, p = pracaPos(e, performance.now());
@@ -15215,6 +15325,10 @@ $('#praca')?.addEventListener('click', e => {
   if ((b = q('[data-vila-qparede]'))) { quartoSt().q.p = Number(b.dataset.vilaQparede); done(); quartoPublicar(); return pracaPainel(); }
   if ((b = q('[data-vila-qpiso]'))) { quartoSt().q.c = Number(b.dataset.vilaQpiso); done(); quartoPublicar(); return pracaPainel(); }
   if ((b = q('[data-vila-qacesso]'))) { quartoSt().q.a = b.dataset.vilaQacesso; done(); quartoPublicar(); return pracaPainel(); }
+  if (q('#pracaMic') || q('[data-vila-micl]')) { if (voz.mic) { vozDesligarMic(); if (praca.painel === 'voz') pracaPainel(); } else vozLigarMic().then(() => { if (praca.painel === 'voz') pracaPainel(); }); return; }
+  if (q('[data-vila-ouvir]')) { voz.ouvir = !voz.ouvir; try { localStorage.setItem('rf-voz-ouvir', voz.ouvir ? '1' : '0'); } catch (e) { /* ok */ } if (!voz.ouvir) vozFecharTodos('rx'); return pracaPainel(); }
+  if (q('[data-vila-vamigos]')) { voz.soAmigos = !voz.soAmigos; try { localStorage.setItem('rf-voz-amigos', voz.soAmigos ? '1' : '0'); } catch (e) { /* ok */ } vozFecharTodos(); return pracaPainel(); }
+  if ((b = q('[data-vila-mudar]'))) { vozMudar(b.dataset.vilaMudar); return pracaPainel(); }
   if ((b = q('[data-vila-juntar]'))) return vilaJuntar(b.dataset.vilaJuntar, b.dataset.uid);
   if ((b = q('[data-vila-titulo]'))) { vilaTit().atual = b.dataset.vilaTitulo; done(); pracaEnviarMov(); return pracaPainel(); }
   if ((b = q('[data-vila-selo]'))) { const v = vilaTit(), id = b.dataset.vilaSelo, i = v.selos.indexOf(id); if (i >= 0) v.selos.splice(i, 1); else if (v.selos.length < 3) v.selos.push(id); else toast('Até 3 selos.'); done(); pracaEnviarMov(); return pracaPainel(); }

@@ -433,6 +433,39 @@
             }
           }
         }
+      },
+      "voz": {
+        ".read": "auth != null",
+        "$sala": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.isNumber()"
+          }
+        }
+      },
+      "vozsinal": {
+        "$para": {
+          ".read": "auth != null && auth.uid === $para",
+          "$id": {
+            ".write": "auth != null && ((!data.exists() && newData.child('de').val() === auth.uid) || (data.exists() && auth.uid === $para))",
+            ".validate": "newData.hasChildren(['de', 'k', 'd', 'ts'])",
+            "de": {
+              ".validate": "newData.val() === auth.uid"
+            },
+            "k": {
+              ".validate": "newData.val() === 'offer' || newData.val() === 'answer' || newData.val() === 'ice'"
+            },
+            "d": {
+              ".validate": "newData.isString() && newData.val().length <= 6000"
+            },
+            "ts": {
+              ".validate": "newData.val() === now"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          }
+        }
       }
     }
   }
