@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 315, txt: "Quarto: agora dá para ARRASTAR os móveis para mudar de lugar (aparece uma sombra verde onde cabe e vermelha onde não cabe). Os botões ↻ girar e 📦 guardar ficaram no topo da tela, sempre visíveis, mesmo com o painel de móveis aberto." },
   { v: 314, txt: "🏠 Nova aba Quartos na Vila: lista os quartos de amigos (e os abertos a todos), com prévia dos móveis, quantas pessoas estão lá, botão Visitar e botão para deixar carta." },
   { v: 313, txt: "Voz: em 🎙️ Voz agora aparece o estado da permissão do microfone (permitida, bloqueada ou não pedida), o botão Pedir permissão agora e, se estiver bloqueada, o passo a passo para liberar nas configurações do celular (o navegador não deixa o jogo abrir as configurações sozinho)." },
   { v: 312, txt: "🎙️ Voz na Vila (fala só com os 6 mais perto, escolhidos por distância; sem custo)! Toque no ícone de microfone (🎤 → 🎙️) ao lado do zoom para ligar e desligar. Quem está perto ouve você, e a voz vai ficando mais baixa conforme a distância no mapa (e some no alcance). Aparece 🔊 ao lado do nome de quem está falando. Em 🎙️ Voz você escolhe ouvir ou não, voz só com amigos, e silencia pessoas (também no perfil). Funciona nos quartos e nas festas." },
@@ -14729,7 +14730,7 @@ function pracaToque(ev) {
 
 // ---- Quartos (estilo Habbo): cada jogador monta o seu com móveis; amigos visitam em tempo real ----
 const ROOM_N = 10, ROOM_MAX = 60;
-const salaN = () => (praca.sala && praca.sala.N) || salaN();
+const salaN = () => (praca.sala && praca.sala.N) || ROOM_N;
 const MOVEIS = {
   cadeira: { n: 'Cadeira', e: '🪑', w: 1, d: 1, preco: 40, sent: 1 }, sofa: { n: 'Sofá', e: '🛋️', w: 2, d: 1, preco: 160, sent: 1 }, puff: { n: 'Puff', e: '💺', w: 1, d: 1, preco: 60, sent: 1 },
   cama: { n: 'Cama', e: '🛏️', w: 2, d: 2, preco: 220, dorme: 1 },
@@ -14837,7 +14838,7 @@ function quartoBarra() {
   if (!el) { el = document.createElement('div'); el.id = 'quartoBar'; el.className = 'quartobar'; el.hidden = true; $('#praca .pracawrap').appendChild(el);
     el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const a = b.dataset.q, S2 = praca.sala; if (!S2) return;
       if (a === 'sair') return pracaIrSala(null);
-      if (a === 'editar') { S2.edit = !S2.edit; S2.sel = null; if (!S2.edit) { pracaPainelAbrir(null); quartoPublicar(); } else { praca.qtab = 'inv'; pracaPainelAbrir('moveis'); } return quartoBarra(); }
+      if (a === 'editar') { S2.edit = !S2.edit; S2.sel = null; if (!S2.edit) { pracaPainelAbrir(null); quartoPublicar(); } else { praca.qtab = 'inv'; pracaPainelAbrir('moveis'); toast('🛠️ Arraste um móvel para mover. Toque nele para girar (↻) ou guardar (📦).', 'good'); } return quartoBarra(); }
       if (a === 'moveis') return pracaPainelAbrir(praca.painel === 'moveis' ? null : 'moveis');
       const q = quartoSt().q, sel = S2.sel; if (!sel || sel.idx == null) return; const it = q.m[sel.idx]; if (!it) return;
       if (a === 'girar') { const r2 = ((it.r || 0) + 1) % 4; if (quartoCabe(q, it.i, it.u, it.v, r2, sel.idx)) { it.r = r2; done(); quartoPublicar(); } else toast('Não cabe girado aqui.'); }
@@ -14945,6 +14946,7 @@ function quartoDesenha(g, c, now, dpr) {
     if (!o.me) praca.hits.push({ id: 'jog:' + o.uid, x: qq.x, y: qq.y - 34 * es, r: Math.max(28 * es, 18 * dpr) }); }
   vilaPetsDesenha(g, lista, I, tw, now, dpr, push);
   D.sort((a, b) => a.s - b.s); for (const d of D) d.fn();
+  if (praca.qdrag && praca.sala && praca.sala.edit) { const dr = praca.qdrag, it = quartoAtual().m[dr.idx], M = it && MOVEIS[it.i]; if (M) { const [w, dd] = quartoTam(M, it.r || 0), k0 = I(dr.u, dr.v), k1 = I(dr.u + w, dr.v), k2 = I(dr.u + w, dr.v + dd), k3 = I(dr.u, dr.v + dd); g.fillStyle = dr.ok ? 'rgba(80,220,80,.45)' : 'rgba(230,60,60,.45)'; g.beginPath(); g.moveTo(k0.x, k0.y); g.lineTo(k1.x, k1.y); g.lineTo(k2.x, k2.y); g.lineTo(k3.x, k3.y); g.closePath(); g.fill(); if (M.e) { const ct = I(dr.u + w / 2, dr.v + dd / 2); g.globalAlpha = 0.7; g.font = `${Math.round(tw * (0.9 + 0.3 * Math.max(w, dd)) * 1.1)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(M.e, ct.x, ct.y + tw * 0.15); g.globalAlpha = 1; } } }
   praca.flutua = praca.flutua.filter(f => now - f.t < 900);
   for (const f of praca.flutua) { const qq = I(f.u, f.v), k = (now - f.t) / 900; g.font = `900 ${Math.round(16 * dpr)}px system-ui`; g.textAlign = 'center'; g.fillStyle = `rgba(255,230,130,${1 - k})`; g.fillText(f.txt, qq.x, qq.y - tw * 1.5 - k * 40 * dpr); }
   g.font = `800 ${Math.round(13 * dpr)}px system-ui, sans-serif`; g.textAlign = 'left'; g.fillStyle = '#fff'; g.fillText(S.tipo ? `${FESTAS[S.tipo].ic} ${FESTAS[S.tipo].nome} · ${Object.keys(praca.jog).length + 1} aqui` : `🏠 Quarto de ${S.dono === user.uid ? 'você' : (praca.quartoVis && praca.quartoVis.n) || 'amigo'}${S.edit ? ' · modo edição' : ''}`, 10 * dpr, 20 * dpr);
@@ -15338,22 +15340,35 @@ function pracaInterIniciar(com, k, sender) {
   setTimeout(() => { if (praca.eu && praca.eu.iz && pracaAgora() - praca.eu.iz > 11000) { praca.eu.ia = null; pracaEnviarMov({ ia: null, ic: null, iz: null }); } }, 12000);
 }
 // Arrastar move o mapa; pinça e roda do mouse dão zoom; toque rápido anda/interage
+// Mover móveis arrastando (modo edição do quarto)
+function quartoCanvasXY(e) { const c = $('#pracaCv'), r = c.getBoundingClientRect(), dpr = c.width / r.width; return { x: (e.clientX - r.left) * dpr, y: (e.clientY - r.top) * dpr, G: pracaGeo(c, dpr) }; }
+function quartoHitMov(e) { const { x, y } = quartoCanvasXY(e); const h = praca.hits.filter(k => k.id.startsWith('mov:')).map(k => ({ k, d: Math.hypot(k.x - x, k.y - y) / k.r })).filter(z => z.d < 1).sort((a, b) => a.d - b.d)[0]; return h ? Number(h.k.id.slice(4)) : null; }
+function quartoArrasta(e, idx) {
+  const { x, y, G } = quartoCanvasXY(e), q = quartoAtual(), it = q.m[idx]; if (!it) return;
+  const a = (x - G.cx) / G.tw, b = (y - G.cy) / (G.tw / 2), uu = G.ou + (a + b) / 2, vv = G.ov + (b - a) / 2, [w, d] = quartoTam(MOVEIS[it.i], it.r || 0);
+  const tu = Math.round(uu - w / 2), tv = Math.round(vv - d / 2);
+  praca.qdrag = { idx, u: tu, v: tv, ok: quartoCabe(q, it.i, tu, tv, it.r || 0, idx) };
+}
 const vilaPtr = new Map(); let vilaGesto = null;
 function vilaZoom(f) { praca.zoom = clamp((praca.zoom || 1) * f, 0.55, 2.4); }
 $('#pracaCv')?.addEventListener('pointerdown', e => {
   e.target.setPointerCapture?.(e.pointerId); vilaPtr.set(e.pointerId, { x: e.clientX, y: e.clientY });
   vilaGesto = { x0: e.clientX, y0: e.clientY, moveu: false, dist0: vilaPtr.size === 2 ? (() => { const [a, b] = [...vilaPtr.values()]; return Math.hypot(a.x - b.x, a.y - b.y); })() : 0, z0: praca.zoom || 1, multi: vilaPtr.size > 1 };
+  if (praca.sala && praca.sala.edit && praca.sala.dono === user.uid && vilaPtr.size === 1) { const idx = quartoHitMov(e); if (idx != null) { vilaGesto.qd = idx; praca.sala.sel = { idx }; quartoBarra(); } }
 });
 $('#pracaCv')?.addEventListener('pointermove', e => {
   const q = vilaPtr.get(e.pointerId); if (!q || !vilaGesto) return;
   const c = $('#pracaCv'), dx = e.clientX - q.x, dy = e.clientY - q.y; q.x = e.clientX; q.y = e.clientY;
   if (vilaPtr.size >= 2) { const [a, b] = [...vilaPtr.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (vilaGesto.dist0) praca.zoom = clamp(vilaGesto.z0 * d / vilaGesto.dist0, 0.55, 2.4); vilaGesto.moveu = vilaGesto.multi = true; return; }
-  if (!vilaGesto.moveu && Math.hypot(e.clientX - vilaGesto.x0, e.clientY - vilaGesto.y0) < 8) return;
+  if (!vilaGesto.moveu && Math.hypot(e.clientX - vilaGesto.x0, e.clientY - vilaGesto.y0) < (vilaGesto.qd != null ? 6 : 8)) return;
+  if (vilaGesto.qd != null) { vilaGesto.moveu = true; return quartoArrasta(e, vilaGesto.qd); }
   vilaGesto.moveu = true; praca.seguir = false;
   const dpr = c.width / c.getBoundingClientRect().width, G = pracaGeo(c, dpr), px = dx * dpr / G.tw, py = dy * dpr / (G.tw / 2), cam = praca.cam || (praca.cam = { u: 32, v: 25 });
   cam.u = clamp(cam.u - (px + py) / 2, 0, PRACA_W); cam.v = clamp(cam.v - (py - px) / 2, 0, PRACA_H);
 });
-const vilaFimPtr = e => { const g = vilaGesto; vilaPtr.delete(e.pointerId); if (!g) return; if (!vilaPtr.size) { vilaGesto = null; if (e.type === 'pointerup' && !g.moveu && !g.multi) pracaToque(e); } };
+const vilaFimPtr = e => { const g = vilaGesto; vilaPtr.delete(e.pointerId); if (!g) return;
+  if (g.qd != null && g.moveu) { const d = praca.qdrag; praca.qdrag = null; vilaGesto = null; const q = quartoAtual(), it = q && q.m[g.qd]; if (d && it) { if (d.ok) { it.u = d.u; it.v = d.v; sfx('click'); done(); quartoPublicar(); } else toast('Não cabe aí.'); } quartoBarra(); return; }
+  if (!vilaPtr.size) { vilaGesto = null; if (e.type === 'pointerup' && !g.moveu && !g.multi) pracaToque(e); } };
 $('#pracaCv')?.addEventListener('pointerup', vilaFimPtr); $('#pracaCv')?.addEventListener('pointercancel', vilaFimPtr);
 $('#pracaCv')?.addEventListener('wheel', e => { e.preventDefault(); vilaZoom(e.deltaY < 0 ? 1.12 : 1 / 1.12); }, { passive: false });
 $('#pracaZmais')?.addEventListener('click', () => vilaZoom(1.25));
