@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="309">
+<meta name="rf-version" content="310">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -574,6 +574,11 @@
   .quartobar { position: absolute; left: 6px; right: 6px; bottom: 8px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; z-index: 5; }
   .quartobar .btn { padding: 8px 12px; } .qsel { color: #fff; font: 800 13px system-ui; text-shadow: 0 1px 2px #000; }
   .mv-e { font-size: 34px; line-height: 44px; height: 44px; } .mv-tap { display: block; width: 44px; border-radius: 8px; margin: 0 auto; }
+  .vp-linha { display: flex; justify-content: space-between; align-items: center; gap: 8px; } .vp-bloq { opacity: .6; }
+  .vp-chip { display: inline-block; padding: 3px 9px; margin: 2px; border-radius: 12px; background: rgba(255,255,255,.12); font-size: 12px; cursor: pointer; } .vp-chip.amigo { background: rgba(255,213,74,.25); }
+  .dgrid { display: grid; grid-template-columns: repeat(8, 1fr); width: min(100%, 290px); margin: 0 auto; border: 3px solid var(--wood); border-radius: 6px; overflow: hidden; }
+  .dc { aspect-ratio: 1; border: 0; padding: 0; display: grid; place-items: center; cursor: pointer; } .dc.l { background: #f0dcb0; } .dc.e { background: #7a4a22; } .dc.dest { background: #4fc03a; } .dc.sel { outline: 3px solid #ffe08a; outline-offset: -3px; }
+  .dp { width: 78%; height: 78%; border-radius: 50%; display: grid; place-items: center; font-size: 15px; box-shadow: 0 2px 0 rgba(0,0,0,.35); } .dp.p1 { background: #fff; color: #7a4a22; } .dp.p2 { background: #2a2a32; color: #ffd54a; }
   .vp-priv { display: flex; gap: 6px; } .vp-priv input { flex: 1; min-width: 0; }
   .pingchip { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); z-index: 30; background: rgba(30,22,10,.72); color: #fff; font: 800 12px system-ui, sans-serif; padding: 3px 10px; border-radius: 12px; cursor: pointer; white-space: nowrap; }
   .pescacard { width: min(100%, 480px); }
@@ -1193,8 +1198,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=309"></script>
+<script src="js/audio.js?v=310"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=309"></script>
+<script src="js/game.js?v=310"></script>
 </body>
 </html>

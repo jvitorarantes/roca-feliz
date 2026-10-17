@@ -63,6 +63,15 @@
           },
           "mo": {
             ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "tt": {
+            ".validate": "newData.isString() && newData.val().length <= 28"
+          },
+          "sb": {
+            ".validate": "newData.isString() && newData.val().length <= 16"
+          },
+          "pt": {
+            ".validate": "newData.isString() && newData.val().length <= 6"
           }
         }
       },
@@ -279,6 +288,15 @@
               },
               "mo": {
                 ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "tt": {
+                ".validate": "newData.isString() && newData.val().length <= 28"
+              },
+              "sb": {
+                ".validate": "newData.isString() && newData.val().length <= 16"
+              },
+              "pt": {
+                ".validate": "newData.isString() && newData.val().length <= 6"
               }
             }
           }
@@ -326,6 +344,93 @@
           },
           "$outro": {
             ".validate": false
+          }
+        }
+      },
+      "presenca": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.hasChildren(['n', 'l', 'ts'])",
+          "n": {
+            ".validate": "newData.isString() && newData.val().length <= 24"
+          },
+          "l": {
+            ".validate": "newData.isString() && newData.val().length <= 60"
+          },
+          "ts": {
+            ".validate": "newData.isNumber()"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
+      },
+      "jogos": {
+        ".read": "auth != null",
+        "$id": {
+          ".write": "auth != null && (!data.exists() || data.child('j1/u').val() === auth.uid || data.child('j2/u').val() === auth.uid || !data.child('j2').exists())",
+          ".validate": "newData.hasChildren(['j1', 'b', 't', 'ts'])",
+          "j1": {
+            "u": {
+              ".validate": "newData.isString()"
+            },
+            "n": {
+              ".validate": "newData.isString() && newData.val().length <= 24"
+            }
+          },
+          "j2": {
+            "u": {
+              ".validate": "newData.isString()"
+            },
+            "n": {
+              ".validate": "newData.isString() && newData.val().length <= 24"
+            }
+          },
+          "b": {
+            ".validate": "newData.isString() && newData.val().length === 64"
+          },
+          "t": {
+            ".validate": "newData.val() === 1 || newData.val() === 2"
+          },
+          "w": {
+            ".validate": "newData.val() === 0 || newData.val() === 1 || newData.val() === 2"
+          },
+          "ts": {
+            ".validate": "newData.isNumber()"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
+      },
+      "cartas": {
+        "$dono": {
+          ".read": "auth != null && auth.uid === $dono",
+          ".indexOn": [
+            "ts"
+          ],
+          "$id": {
+            ".write": "auth != null && ((!data.exists() && newData.child('de').val() === auth.uid) || (data.exists() && auth.uid === $dono))",
+            ".validate": "newData.hasChildren(['de', 'n', 't', 'ts'])",
+            "de": {
+              ".validate": "newData.isString()"
+            },
+            "n": {
+              ".validate": "newData.isString() && newData.val().length <= 24"
+            },
+            "t": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 140"
+            },
+            "p": {
+              ".validate": "newData.isString() && newData.val().length <= 16"
+            },
+            "ts": {
+              ".validate": "newData.isNumber()"
+            },
+            "$outro": {
+              ".validate": false
+            }
           }
         }
       }
