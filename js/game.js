@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 314, txt: "🏠 Nova aba Quartos na Vila: lista os quartos de amigos (e os abertos a todos), com prévia dos móveis, quantas pessoas estão lá, botão Visitar e botão para deixar carta." },
   { v: 313, txt: "Voz: em 🎙️ Voz agora aparece o estado da permissão do microfone (permitida, bloqueada ou não pedida), o botão Pedir permissão agora e, se estiver bloqueada, o passo a passo para liberar nas configurações do celular (o navegador não deixa o jogo abrir as configurações sozinho)." },
   { v: 312, txt: "🎙️ Voz na Vila (fala só com os 6 mais perto, escolhidos por distância; sem custo)! Toque no ícone de microfone (🎤 → 🎙️) ao lado do zoom para ligar e desligar. Quem está perto ouve você, e a voz vai ficando mais baixa conforme a distância no mapa (e some no alcance). Aparece 🔊 ao lado do nome de quem está falando. Em 🎙️ Voz você escolhe ouvir ou não, voz só com amigos, e silencia pessoas (também no perfil). Funciona nos quartos e nas festas." },
   { v: 311, txt: "Vila: dá para pescar em qualquer beira do lago (não só no cais). Tocar na água da piscina agora faz o avatar andar até lá (antes só mostrava o nome). O avatar agora tem pose de sentado de verdade, em cima da cadeira, e nenhuma cadeira fica dentro da água." },
@@ -14048,7 +14049,7 @@ function pracaAbrir() {
   pracaLigar().then(() => { if (praca.on && praca.aberta) pracaEntrar(); });
   requestAnimationFrame(pracaFrame);
 }
-function pracaNav() { if (praca.sala) { $('#pracaNav').innerHTML = '<button type="button" data-vila-ir="voz">🎙️ Voz</button><button type="button" data-vila-ir="onde">📍 Onde estão</button><button type="button" data-vila-ir="pet">🐾 Meu pet</button><button type="button" data-vila-ir="convidar">📣 Convidar amigos</button><button type="button" data-vila-sair-sala>🏘️ Voltar à Vila</button>'; return; } $('#pracaNav').innerHTML = '<button type="button" data-vila-meuquarto>🛏️ Meu quarto</button><button type="button" data-vila-ir="voz">🎙️ Voz</button><button type="button" data-vila-ir="onde">📍 Onde estão</button><button type="button" data-vila-ir="cartas">✉️ Cartas' + (Object.values(praca.cartas || {}).filter(c => c && state.friends.includes(c.de)).length ? ' (' + Object.values(praca.cartas).filter(c => c && state.friends.includes(c.de)).length + ')' : '') + '</button><button type="button" data-vila-ir="conq">🏅 Títulos</button><button type="button" data-vila-ir="pet">🐾 Meu pet</button><button type="button" data-vila-ir="convidar">📣 Convidar amigos</button><button type="button" data-vila-ir="mural">📋 Mural</button><button type="button" data-vila-ir="mercado">🏪 Mercado</button><button type="button" data-vila-ir="casa">🏠 Minha casa</button>' + Object.entries(VILA_ZONAS).map(([id, z]) => `<button type="button" data-vila-ir-z="${id}">🧭 ${z.nome}</button>`).join('') + `<button type="button" data-vila-bloq title="Ligar/desligar convites de interação">${settings.semInter ? '🚫 Interações: off' : '✨ Interações: on'}</button>`; }
+function pracaNav() { if (praca.sala) { $('#pracaNav').innerHTML = '<button type="button" data-vila-ir="quartos">🏠 Quartos</button><button type="button" data-vila-ir="voz">🎙️ Voz</button><button type="button" data-vila-ir="onde">📍 Onde estão</button><button type="button" data-vila-ir="pet">🐾 Meu pet</button><button type="button" data-vila-ir="convidar">📣 Convidar amigos</button><button type="button" data-vila-sair-sala>🏘️ Voltar à Vila</button>'; return; } $('#pracaNav').innerHTML = '<button type="button" data-vila-meuquarto>🛏️ Meu quarto</button><button type="button" data-vila-ir="quartos">🏠 Quartos</button><button type="button" data-vila-ir="voz">🎙️ Voz</button><button type="button" data-vila-ir="onde">📍 Onde estão</button><button type="button" data-vila-ir="cartas">✉️ Cartas' + (Object.values(praca.cartas || {}).filter(c => c && state.friends.includes(c.de)).length ? ' (' + Object.values(praca.cartas).filter(c => c && state.friends.includes(c.de)).length + ')' : '') + '</button><button type="button" data-vila-ir="conq">🏅 Títulos</button><button type="button" data-vila-ir="pet">🐾 Meu pet</button><button type="button" data-vila-ir="convidar">📣 Convidar amigos</button><button type="button" data-vila-ir="mural">📋 Mural</button><button type="button" data-vila-ir="mercado">🏪 Mercado</button><button type="button" data-vila-ir="casa">🏠 Minha casa</button>' + Object.entries(VILA_ZONAS).map(([id, z]) => `<button type="button" data-vila-ir-z="${id}">🧭 ${z.nome}</button>`).join('') + `<button type="button" data-vila-bloq title="Ligar/desligar convites de interação">${settings.semInter ? '🚫 Interações: off' : '✨ Interações: on'}</button>`; }
 function pracaOuvir(chave, ref, cb) { if (praca.refs[chave]) praca.refs[chave].off(); praca.refs[chave] = ref; ref.on('value', cb); }
 // Presença no mundo (praca/jogadores) ou dentro de uma sala (praca/salas/<id>/jog)
 function pracaPresenca(u0, v0) {
@@ -14162,7 +14163,7 @@ function pracaTick(forca) {
 }
 setInterval(() => { try { if (praca.aberta) { pracaTick(); pracaSlots(); pracaLog(); } } catch (e) { /* sem vila */ } }, 1000);
 // ---- Painel: Mural, Mercado, Lago, Arena e casinhas ----
-function pracaPainelAbrir(id) { vilaFechaAssento(); if (id && id.startsWith('damas:') && praca.painel !== id) pracaPainelDamas(id.slice(6)); else if (!id && praca.refs.jogo) { praca.refs.jogo.off(); praca.refs.jogo = null; } praca.painel = id; praca.mtab = 'comprar'; pracaPainel(); }
+function pracaPainelAbrir(id) { vilaFechaAssento(); if (id === 'quartos') praca._qAtual = 0; if (id && id.startsWith('damas:') && praca.painel !== id) pracaPainelDamas(id.slice(6)); else if (!id && praca.refs.jogo) { praca.refs.jogo.off(); praca.refs.jogo = null; } praca.painel = id; praca.mtab = 'comprar'; pracaPainel(); }
 function pracaBossAtivo() { const t = pracaAgora() % VILA_BOSS_CICLO; return t < VILA_BOSS_JANELA && praca.boss < VILA_BOSS_HP; }
 const pracaBossNome = () => halloweenAtivo() ? '🐺 Lobo Alfa' : '🐗 Javali Gigante';
 function pracaPainel() {
@@ -14174,6 +14175,7 @@ function pracaPainel() {
   else if (id === 'mercado') box.innerHTML = topo('🏪 Mercado dos jogadores') + pracaHtmlMercado();
   else if (id === 'casa') box.innerHTML = topo('🏠 Minha casinha') + pracaHtmlCasa();
   else if (id === 'voz') { box.innerHTML = topo('🎙️ Voz da Vila') + pracaHtmlVoz(); if (!praca._pv) { praca._pv = 1; vozAtualizaPerm().finally(() => { praca._pv = 0; }); } }
+  else if (id === 'quartos') { box.innerHTML = topo('🏠 Quartos de amigos') + pracaHtmlQuartos(); if (!praca.listaQ || praca._qAtual !== 1) { praca._qAtual = 1; pracaCarregaQuartos(); } }
   else if (id === 'onde') box.innerHTML = topo('📍 Quem está onde') + pracaHtmlOnde();
   else if (id === 'conq') box.innerHTML = topo('🏅 Títulos e selos') + pracaHtmlConq();
   else if (id === 'pet') box.innerHTML = topo('🐾 Meu pet') + pracaHtmlPet();
@@ -14949,6 +14951,30 @@ function quartoDesenha(g, c, now, dpr) {
 }
 
 // ============ Extras da Vila: onde estão, títulos e selos, pets, damas e cartas ============
+// ---- Aba "Quartos": quartos de amigos (e quartos abertos a todos) ----
+async function pracaCarregaQuartos() {
+  if (!praca.rt) return;
+  try { const s = await praca.rt.ref('praca/quartos').orderByChild('ts').limitToLast(80).once('value'); praca.listaQ = s.val() || {}; }
+  catch (e) { console.warn('quartos:', e); praca.listaQ = {}; }
+  if (praca.painel === 'quartos') pracaPainel();
+}
+function pracaHtmlQuartos() {
+  if (!praca.listaQ) return '<div class="vp-card">Carregando os quartos…</div>';
+  const todos = Object.entries(praca.listaQ).filter(([, q]) => q && typeof q.a === 'string');
+  const dentro = uid => Object.values(praca.onde || {}).filter(x => x && x.l === 'q_' + uid).length;
+  const card = ([uid, q]) => { const ms = (q.m ? Object.values(q.m) : []), emo = ms.map(x => (MOVEIS[x.i] || {}).e).filter(Boolean), n = dentro(uid), amigo = state.friends.includes(uid), eu = uid === user.uid, aberto = eu || q.a === 'todos' || (q.a === 'amigos' && amigo);
+    return `<div class="vp-card"><div class="vp-linha"><b>${amigo ? '⭐ ' : ''}${esc(eu ? 'Seu quarto' : (q.n || 'Jogador'))}</b><small>${q.a === 'todos' ? '🌎 aberto' : q.a === 'amigos' ? '👥 só amigos' : '🔒 fechado'}${n ? ` · 👥 ${n} lá` : ''}</small></div>
+      <div class="vp-prev" style="background:linear-gradient(90deg,${(PAREDES[q.p] || PAREDES[0]).c} 50%,${(PISOS[q.c] || PISOS[0]).a} 50%)">${emo.slice(0, 10).join(' ') || '<small>Quarto vazio</small>'}</div>
+      <small>${ms.length} móve${ms.length === 1 ? 'l' : 'is'}</small>
+      <div class="vp-inter">${aberto ? `<button class="btn gold" type="button" data-vila-quarto="${esc(uid)}">🚪 ${eu ? 'Entrar' : 'Visitar'}</button>` : '<button class="btn ghost" type="button" disabled>🔒 Fechado</button>'}${amigo && !eu ? `<button class="btn" type="button" data-vila-ir="cartaw:${esc(uid)}">✉️ Deixar carta</button>` : ''}</div></div>`; };
+  const ord = (a, b) => ((dentro(b[0]) - dentro(a[0])) || ((b[1].ts || 0) - (a[1].ts || 0)));
+  const amigos = todos.filter(([u]) => state.friends.includes(u)).sort(ord), abertos = todos.filter(([u, q]) => !state.friends.includes(u) && u !== user.uid && q.a === 'todos').sort(ord), meu = todos.filter(([u]) => u === user.uid);
+  let h = '';
+  h += '<div class="vp-card"><b>👥 Quartos de amigos</b></div>' + (amigos.length ? amigos.map(card).join('') : '<div class="vp-card">Nenhum amigo seu publicou o quarto ainda. Peça para entrarem em 🛏️ Meu quarto!</div>');
+  if (abertos.length) h += '<div class="vp-card"><b>🌎 Quartos abertos a todos</b></div>' + abertos.map(card).join('');
+  if (meu.length) h += '<div class="vp-card"><b>🏠 O seu</b></div>' + meu.map(card).join('');
+  return h;
+}
 // ---- Onde estão (e juntar-se) ----
 const VILA_LUGAR = { mundo: ['🏘️', 'Vila'], f_disco: ['🪩', 'Discoteca'], f_cinema: ['🎬', 'Cinema'], f_piscina: ['🏊', 'Piscina'] };
 function pracaOndeSet() {
