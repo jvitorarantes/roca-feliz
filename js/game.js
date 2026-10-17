@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 309, txt: "Vila: ao tocar numa cadeira, sofá ou cama, aparece a pergunta com os botões Sentar (ou Deitar) e Cancelar." },
   { v: 308, txt: "Vila: os botões Sair e Editar do quarto não ficam mais na tela depois que você volta para a Vila." },
   { v: 307, txt: "Vila: as mensagens antigas do chat não voltam mais ao abrir o jogo (só aparecem as dos últimos 30 segundos), e o botão de ação (abrir baú etc.) some na hora. 🎉 Salas de festa na Vila! Três prédios novos: Discoteca 🪩 (a pista acende e quem pisa nela dança sozinho, com a música Pista de Dança), Cinema 🎬 (poltronas para sentar e uma tela que passa filmes para todo mundo ao mesmo tempo) e Piscina 🏊 (entre na água!). Entram quantos jogadores quiserem, em tempo real." },
   { v: 306, txt: "🛏️ Quarto próprio estilo Habbo! Na Vila, toque em Meu quarto: monte o seu com móveis (cadeiras, sofá, cama, piano, TV, lareira, plantas, tapetes…), escolha parede e piso, e decida quem pode visitar. Amigos entram em tempo real, andam por entre os móveis e podem sentar e deitar. Você começa com alguns móveis grátis e compra mais com moedas." },
@@ -14135,7 +14136,7 @@ function pracaTick(forca) {
 }
 setInterval(() => { try { if (praca.aberta) { pracaTick(); pracaSlots(); pracaLog(); } } catch (e) { /* sem vila */ } }, 1000);
 // ---- Painel: Mural, Mercado, Lago, Arena e casinhas ----
-function pracaPainelAbrir(id) { praca.painel = id; praca.mtab = 'comprar'; pracaPainel(); }
+function pracaPainelAbrir(id) { vilaFechaAssento(); praca.painel = id; praca.mtab = 'comprar'; pracaPainel(); }
 function pracaBossAtivo() { const t = pracaAgora() % VILA_BOSS_CICLO; return t < VILA_BOSS_JANELA && praca.boss < VILA_BOSS_HP; }
 const pracaBossNome = () => halloweenAtivo() ? '🐺 Lobo Alfa' : '🐗 Javali Gigante';
 function pracaPainel() {
@@ -14456,6 +14457,15 @@ function vilaAlcance(p, u, v) { // anda em linha reta até o último ponto livre
   for (let k = 1; k <= n; k++) { const x = p.u + (u - p.u) * k / n, y = p.v + (v - p.v) * k / n; if (vilaAgua(x, y)) break; ok = { u: x, v: y }; }
   return ok;
 }
+// Pergunta antes de sentar/deitar: botões "Sentar" (ou "Deitar") e "Cancelar"
+function vilaPedirAssento(nome, verbo, fn) {
+  let el = $('#vilaAssento');
+  if (!el) { el = document.createElement('div'); el.id = 'vilaAssento'; el.className = 'vilaassento'; el.hidden = true; $('#praca .pracawrap').appendChild(el);
+    el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; clearTimeout(el._t); el.hidden = true; const f = el._fn; el._fn = null; if (b.dataset.a === 'ok' && f) f(); }); }
+  el._fn = fn; el.innerHTML = `<div>${esc(nome)}</div><div class="cbbtns"><button type="button" class="btn gold" data-a="ok">${esc(verbo)}</button><button type="button" class="btn ghost" data-a="nao">Cancelar</button></div>`;
+  el.hidden = false; sfx('click'); clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; el._fn = null; }, 12000);
+}
+function vilaFechaAssento() { const el = $('#vilaAssento'); if (el && !el.hidden) { el.hidden = true; el._fn = null; } }
 // Sentar nos bancos (como no Habbo): anda até a cadeira e senta; andar de novo levanta
 function vilaSentar(i) {
   const b = VILA_BANCOS[i]; if (!b || !praca.eu) return;
@@ -14668,12 +14678,12 @@ function pracaToque(ev) {
     if (id === 'mural' || id === 'mercado') { const l = VILA_LOCAIS[id]; if (Math.hypot(p.u - l.u, p.v - l.v) < 4) return pracaPainelAbrir(id); praca.alvoAcao = id; return pracaIrPara(l.u, l.v + 1.8); }
     if (id.startsWith('item:')) { const it = praca.spawns.find(z => z.i === Number(id.slice(5))); if (!it) return; if (Math.hypot(p.u - it.u, p.v - it.v) < 2.6) return vilaPegar(it); return pracaIrPara(it.u, it.v + 1.2); }
     if (id.startsWith('npc:')) { const i = Number(id.slice(4)), n = VILA_NPCS[i]; praca.npcFala[i] = { t: n.fala[Math.floor(Math.random() * n.fala.length)], ate: now + 3000 }; sfx('click'); return; }
-    if (id.startsWith('banco:')) return vilaSentar(Number(id.slice(6)));
+    if (id.startsWith('banco:')) { const i = Number(id.slice(6)), b = VILA_BANCOS[i]; if (Object.values(praca.jog).some(j => j.ia === 'sentar' && Math.hypot(j.tu - b[0], j.tv - b[1]) < 0.6)) return toast('Essa cadeira já está ocupada! 🪑'); return vilaPedirAssento('🪑 Cadeira', 'Sentar', () => vilaSentar(i)); }
     if (id === 'fonte') return vilaDesejo();
     return pracaPainelAbrir(id);
   }
   const a = (x - G.cx) / G.tw, b = (y - G.cy) / (G.tw / 2);
-  praca.alvoAcao = null; praca.seguir = true;
+  praca.alvoAcao = null; praca.seguir = true; vilaFechaAssento();
   pracaIrPara(clamp(G.ou + (a + b) / 2, 0.5, PRACA_W - 0.5), clamp(G.ov + (b - a) / 2, 0.5, PRACA_H - 0.5));
 }
 
@@ -14814,11 +14824,11 @@ function quartoToque(x, y, G) {
   if (h && h.id.startsWith('mov:')) {
     const it = q.m[Number(h.id.slice(4))], M = it && MOVEIS[it.i]; if (!M) return;
     if (M.sent || M.dorme) { if (Object.values(praca.jog).some(j => (j.ia === 'sentar' || j.ia === 'dc6') && Math.floor(j.tu) >= it.u && Math.floor(j.tu) < it.u + quartoTam(M, it.r || 0)[0] && Math.floor(j.tv) >= it.v && Math.floor(j.tv) < it.v + quartoTam(M, it.r || 0)[1])) return toast('Está ocupado! 🪑');
-      const gu = it.u + 0.5, gv = it.v + 0.5; praca.seguir = false; quartoIrPara(gu, gv, { ia: M.dorme ? 'dc6' : 'sentar', ic: null, iz: firebase.database.ServerValue.TIMESTAMP, ek: M.dorme ? '😴' : '😌', et: Date.now() }); praca.eu.ia = M.dorme ? 'dc6' : 'sentar'; return; }
+      const gu = it.u + 0.5, gv = it.v + 0.5; return vilaPedirAssento(`${M.e} ${M.n}`, M.dorme ? 'Deitar' : 'Sentar', () => { praca.seguir = false; quartoIrPara(gu, gv, { ia: M.dorme ? 'dc6' : 'sentar', ic: null, iz: firebase.database.ServerValue.TIMESTAMP, ek: M.dorme ? '😴' : '😌', et: Date.now() }); praca.eu.ia = M.dorme ? 'dc6' : 'sentar'; }); }
     if (M.som) { const e = praca.eu; praca.eu.emote = { k: '🎵', ate: now + 2500 }; pracaEnviarMov({ ek: '🎵', et: Date.now() }); sfx(M.som ? 'click' : 'click'); praca.flutua.push({ txt: M.e + ' 🎵', u: it.u + 0.5, v: it.v + 0.5, t: now }); return; }
     return toast(`${M.e || '▦'} ${M.n}`);
   }
-  const tu = clamp(u, 0.3, salaN() - 0.3), tv = clamp(v, 0.3, salaN() - 0.3); quartoIrPara(tu, tv);
+  vilaFechaAssento(); const tu = clamp(u, 0.3, salaN() - 0.3), tv = clamp(v, 0.3, salaN() - 0.3); quartoIrPara(tu, tv);
 }
 function quartoIrPara(u, v, extra) {
   const e = praca.eu, q = quartoAtual(), now = performance.now(), p = pracaPos(e, now);

@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="308">
+<meta name="rf-version" content="309">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -569,6 +569,8 @@
   .vm-precos { display: flex; gap: 6px; flex-wrap: wrap; } .vm-precos .btn { flex: 1; padding: 6px 4px; font-size: 12px; }
   .vp-perfil { grid-template-columns: 90px 1fr; align-items: center; } .vpav { width: 90px; height: 116px; background: rgba(255,255,255,.08); border-radius: 12px; } .vp-dados { display: grid; gap: 3px; } .vp-selo { width: 34px; height: 34px; border-radius: 50%; }
   .pracapainel.curto { max-height: 42%; }
+  .vilaassento { position: absolute; left: 50%; bottom: 80px; transform: translateX(-50%); z-index: 7; background: #fffbe8; color: #2f2a1f; border: 4px solid var(--wood); border-radius: 18px; padding: 8px 14px; font-weight: 800; display: grid; gap: 6px; text-align: center; box-shadow: 0 5px 0 rgba(0,0,0,.25); }
+  .vilaassento .btn.ghost { color: #5a3a14; border: 2px solid var(--wood); background: #fff; } .vilaassento .cbbtns { display: flex; gap: 8px; }
   .quartobar { position: absolute; left: 6px; right: 6px; bottom: 8px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; z-index: 5; }
   .quartobar .btn { padding: 8px 12px; } .qsel { color: #fff; font: 800 13px system-ui; text-shadow: 0 1px 2px #000; }
   .mv-e { font-size: 34px; line-height: 44px; height: 44px; } .mv-tap { display: block; width: 44px; border-radius: 8px; margin: 0 auto; }
@@ -1191,8 +1193,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=308"></script>
+<script src="js/audio.js?v=309"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=308"></script>
+<script src="js/game.js?v=309"></script>
 </body>
 </html>
