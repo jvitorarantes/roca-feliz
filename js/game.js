@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 290, txt: "Corrigido: o botão Enviar das cartas de Halloween (Missões › 🎃 Halloween) dizia que não havia amigos quando os dados deles ainda não tinham carregado. Agora lista todos os seus amigos na hora." },
   { v: 289, txt: "🎃 Halloween em tudo: casa, celeiro, casinha do cachorro, abrigos dos animais e cercas ficam assombrados (roxo e laranja, com mini abóboras nas cercas) enquanto durar o evento, e todos os bichos e cachorros ganharam chapeuzinho de bruxa!" },
   { v: 288, txt: "🎃 Cartas de Halloween agora vão dentro do chat do amigo (e as antigas chegam assim que ele atualiza o jogo). A música \"Noite das Bruxas\" toca sozinha para todos durante o evento. Na lista de Amigos aparece a versão do jogo de cada um. As 3 cartas de hoje foram devolvidas uma vez." },
   { v: 287, txt: "🎃 Halloween! De hoje até 31/10, às 23:59: a roça fica assombrada (véu roxo, morcegos, abóboras acesas, teias e bandeirinhas de morcego), com música sombria e risadas de bruxa, e lobos passeando e uivando (os cachorros respondem!). Todo dia você ganha 3 cartas (🎃 abóbora gigante, 👻 fantasma, 💀 esqueleto) para mandar a amigos: quando abrem, cai uma maldição que passa sozinha. Tem missões, uma coleção de 8 enfeites (também na Loja do Trevo) e a Casa Assombrada de presente. Veja tudo em Missões › 🎃 Halloween." },
@@ -13515,10 +13516,11 @@ function enviarCartaHal(tipo) {
   if (!halloweenAtivo()) return;
   if (!h.tem[tipo]) return toast('Essa carta já foi enviada hoje. Amanhã vêm 3 novas!');
   if (!user) return toast('Entre com o Google para mandar cartas aos amigos.');
-  const amigos = state.friends.filter(u => friendInfo[u] && friendInfo[u] !== 'loading' && !friendInfo[u].erro);
-  if (!amigos.length) return toast('Você ainda não tem amigos para mandar a carta. Adicione em Amigos!');
+  if (!state.friends.length) return toast('Você ainda não tem amigos para mandar a carta. Adicione em Amigos!');
+  state.friends.forEach(u => fetchFriendInfo(u)); // os dados dos amigos podem ainda não ter carregado
+  const nomeDe = u => { const f = friendInfo[u]; return f && typeof f === 'object' && !f.erro && f.name ? f.name : 'Amigo'; };
   escolher(`Para qual amigo mandar a carta ${C.emoji} ${C.nome}? Quando ele abrir, cai uma maldição!`, [
-    ...amigos.map(u => ({ txt: esc(friendInfo[u].name), fn: () => perguntar(`Mandar a carta ${C.emoji} ${C.nome} para ${friendInfo[u].name}?`, () => mandarCartaHal(u, tipo)) })),
+    ...state.friends.map(u => ({ txt: esc(nomeDe(u)), fn: () => perguntar(`Mandar a carta ${C.emoji} ${C.nome} para ${nomeDe(u)}?`, () => mandarCartaHal(u, tipo)) })),
     { txt: 'Cancelar', ghost: true },
   ]);
 }
