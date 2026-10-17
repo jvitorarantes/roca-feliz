@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 302, txt: "Vila: o botão de ação (entrar no mercado, atacar, pescar…) não pisca mais e some quando o painel abre. No Mercado, em Vender, agora você vê os ícones dos seus produtos: toque num deles, escolha a quantidade e o preço (Mínimo / Justo / Máximo)." },
   { v: 301, txt: "Vila: agora dá para arrastar o mapa, dar zoom (pinça, roda do mouse ou botões ➕ ➖) e voltar para o seu avatar no 🎯. Andar ficou um pouco mais devagar, e o ícone/ping do topo da tela saiu (o ping fica só dentro da Vila)." },
   { v: 300, txt: "📣 Convidar amigos para a Vila! Na Vila, toque em Convidar amigos: quem estiver online vê um balão com Ir / Não / Silenciar 5 min, e quem estiver offline recebe uma notificação." },
   { v: 299, txt: "🏘️ Vila renovada! Agora é um mundo grande e vivo, com minimapa: Floresta, Lago com cais, Mina, Praia, Bairro de casinhas, Campo e a Praça. Itens aparecem pelo mapa (frutas, minérios, conchas, baús, gemas) e quem chega primeiro pega. Pesca de verdade no cais (espere o ❗ e puxe), chefe que anda pelo Campo, festa na praça de hora em hora, dia e noite, bichinhos andando, pista de dança e bancos. O cabo de guerra saiu." },
@@ -14166,8 +14167,16 @@ function pracaHtmlMercado() {
   const tabs = `<div class="seg small"><button type="button" data-vila-mtab="comprar" aria-checked="${praca.mtab === 'comprar'}">Comprar</button><button type="button" data-vila-mtab="vender" aria-checked="${praca.mtab === 'vender'}">Vender</button><button type="button" data-vila-mtab="meus" aria-checked="${praca.mtab === 'meus'}">Meus anúncios</button></div>`;
   const nomeI = id => (item(id) || {}).nome || id;
   if (praca.mtab === 'vender') {
-    const ops = itensVendaveis().map(id => `<option value="${esc(id)}">${esc(nomeI(id))} (você tem ${estoqueDe(id)})</option>`).join('');
-    return tabs + (ops ? `<div class="vp-card"><label>Item <select id="vmItem">${ops}</select></label><label>Quantidade (1 a 10) <input id="vmQtd" type="number" min="1" max="10" value="1"></label><label>Preço total em moedas <input id="vmPreco" type="number" min="1" value="${valorDe(itensVendaveis()[0])}"></label><small id="vmFaixa"></small><button class="btn gold" type="button" data-vila-anunciar>📣 Anunciar</button></div>` : '<div class="vp-card">Você não tem produtos no celeiro para vender.</div>');
+    const ids = itensVendaveis(); if (!ids.length) return tabs + '<div class="vp-card">Você não tem produtos no celeiro para vender.</div>';
+    const sel = ids.includes(praca.vmSel) ? praca.vmSel : null;
+    let h = tabs + '<div class="vp-card"><b>Toque no que quer vender:</b><div class="vm-grid">' + ids.map(id => `<button type="button" class="vm-item ${id === sel ? 'sel' : ''}" data-vila-vsel="${esc(id)}"><img alt="" src="${itemIcon(id)}"><span>${esc(nomeI(id))}</span><small>×${estoqueDe(id)}</small></button>`).join('') + '</div></div>';
+    if (sel) {
+      const maxQ = Math.min(10, estoqueDe(sel)), q = clamp(praca.vmQtd || 1, 1, maxQ), [mn, mx] = faixaPreco(sel, q), preco = clamp(praca.vmPreco || valorDe(sel) * q, mn, mx);
+      praca.vmQtd = q; praca.vmPreco = preco;
+      h += `<div class="vp-card"><div class="vm-sel"><img alt="" src="${itemIcon(sel)}"><div><b>${esc(nomeI(sel))}</b><div>Quantidade</div><div class="vm-qtd"><button type="button" class="btn ghost" data-vila-vq="-1">−</button><b>${q}</b><button type="button" class="btn ghost" data-vila-vq="1">＋</button></div></div></div>
+        <label>Preço total (🪙) <input id="vmPreco" type="number" min="${mn}" max="${mx}" value="${preco}" inputmode="numeric"></label><div class="vm-precos"><button type="button" class="btn ghost" data-vila-vp="${mn}">Mínimo ${mn}</button><button type="button" class="btn ghost" data-vila-vp="${valorDe(sel) * q}">Justo ${valorDe(sel) * q}</button><button type="button" class="btn ghost" data-vila-vp="${mx}">Máximo ${mx}</button></div><small>Preço permitido: ${mn} a ${mx} moedas</small><button class="btn gold" type="button" data-vila-anunciar>📣 Anunciar ${q}× ${esc(nomeI(sel))} por ${preco} 🪙</button></div>`;
+    }
+    return h;
   }
   if (praca.mtab === 'meus') {
     const meus = todos.filter(([, l]) => l.u === me);
@@ -14177,14 +14186,14 @@ function pracaHtmlMercado() {
   return tabs + (venda.length ? venda.map(([k, l]) => `<div class="vp-card row"><img alt="" src="${itemIcon(l.i)}"><div><b>${esc(nomeI(l.i))} ×${l.q}</b><div>${esc(l.n || '?')} · ${l.p} moedas</div></div><button class="btn gold" type="button" data-vila-comprar="${k}" ${state.coins < l.p ? 'disabled' : ''}>Comprar</button></div>`).join('') : '<div class="vp-card">Nenhum anúncio de outros jogadores agora. Seja o primeiro a anunciar!</div>');
 }
 function pracaAnunciar() {
-  const id = $('#vmItem') && $('#vmItem').value, q = clamp(Math.floor(Number($('#vmQtd').value)) || 1, 1, 10), p = Math.floor(Number($('#vmPreco').value)) || 0;
+  const id = praca.vmSel, q = clamp(Math.floor(praca.vmQtd) || 1, 1, 10), p = Math.floor(Number(($('#vmPreco') || {}).value || praca.vmPreco)) || 0;
   if (!id || !item(id)) return;
   const meus = Object.values(praca.mercado).filter(l => l && l.u === user.uid).length;
   if (meus >= MERCADO_MAX) return toast(`Você já tem ${MERCADO_MAX} anúncios. Cancele ou receba algum.`, 'bad');
   const [min, max] = faixaPreco(id, q);
   if (p < min || p > max) return toast(`O preço deve ficar entre ${min} e ${max} moedas.`, 'bad');
   if (estoqueDe(id) < q) return toast('Você não tem tudo isso.', 'bad');
-  state.barn[id] -= q; done();
+  state.barn[id] -= q; done(); praca.vmSel = null;
   praca.rt.ref('praca/mercado').push({ u: user.uid, n: meuApelido().slice(0, 24), i: id, q, p, ts: firebase.database.ServerValue.TIMESTAMP })
     .then(() => { sfx('buy'); toast('📣 Anúncio publicado!', 'good'); praca.mtab = 'meus'; pracaPainel(); })
     .catch(() => { state.barn[id] = (state.barn[id] || 0) + q; done(); toast('Não consegui publicar o anúncio.', 'bad'); });
@@ -14383,7 +14392,7 @@ function vilaContexto() {
   return null;
 }
 function vilaAcao() {
-  const c = vilaContexto(); if (!c) return;
+  const c = vilaContexto() || (praca.ctx && performance.now() - praca.ctx.t < 1500 ? praca.ctx.cx : null); if (!c || praca.painel) return;
   if (c.id === 'pesca') return vilaPesca();
   if (c.id === 'boss') return pracaBater();
   if (c.id.startsWith('bau:')) { const it = praca.spawns.find(x => x.i === Number(c.id.slice(4))); return it && vilaPegar(it); }
@@ -14439,7 +14448,10 @@ function vilaLogica(now, p) {
   for (const it of praca.spawns) if (it.tipo !== 'bau' && !praca.pegos[it.i] && Math.hypot(p.u - it.u, p.v - it.v) < 1.2) vilaPegar(it);
   if (praca.alvoAcao && p.k >= 1) { const a = praca.alvoAcao; praca.alvoAcao = null; if (a === 'mural' || a === 'mercado') pracaPainelAbrir(a); }
   const e = praca.eu; if (e && e.dur && p.k >= 1) e.dur = 0;
-  const cx = vilaContexto(), btn = $('#pracaAcao'), chave = cx ? cx.txt + (cx.fisgou ? '!' : '') : '';
+  let cx = vilaContexto();
+  if (cx) praca.ctx = { cx, t: now }; else if (praca.ctx && now - praca.ctx.t < 1500 && !praca.pesca) cx = praca.ctx.cx; else praca.ctx = null; // não pisca quando o chefe/NPC sai e entra do alcance
+  if (praca.painel) cx = null; // painel aberto: o botão some
+  const btn = $('#pracaAcao'), chave = cx ? cx.txt + (cx.fisgou ? '!' : '') : '';
   if (btn && btn.dataset.k !== chave) { btn.dataset.k = chave; btn.hidden = !cx; if (cx) { btn.textContent = cx.txt; btn.classList.toggle('fisgou', !!cx.fisgou); } }
   if ((now | 0) % 500 < 20) pracaHud(now);
 }
@@ -14653,9 +14665,7 @@ $('#pracaZmenos')?.addEventListener('click', () => vilaZoom(1 / 1.25));
 $('#pracaCentro')?.addEventListener('click', () => { praca.seguir = true; });
 $('#pracaFechar')?.addEventListener('click', pracaSair);
 $('#pracaForm')?.addEventListener('submit', e => { e.preventDefault(); pracaEnviarChat($('#pracaTxt').value); });
-$('#praca')?.addEventListener('input', e => {
-  if (e.target.id === 'vmItem' || e.target.id === 'vmQtd') { const id = $('#vmItem').value, q = clamp(Math.floor(Number($('#vmQtd').value)) || 1, 1, 10), [mn, mx] = faixaPreco(id, q); if (e.target.id === 'vmItem' || e.target.id === 'vmQtd') $('#vmPreco').value = valorDe(id) * q; $('#vmFaixa').textContent = `Preço permitido: ${mn} a ${mx} moedas`; }
-});
+$('#praca')?.addEventListener('input', e => { if (e.target.id === 'vmPreco') praca.vmPreco = Math.floor(Number(e.target.value)) || 0; });
 $('#praca')?.addEventListener('click', e => {
   const t = e.target, q = sel => t.closest(sel);
   let b;
@@ -14667,7 +14677,10 @@ $('#praca')?.addEventListener('click', e => {
   if ((b = q('[data-vila-ir-z]'))) return vilaIrZona(b.dataset.vilaIrZ);
   if (q('#pracaAcao')) return vilaAcao();
   if (q('[data-vila-boss-premio]')) return pracaBossPremio();
-  if ((b = q('[data-vila-mtab]'))) { praca.mtab = b.dataset.vilaMtab; pracaPainel(); const it = $('#vmItem'); if (it) it.dispatchEvent(new Event('input', { bubbles: true })); return; }
+  if ((b = q('[data-vila-mtab]'))) { praca.mtab = b.dataset.vilaMtab; pracaPainel(); return; }
+  if ((b = q('[data-vila-vsel]'))) { praca.vmSel = b.dataset.vilaVsel; praca.vmQtd = 1; praca.vmPreco = valorDe(praca.vmSel); sfx('click'); return pracaPainel(); }
+  if ((b = q('[data-vila-vq]'))) { const mq = Math.min(10, estoqueDe(praca.vmSel)); praca.vmQtd = clamp((praca.vmQtd || 1) + Number(b.dataset.vilaVq), 1, mq); praca.vmPreco = valorDe(praca.vmSel) * praca.vmQtd; return pracaPainel(); }
+  if ((b = q('[data-vila-vp]'))) { praca.vmPreco = Number(b.dataset.vilaVp); return pracaPainel(); }
   if (q('[data-vila-anunciar]')) return pracaAnunciar();
   if ((b = q('[data-vila-comprar]'))) return pracaComprar(b.dataset.vilaComprar);
   if ((b = q('[data-vila-cancelar]'))) return pracaCancelar(b.dataset.vilaCancelar);

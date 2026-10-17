@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="301">
+<meta name="rf-version" content="302">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -538,7 +538,7 @@
   .pracaacao.fisgou { background: #e0463a; color: #fff; animation: pulsa .35s infinite alternate; }
   @keyframes pulsa { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.12); } }
   .pracalog { position: absolute; left: 6px; bottom: 74px; right: 40%; font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000; pointer-events: none; display: grid; gap: 1px; }
-  .pracapainel { position: absolute; left: 0; right: 0; bottom: 0; max-height: 62%; overflow-y: auto; background: var(--panel); border-top: 4px solid var(--wood); border-radius: 16px 16px 0 0; padding: 8px 10px 12px; display: grid; gap: 8px; }
+  .pracapainel { z-index: 6; position: absolute; left: 0; right: 0; bottom: 0; max-height: 62%; overflow-y: auto; background: var(--panel); border-top: 4px solid var(--wood); border-radius: 16px 16px 0 0; padding: 8px 10px 12px; display: grid; gap: 8px; }
   .vp-head { display: flex; justify-content: space-between; align-items: center; font-size: 16px; }
   .vp-card { background: var(--card); border-radius: 12px; padding: 8px 10px; display: grid; gap: 6px; font-size: 13px; font-weight: 700; }
   .vp-card.row { grid-template-columns: 40px 1fr auto; align-items: center; } .vp-card.row img { width: 40px; height: 40px; }
@@ -561,6 +561,12 @@
   .convitebalao .btn { white-space: nowrap; }
   .interbalao { top: 64px; z-index: 100000; }
   .vp-inter { display: flex; flex-wrap: wrap; gap: 6px; } .vp-inter .btn { flex: 1 1 45%; }
+  .vm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; }
+  .vm-item { display: grid; justify-items: center; gap: 1px; padding: 6px 4px; border-radius: 12px; border: 3px solid transparent; background: #fff; color: #2f2a1f; font: 800 11px system-ui; cursor: pointer; }
+  .vm-item img { width: 44px; height: 44px; } .vm-item.sel { border-color: #4fc03a; background: #e8f8d8; }
+  .vm-sel { display: flex; gap: 10px; align-items: center; } .vm-sel img { width: 64px; height: 64px; }
+  .vm-qtd { display: flex; align-items: center; gap: 12px; font-size: 18px; } .vm-qtd .btn { padding: 4px 14px; }
+  .vm-precos { display: flex; gap: 6px; flex-wrap: wrap; } .vm-precos .btn { flex: 1; padding: 6px 4px; font-size: 12px; }
   .vp-priv { display: flex; gap: 6px; } .vp-priv input { flex: 1; min-width: 0; }
   .pingchip { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); z-index: 30; background: rgba(30,22,10,.72); color: #fff; font: 800 12px system-ui, sans-serif; padding: 3px 10px; border-radius: 12px; cursor: pointer; white-space: nowrap; }
   .pescacard { width: min(100%, 480px); }
@@ -1180,8 +1186,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=301"></script>
+<script src="js/audio.js?v=302"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=301"></script>
+<script src="js/game.js?v=302"></script>
 </body>
 </html>
