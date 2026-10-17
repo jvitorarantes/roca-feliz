@@ -345,7 +345,10 @@
           "$outro": {
             ".validate": false
           }
-        }
+        },
+        ".indexOn": [
+          "ts"
+        ]
       },
       "presenca": {
         ".read": "auth != null",

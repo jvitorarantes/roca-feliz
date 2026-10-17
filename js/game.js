@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 320, txt: "Vila › Quartos: agora o jogo avisa quando não consegue ler/publicar os quartos (por exemplo, regras do Firebase desatualizadas), mostra se o seu quarto está publicado e tem botão de recarregar." },
   { v: 319, txt: "Mina: em cada ferramenta agora dá para escolher a quantidade que quer usar de uma vez, com − e ＋ (ou Tudo), e o botão vira \"Usar N\"." },
   { v: 318, txt: "Amigos: na aba Amigos (e na lista de convidar da Vila) agora aparece a foto que o amigo escolheu no jogo (o selo). A foto do Google só aparece se ele não escolheu nenhuma no jogo." },
   { v: 317, txt: "🎃 Maldição da abóbora: enquanto você estiver com cabeça de abóbora, a sua foto de perfil também vira uma cabeça de abóbora (no seu cartão e para os amigos). Passando a maldição, a foto volta." },
@@ -14821,7 +14822,7 @@ function quartoCaminho(q, p, gu, gv) { // BFS de tile em tile; devolve pontos (c
 function quartoPublicar() {
   clearTimeout(praca.tPub); praca.tPub = setTimeout(() => {
     if (!praca.on || !praca.rt || !user) return; const q = quartoSt().q;
-    praca.rt.ref('praca/quartos/' + user.uid).set({ n: meuApelido().slice(0, 24), p: q.p, c: q.c, a: q.a, m: q.m.map(x => ({ i: x.i, u: x.u, v: x.v, r: x.r || 0 })), ts: firebase.database.ServerValue.TIMESTAMP }).catch(e => console.warn('quarto:', e));
+    praca.rt.ref('praca/quartos/' + user.uid).set({ n: meuApelido().slice(0, 24), p: q.p, c: q.c, a: q.a, m: q.m.map(x => ({ i: x.i, u: x.u, v: x.v, r: x.r || 0 })), ts: firebase.database.ServerValue.TIMESTAMP }).catch(e => { console.warn('quarto:', e); if (!praca.avisouPub) { praca.avisouPub = 1; toast('⚠️ Não consegui publicar o seu quarto para os amigos verem. Confira se as regras mais recentes do Realtime Database foram publicadas.', 'bad'); } });
   }, 900);
 }
 async function pracaVisitarQuarto(dono) {
@@ -14984,12 +14985,13 @@ function quartoDesenha(g, c, now, dpr) {
 // ---- Aba "Quartos": quartos de amigos (e quartos abertos a todos) ----
 async function pracaCarregaQuartos() {
   if (!praca.rt) return;
-  try { const s = await praca.rt.ref('praca/quartos').orderByChild('ts').limitToLast(80).once('value'); praca.listaQ = s.val() || {}; }
-  catch (e) { console.warn('quartos:', e); praca.listaQ = {}; }
+  try { const s = await praca.rt.ref('praca/quartos').orderByChild('ts').limitToLast(80).once('value'); praca.listaQ = s.val() || {}; praca.erroQ = ''; }
+  catch (e) { console.warn('quartos:', e); praca.listaQ = {}; praca.erroQ = (e && (e.code || e.message)) || 'erro'; }
   if (praca.painel === 'quartos') pracaPainel();
 }
 function pracaHtmlQuartos() {
   if (!praca.listaQ) return '<div class="vp-card">Carregando os quartos…</div>';
+  if (praca.erroQ) return `<div class="vp-card"><b>⚠️ Não consegui ler os quartos</b><div>${/PERMISSION/i.test(praca.erroQ) ? 'O Realtime Database está bloqueando a leitura. As <b>regras mais recentes</b> (com <code>quartos</code>) precisam estar publicadas no Firebase: Realtime Database › Regras.' : 'Erro: ' + esc(praca.erroQ)}</div><button class="btn gold" type="button" data-vila-qrecarregar>🔄 Tentar de novo</button></div>`;
   const todos = Object.entries(praca.listaQ).filter(([, q]) => q && typeof q.a === 'string');
   const dentro = uid => Object.values(praca.onde || {}).filter(x => x && x.l === 'q_' + uid).length;
   const card = ([uid, q]) => { const ms = (q.m ? Object.values(q.m) : []), emo = ms.map(x => (MOVEIS[x.i] || {}).e).filter(Boolean), n = dentro(uid), amigo = state.friends.includes(uid), eu = uid === user.uid, aberto = eu || q.a === 'todos' || (q.a === 'amigos' && amigo);
@@ -14999,7 +15001,7 @@ function pracaHtmlQuartos() {
       <div class="vp-inter">${aberto ? `<button class="btn gold" type="button" data-vila-quarto="${esc(uid)}">🚪 ${eu ? 'Entrar' : 'Visitar'}</button>` : '<button class="btn ghost" type="button" disabled>🔒 Fechado</button>'}${amigo && !eu ? `<button class="btn" type="button" data-vila-ir="cartaw:${esc(uid)}">✉️ Deixar carta</button>` : ''}</div></div>`; };
   const ord = (a, b) => ((dentro(b[0]) - dentro(a[0])) || ((b[1].ts || 0) - (a[1].ts || 0)));
   const amigos = todos.filter(([u]) => state.friends.includes(u)).sort(ord), abertos = todos.filter(([u, q]) => !state.friends.includes(u) && u !== user.uid && q.a === 'todos').sort(ord), meu = todos.filter(([u]) => u === user.uid);
-  let h = '';
+  let h = `<div class="vp-card"><div class="vp-linha"><small>${meu.length ? '✅ O seu quarto está publicado para os amigos.' : '⚠️ O seu quarto ainda não está publicado: entre em 🛏️ Meu quarto para publicar.'}</small><button class="btn ghost" type="button" data-vila-qrecarregar>🔄</button></div></div>`;
   h += '<div class="vp-card"><b>👥 Quartos de amigos</b></div>' + (amigos.length ? amigos.map(card).join('') : '<div class="vp-card">Nenhum amigo seu publicou o quarto ainda. Peça para entrarem em 🛏️ Meu quarto!</div>');
   if (abertos.length) h += '<div class="vp-card"><b>🌎 Quartos abertos a todos</b></div>' + abertos.map(card).join('');
   if (meu.length) h += '<div class="vp-card"><b>🏠 O seu</b></div>' + meu.map(card).join('');
@@ -15441,6 +15443,7 @@ $('#praca')?.addEventListener('click', e => {
   if (q('[data-vila-ouvir]')) { voz.ouvir = !voz.ouvir; try { localStorage.setItem('rf-voz-ouvir', voz.ouvir ? '1' : '0'); } catch (e) { /* ok */ } if (!voz.ouvir) vozFecharTodos('rx'); return pracaPainel(); }
   if (q('[data-vila-vamigos]')) { voz.soAmigos = !voz.soAmigos; try { localStorage.setItem('rf-voz-amigos', voz.soAmigos ? '1' : '0'); } catch (e) { /* ok */ } vozFecharTodos(); return pracaPainel(); }
   if ((b = q('[data-vila-mudar]'))) { vozMudar(b.dataset.vilaMudar); return pracaPainel(); }
+  if (q('[data-vila-qrecarregar]')) { praca.listaQ = null; pracaPainel(); pracaCarregaQuartos(); return; }
   if ((b = q('[data-vila-juntar]'))) return vilaJuntar(b.dataset.vilaJuntar, b.dataset.uid);
   if ((b = q('[data-vila-titulo]'))) { vilaTit().atual = b.dataset.vilaTitulo; done(); pracaEnviarMov(); return pracaPainel(); }
   if ((b = q('[data-vila-selo]'))) { const v = vilaTit(), id = b.dataset.vilaSelo, i = v.selos.indexOf(id); if (i >= 0) v.selos.splice(i, 1); else if (v.selos.length < 3) v.selos.push(id); else toast('Até 3 selos.'); done(); pracaEnviarMov(); return pracaPainel(); }
