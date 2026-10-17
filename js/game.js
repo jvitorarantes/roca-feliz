@@ -1405,7 +1405,8 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
-  { v: 315, txt: "Quarto: agora dá para ARRASTAR os móveis para mudar de lugar (aparece uma sombra verde onde cabe e vermelha onde não cabe). Os botões ↻ girar e 📦 guardar ficaram no topo da tela, sempre visíveis, mesmo com o painel de móveis aberto." },
+  { v: 316, txt: "Quarto: os botões ganharam nome, \"↻ Girar\" e \"📦 Arquivar\" (o móvel arquivado volta para o seu inventário)." },
+  { v: 315, txt: "Quarto: agora dá para ARRASTAR os móveis para mudar de lugar (aparece uma sombra verde onde cabe e vermelha onde não cabe). Os botões ↻ Girar e 📦 Arquivar ficaram no topo da tela, sempre visíveis, mesmo com o painel de móveis aberto." },
   { v: 314, txt: "🏠 Nova aba Quartos na Vila: lista os quartos de amigos (e os abertos a todos), com prévia dos móveis, quantas pessoas estão lá, botão Visitar e botão para deixar carta." },
   { v: 313, txt: "Voz: em 🎙️ Voz agora aparece o estado da permissão do microfone (permitida, bloqueada ou não pedida), o botão Pedir permissão agora e, se estiver bloqueada, o passo a passo para liberar nas configurações do celular (o navegador não deixa o jogo abrir as configurações sozinho)." },
   { v: 312, txt: "🎙️ Voz na Vila (fala só com os 6 mais perto, escolhidos por distância; sem custo)! Toque no ícone de microfone (🎤 → 🎙️) ao lado do zoom para ligar e desligar. Quem está perto ouve você, e a voz vai ficando mais baixa conforme a distância no mapa (e some no alcance). Aparece 🔊 ao lado do nome de quem está falando. Em 🎙️ Voz você escolhe ouvir ou não, voz só com amigos, e silencia pessoas (também no perfil). Funciona nos quartos e nas festas." },
@@ -14838,16 +14839,16 @@ function quartoBarra() {
   if (!el) { el = document.createElement('div'); el.id = 'quartoBar'; el.className = 'quartobar'; el.hidden = true; $('#praca .pracawrap').appendChild(el);
     el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const a = b.dataset.q, S2 = praca.sala; if (!S2) return;
       if (a === 'sair') return pracaIrSala(null);
-      if (a === 'editar') { S2.edit = !S2.edit; S2.sel = null; if (!S2.edit) { pracaPainelAbrir(null); quartoPublicar(); } else { praca.qtab = 'inv'; pracaPainelAbrir('moveis'); toast('🛠️ Arraste um móvel para mover. Toque nele para girar (↻) ou guardar (📦).', 'good'); } return quartoBarra(); }
+      if (a === 'editar') { S2.edit = !S2.edit; S2.sel = null; if (!S2.edit) { pracaPainelAbrir(null); quartoPublicar(); } else { praca.qtab = 'inv'; pracaPainelAbrir('moveis'); toast('🛠️ Arraste um móvel para mover. Toque nele para Girar ou Arquivar.', 'good'); } return quartoBarra(); }
       if (a === 'moveis') return pracaPainelAbrir(praca.painel === 'moveis' ? null : 'moveis');
       const q = quartoSt().q, sel = S2.sel; if (!sel || sel.idx == null) return; const it = q.m[sel.idx]; if (!it) return;
       if (a === 'girar') { const r2 = ((it.r || 0) + 1) % 4; if (quartoCabe(q, it.i, it.u, it.v, r2, sel.idx)) { it.r = r2; done(); quartoPublicar(); } else toast('Não cabe girado aqui.'); }
-      if (a === 'guardar') { quartoSt().inv[it.i] = (quartoSt().inv[it.i] || 0) + 1; q.m.splice(sel.idx, 1); S2.sel = null; done(); quartoPublicar(); sfx('click'); }
+      if (a === 'guardar') { quartoSt().inv[it.i] = (quartoSt().inv[it.i] || 0) + 1; q.m.splice(sel.idx, 1); S2.sel = null; done(); quartoPublicar(); sfx('click'); toast('📦 Móvel arquivado no seu inventário.'); }
       quartoBarra(); }); }
   if (!S || !praca.aberta) { el.hidden = true; return; }
   const dono = S.dono === user.uid, sel = S.sel && S.sel.idx != null ? quartoSt().q.m[S.sel.idx] : null;
   el.hidden = false;
-  el.innerHTML = `<button type="button" class="btn ghost" data-q="sair">🚪 Sair</button>` + (dono ? `<button type="button" class="btn ${S.edit ? 'gold' : ''}" data-q="editar">🛠️ ${S.edit ? 'Concluir' : 'Editar'}</button>` + (S.edit ? `<button type="button" class="btn" data-q="moveis">🎒 Móveis</button>` : '') + (sel ? `<span class="qsel">${MOVEIS[sel.i].e || '▦'} ${MOVEIS[sel.i].n}</span><button type="button" class="btn" data-q="girar">↻</button><button type="button" class="btn" data-q="guardar">📦</button>` : S.sel && S.sel.novo ? `<span class="qsel">Colocar: ${MOVEIS[S.sel.novo].e || '▦'} ${MOVEIS[S.sel.novo].n}</span>` : '') : '');
+  el.innerHTML = `<button type="button" class="btn ghost" data-q="sair">🚪 Sair</button>` + (dono ? `<button type="button" class="btn ${S.edit ? 'gold' : ''}" data-q="editar">🛠️ ${S.edit ? 'Concluir' : 'Editar'}</button>` + (S.edit ? `<button type="button" class="btn" data-q="moveis">🎒 Móveis</button>` : '') + (sel ? `<span class="qsel">${MOVEIS[sel.i].e || '▦'} ${MOVEIS[sel.i].n}</span><button type="button" class="btn" data-q="girar">↻ Girar</button><button type="button" class="btn" data-q="guardar">📦 Arquivar</button>` : S.sel && S.sel.novo ? `<span class="qsel">Colocar: ${MOVEIS[S.sel.novo].e || '▦'} ${MOVEIS[S.sel.novo].n}</span>` : '') : '');
 }
 function quartoToque(x, y, G) {
   const S = praca.sala, q = quartoAtual(), a = (x - G.cx) / G.tw, b = (y - G.cy) / (G.tw / 2), u = G.ou + (a + b) / 2, v = G.ov + (b - a) / 2, dono = S.dono === user.uid, now = performance.now();
