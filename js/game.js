@@ -1360,8 +1360,9 @@ function feedDog(slot) {
   const d = state.dogs[slot];
   if (!d || dogAwake(d)) return;
   if (state.dogFood <= 0) {
-    openPanel('loja', 'caes');
-    return toast(`Acabou a ração de cachorro. Compre na Loja (${DOG_FOOD.custo} moedas, dura ${DOG_FOOD.horas}h).`, 'bad');
+    if (state.coins < DOG_FOOD.custo) { openPanel('loja', 'caes'); return toast(`Acabou a ração de cachorro e faltam ${DOG_FOOD.custo - state.coins} moedas para comprar (${DOG_FOOD.custo} moedas, dura ${DOG_FOOD.horas}h).`, 'bad'); }
+    perguntar(`Acabou a ração de cachorro.\nComprar 1 por ${DOG_FOOD.custo} moedas e dar para ${d.nome} agora?`, () => { if (state.coins < DOG_FOOD.custo || state.dogs[slot] !== d) return; buyDogFood(1); feedDog(slot); });
+    return;
   }
   state.dogFood--;
   d.fedUntil = Date.now() + DOG_FOOD.horas * 3600e3;
@@ -1402,6 +1403,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 286, txt: "Dois avisos novos: (1) quando a ração do cachorro acabar e você clicar nele, o jogo oferece comprar 1 ração na hora e já dar para ele. (2) Chocadeira cheia / abrigo cheio: quando um ovo está pronto mas não cabe no abrigo, o jogo pergunta o que fazer: aguardar, vender um animal do abrigo para abrir vaga, vender o filhote ou doar o filhote para um amigo à sua escolha (ele resgata em Loja › Animais). Na chocadeira, o ovo sem vaga ganhou o botão 'Sem vaga: e agora?'." },
   { v: 285, txt: "Outono: cai mais folha mesmo! No outono os montes de folhas aparecem a cada ~2h30 (nas outras estações, a cada ~4h), podem ficar até 8 no gramado e até 9 por dia. Continua um de cada vez." },
   { v: 284, txt: "Apodrecer: agora a planta apodrece exatamente 24 horas depois de ficar pronta para colher. Corrigi um erro: o relógio de apodrecer não zerava ao colher, então a planta nova podia apodrecer cedo demais por causa do tempo da anterior. As plantas prontas hoje ganharam um novo prazo de 24h." },
   { v: 283, txt: "Montes de folhas: agora aparece um de cada vez, mais ou menos a cada 4 horas (entre 3h30 e 4h30), em vez de vários juntos na virada do dia ou quando você voltava ao jogo. Continua até 5 por dia." },
@@ -1846,6 +1848,79 @@ function perguntar(msg, sim) {
   confirmaSim = sim; $('#confirmaNao').focus();
 }
 let confirmaSim = null;
+// Janelinha com várias opções (cada uma um botão).
+let escolhaOps = [];
+function escolher(msg, ops) {
+  escolhaOps = ops; $('#escolhaTxt').textContent = msg;
+  $('#escolhaOps').innerHTML = ops.map((o, i) => `<button type="button" class="btn ${o.gold ? 'gold' : o.ghost ? 'ghost' : ''}" data-escolha="${i}" ${o.off ? 'disabled' : ''}>${o.txt}</button>`).join('');
+  $('#escolhaModal').hidden = false;
+}
+function fecharEscolha() { $('#escolhaModal').hidden = true; escolhaOps = []; }
+const escolhaAberta = () => !$('#escolhaModal').hidden || !$('#confirmaModal').hidden;
+// Ovo pronto mas sem vaga no abrigo (ou chocadeira cheia): aguardar, vender um animal, vender o filhote ou doar.
+function dilemaChoc(ovo) {
+  const ovos = (state.chocadeira && state.chocadeira.ovos) || [];
+  if (!ovo || !ovos.includes(ovo)) return;
+  const k = ovo.especie, d = ANIMAL[k], ab = abrigoOf(k), cheia = ovos.length >= chocCap();
+  const preco = precoVenda(newAnimal(k)), artigo = ab.o === 'a' ? 'a' : 'o', cheio = ab.o === 'a' ? 'cheia' : 'cheio';
+  const amigos = user ? state.friends.filter(u => friendInfo[u] && friendInfo[u] !== 'loading' && !friendInfo[u].erro) : [];
+  escolher(`🥚 O ovo de ${d.nome.toLowerCase()} está pronto, mas ${artigo} ${ab.nome.toLowerCase()} está ${cheio}${cheia ? ' e a chocadeira também está cheia' : ''}. O filhote não consegue nascer.\n\nO que você quer fazer?`, [
+    { txt: '⏳ Aguardar (o ovo fica esperando uma vaga)', ghost: true, fn: () => { ovo.espera = Date.now() + 6 * 3600e3; toast('Ok, o ovo espera. Eu pergunto de novo daqui a umas horas.'); } },
+    { txt: `💰 Vender um animal ${artigo === 'a' ? 'da' : 'do'} ${ab.nome.toLowerCase()} para abrir vaga`, gold: true, fn: () => escolherVenderParaVaga(ovo) },
+    { txt: `🐣 Vender o filhote (${preco.toLocaleString('pt-BR')} moedas)`, fn: () => perguntar(`Vender o ovo de ${d.nome.toLowerCase()} (já pronto) por ${preco.toLocaleString('pt-BR')} moedas?`, () => venderOvoPronto(ovo, preco)) },
+    { txt: '🎁 Doar o filhote a um amigo', off: !amigos.length, fn: () => escolherAmigoParaDoar(ovo, amigos) },
+  ]);
+}
+function escolherVenderParaVaga(ovo) {
+  const k = ovo.especie, ab = abrigoOf(k), l = livesIn(state, ab.id).filter(a => ANIMAL[a.k].tipo !== 'pet');
+  escolher(`Qual animal ${ab.o === 'a' ? 'da' : 'do'} ${ab.nome.toLowerCase()} você quer vender? Assim o filhote de ${ANIMAL[k].nome.toLowerCase()} pode nascer.`, [
+    ...l.map(a => ({ txt: `${esc(nomeBicho(a))} · ${precoVenda(a).toLocaleString('pt-BR')} moedas`, fn: () => perguntar(`Vender ${nomeBicho(a)} por ${precoVenda(a).toLocaleString('pt-BR')} moedas?`, () => venderParaVaga(a)) })),
+    { txt: '⬅️ Voltar', ghost: true, fn: () => dilemaChoc(ovo) },
+  ]);
+}
+function venderParaVaga(a) {
+  if (!state.animals.includes(a)) return;
+  if (isAdult(a) || ANIMAL[a.k].tipo === 'cria') { if (isAdult(a)) return sellAdult(a, null); }
+  const price = precoVenda(a), d = ANIMAL[a.k];
+  state.animals = state.animals.filter(x => x !== a); delete amb[a.id];
+  state.coins += price; sfx('coin'); track('vender', price);
+  toast(`Vendeu ${d.f ? 'a' : 'o'} ${nomeBicho(a)} por ${price.toLocaleString('pt-BR')} moedas. Abriu vaga: o filhote já pode nascer!`, 'good'); done();
+}
+function venderOvoPronto(ovo, preco) {
+  const ovos = state.chocadeira.ovos, i = ovos.indexOf(ovo); if (i < 0) return;
+  ovos.splice(i, 1); state.coins += preco; sfx('coin'); track('vender', preco);
+  toast(`Vendeu o filhote de ${ANIMAL[ovo.especie].nome.toLowerCase()} por ${preco.toLocaleString('pt-BR')} moedas. A chocadeira ganhou um espaço!`, 'good'); done();
+}
+function escolherAmigoParaDoar(ovo, amigos) {
+  const d = ANIMAL[ovo.especie];
+  escolher(`Para qual amigo doar o filhote de ${d.nome.toLowerCase()}? Ele recebe um crédito para resgatar em Loja › Animais.`, [
+    ...amigos.map(u => { const f = friendInfo[u], baixo = (f.level || 1) < d.nivel; return { txt: `${esc(f.name)}${baixo ? ` · precisa do nível ${d.nivel}` : ''}`, off: baixo, fn: () => perguntar(`Doar o filhote de ${d.nome.toLowerCase()} para ${f.name}?`, () => doarFilhote(u, ovo)) }; }),
+    { txt: '⬅️ Voltar', ghost: true, fn: () => dilemaChoc(ovo) },
+  ]);
+}
+async function doarFilhote(uid, ovo) {
+  const ovos = state.chocadeira.ovos, i = ovos.indexOf(ovo); if (i < 0 || !user) return;
+  const k = ovo.especie, d = ANIMAL[k], f = friendInfo[uid];
+  ovos.splice(i, 1); done(); renderPane();
+  try {
+    await Cloud.sendVisit(uid, { t: 'gift', gift: 'filhote:' + k, nivel: nivelAmizade(uid), from: user.uid, fromName: meuApelido(), at: Date.now() });
+    avisarAmigo(uid, 'presente', `🎁 ${meuApelido()} te deu um filhote de ${d.nome.toLowerCase()}!`);
+    sfx('buy'); addXP(2, null); track('presentear'); ganharAmizade(uid);
+    toast(`Filhote de ${d.nome.toLowerCase()} doado para ${f && f.name ? f.name : 'seu amigo'}! 🎁`, 'good'); done();
+  } catch (e) {
+    console.warn(e); ovos.splice(Math.min(i, ovos.length), 0, ovo); done(); renderPane();
+    if (e && e.code === 'permission-denied') reatarAmizade(uid); else toast('Não consegui doar agora. O ovo voltou para a chocadeira.', 'bad');
+  }
+}
+// Chocadeira cheia e um casal pronto para botar: avisa (a cada 3h) e, se já tiver ovo pronto sem vaga, pergunta o que fazer.
+function avisoChocCheia() {
+  if (!isHome() || document.hidden || isGated() || escolhaAberta()) return;
+  const agora = Date.now(); if (agora - (state.chocAviso || 0) < 3 * 3600e3) return;
+  state.chocAviso = agora;
+  const preso = state.chocadeira.ovos.find(o => agora >= o.nascimento);
+  if (preso) return dilemaChoc(preso);
+  toast('🥚 A chocadeira está cheia: o próximo ovo só entra quando um filhote nascer. Aumente a chocadeira ou venda/doe animais para abrir vagas.');
+}
 function fecharConfirma(ok) { const f = confirmaSim; confirmaSim = null; $('#confirmaModal').hidden = true; if (ok && f) f(); }
 function sell(id, qtd) {
   const it = item(id), q = state.barn[id] || 0, vend = q - bloqQtd(id, q); if (!q || !it || vend <= 0) return;
@@ -2653,6 +2728,8 @@ function verificarReproducao() {
       state.ultima_reproducao[k] = now;
       toast(`🐾 Nasceu ${ANIMAL[filhote].f ? 'uma' : 'um'} ${ANIMAL[filhote].nome.toLowerCase()}!`, 'good');
       done();
+    } else if (temChocadeira() && state.chocadeira.ovos.length >= chocCap()) {
+      avisoChocCheia();
     } else if (temChocadeira() && state.chocadeira.ovos.length < chocCap()) {
       const dur = chocHoras(filhote, chocNivel()) * 3600e3;
       state.chocadeira.ovos.push({ especie: filhote, nascimento: now + dur, dur });
@@ -2676,7 +2753,10 @@ function hatcharOvos() {
     const ovo = state.chocadeira.ovos[i];
     if (agora < ovo.nascimento) continue;
     const abrigo = abrigoOf(ovo.especie), vaga = abrigo ? vagas(state, abrigo.id) : 0;
-    if (vaga <= 0) continue;
+    if (vaga <= 0) {
+      if (!(ovo.espera > agora) && !escolhaAberta() && !document.hidden && !isGated()) { ovo.espera = agora + 6 * 3600e3; setTimeout(() => dilemaChoc(ovo), 400); }
+      continue;
+    }
     const n = Math.min(vaga, Math.random() * 100 < info.gemeos ? 2 : 1);
     for (let k = 0; k < n; k++) {
       const a = newAnimal(ovo.especie); a.nomeGrat = 1; a.nasc = Date.now();
@@ -5632,7 +5712,7 @@ function chocadeiraHTML() {
     const ovo = ovos[k];
     if (!ovo) { html += `<div class="bslot" style="opacity:.6"><div style="width:40px;height:40px;border-radius:50%;background:#d9b86a;opacity:.6;display:grid;place-items:center">🪹</div><b>Vazio</b><span>espaço ${k + 1}</span></div>`; continue; }
     const falta = ovo.nascimento - agora, pct = Math.max(0, Math.min(100, 100 - falta / (ovo.dur || 12 * 3600e3) * 100));
-    html += `<div class="bslot"><img alt="" src="${animalIcon(ovo.especie)}"><b>Ovo de ${esc(ANIMAL[ovo.especie].nome.toLowerCase())}</b><span>${falta > 0 ? fmt(falta / 1000) : 'Pronto!'}</span><div class="mbar" style="width:90%"><i style="width:${pct}%"></i></div></div>`;
+    html += `<div class="bslot"><img alt="" src="${animalIcon(ovo.especie)}"><b>Ovo de ${esc(ANIMAL[ovo.especie].nome.toLowerCase())}</b><span>${falta > 0 ? fmt(falta / 1000) : (vagas(state, (abrigoOf(ovo.especie) || {}).id) <= 0 ? '<button type="button" class="btn gold" style="font-size:11px;padding:2px 6px" data-choc-dilema="' + k + '">Sem vaga: e agora?</button>' : 'Pronto!')}</span><div class="mbar" style="width:90%"><i style="width:${pct}%"></i></div></div>`;
   }
   html += `</div><p class="hint">Aves botam ovos aqui e filhotes nascem no abrigo se houver vaga (de gêmeos, se couberem os dois). Mamíferos não usam a chocadeira: o filhote nasce direto no abrigo, junto dos pais, e você dá o nome dele de graça ao tocar.</p>`;
   html += `<h3>Tempos de cada ave</h3>`;
@@ -6023,6 +6103,7 @@ $('#pane').addEventListener('click', e => {
   if (d.skinCao) { const [sl, sk] = d.skinCao.split(':'), dg = state.dogs[sl]; if (dg && (sk === 'padrao' || (SKIN_CAO[sk] && temTrevoItem('cao:' + sk)))) { dg.skin = sk === 'padrao' ? '' : sk; sfx('click'); done(); renderPane(); if (isHome()) setScene(scene); } return; }
   if (d.evResgatar) return resgatarEvento(d.evResgatar);
   if (d.evComprar) return comprarEnfeiteEvento(d.evComprar);
+  if (d.chocDilema !== undefined) { const ov = state.chocadeira.ovos[Number(d.chocDilema)]; if (ov) { closePanel(); dilemaChoc(ov); } return; }
   if (d.comprarVaga) return comprarVagaCao(d.comprarVaga);
   if (d.newsDel) { state.news = state.news.filter(n => String(n.at) !== d.newsDel); sfx('click'); save(); renderTabs(); return renderPane(); }
   if (d.newsLimpar) return confirmTwice('news-limpar', 'Apagar todas as cartas do correio? Toque de novo para confirmar.', () => { state.news = []; sfx('water'); toast('Correio limpo! 📭', 'good'); save(); renderTabs(); renderPane(); });
@@ -7072,6 +7153,7 @@ const PRESENTE_AMIGO = [
 // Presente de plantas: o amigo escolhe qual planta (das que você já liberou). Cada nível de amizade dá mais.
 const plantasPresente = lvl => 2 + Math.floor(lvl / 2);
 const presenteDe = id => {
+  if (id.startsWith('filhote:') && ANIMAL[id.slice(8)]) { const k = id.slice(8); return { id, nome: () => `1 filhote de ${ANIMAL[k].nome.toLowerCase()} (resgate em Loja › Animais)`, dar: st => { st.animalCred = st.animalCred || {}; st.animalCred[k] = (st.animalCred[k] || 0) + 1; } }; }
   const c = id.startsWith('planta:') && CROP[id.slice(7)];
   if (c) return { id, nome: lvl => `${plantasPresente(lvl)} plantas de ${c.nome.toLowerCase()}`, dar: (st, lvl) => { st.barn = st.barn || {}; st.barn[c.prod] = (st.barn[c.prod] || 0) + plantasPresente(lvl); } };
   return PRESENTE_AMIGO.find(x => x.id === id);
@@ -9971,6 +10053,8 @@ $('#minaCampo').addEventListener('click', () => { if (!minaAnim) minaIniciar(min
 $('#confirmaSim').addEventListener('click', () => fecharConfirma(true));
 $('#confirmaNao').addEventListener('click', () => fecharConfirma(false));
 $('#confirmaModal').addEventListener('click', e => { if (e.target === $('#confirmaModal')) fecharConfirma(false); });
+$('#escolhaOps').addEventListener('click', e => { const b = e.target.closest('[data-escolha]'); if (!b || b.disabled) return; const o = escolhaOps[Number(b.dataset.escolha)]; fecharEscolha(); if (o && o.fn) o.fn(); });
+$('#escolhaModal').addEventListener('click', e => { if (e.target === $('#escolhaModal')) fecharEscolha(); });
 $('#minaModal').addEventListener('click', e => {
   if (e.target === $('#minaModal') || e.target.closest('[data-close]')) return fecharMinaModal();
   if (e.target.closest('[data-mina-info]')) { fecharMinaModal(); openPanel('mina'); }
