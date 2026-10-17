@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 323, txt: "Vila: ao tocar num emoji, gesto, dança ou lugar do menu, o menu fecha para você ver o que aconteceu." },
   { v: 322, txt: "Vila: a barra de baixo agora tem só 3 botões — 🧭 Ir para (lugares, quartos, tarefas, tiro ao alvo), 👥 Pessoas (cartas, voz, convidar) e 🎭 Eu (emojis, danças, pet, títulos, móveis). Toque num deles para expandir as opções." },
   { v: 321, txt: "Vila: (1) a barra de baixo ficou enxuta: Lugares, Quartos, Pessoas, Eu e Tarefas, cada uma abre um menu com ícones. (2) Novas atividades: 📜 Tarefas do dia (6 por dia, com moedas), 🗺️ Tesouro do dia (dica + área no minimapa, vá cavar) e 🎯 Tiro ao alvo (5 tiros). (3) Chega de bichos correndo: moradores agora são gente (Seu Zé, Dona Maria, Seu Bastião e Dona Véia), o chefe agora é o lobo/javali desenhado do jogo e os pets seguem com a arte do jogo." },
   { v: 320, txt: "Vila › Quartos: agora o jogo avisa quando não consegue ler/publicar os quartos (por exemplo, regras do Firebase desatualizadas), mostra se o seu quarto está publicado e tem botão de recarregar." },
@@ -15497,12 +15498,12 @@ $('#praca')?.addEventListener('input', e => { if (e.target.id === 'vmPreco') pra
 $('#praca')?.addEventListener('click', e => {
   const t = e.target, q = sel => t.closest(sel);
   let b;
-  if ((b = q('[data-praca-emote]'))) return pracaEmote(b.dataset.pracaEmote);
+  if ((b = q('[data-praca-emote]'))) { pracaEmote(b.dataset.pracaEmote); return pracaPainelAbrir(null); }
   if ((b = q('[data-praca-resg]'))) return pracaResgatar(b.dataset.pracaResg);
   if ((b = q('[data-vila-ir]'))) return pracaPainelAbrir(b.dataset.vilaIr);
   if (q('[data-vila-fechar]')) return pracaPainelAbrir(null);
   if (q('[data-vila-bater]')) return pracaBater();
-  if ((b = q('[data-vila-ir-z]'))) return vilaIrZona(b.dataset.vilaIrZ);
+  if ((b = q('[data-vila-ir-z]'))) { pracaPainelAbrir(null); return vilaIrZona(b.dataset.vilaIrZ); }
   if (q('#pracaAcao')) return vilaAcao();
   if (q('[data-vila-boss-premio]')) return pracaBossPremio();
   if ((b = q('[data-vila-mtab]'))) { praca.mtab = b.dataset.vilaMtab; pracaPainel(); return; }
@@ -15520,7 +15521,7 @@ $('#praca')?.addEventListener('click', e => {
   if ((b = q('[data-vila-tarefa]'))) return pracaTarefaPegar(b.dataset.vilaTarefa);
   if (q('[data-vila-alvo-ini]')) return pracaAlvoIniciar();
   if (q('[data-vila-alvo-tiro]')) return pracaAlvoTiro();
-  if (q('[data-vila-meuquarto]')) return pracaVisitarQuarto(user.uid);
+  if (q('[data-vila-meuquarto]')) { pracaPainelAbrir(null); return pracaVisitarQuarto(user.uid); }
   if ((b = q('[data-vila-quarto]'))) return pracaVisitarQuarto(b.dataset.vilaQuarto);
   if (q('[data-vila-sair-sala]')) return pracaIrSala(null);
   if ((b = q('[data-vila-qtab]'))) { praca.qtab = b.dataset.vilaQtab; return pracaPainel(); }
