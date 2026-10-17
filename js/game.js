@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 311, txt: "Vila: dá para pescar em qualquer beira do lago (não só no cais). Tocar na água da piscina agora faz o avatar andar até lá (antes só mostrava o nome). O avatar agora tem pose de sentado de verdade, em cima da cadeira, e nenhuma cadeira fica dentro da água." },
   { v: 310, txt: "🏘️ Vila: 5 novidades! (1) ✉️ Cartas: deixe cartas e presentes na caixa de correio 📮 de um amigo, mesmo offline. (2) ♟️ Damas entre dois jogadores nas mesas dos quartos e das festas. (3) 🐾 Escolha um bichinho seu para te acompanhar pela Vila. (4) 🏅 Títulos e selos por desafios, que aparecem no seu nome e perfil. (5) 📍 Lista de quem está onde, com botão para ir até lá. Você ganhou uma caixa de correio e uma mesa de damas grátis no inventário do quarto." },
   { v: 309, txt: "Vila: ao tocar numa cadeira, sofá ou cama, aparece a pergunta com os botões Sentar (ou Deitar) e Cancelar." },
   { v: 308, txt: "Vila: os botões Sair e Editar do quarto não ficam mais na tela depois que você volta para a Vila." },
@@ -7983,12 +7984,13 @@ function drawNaMao(g, tipo, t, agir) {
   }
 }
 // Desenha o avatar de frente, com os pés em (x, y). "passo" balança pernas e braços.
-function drawAvatar(g, x, y, s, av, t, andando, dir = 1) {
+function drawAvatar(g, x, y, s, av, t, andando, dir = 1, sentado = false) {
   av = avatarOk(av);
   const pele = AV_PELE[av.pele], f = av.sexo === 'f';
   const ph = andando ? Math.sin(t / 110) : 0, pe = [Math.max(0, ph) * 3, Math.max(0, -ph) * 3];
   const jeans = '#3f6fa8', jeansD = '#2c5282', jeansF = '#7fa8d8', jeansFD = '#5f88bc';
   g.save(); g.translate(x, y); g.scale(s, s); g.translate(0, andando ? -Math.abs(Math.cos(t / 110)) * 1.2 : 0);
+  if (sentado) g.translate(0, 9); // sentado: o corpo desce até o assento
   const rr = (x0, y0, w, h, r, c) => { g.fillStyle = c; g.beginPath(); g.roundRect(x0, y0, w, h, r); g.fill(); };
   const ombro = f ? 9.3 : 10.5;
   // cabelo comprido fica atrás de tudo
@@ -7998,6 +8000,14 @@ function drawAvatar(g, x, y, s, av, t, andando, dir = 1) {
   // pernas, calça e calçados
   for (const [k, lx0] of [[0, -6.5], [1, 1.5]]) {
     const up = pe[k], lx = f ? lx0 + (k ? -0.3 : 0.8) : lx0, lw = f ? 4.3 : 5;
+    if (sentado) { // coxa para a frente, canela para baixo e sapato
+      const hx = k ? 1.5 : -1.5, fwd = dir * 12.5, kx = hx + fwd, yo = k ? 1.6 : 0, cor = f ? (av.calca === 'jeansclara' ? jeansF : pele) : (av.calca === 'bermuda' ? '#c9a66b' : (k ? jeansD : jeans));
+      const sap = f ? (av.sapato === 'sapatilha' ? '#c8233f' : av.sapato === 'botinha' ? '#c98f57' : '#f4d9a8') : (av.sapato === 'bota' ? '#7a4a24' : av.sapato === 'tenis' ? '#f4f1ea' : '#e08a2e');
+      rr(Math.min(hx, kx) - 2.8, -28 + yo, Math.abs(fwd) + 5.6, 6.5, 3, cor);
+      rr(kx - 2.8 + (k ? 1 : 0), -23 + yo, 5.6, 18, 2, (f && av.calca !== 'jeansclara') ? pele : cor);
+      rr(kx - 3.6 + dir * 1.4 + (k ? 1 : 0), -6 + yo, 8, 4.6, 2, sap);
+      continue;
+    }
     rr(lx, -25 - up, lw, 21, 2, pele);
     if (!f) {
       if (av.calca === 'bermuda') rr(lx - 0.5, -25 - up, 6, 11, 2, '#c9a66b');
@@ -14380,7 +14390,8 @@ const VILA_ZONAS = {
   cinema:   { nome: 'Cinema',   ic: '🎬', u: 54, v: 24.5 },
   piscina:  { nome: 'Piscina',  ic: '🏊', u: 32, v: 9.5 },
 };
-const VILA_BANCOS = [[27, 21, 1], [37, 21, -1], [27, 29.5, 1], [37, 29.5, -1], [44.5, 15.5, 1], [28.5, 25, 1], [35.5, 25, -1], [29.5, 17.5, 1], [34.5, 17.5, -1], [29.5, 32.5, 1], [34.5, 32.5, -1], [24, 23, 1], [40, 27, -1]];
+const VILA_BANCOS_TODOS = [[27, 21, 1], [37, 21, -1], [27, 29.5, 1], [37, 29.5, -1], [41.5, 15, 1], [28.5, 25, 1], [35.5, 25, -1], [29.5, 17.5, 1], [34.5, 17.5, -1], [29.5, 32.5, 1], [34.5, 32.5, -1], [24, 23, 1], [40, 27, -1]];
+const VILA_BANCOS = VILA_BANCOS_TODOS.filter(([u, v]) => !vilaAgua(u, v)); // nada de cadeira na água
 const VILA_POSTES = [[28, 20], [36, 20], [28, 30], [36, 30], [32, 13], [32, 40], [20, 25], [44, 25], [43, 14], [26, 44], [40, 44]];
 const VILA_NPCS = [
   { e: '🐕', cu: 32, cv: 25, r: 5.5, per: 16, ph: 0,   fala: ['Au au!', 'Au! (quer brincar)', '🐾'] },
@@ -14434,23 +14445,25 @@ function vilaPegar(it) {
 // Chefe: anda por um trajeto igual em todos os aparelhos
 const pracaBossPos = now => { const w = (pracaAgora() % VILA_BOSS_CICLO) / 1800; return { u: 32 + Math.cos(w) * 8, v: 33 + Math.sin(w * 1.3) * 4.5 }; };
 // Pesca de verdade, no cais: lança, espera a fisgada (❗) e puxa na hora certa
+function vilaPertoAgua(p, r = 2.6) { for (let k = 0; k < 16; k++) { const a = k / 16 * 6.2832; if (vilaAgua(p.u + Math.cos(a) * r, p.v + Math.sin(a) * r)) return true; } return vilaAgua(p.u, p.v); }
+function vilaIsca(p) { const dx = VILA_LAGO.u - p.u, dy = VILA_LAGO.v - p.v, L = Math.hypot(dx, dy) || 1; for (let t = 1; t < 10; t += 0.4) { const u = p.u + dx / L * t, v = p.v + dy / L * t; if (vilaAgua(u, v)) return { u: u + dx / L * 0.8, v: v + dy / L * 0.8 }; } return { u: VILA_LAGO.u, v: VILA_LAGO.v }; }
 function vilaPesca() {
   const P = praca.pesca, now = performance.now(), c = pracaSt().c;
   if (!P) {
     if ((c.lg || 0) >= 80) return toast('Cansou de pescar por hoje (80 lançadas). Volte amanhã!');
-    c.lg = (c.lg || 0) + 1; praca.pesca = { fase: 'espera', ate: now + 2000 + Math.random() * 4500 }; praca.eu.dir = 1; pracaEnviarMov({ ek: '🎣', et: Date.now() }); sfx('water'); return;
+    c.lg = (c.lg || 0) + 1; praca.pesca = { fase: 'espera', ate: now + 2000 + Math.random() * 4500, isca: vilaIsca(pracaPos(praca.eu, now)) }; praca.eu.dir = 1; pracaEnviarMov({ ek: '🎣', et: Date.now() }); sfx('water'); return;
   }
   if (P.fase === 'espera') { praca.pesca = null; return toast('Puxou cedo demais! O peixe fugiu. 😅'); }
   const rt = now - P.t0; praca.pesca = null;
   const r = Math.random() + (rt < 450 ? 0.12 : 0);
   const f = r > 0.96 ? ['🐠 Peixe-dourado raro', 150] : r > 0.78 ? ['🐟 Tilápia', 35] : r > 0.5 ? ['🐟 Lambari', 20] : r > 0.2 ? ['🐡 Baiacu', 12] : ['🥾 Uma bota velha', 3];
   state.coins += f[1]; pracaPontos(Math.max(1, Math.round(f[1] / 6))); sfx(f[1] >= 100 ? 'level' : 'coin'); vilaConq('pesca');
-  praca.flutua.push({ txt: `${f[0].split(' ')[0]} +${f[1]}`, u: 49, v: 12, t: performance.now() }); toast(`${f[0]}! +${f[1]} moedas${rt < 450 ? ' (reflexo rápido!)' : ''}`, f[1] >= 20 ? 'good' : undefined); done();
+  praca.flutua.push({ txt: `${f[0].split(' ')[0]} +${f[1]}`, u: P.isca ? P.isca.u : 49, v: P.isca ? P.isca.v : 12, t: performance.now() }); toast(`${f[0]}! +${f[1]} moedas${rt < 450 ? ' (reflexo rápido!)' : ''}`, f[1] >= 20 ? 'good' : undefined); done();
 }
 function vilaContexto() {
   const e = praca.eu; if (!e) return null;
   const p = pracaPos(e, performance.now()), d = (u, v) => Math.hypot(p.u - u, p.v - v);
-  if (praca.pesca || d(VILA_PESCA.u, VILA_PESCA.v) < 2.4) return { id: 'pesca', txt: !praca.pesca ? '🎣 Pescar' : praca.pesca.fase === 'espera' ? '🎣 Esperando… (não puxe!)' : '❗ PUXAR!', fisgou: !!praca.pesca && praca.pesca.fase === 'fisgou' };
+  if (praca.pesca || vilaPertoAgua(p)) return { id: 'pesca', txt: !praca.pesca ? '🎣 Pescar' : praca.pesca.fase === 'espera' ? '🎣 Esperando… (não puxe!)' : '❗ PUXAR!', fisgou: !!praca.pesca && praca.pesca.fase === 'fisgou' };
   if (pracaBossAtivo()) { const b = pracaBossPos(); if (d(b.u, b.v) < 6) return { id: 'boss', txt: `⚔️ Atacar o ${pracaBossNome().slice(3)}!` }; }
   const bau = praca.spawns.find(it => it.tipo === 'bau' && !praca.pegos[it.i] && d(it.u, it.v) < 2.6); if (bau) return { id: 'bau:' + bau.i, txt: '🎁 Abrir baú' };
   for (const [tipo, F] of Object.entries(FESTAS)) if (d(F.u, F.v + 1.8) < 3.2) return { id: 'f:' + tipo, txt: `${F.ic} Entrar: ${F.nome}` };
@@ -14541,7 +14554,7 @@ function pracaFrame(now) {
 function vilaLogica(now, p) {
   const P = praca.pesca;
   if (P) {
-    if (Math.hypot(p.u - VILA_PESCA.u, p.v - VILA_PESCA.v) > 3.2) { praca.pesca = null; toast('Você saiu do cais e recolheu a linha.'); }
+    if (!vilaPertoAgua(p, 3.6)) { praca.pesca = null; toast('Você saiu da beira do lago e recolheu a linha.'); }
     else if (P.fase === 'espera' && now >= P.ate) { P.fase = 'fisgou'; P.t0 = now; P.ate = now + 1100; sfx('water'); if (navigator.vibrate) navigator.vibrate(60); }
     else if (P.fase === 'fisgou' && now > P.ate) { praca.pesca = null; toast('O peixe escapou… 😅'); }
   }
@@ -14595,8 +14608,8 @@ function pracaDesenha(g, c, now, dpr) {
       if (tipo === 'disco') for (let k = 0; k < 4; k++) { g.fillStyle = `hsla(${(now / 8 + k * 90) % 360},90%,60%,.8)`; g.beginPath(); g.arc(q.x - w * 0.35 + k * w * 0.23, q.y - h * 0.82, 3 * dpr, 0, 7); g.fill(); } });
     praca.hits.push({ id: 'f:' + tipo, x: q.x, y: q.y - tw * 1.3, r: tw * 2.4 }); }
   VILA_POSTES.forEach(([u, v]) => { const q = I(u, v); if (!vis(q)) return; push(u + v, () => { g.fillStyle = '#3a3a44'; g.fillRect(q.x - 2 * dpr, q.y - tw * 2.4, 4 * dpr, tw * 2.4); const a = 0.25 + noite * 0.6, gl = g.createRadialGradient(q.x, q.y - tw * 2.5, 1, q.x, q.y - tw * 2.5, tw * 2.2); gl.addColorStop(0, `rgba(255,${hal ? 170 : 230},${hal ? 40 : 130},${a})`); gl.addColorStop(1, 'rgba(255,200,80,0)'); g.fillStyle = gl; g.beginPath(); g.arc(q.x, q.y - tw * 2.5, tw * 2.2, 0, 7); g.fill(); }); });
-  VILA_BANCOS.forEach(([u, v], i) => { const q = I(u, v); if (!vis(q)) return; const ocupado = lista0.some(o => o.e.ia === 'sentar' && Math.hypot(o.p.u - u, o.p.v - v) < 0.6);
-    if (!ocupado) push(u + v - 0.002, () => { g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 0.6, tw * 0.22, 0, 0, 7); g.fill(); g.font = `${Math.round(tw * 1.7)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('🪑', q.x, q.y + tw * 0.15); });
+  VILA_BANCOS.forEach(([u, v], i) => { const q = I(u, v); if (!vis(q)) return;
+    push(u + v - 0.002, () => { g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 0.6, tw * 0.22, 0, 0, 7); g.fill(); g.font = `${Math.round(tw * 1.7)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('🪑', q.x, q.y + tw * 0.15); });
     praca.hits.push({ id: 'banco:' + i, x: q.x, y: q.y - tw * 0.6, r: tw * 1.5 }); });
   { const q = I(13, 35.5); if (vis(q)) push(35.5 + 13, () => { g.font = `${Math.round(tw * 3)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('⛰️', q.x, q.y); g.fillStyle = '#1a1208'; g.beginPath(); g.ellipse(q.x, q.y - tw * 0.5, tw * 0.5, tw * 0.6, 0, Math.PI, 0); g.fill(); }); }
   if (vilaFesta()) { const q = I(32, 29); if (vis(q)) push(61, () => { g.font = `${Math.round(tw * 1.6 * (1 + Math.sin(now / 90) * 0.06))}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('🔥', q.x, q.y); for (let k = 0; k < 4; k++) { const ph = ((now / 900) + k / 4) % 1; g.fillStyle = `hsla(${(k * 80 + now / 8) % 360},90%,60%,${1 - ph})`; g.beginPath(); g.arc(q.x + Math.sin(k * 2 + now / 300) * tw * 1.4, q.y - tw * 2 - ph * tw * 3, 3 * dpr, 0, 7); g.fill(); } }); }
@@ -14634,7 +14647,7 @@ function pracaDesenha(g, c, now, dpr) {
     push(p.u + p.v + 0.001, () => {
       const andando = p.k < 1 && !!e.dur, hop = o.hop ? Math.abs(Math.sin(now / 150)) * 7 * es : 0;
       g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 0.5, tw * 0.2, 0, 0, 7); g.fill();
-      if (o.sentado) { const dirS = (VILA_BANCOS.find(b2 => Math.hypot(b2[0] - p.u, b2[1] - p.v) < 0.6) || [0, 0, e.dir])[2]; g.save(); g.beginPath(); g.rect(q.x - 70 * es, q.y - 140 * es, 140 * es, 140 * es - 17 * es); g.clip(); drawAvatar(g, q.x, q.y + 1 * es, es, o.a, now, false, dirS); g.restore(); g.font = `${Math.round(tw * 1.7)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('🪑', q.x, q.y + tw * 0.15); }
+      if (o.sentado) { const dirS = (VILA_BANCOS.find(b2 => Math.hypot(b2[0] - p.u, b2[1] - p.v) < 0.6) || [0, 0, e.dir])[2]; drawAvatar(g, q.x, q.y + tw * 0.1, es, o.a, now, false, dirS, true); }
       else if (o.danca) { const k = o.danca, t = now, cy = q.y - 34 * es; let dx = 0, dy = 0, rot = 0, sx = 1, sy = 1, dirD = e.dir, and = true;
         if (k === 'dc1') { dy = -Math.abs(Math.sin(t / 180)) * 8 * es; dirD = Math.floor(t / 600) % 2 ? 1 : -1; }
         else if (k === 'dc2') { dx = Math.sin(t / 300) * 7 * es; rot = Math.sin(t / 300) * 0.12; dirD = Math.floor(t / 900) % 2 ? 1 : -1; }
@@ -14653,7 +14666,7 @@ function pracaDesenha(g, c, now, dpr) {
       if (o.me && praca.pesca && praca.pesca.fase === 'fisgou') { g.font = `900 ${Math.round(34 * dpr)}px system-ui`; g.fillStyle = '#e0463a'; g.fillText('❗', q.x, yb - 4 * dpr); yb -= 34 * dpr; }
       if (fa && fa.ate > now) { g.font = `700 ${Math.round(11 * dpr)}px system-ui, sans-serif`; const bw = g.measureText(fa.t).width + 12 * dpr, bx = clamp(q.x - bw / 2, 4, W - bw - 4), by = yb - 18 * dpr; g.fillStyle = '#fff'; g.beginPath(); g.roundRect(bx, by, bw, 18 * dpr, 8 * dpr); g.fill(); g.fillStyle = '#2f2a1f'; g.textAlign = 'left'; g.fillText(fa.t, bx + 6 * dpr, by + 13 * dpr); g.textAlign = 'center'; }
       if (hop && vilaDanca(p.u, p.v)) { g.font = `${Math.round(14 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('🎵', q.x + Math.sin(now / 200) * 14 * dpr, top - 20 * dpr); }
-      if (o.me && praca.pesca) { const b = I(49, 12.4), bob = praca.pesca.fase === 'fisgou' ? 5 * dpr : Math.sin(now / 400) * 1.5 * dpr; g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = Math.max(1, dpr); g.beginPath(); g.moveTo(q.x + 8 * es, q.y - 48 * es); g.quadraticCurveTo((q.x + b.x) / 2, q.y - 70 * es, b.x, b.y + bob); g.stroke(); g.fillStyle = '#e0463a'; g.beginPath(); g.arc(b.x, b.y + bob, 4 * dpr, 0, 7); g.fill(); if (praca.pesca.fase === 'fisgou') { g.strokeStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.ellipse(b.x, b.y, 12 * dpr, 5 * dpr, 0, 0, 7); g.stroke(); } }
+      if (o.me && praca.pesca) { const ib = praca.pesca.isca || { u: 49, v: 12.4 }, b = I(ib.u, ib.v), bob = praca.pesca.fase === 'fisgou' ? 5 * dpr : Math.sin(now / 400) * 1.5 * dpr; g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = Math.max(1, dpr); g.beginPath(); g.moveTo(q.x + 8 * es, q.y - 48 * es); g.quadraticCurveTo((q.x + b.x) / 2, q.y - 70 * es, b.x, b.y + bob); g.stroke(); g.fillStyle = '#e0463a'; g.beginPath(); g.arc(b.x, b.y + bob, 4 * dpr, 0, 7); g.fill(); if (praca.pesca.fase === 'fisgou') { g.strokeStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.ellipse(b.x, b.y, 12 * dpr, 5 * dpr, 0, 0, 7); g.stroke(); } }
     });
     if (!o.me) praca.hits.push({ id: 'jog:' + o.uid, x: q.x, y: q.y - 34 * es, r: Math.max(28 * es, 18 * dpr) });
   }
@@ -14882,7 +14895,7 @@ function quartoDesenha(g, c, now, dpr) {
   (q.m || []).forEach((it, i) => { const M = MOVEIS[it.i]; if (!M || !M.piso) return; const [w, d] = quartoTam(M, it.r || 0), t0 = I(it.u, it.v), t1 = I(it.u + w, it.v), t2 = I(it.u + w, it.v + d), t3 = I(it.u, it.v + d);
     if (M.piso === 'disco') { for (let a = 0; a < w; a++) for (let b = 0; b < d; b++) { const k0 = I(it.u + a, it.v + b), k1 = I(it.u + a + 1, it.v + b), k2 = I(it.u + a + 1, it.v + b + 1), k3 = I(it.u + a, it.v + b + 1); poly([[k0.x, k0.y], [k1.x, k1.y], [k2.x, k2.y], [k3.x, k3.y]], `hsl(${((a * 47 + b * 31) * 7 + now / 12) % 360},80%,${40 + 14 * Math.sin(now / 200 + a + b)}%)`); } }
     else if (M.piso === 'agua') { poly([[t0.x, t0.y], [t1.x, t1.y], [t2.x, t2.y], [t3.x, t3.y]], '#3b9fe0'); g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = Math.max(1, dpr); for (let k = 0; k < 9; k++) { const a = it.u + 0.5 + (k * 0.9) % w, b = it.v + 0.5 + (k * 1.7) % d, c0 = I(a, b); g.beginPath(); g.ellipse(c0.x, c0.y, tw * (0.35 + 0.15 * Math.sin(now / 400 + k)), tw * 0.15, 0, 0, 7); g.stroke(); } }
-    else poly([[t0.x, t0.y], [t1.x, t1.y], [t2.x, t2.y], [t3.x, t3.y]], M.piso); g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2 * dpr; g.stroke(); const ct = I(it.u + w / 2, it.v + d / 2); praca.hits.push({ id: 'mov:' + i, x: ct.x, y: ct.y, r: tw * 0.9 * Math.max(w, d) / 1.2 }); if (S.sel && S.sel.idx === i) { g.strokeStyle = '#ffe08a'; g.lineWidth = 3 * dpr; g.stroke(); } });
+    else poly([[t0.x, t0.y], [t1.x, t1.y], [t2.x, t2.y], [t3.x, t3.y]], M.piso); g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2 * dpr; g.stroke(); const ct = I(it.u + w / 2, it.v + d / 2); if (S.edit) praca.hits.push({ id: 'mov:' + i, x: ct.x, y: ct.y, r: tw * 0.9 * Math.max(w, d) / 1.2 }); if (S.sel && S.sel.idx === i) { g.strokeStyle = '#ffe08a'; g.lineWidth = 3 * dpr; g.stroke(); } });
   const D = [], push = (s, fn) => D.push({ s, fn });
   (q.m || []).forEach((it, i) => { const M = MOVEIS[it.i]; if (!M || M.piso) return; const [w, d] = quartoTam(M, it.r || 0), ct = I(it.u + w / 2, it.v + d / 2), sz = tw * (0.9 + 0.3 * Math.max(w, d));
     if (M.tela) push(it.u + w / 2 + it.v + d / 2, () => { const f = FILMES[Math.floor(pracaAgora() / 45000) % FILMES.length], a = I(it.u, it.v), b2 = I(it.u + w, it.v), hh = tw * 2.4;
@@ -14903,10 +14916,11 @@ function quartoDesenha(g, c, now, dpr) {
     const naAgua = cobre('agua'), naPista = cobre('disco'), sentado = e.ia === 'sentar' && p.k >= 1, dorme = e.ia === 'dc6' && p.k >= 1, danca = /^dc[1-57]$/.test(e.ia || '') && p.k >= 1 ? e.ia : (naPista && !e.ia && p.k >= 1 ? ['dc1', 'dc2', 'dc5', 'dc7'][(o.uid.charCodeAt(0) + o.uid.length) % 4] : null);
     if (o.me) { if (naAgua && !praca.naAgua) sfx('water'); praca.naAgua = naAgua; }
     const item = (sentado || dorme) ? (q.m || []).find(it => { const M = MOVEIS[it.i], [w, d] = M ? quartoTam(M, it.r || 0) : [0, 0]; return M && !M.piso && p.u >= it.u && p.u < it.u + w && p.v >= it.v && p.v < it.v + d; }) : null;
-    push(p.u + p.v + (item ? -0.4 : 0.001), () => {
+    const MI = item && MOVEIS[item.i], sPl = item ? item.u + quartoTam(MI, item.r || 0)[0] / 2 + item.v + quartoTam(MI, item.r || 0)[1] / 2 + 0.05 : p.u + p.v + 0.001;
+    push(sPl, () => {
       g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(qq.x, qq.y, tw * 0.5, tw * 0.2, 0, 0, 7); g.fill();
       const dirV = p.dir || e.dir;
-      if (sentado) { g.save(); g.beginPath(); g.rect(qq.x - 80 * es, qq.y - 150 * es, 160 * es, 150 * es - 12 * es); g.clip(); drawAvatar(g, qq.x, qq.y + 2 * es, es, o.a, now, false, item && (item.r || 0) % 2 ? -1 : 1); g.restore(); }
+      if (sentado) { drawAvatar(g, qq.x, qq.y + tw * 0.12, es, o.a, now, false, item && (item.r || 0) % 2 ? -1 : 1, true); }
       else if (dorme) { g.save(); g.translate(qq.x, qq.y - tw * 0.6); g.rotate(-1.45); drawAvatar(g, 0, 34 * es, es, o.a, now, false, 1); g.restore(); g.font = `${Math.round(15 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('💤', qq.x + Math.sin(now / 250) * 10 * dpr, qq.y - tw * 1.8 - ((now / 40) % 14) * dpr); }
       else if (danca) { const k = danca, t = now, cy = qq.y - 34 * es; let dx = 0, dy = 0, rot = 0, sx = 1, sy = 1, dirD = e.dir, and = true;
         if (k === 'dc1') { dy = -Math.abs(Math.sin(t / 180)) * 8 * es; dirD = Math.floor(t / 600) % 2 ? 1 : -1; } else if (k === 'dc2') { dx = Math.sin(t / 300) * 7 * es; rot = Math.sin(t / 300) * 0.12; } else if (k === 'dc3') { dx = Math.round(Math.sin(t / 260)) * 6 * es; and = false; } else if (k === 'dc4') { sx = Math.cos(t / 140); } else if (k === 'dc5') { dy = -Math.abs(Math.sin(t / 90)) * 5 * es; sy = 0.92 + 0.08 * Math.sin(t / 90); } else if (k === 'dc7') { rot = (t / 220) % (Math.PI * 2); dy = -14 * es; }
