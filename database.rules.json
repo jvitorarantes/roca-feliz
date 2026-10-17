@@ -219,6 +219,115 @@
             ".validate": "newData.isString() && newData.val() === auth.uid"
           }
         }
+      },
+      "salas": {
+        "$sid": {
+          "jog": {
+            ".read": "auth != null",
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid",
+              ".validate": "newData.hasChildren(['n', 'fu', 'fv', 'tu', 'tv'])",
+              "n": {
+                ".validate": "newData.isString() && newData.val().length <= 24"
+              },
+              "a": {
+                "$k": {
+                  ".validate": "(newData.isString() && newData.val().length < 24) || newData.isNumber() || newData.isBoolean()"
+                }
+              },
+              "fu": {
+                ".validate": "newData.isNumber()"
+              },
+              "fv": {
+                ".validate": "newData.isNumber()"
+              },
+              "tu": {
+                ".validate": "newData.isNumber()"
+              },
+              "tv": {
+                ".validate": "newData.isNumber()"
+              },
+              "ts": {
+                ".validate": "newData.isNumber()"
+              },
+              "ek": {
+                ".validate": "newData.isString() && newData.val().length <= 4"
+              },
+              "et": {
+                ".validate": "newData.isNumber()"
+              },
+              "$outro": {
+                ".validate": false
+              },
+              "ia": {
+                ".validate": "newData.isString() && newData.val().length <= 10"
+              },
+              "ic": {
+                ".validate": "newData.isString() && newData.val().length <= 40"
+              },
+              "iz": {
+                ".validate": "newData.isNumber()"
+              },
+              "lv": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999"
+              },
+              "ft": {
+                ".validate": "newData.isString() && newData.val().length <= 30"
+              },
+              "sl": {
+                ".validate": "newData.isString() && newData.val().length <= 24"
+              },
+              "mo": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              }
+            }
+          }
+        }
+      },
+      "quartos": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.hasChildren(['n', 'a', 'ts'])",
+          "n": {
+            ".validate": "newData.isString() && newData.val().length <= 24"
+          },
+          "p": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 20"
+          },
+          "c": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 20"
+          },
+          "a": {
+            ".validate": "newData.isString() && (newData.val() === 'todos' || newData.val() === 'amigos' || newData.val() === 'fechado')"
+          },
+          "m": {
+            "$k": {
+              ".validate": "$k.matches(/^[0-9]{1,2}$/) && newData.hasChildren(['i', 'u', 'v'])",
+              "i": {
+                ".validate": "newData.isString() && newData.val().length <= 12"
+              },
+              "u": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 12"
+              },
+              "v": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 12"
+              },
+              "r": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+              },
+              "$outro": {
+                ".validate": false
+              }
+            }
+          },
+          "ts": {
+            ".validate": "newData.isNumber()"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
       }
     }
   }
