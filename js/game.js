@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 324, txt: "Vila: letras dos menus agora são brancas e fáceis de ler no fundo escuro." },
   { v: 323, txt: "Vila: ao tocar num emoji, gesto, dança ou lugar do menu, o menu fecha para você ver o que aconteceu." },
   { v: 322, txt: "Vila: a barra de baixo agora tem só 3 botões — 🧭 Ir para (lugares, quartos, tarefas, tiro ao alvo), 👥 Pessoas (cartas, voz, convidar) e 🎭 Eu (emojis, danças, pet, títulos, móveis). Toque num deles para expandir as opções." },
   { v: 321, txt: "Vila: (1) a barra de baixo ficou enxuta: Lugares, Quartos, Pessoas, Eu e Tarefas, cada uma abre um menu com ícones. (2) Novas atividades: 📜 Tarefas do dia (6 por dia, com moedas), 🗺️ Tesouro do dia (dica + área no minimapa, vá cavar) e 🎯 Tiro ao alvo (5 tiros). (3) Chega de bichos correndo: moradores agora são gente (Seu Zé, Dona Maria, Seu Bastião e Dona Véia), o chefe agora é o lobo/javali desenhado do jogo e os pets seguem com a arte do jogo." },
