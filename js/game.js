@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 292, txt: "🎃 Cartas de Halloween: só dá para mandar uma carta por dia para cada amigo (as 3 do dia vão para 3 amigos diferentes)." },
   { v: 291, txt: "🎃 Corrigido: o Halloween começava às 00:00 de 17/10 e, no horário de Brasília, ainda era dia 16, então o tema e a aba Halloween não apareciam. Agora o evento já está valendo (até 31/10, 23:59)." },
   { v: 290, txt: "Corrigido: o botão Enviar das cartas de Halloween (Missões › 🎃 Halloween) dizia que não havia amigos quando os dados deles ainda não tinham carregado. Agora lista todos os seus amigos na hora." },
   { v: 289, txt: "🎃 Halloween em tudo: casa, celeiro, casinha do cachorro, abrigos dos animais e cercas ficam assombrados (roxo e laranja, com mini abóboras nas cercas) enquanto durar o evento, e todos os bichos e cachorros ganharam chapeuzinho de bruxa!" },
@@ -13512,6 +13513,8 @@ function halEntrada() {
   if (halDiaReset()) { const m = '🎃 Chegaram as 3 cartas de hoje: abóbora gigante, fantasma e esqueleto. Mande para amigos em Missões › 🎃 Halloween!'; addNews(m); setTimeout(() => toast(m, 'good'), 3600); done(); }
   if (!h.avisoFim && Date.now() >= new Date(2026, 9, 31, 0, 0, 0).getTime()) { h.avisoFim = 1; const m = '🎃 Último dia de Halloween! Termina hoje, às 23:59. Mande as cartas, pegue os prêmios das missões e passe na Loja do Trevo.'; addNews(m); setTimeout(() => toast(m, 'good'), 1500); done(); }
 }
+// Uma carta por amigo por dia.
+function halEnviadas() { const h = halDe(), hoje = localDay(); if (!h.enviadas || h.enviadas.d !== hoje) h.enviadas = { d: hoje, u: [] }; return h.enviadas.u; }
 function enviarCartaHal(tipo) {
   const h = halDe(), C = HAL_CARTAS[tipo]; halDiaReset();
   if (!halloweenAtivo()) return;
@@ -13519,22 +13522,25 @@ function enviarCartaHal(tipo) {
   if (!user) return toast('Entre com o Google para mandar cartas aos amigos.');
   if (!state.friends.length) return toast('Você ainda não tem amigos para mandar a carta. Adicione em Amigos!');
   state.friends.forEach(u => fetchFriendInfo(u)); // os dados dos amigos podem ainda não ter carregado
+  const jaRecebeu = u => halEnviadas().includes(u);
+  if (state.friends.every(jaRecebeu)) return toast('Você já mandou uma carta hoje para cada amigo. Amanhã tem mais!');
   const nomeDe = u => { const f = friendInfo[u]; return f && typeof f === 'object' && !f.erro && f.name ? f.name : 'Amigo'; };
   escolher(`Para qual amigo mandar a carta ${C.emoji} ${C.nome}? Quando ele abrir, cai uma maldição!`, [
-    ...state.friends.map(u => ({ txt: esc(nomeDe(u)), fn: () => perguntar(`Mandar a carta ${C.emoji} ${C.nome} para ${nomeDe(u)}?`, () => mandarCartaHal(u, tipo)) })),
+    ...state.friends.map(u => ({ txt: esc(nomeDe(u)) + (jaRecebeu(u) ? ' · já recebeu hoje' : ''), off: jaRecebeu(u), fn: () => perguntar(`Mandar a carta ${C.emoji} ${C.nome} para ${nomeDe(u)}?`, () => mandarCartaHal(u, tipo)) })),
     { txt: 'Cancelar', ghost: true },
   ]);
 }
 async function mandarCartaHal(uid, tipo) {
   const h = halDe(), C = HAL_CARTAS[tipo], f = friendInfo[uid]; if (!h.tem[tipo] || !user) return;
-  h.tem[tipo] = 0; done(); renderPane();
+  if (halEnviadas().includes(uid)) return toast('Você já mandou uma carta para esse amigo hoje. Escolha outro!');
+  halEnviadas().push(uid); h.tem[tipo] = 0; done(); renderPane();
   try {
     await Cloud.enviarMsg(user.uid, uid, { txt: `${C.emoji} ${meuApelido()} te mandou uma carta assombrada (${C.nome.toLowerCase()})! Atualize o jogo para abrir… 😈`, at: Date.now(), nome: meuApelido(), carta: tipo, cid: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) });
     avisarAmigo(uid, 'presente', `${C.emoji} ${meuApelido()} te mandou uma carta assombrada! Abra se tiver coragem…`);
     sfx('buy'); addXP(2, null); track('carta'); ganharAmizade(uid);
     toast(`${C.emoji} Carta enviada para ${f && f.name ? f.name : 'seu amigo'}! Agora é esperar ele abrir… 😈`, 'good'); done();
   } catch (e) {
-    console.warn(e); h.tem[tipo] = 1; done(); renderPane();
+    console.warn(e); h.tem[tipo] = 1; const ix = halEnviadas().indexOf(uid); if (ix >= 0) halEnviadas().splice(ix, 1); done(); renderPane();
     if (e && e.code === 'permission-denied') reatarAmizade(uid); else toast('Não consegui enviar a carta agora. Tente de novo.', 'bad');
   }
 }
