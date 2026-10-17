@@ -324,6 +324,21 @@
         [[N.A4, 6], [0, 2]],
       ],
     },
+    {
+      nome: 'Pista de Dança', bpm: 118, steps: 8, lead: 'pluck', dance: true,
+      chords: [[45, 57, 60, 64], [41, 57, 60, 65], [48, 55, 60, 64], [43, 55, 59, 62], [45, 57, 60, 64], [41, 57, 60, 65], [48, 55, 60, 64], [43, 55, 59, 62]],
+      arp: [0, 1, 2, 3, 2, 1, 2, 3],
+      melody: [
+        [[N.A4, 1], [N.C5, 1], [N.E5, 2], [N.C5, 1], [N.E5, 1], [N.A5, 2]],
+        [[N.F5, 2], [N.A5, 2], [N.C6, 2], [N.A5, 2]],
+        [[N.G5, 1], [N.E5, 1], [N.C5, 2], [N.E5, 2], [N.G5, 2]],
+        [[N.D5, 2], [N.G5, 2], [N.B5, 2], [N.G5, 2]],
+        [[N.A4, 1], [N.C5, 1], [N.E5, 2], [N.A5, 2], [N.C6, 2]],
+        [[N.C6, 2], [N.A5, 2], [N.F5, 2], [N.A5, 2]],
+        [[N.G5, 2], [N.E5, 2], [N.C5, 2], [N.E5, 2]],
+        [[N.D5, 2], [N.B4, 2], [N.G5, 4]],
+      ],
+    },
   ];
   // Terça abaixo dentro de ré maior (a "segunda voz" da viola).
   const D_MAJOR = [2, 4, 6, 7, 9, 11, 1];
@@ -353,6 +368,18 @@
       // A melodia descansa de vez em quando (a cada 3ª volta) para a música respirar.
       const withMelody = loop % 3 !== 2;
       
+      if (tr.dance) {
+        // pista de dança: bumbo "quatro no chão", caixa no 2 e no 4, chimbal na contratempo, baixo pulsando e arpejo
+        if (s % 2 === 0) bumbo(t, 0.55);
+        if (s === 2 || s === 6) caixa(t, 0.2);
+        shaker(musicBus, t, s % 2 ? 0.06 : 0.025);
+        bass(musicBus, t, ch[0] - 12 + (s % 4 === 3 ? 12 : 0), eighth * 0.85, 0.15);
+        pluck(musicBus, t, ch[tr.arp[s]] + 12, eighth * 0.9, 0.07, 3600);
+        if (withMelody) { let pos = 0; for (const [m, len] of tr.melody[bar]) { if (pos === s && m) pluck(musicBus, t, m, len * eighth * 0.95, 0.13, 4200); pos += len; } }
+        nextTime += eighth; step++;
+        if (step >= total) { step = 0; loop++; }
+        continue;
+      }
       if (tr.rock) {
         // bateria: bumbo no 1, no "e" do 2 e no 3; caixa no 2 e no 4; chimbal em todas as colcheias
         if (s === 0 || s === 3 || s === 4) bumbo(t);
