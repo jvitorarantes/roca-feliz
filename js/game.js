@@ -1405,7 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
-  { v: 312, txt: "🎙️ Voz na Vila! Toque no ícone de microfone (🎤 → 🎙️) ao lado do zoom para ligar e desligar. Quem está perto ouve você, e a voz vai ficando mais baixa conforme a distância no mapa (e some no alcance). Aparece 🔊 ao lado do nome de quem está falando. Em 🎙️ Voz você escolhe ouvir ou não, voz só com amigos, e silencia pessoas (também no perfil). Funciona nos quartos e nas festas." },
+  { v: 312, txt: "🎙️ Voz na Vila (fala só com os 6 mais perto, escolhidos por distância; sem custo)! Toque no ícone de microfone (🎤 → 🎙️) ao lado do zoom para ligar e desligar. Quem está perto ouve você, e a voz vai ficando mais baixa conforme a distância no mapa (e some no alcance). Aparece 🔊 ao lado do nome de quem está falando. Em 🎙️ Voz você escolhe ouvir ou não, voz só com amigos, e silencia pessoas (também no perfil). Funciona nos quartos e nas festas." },
   { v: 311, txt: "Vila: dá para pescar em qualquer beira do lago (não só no cais). Tocar na água da piscina agora faz o avatar andar até lá (antes só mostrava o nome). O avatar agora tem pose de sentado de verdade, em cima da cadeira, e nenhuma cadeira fica dentro da água." },
   { v: 310, txt: "🏘️ Vila: 5 novidades! (1) ✉️ Cartas: deixe cartas e presentes na caixa de correio 📮 de um amigo, mesmo offline. (2) ♟️ Damas entre dois jogadores nas mesas dos quartos e das festas. (3) 🐾 Escolha um bichinho seu para te acompanhar pela Vila. (4) 🏅 Títulos e selos por desafios, que aparecem no seu nome e perfil. (5) 📍 Lista de quem está onde, com botão para ir até lá. Você ganhou uma caixa de correio e uma mesa de damas grátis no inventário do quarto." },
   { v: 309, txt: "Vila: ao tocar numa cadeira, sofá ou cama, aparece a pergunta com os botões Sentar (ou Deitar) e Cancelar." },
@@ -15106,7 +15106,9 @@ function pracaCartaPegar(k) {
 // ============ Voz na Vila (WebRTC): microfone liga/desliga, volume cai com a distância ============
 // Quem liga o microfone vira "falante" (praca/voz/<sala>/<uid>). Quem ouve liga direto no falante (ponto a ponto);
 // o banco só leva os bilhetes de conexão (praca/vozsinal/<destino>). O áudio NÃO passa pelo banco.
-const VOZ_R = 16, VOZ_RX_MAX = 6, VOZ_TX_MAX = 8, VOZ_STUN = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
+const VOZ_R = 16, VOZ_RX_MAX = 6, VOZ_TX_MAX = 8, VOZ_STUN = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' },
+  // servidores gratuitos (públicos) de apoio para redes que bloqueiam a ligação direta; sem garantia de disponibilidade
+  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }];
 const vozLS = (k, def) => { try { const v = localStorage.getItem(k); return v === null ? def : v; } catch (e) { return def; } };
 const voz = { mic: false, stream: null, ac: null, peers: {}, falando: {}, falantes: {}, mudos: new Set(JSON.parse(vozLS('rf-voz-mudos', '[]'))), soAmigos: vozLS('rf-voz-amigos', '0') === '1', ouvir: vozLS('rf-voz-ouvir', '1') === '1', fila: {}, nivelL: null, aviso: vozLS('rf-voz-aviso', '0') === '1' };
 const vozKey = () => praca.sala ? praca.sala.id : 'mundo';
@@ -15152,7 +15154,9 @@ async function vozSinal(m) {
   const de = m.de, p0 = voz.peers[de];
   try {
     if (m.k === 'offer') { // sou falante: aceito se o microfone está ligado e a pessoa é permitida
-      if (!voz.mic || !voz.stream || !vozPermitido(de) || Object.values(voz.peers).filter(x => x.papel === 'tx').length >= VOZ_TX_MAX) return;
+      if (!voz.mic || !voz.stream || !vozPermitido(de)) return;
+      const txs = Object.keys(voz.peers).filter(u => voz.peers[u].papel === 'tx' && u !== de);
+      if (txs.length >= VOZ_TX_MAX) { const longe = txs.sort((a, b) => (vozDist(b) ?? 99) - (vozDist(a) ?? 99))[0]; if ((vozDist(de) ?? 99) < (vozDist(longe) ?? 99)) vozFechar(longe); else return; } // só atende os mais perto
       if (p0) vozFechar(de);
       const p = vozNovoPc(de, 'tx'), pc = p.pc; await pc.setRemoteDescription(JSON.parse(m.d));
       const tr = pc.getTransceivers()[0]; tr.direction = 'sendonly'; await tr.sender.replaceTrack(voz.stream.getAudioTracks()[0]);
@@ -15164,13 +15168,21 @@ async function vozSinal(m) {
 }
 const vozNovoPcFila = uid => (voz.fila[uid] ||= { pend: [] });
 // Sincroniza: liga/desliga conexões conforme a distância; ajusta o volume
-function vozSync() {
+function vozSync() { // fala só com os mais perto: no máximo VOZ_RX_MAX ouvidos, escolhidos por distância
   if (!praca.on || !user || !praca.eu) return;
-  const key = vozKey(); let rx = Object.values(voz.peers).filter(x => x.papel === 'rx').length;
-  if (voz.ouvir) for (const uid of Object.keys(voz.falantes)) { if (uid === user.uid || voz.peers[uid] || !vozPermitido(uid)) continue; const d = vozDist(uid); if (d != null && d < VOZ_R && rx < VOZ_RX_MAX) { vozConectar(uid); rx++; } }
+  const cand = Object.keys(voz.falantes).filter(u => u !== user.uid && vozPermitido(u)).map(u => ({ u, d: vozDist(u) })).filter(x => x.d != null && x.d < VOZ_R).sort((a, b) => a.d - b.d);
+  const quer = new Set(voz.ouvir ? cand.slice(0, VOZ_RX_MAX).map(x => x.u) : []);
+  const rxPeers = Object.entries(voz.peers).filter(([, p]) => p.papel === 'rx');
+  const faltam = [...quer].filter(u => !voz.peers[u]);
+  if (faltam.length) { // sem vaga: derruba os mais longe que não estão entre os mais perto
+    let livres = VOZ_RX_MAX - rxPeers.length;
+    for (const [u] of rxPeers.filter(([x]) => !quer.has(x)).sort((a, b) => (vozDist(b[0]) ?? 99) - (vozDist(a[0]) ?? 99))) { if (livres >= faltam.length) break; vozFechar(u); livres++; }
+  }
+  let rx = Object.values(voz.peers).filter(x => x.papel === 'rx').length;
+  for (const u of quer) if (!voz.peers[u] && rx < VOZ_RX_MAX) { vozConectar(u); rx++; }
   for (const [uid, p] of Object.entries(voz.peers)) {
     if (p.papel === 'rx') { const d = vozDist(uid); if (!voz.ouvir || !voz.falantes[uid] || !vozPermitido(uid) || d == null || d > VOZ_R + 3) { vozFechar(uid); continue; } if (p.gainNode) p.gainNode.gain.setTargetAtTime(vozVolume(d), voz.ac.currentTime, 0.1); }
-    else if (!vozPermitido(uid) || !praca.jog[uid]) vozFechar(uid);
+    else if (!vozPermitido(uid) || !praca.jog[uid] || (vozDist(uid) ?? 99) > VOZ_R + 3) vozFechar(uid);
   }
 }
 async function vozLigarMic() {
