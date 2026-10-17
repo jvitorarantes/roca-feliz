@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 301, txt: "Vila: agora dá para arrastar o mapa, dar zoom (pinça, roda do mouse ou botões ➕ ➖) e voltar para o seu avatar no 🎯. Andar ficou um pouco mais devagar, e o ícone/ping do topo da tela saiu (o ping fica só dentro da Vila)." },
   { v: 300, txt: "📣 Convidar amigos para a Vila! Na Vila, toque em Convidar amigos: quem estiver online vê um balão com Ir / Não / Silenciar 5 min, e quem estiver offline recebe uma notificação." },
   { v: 299, txt: "🏘️ Vila renovada! Agora é um mundo grande e vivo, com minimapa: Floresta, Lago com cais, Mina, Praia, Bairro de casinhas, Campo e a Praça. Itens aparecem pelo mapa (frutas, minérios, conchas, baús, gemas) e quem chega primeiro pega. Pesca de verdade no cais (espere o ❗ e puxe), chefe que anda pelo Campo, festa na praça de hora em hora, dia e noite, bichinhos andando, pista de dança e bancos. O cabo de guerra saiu." },
   { v: 298, txt: "🐺 Tirei o som do uivo dos lobos do Halloween. Eles continuam uivando no visual (ondinhas e \"Auuuuu!\") e os cachorros ainda respondem latindo." },
@@ -13927,7 +13928,7 @@ function drawHalAvatarExtras(q, esc, t, andando) {
 // Mural (metas da vila, chefe ao vivo e ranking), Mercado entre jogadores, Lago (pesca), Arena (cabo de guerra) e casinhas.
 // Andar é por toque: só mandamos (de, para) a cada toque, e os outros aparelhos animam o caminho. Barato e rápido.
 // ============================================================
-const PRACA_W = 64, PRACA_H = 50, PRACA_VEL = 3.4;
+const PRACA_W = 64, PRACA_H = 50, PRACA_VEL = 2.6;
 const PRACA_EMOTES = ['👋', '❤️', '😂', '👏', '😱', '🎃'];
 const PRACA_METAS = [
   { id: 'colher',  ev: 'colher',  nome: 'Colher na roça',        ic: '🌽', meta: 300, moedas: 250, doce: ['bala', 3] },
@@ -13958,7 +13959,7 @@ const pracaSt = () => { if (!state.praca) state.praca = { on: 0, res: {}, c: { d
 function pracaChip() {
   const el = $('#pingChip'); if (!el) return;
   if (!user || !Cloud.available || !state || !window.FIREBASE_CONFIG.databaseURL) { el.hidden = true; return; }
-  el.hidden = !!praca.aberta;
+  el.hidden = true; return; // o ícone/ping do topo saiu: o ping só aparece dentro da Vila
   if (!praca.on) { el.textContent = '🏘️ Vila'; return; }
   el.textContent = praca.conectado ? `🏘️ Vila · ${praca.ping < 120 ? '🟢' : praca.ping < 300 ? '🟡' : '🔴'} ${praca.ping || '…'} ms` : '🏘️ Vila · 🔴 sem conexão';
 }
@@ -14059,7 +14060,7 @@ function pracaSair() {
   pracaTick(true);
   for (const k of ['jog', 'chat', 'mercado', 'casas', 'mundo', 'boss', 'rank', 'inter', 'interOut']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; }
   if (praca.refs.eu) { praca.refs.eu.onDisconnect().cancel(); praca.refs.eu.remove().catch(() => {}); praca.refs.eu = null; }
-  praca.jog = {}; praca.eu = null; praca.painel = null; praca.interIn = {}; praca.interOut = null; praca.pesca = null; praca.cam = null; pracaInterBalao();
+  praca.jog = {}; praca.eu = null; praca.painel = null; praca.interIn = {}; praca.interOut = null; praca.pesca = null; praca.cam = null; praca.seguir = true; pracaInterBalao();
 }
 function pracaEnviarMov(extra) {
   const e = praca.eu; if (!e || !praca.refs.eu) return;
@@ -14404,7 +14405,7 @@ function pracaHud(now) {
 }
 const vilaNoite = () => { const ph = (pracaAgora() % 1440e3) / 1440e3; return 0.5 - 0.5 * Math.cos(ph * Math.PI * 2); }; // 0 = dia, 1 = noite (ciclo de 24 min)
 // ---- Desenho ----
-function pracaGeo(c, dpr) { const cam = praca.cam || { u: 32, v: 25 }; return { tw: clamp(c.clientWidth / 14, 22, 38) * dpr, cx: c.width / 2, cy: c.height * 0.56, ou: cam.u, ov: cam.v }; }
+function pracaGeo(c, dpr) { const cam = praca.cam || { u: 32, v: 25 }; return { tw: clamp(c.clientWidth / 14, 22, 38) * dpr * (praca.zoom || 1), cx: c.width / 2, cy: c.height * 0.56, ou: cam.u, ov: cam.v }; }
 const pracaIso = (u, v, G) => ({ x: G.cx + ((u - G.ou) - (v - G.ov)) * G.tw, y: G.cy + ((u - G.ou) + (v - G.ov)) * G.tw / 2 });
 function pracaCasaDesenho(g, q, G, c) {
   const tm = temaCasa(c.sk), w = G.tw * 2, h = G.tw * 1.3;
@@ -14421,7 +14422,7 @@ function pracaFrame(now) {
   if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
   const g = c.getContext('2d'), saved = ctx; ctx = g;
   try {
-    if (praca.eu) { const p = pracaPos(praca.eu, now); if (!praca.cam) praca.cam = { u: p.u, v: p.v }; praca.cam.u += (p.u - praca.cam.u) * 0.14; praca.cam.v += (p.v - praca.cam.v) * 0.14; vilaLogica(now, p); }
+    if (praca.eu) { const p = pracaPos(praca.eu, now); if (!praca.cam) praca.cam = { u: p.u, v: p.v }; if (praca.seguir !== false) { praca.cam.u += (p.u - praca.cam.u) * 0.14; praca.cam.v += (p.v - praca.cam.v) * 0.14; } vilaLogica(now, p); }
     pracaDesenha(g, c, now, dpr);
   } catch (e) { console.warn('vila desenho:', e); }
   ctx = saved; $('#pracaInfo').textContent = praca.conectado ? `👥 ${Object.keys(praca.jog).length + (praca.eu ? 1 : 0)} · ${praca.ping < 120 ? '🟢' : praca.ping < 300 ? '🟡' : '🔴'} ${praca.ping || '…'} ms` : 'conectando…';
@@ -14563,7 +14564,7 @@ function pracaToque(ev) {
     return pracaPainelAbrir(id);
   }
   const a = (x - G.cx) / G.tw, b = (y - G.cy) / (G.tw / 2);
-  praca.alvoAcao = null;
+  praca.alvoAcao = null; praca.seguir = true;
   pracaIrPara(clamp(G.ou + (a + b) / 2, 0.5, PRACA_W - 0.5), clamp(G.ov + (b - a) / 2, 0.5, PRACA_H - 0.5));
 }
 function pracaIrPara(u, v, extra) {
@@ -14628,7 +14629,28 @@ function pracaInterIniciar(com, k, sender) {
   praca.eu.ia = k; praca.eu.ic = com; praca.eu.iz = pracaAgora(); praca.eu.emote = { k: I.e, ate: performance.now() + 3200 };
   setTimeout(() => { if (praca.eu && praca.eu.iz && pracaAgora() - praca.eu.iz > 11000) { praca.eu.ia = null; pracaEnviarMov({ ia: null, ic: null, iz: null }); } }, 12000);
 }
-$('#pracaCv')?.addEventListener('pointerdown', pracaToque);
+// Arrastar move o mapa; pinça e roda do mouse dão zoom; toque rápido anda/interage
+const vilaPtr = new Map(); let vilaGesto = null;
+function vilaZoom(f) { praca.zoom = clamp((praca.zoom || 1) * f, 0.55, 2.4); }
+$('#pracaCv')?.addEventListener('pointerdown', e => {
+  e.target.setPointerCapture?.(e.pointerId); vilaPtr.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  vilaGesto = { x0: e.clientX, y0: e.clientY, moveu: false, dist0: vilaPtr.size === 2 ? Math.hypot(...[...vilaPtr.values()].reduce((a, p) => [a[0] - p.x, a[1] - p.y], [0, 0])) : 0, z0: praca.zoom || 1, multi: vilaPtr.size > 1 };
+});
+$('#pracaCv')?.addEventListener('pointermove', e => {
+  const q = vilaPtr.get(e.pointerId); if (!q || !vilaGesto) return;
+  const c = $('#pracaCv'), dx = e.clientX - q.x, dy = e.clientY - q.y; q.x = e.clientX; q.y = e.clientY;
+  if (vilaPtr.size >= 2) { const [a, b] = [...vilaPtr.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (vilaGesto.dist0) praca.zoom = clamp(vilaGesto.z0 * d / vilaGesto.dist0, 0.55, 2.4); vilaGesto.moveu = vilaGesto.multi = true; return; }
+  if (!vilaGesto.moveu && Math.hypot(e.clientX - vilaGesto.x0, e.clientY - vilaGesto.y0) < 8) return;
+  vilaGesto.moveu = true; praca.seguir = false;
+  const dpr = c.width / c.getBoundingClientRect().width, G = pracaGeo(c, dpr), px = dx * dpr / G.tw, py = dy * dpr / (G.tw / 2), cam = praca.cam || (praca.cam = { u: 32, v: 25 });
+  cam.u = clamp(cam.u - (px + py) / 2, 0, PRACA_W); cam.v = clamp(cam.v - (py - px) / 2, 0, PRACA_H);
+});
+const vilaFimPtr = e => { const g = vilaGesto; vilaPtr.delete(e.pointerId); if (!g) return; if (!vilaPtr.size) { vilaGesto = null; if (e.type === 'pointerup' && !g.moveu && !g.multi) pracaToque(e); } };
+$('#pracaCv')?.addEventListener('pointerup', vilaFimPtr); $('#pracaCv')?.addEventListener('pointercancel', vilaFimPtr);
+$('#pracaCv')?.addEventListener('wheel', e => { e.preventDefault(); vilaZoom(e.deltaY < 0 ? 1.12 : 1 / 1.12); }, { passive: false });
+$('#pracaZmais')?.addEventListener('click', () => vilaZoom(1.25));
+$('#pracaZmenos')?.addEventListener('click', () => vilaZoom(1 / 1.25));
+$('#pracaCentro')?.addEventListener('click', () => { praca.seguir = true; });
 $('#pracaFechar')?.addEventListener('click', pracaSair);
 $('#pracaForm')?.addEventListener('submit', e => { e.preventDefault(); pracaEnviarChat($('#pracaTxt').value); });
 $('#praca')?.addEventListener('input', e => {

@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="300">
+<meta name="rf-version" content="301">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -532,6 +532,8 @@
   .pracawrap { position: relative; flex: 1; min-height: 0; background: #2a1d3d; }
   #pracaCv { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
   .pracahud { position: absolute; left: 6px; top: 6px; max-width: calc(100% - 120px); font-size: 11px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; white-space: pre-line; pointer-events: none; line-height: 1.35; }
+  .pracazoom { position: absolute; right: 6px; bottom: 74px; display: grid; gap: 6px; z-index: 4; }
+  .pracazoom button { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--wood); background: var(--card); font: 800 20px system-ui; cursor: pointer; }
   .pracaacao { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 17px; padding: 12px 22px; border-radius: 20px; box-shadow: 0 5px 0 rgba(0,0,0,.3); z-index: 5; }
   .pracaacao.fisgou { background: #e0463a; color: #fff; animation: pulsa .35s infinite alternate; }
   @keyframes pulsa { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.12); } }
@@ -991,7 +993,7 @@
 <div class="modal" id="praca" hidden role="dialog" aria-modal="true" aria-labelledby="pracaTitle">
   <div class="pracacard">
     <div class="modal-head"><h2 id="pracaTitle">Vila 🏘️</h2><span class="pracainfo" id="pracaInfo"></span><button class="iconbtn" type="button" id="pracaFechar" aria-label="Sair da Vila"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-    <div class="pracawrap"><canvas id="pracaCv" aria-label="Mapa da Vila"></canvas><div class="pracahud" id="pracaHud"></div><div class="pracalog" id="pracaLog" aria-live="polite"></div><button class="btn gold pracaacao" type="button" id="pracaAcao" hidden></button><div class="pracapainel" id="pracaPainel" hidden></div></div>
+    <div class="pracawrap"><canvas id="pracaCv" aria-label="Mapa da Vila"></canvas><div class="pracahud" id="pracaHud"></div><div class="pracalog" id="pracaLog" aria-live="polite"></div><button class="btn gold pracaacao" type="button" id="pracaAcao" hidden></button><div class="pracazoom"><button type="button" id="pracaZmais" aria-label="Aproximar">＋</button><button type="button" id="pracaZmenos" aria-label="Afastar">－</button><button type="button" id="pracaCentro" aria-label="Centralizar em mim">🎯</button></div><div class="pracapainel" id="pracaPainel" hidden></div></div>
     <div class="pracanav" id="pracaNav"></div>
     <div class="pracaemotes" id="pracaEmotes"></div>
     <form class="pracaform" id="pracaForm"><input id="pracaTxt" maxlength="120" placeholder="Diga algo para a vila…" autocomplete="off" aria-label="Mensagem"><button class="btn" type="submit">Enviar</button></form>
@@ -1178,8 +1180,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=300"></script>
+<script src="js/audio.js?v=301"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=300"></script>
+<script src="js/game.js?v=301"></script>
 </body>
 </html>
