@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="286">
+<meta name="rf-version" content="287">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -777,6 +777,8 @@
   .news > div{position:relative;padding-right:30px}
   .newsdel{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(122,74,34,.12);color:#7a4a22;font-weight:900;font-size:11px;cursor:pointer;line-height:22px;padding:0}
   .newsdel:hover{background:#e0463a;color:#fff}
+  .cartahal { background: linear-gradient(160deg,#2a1442,#120620); color: #f0e4ff; border: 2px solid #ff7a1a; box-shadow: 0 0 30px rgba(255,122,26,.35); }
+  .cartahal #cartaArte img { height: 110px; filter: drop-shadow(0 0 12px rgba(255,160,40,.6)); }
   .papelrow{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}
   .papelchip{border:2px solid var(--panel-2);background:var(--card);border-radius:10px;padding:4px 9px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;color:inherit}
   .papelchip[aria-pressed=true]{border-color:var(--gold);background:var(--sel)}
@@ -1004,6 +1006,16 @@
   </div>
 </div>
 
+<div class="modal" id="cartaModal" hidden role="dialog" aria-modal="true" aria-labelledby="cartaDe" style="z-index:60;background:rgba(10,0,22,.86)">
+  <div class="modal-card cartahal" style="width:min(100%,380px)">
+    <section style="text-align:center">
+      <div id="cartaArte" style="height:110px"></div>
+      <p id="cartaDe" style="margin:6px 0;font-weight:800;font-size:19px"></p>
+      <p id="cartaTxt" style="margin:0 0 14px;font-size:15px"></p>
+      <button class="btn gold" type="button" id="cartaBtn" data-fase="abrir"></button>
+    </section>
+  </div>
+</div>
 <div class="modal" id="escolhaModal" hidden role="dialog" aria-modal="true" aria-labelledby="escolhaTxt">
   <div class="modal-card" style="width:min(100%,400px)">
     <section>
@@ -1120,8 +1132,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=281"></script>
+<script src="js/audio.js?v=287"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=286"></script>
+<script src="js/game.js?v=287"></script>
 </body>
 </html>

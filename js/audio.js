@@ -97,6 +97,40 @@
     osc('triangle', mtof(m + 12), t, t + end - t + 0.05, g, 3);
     const g2 = ac.createGain(); g2.gain.value = 0.25; g2.connect(g); osc('sine', mtof(m + 19), t, t + 0.3, g2);
   }
+  // Órgão sombrio: onda quadrada abafada com tremolo lento.
+  function orgao(bus, t, m, dur, vel = 0.07) {
+    const g = ac.createGain(), f = lowpass(1100, 1.4); f.connect(g); g.connect(bus);
+    const end = t + dur;
+    env(g, t, 0.06, vel, 0.15, 0.8, 0.3, end);
+    osc('square', mtof(m), t, end + 0.35, f, -4);
+    osc('sawtooth', mtof(m - 12), t, end + 0.35, f, 5);
+    osc('sine', mtof(m + 12), t, end + 0.35, f);
+    const trem = ac.createOscillator(), tg = ac.createGain();
+    trem.frequency.value = 5.4; tg.gain.value = vel * 0.3; trem.connect(tg); tg.connect(g.gain); trem.start(t); trem.stop(end + 0.35);
+  }
+  // Risada de bruxa: "hi-hi-hi-hi-hiiii": notas curtas e agudas que descem, com uma subida no final.
+  function risadaBruxa(t, vol = 0.14) {
+    const notas = [680, 640, 700, 630, 690, 610, 670, 600, 760, 880];
+    notas.forEach((f0, i) => {
+      const tt = t + i * 0.115, longo = i === notas.length - 1, dur = longo ? 0.5 : 0.075;
+      const o = ac.createOscillator(), b = ac.createBiquadFilter(), g = ac.createGain();
+      o.type = 'sawtooth'; b.type = 'bandpass'; b.frequency.value = 1500; b.Q.value = 2.2;
+      o.frequency.setValueAtTime(f0, tt); o.frequency.linearRampToValueAtTime(longo ? f0 * 1.35 : f0 * 0.82, tt + dur);
+      o.connect(b); b.connect(g); g.connect(sfxBus);
+      g.gain.setValueAtTime(0.0001, tt); g.gain.exponentialRampToValueAtTime(vol, tt + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, tt + dur);
+      o.start(tt); o.stop(tt + dur + 0.03);
+    });
+  }
+  // Uivo de lobo: sobe devagar, segura com vibrato e desce.
+  function uivoLobo(t, vol = 0.16) {
+    const dur = 2.8, o = ac.createOscillator(), o2 = ac.createOscillator(), b = ac.createBiquadFilter(), g = ac.createGain();
+    o.type = 'sawtooth'; o2.type = 'sine'; b.type = 'lowpass'; b.frequency.value = 1300; b.Q.value = 1.2;
+    for (const x of [o, o2]) { const m = x === o2 ? 2 : 1; x.frequency.setValueAtTime(260 * m, t); x.frequency.linearRampToValueAtTime(520 * m, t + 0.9); x.frequency.setValueAtTime(520 * m, t + 1.5); x.frequency.linearRampToValueAtTime(330 * m, t + dur); }
+    const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 5.5; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(9, t + 1.2); lfo.connect(lg); lg.connect(o.frequency); lg.connect(o2.frequency);
+    o.connect(b); o2.connect(b); b.connect(g); g.connect(sfxBus);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.5); g.gain.setValueAtTime(vol, t + 1.9); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    for (const x of [o, o2, lfo]) { x.start(t); x.stop(t + dur + 0.05); }
+  }
   function bass(bus, t, m, dur, vel = 0.16) {
     const g = ac.createGain(), f = lowpass(700); f.connect(g); g.connect(bus);
     const end = t + dur;
@@ -156,7 +190,7 @@
 
   // ---------- As músicas ----------
   // Cada compasso: acorde (notas MIDI) + melodia [nota, duração em colcheias] (0 = pausa).
-  const N = { C4: 60, D4: 62, E4: 64, F4: 65, Fs4: 66, G4: 67, A4: 69, B4: 71, C5: 72, Cs5: 73, D5: 74, E5: 76, F5: 77, Fs5: 78, G5: 79, A5: 81, B5: 83, C6: 84 };
+  const N = { Gs4: 68, Gs5: 80, Bb4: 70, C4: 60, D4: 62, E4: 64, F4: 65, Fs4: 66, G4: 67, A4: 69, B4: 71, C5: 72, Cs5: 73, D5: 74, E5: 76, F5: 77, Fs5: 78, G5: 79, A5: 81, B5: 83, C6: 84 };
   const TRACKS = [
     { // Violão dedilhado e flauta, 4/4
       nome: 'Manhã no Campo', bpm: 86, steps: 8, lead: 'flute', shaker: true,
@@ -275,6 +309,21 @@
         [[N.C5, 6], [0, 2]],
       ],
     },
+    { // Halloween: valsa sombria em lá menor, órgão e sininho, com risadas de bruxa e uivos de vez em quando
+      nome: 'Noite das Bruxas', bpm: 84, steps: 8, lead: 'organ', halloween: true,
+      chords: [[45, 57, 60, 64], [50, 57, 62, 65], [40, 56, 59, 64], [45, 57, 60, 64], [45, 57, 60, 64], [53, 57, 60, 65], [40, 56, 59, 64], [45, 57, 60, 64]],
+      arp: [0, 3, 2, 3, 1, 3, 2, 3],
+      melody: [
+        [[N.A4, 2], [N.C5, 2], [N.E5, 2], [N.C5, 2]],
+        [[N.D5, 2], [N.F5, 2], [N.A5, 2], [N.F5, 2]],
+        [[N.E5, 2], [N.Gs5, 2], [N.B5, 2], [N.Gs5, 2]],
+        [[N.A5, 4], [N.E5, 2], [N.C5, 2]],
+        [[N.A4, 1], [N.C5, 1], [N.E5, 2], [N.A5, 2], [N.E5, 2]],
+        [[N.F5, 2], [N.A5, 2], [N.C6, 2], [N.A5, 2]],
+        [[N.B5, 2], [N.Gs5, 2], [N.E5, 2], [N.B4, 2]],
+        [[N.A4, 6], [0, 2]],
+      ],
+    },
   ];
   // Terça abaixo dentro de ré maior (a "segunda voz" da viola).
   const D_MAJOR = [2, 4, 6, 7, 9, 11, 1];
@@ -303,6 +352,7 @@
       const ch = tr.chords[bar];
       // A melodia descansa de vez em quando (a cada 3ª volta) para a música respirar.
       const withMelody = loop % 3 !== 2;
+      if (tr.halloween && s === 0) { if (bar === 3 && Math.random() < 0.55) risadaBruxa(t + eighth * 3, 0.09); else if (bar === 7 && Math.random() < 0.35) uivoLobo(t + eighth * 2, 0.07); }
       if (tr.rock) {
         // bateria: bumbo no 1, no "e" do 2 e no 3; caixa no 2 e no 4; chimbal em todas as colcheias
         if (s === 0 || s === 3 || s === 4) bumbo(t);
@@ -345,6 +395,7 @@
             if (tr.lead === 'flute') flute(musicBus, t, m, d * 0.95);
             else if (tr.lead === 'accordion') accordion(musicBus, t, m, d * 0.92);
             else if (tr.lead === 'bell') sino(musicBus, t, m, d);
+            else if (tr.lead === 'organ') { orgao(musicBus, t, m, d * 0.95); if (d > eighth * 3) sino(musicBus, t, m + 12, d * 0.5, 0.05); }
             else { pluck(musicBus, t, m, d, 0.13, 3800); pluck(musicBus, t + 0.012, thirdBelow(m), d, 0.09, 3200); }
           }
           pos += len;
@@ -461,6 +512,8 @@
     },
     // "fala" do avatar: umas sílabas curtinhas, tipo desenho animado
     fala: t => { [0, 0.09, 0.18, 0.3].forEach((d, k) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime([420, 520, 470, 600][k], t + d); o.frequency.exponentialRampToValueAtTime([380, 480, 430, 700][k], t + d + 0.07); o.connect(g); g.connect(sfxBus); g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(0.25, t + d + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.08); o.start(t + d); o.stop(t + d + 0.09); }); },
+    bruxa: t => risadaBruxa(t),
+    uivo: t => uivoLobo(t),
     bark: t => { for (const d of [0, 0.22]) { const o = ac.createOscillator(), b = ac.createBiquadFilter(), g = ac.createGain(); o.type = 'sawtooth'; b.type = 'bandpass'; b.frequency.value = 900; b.Q.value = 2; o.frequency.setValueAtTime(380, t + d); o.frequency.exponentialRampToValueAtTime(170, t + d + 0.14); o.connect(b); b.connect(g); g.connect(sfxBus); g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(0.35, t + d + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.16); o.start(t + d); o.stop(t + d + 0.2); } },
   };
 

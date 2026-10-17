@@ -772,9 +772,9 @@ function growPlot(p, sec, events, s = state) {
   if (events) {
     // Um problema de cada vez: ou a terra seca, ou aparecem insetos (de vez em quando).
     if (!p.dry && !p.b && Math.random() < 0.12 / T * sec) p.b = 1;
-    else if (!p.dry && !p.b && Math.random() < 0.5 / T * sec) p.dry = true;
+    else if (!p.dry && !p.b && Math.random() < 0.5 * (s === state && halMald('lua') ? 3 : 1) / T * sec) p.dry = true;
   }
-  p.g = Math.min(T, p.g + sec * (p.dry ? 0.7 : 1) * acelera(s, crop.prod));
+  p.g = Math.min(T, p.g + sec * (p.dry ? 0.7 : 1) * (p.corvo ? 0.6 : 1) * acelera(s, crop.prod));
   const trouble = p.w + p.b + (p.dry ? 0.5 : 0);
   if (trouble) p.dmg = Math.min(crop.rend * 0.35, p.dmg + trouble * crop.rend * sec / (T * 4));
 }
@@ -831,7 +831,8 @@ const pedeAjuda = uid => { const f = friendInfo[uid]; return f && typeof f === '
 const amigosPedindo = () => (state && user ? state.friends.filter(pedeAjuda) : []);
 // De tempos em tempos vê quem está pedindo ajuda (para o número no botão Amigos)
 setInterval(() => { try { latidosAmbiente(); } catch (e) { /* sem latido */ } }, 1500);
-setInterval(() => { try { if (state && !isGated()) eventoEntrada(); } catch (e) { /* sem evento */ } }, 60e3);
+setInterval(() => { try { if (state && !isGated()) { eventoEntrada(); halEntrada(); } } catch (e) { /* sem evento */ } }, 60e3);
+setInterval(() => { try { halTick(); halCartaTick(); } catch (e) { /* sem evento */ } }, 1000);
 setInterval(() => { if (user && state && !document.hidden) state.friends.forEach(uid => fetchFriendInfo(uid)); }, 150e3);
 
 const $ = s => document.querySelector(s);
@@ -1301,7 +1302,7 @@ function collectAll() {
 
 // ---------- Cachorros ----------
 const dogAlive = d => d && Date.now() - d.born < DOG[d.raca].vida * DAY;
-const dogAwake = d => dogAlive(d) && d.fedUntil > Date.now();
+const dogAwake = d => dogAlive(d) && d.fedUntil > Date.now() && !(halMald('medo') && Object.values(state.dogs).includes(d));
 const sorteia = l => l[Math.floor(Math.random() * l.length)];
 const FALAS_CAO = ['Au au! 🐶', 'Au! Tô de olho!', 'Cadê meu osso? 🦴', 'Aqui ninguém pega nada!', 'Au au! Brinca comigo?', 'Grrr… quem vem lá?', 'Au! Bora passear?', '*abana o rabo*'];
 const FALAS_AVATAR = ['Cê tá bão?', 'Ô trem bão!', 'Bora trabaiá!', 'Que dia bonito, sô!', 'Essa roça tá uma belezura!', 'Uai, cadê meu chapéu?', 'Hoje tem colheita boa!', 'Vou tomar um cafezin ☕', 'Nó, que calor!', 'Bão demais da conta!'];
@@ -1359,6 +1360,7 @@ function actDog(slot) {
 function feedDog(slot) {
   const d = state.dogs[slot];
   if (!d || dogAwake(d)) return;
+  if (halMald('medo')) return toast(`🐶 ${d.nome} está com medo e escondido: só o tempo faz o susto passar.`);
   if (state.dogFood <= 0) {
     if (state.coins < DOG_FOOD.custo) { openPanel('loja', 'caes'); return toast(`Acabou a ração de cachorro e faltam ${DOG_FOOD.custo - state.coins} moedas para comprar (${DOG_FOOD.custo} moedas, dura ${DOG_FOOD.horas}h).`, 'bad'); }
     perguntar(`Acabou a ração de cachorro.\nComprar 1 por ${DOG_FOOD.custo} moedas e dar para ${d.nome} agora?`, () => { if (state.coins < DOG_FOOD.custo || state.dogs[slot] !== d) return; buyDogFood(1); feedDog(slot); });
@@ -1403,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 287, txt: "🎃 Halloween! De hoje até 31/10, às 23:59: a roça fica assombrada (véu roxo, morcegos, abóboras acesas, teias e bandeirinhas de morcego), com música sombria e risadas de bruxa, e lobos passeando e uivando (os cachorros respondem!). Todo dia você ganha 3 cartas (🎃 abóbora gigante, 👻 fantasma, 💀 esqueleto) para mandar a amigos: quando abrem, cai uma maldição que passa sozinha. Tem missões, uma coleção de 8 enfeites (também na Loja do Trevo) e a Casa Assombrada de presente. Veja tudo em Missões › 🎃 Halloween." },
   { v: 286, txt: "Dois avisos novos: (1) quando a ração do cachorro acabar e você clicar nele, o jogo oferece comprar 1 ração na hora e já dar para ele. (2) Chocadeira cheia / abrigo cheio: quando um ovo está pronto mas não cabe no abrigo, o jogo pergunta o que fazer: aguardar, vender um animal do abrigo para abrir vaga, vender o filhote ou doar o filhote para um amigo à sua escolha (ele resgata em Loja › Animais). Na chocadeira, o ovo sem vaga ganhou o botão 'Sem vaga: e agora?'." },
   { v: 285, txt: "Outono: cai mais folha mesmo! No outono os montes de folhas aparecem a cada ~2h30 (nas outras estações, a cada ~4h), podem ficar até 8 no gramado e até 9 por dia. Continua um de cada vez." },
   { v: 284, txt: "Apodrecer: agora a planta apodrece exatamente 24 horas depois de ficar pronta para colher. Corrigi um erro: o relógio de apodrecer não zerava ao colher, então a planta nova podia apodrecer cedo demais por causa do tempo da anterior. As plantas prontas hoje ganharam um novo prazo de 24h." },
@@ -2264,7 +2267,7 @@ function applyVisits(list) {
       if (sl) bancaVendeu(sl, who);
     } else if (v.t === 'gift' && presenteDe(String(v.gift))) {
       const g = presenteDe(String(v.gift)), lvl = clamp(Number(v.nivel) || 0, 0, AMIZADE_NIVEL_MAX);
-      g.dar(state, lvl); note(`mandou um presente para você: ${g.nome(lvl)}`);
+      g.dar(state, lvl, who); note(`mandou um presente para você: ${g.nome(lvl)}`);
     } else if (v.t === 'feed' && a && ANIMAL[a.k].tipo === 'prod' && isHungry(a)) {
       a.fed = true; note('alimentou seus animais'); helpedBy(v.from, who);
     } else if (v.t === 'stealA' && a && ANIMAL[a.k].tipo === 'prod' && a.ready) {
@@ -2456,7 +2459,7 @@ function enterGame() {
   root.classList.remove('gated');
   if (state) { state.tool = 'hand'; renderTools(); }
   resize(); setScene(scene);
-  presentePioneiro(); eventoEntrada(); checarNovidades();
+  presentePioneiro(); eventoEntrada(); halEntrada(); checarNovidades();
   if (state.boasVindas && isHome()) setTimeout(abrirBoasVindas, 400);
   else setTimeout(() => { if (giftReady() && !isGated()) showGift(); }, 1500);
 }
@@ -3154,6 +3157,8 @@ const TEMAS_CASA = [
     parede: '#34487a', telhado: '#1a2440', porta: '#e0b030', moldura: '#ffd54a', celeiro: '#3f5690', celTelhado: '#1a2440', friso: '#ffd54a', estrela: true },
   { id: 'brincar',  nome: 'Casa do Brincar',    desc: 'Colorida, com telhado de arco-íris e bandeirinhas. Presente do Dia das Crianças 2026.', especial: true, tag: '🎈 Dia das Crianças',
     parede: '#ffe3f0', telhado: '#6ab0f0', porta: '#ff7aa8', moldura: '#ffd54a', celeiro: '#ffb84a', celTelhado: '#4aa3df', friso: '#ffffff', bandeirinhas: true, arcoiris: true, estrela: true },
+  { id: 'assombrada', nome: 'Casa Assombrada',  desc: 'Roxa e sombria, com teia de aranha e bandeirinhas de morcego. Presente do Halloween 2026.', especial: true, tag: '🎃 Halloween',
+    parede: '#4a3a62', telhado: '#2a1740', porta: '#ff7a1a', moldura: '#ff9a2a', celeiro: '#5a4676', celTelhado: '#1f1233', friso: '#ff9a2a', bandeirinhas: true, teias: true },
   { id: 'junina',   nome: 'Casa Junina',        desc: 'Amarelinha, com bandeirinhas coloridas no telhado. Exclusiva da Loja do Trevo 🍀.', trevo: 45,
     parede: '#ffe9b0', telhado: '#d9482f', porta: '#2f8a5a', moldura: '#ffd54a', celeiro: '#e8b030', celTelhado: '#b8402a', friso: '#ffffff', bandeirinhas: true },
   { id: 'praiana',  nome: 'Casa Praiana',       desc: 'Azul-piscina com telhado azul-marinho, de casa de praia. Exclusiva da Loja do Trevo 🍀.', trevo: 45,
@@ -3226,6 +3231,7 @@ function drawHouse(x, y, s, cor, skin, costas) {
   ctx.beginPath(); ctx.moveTo(X0 - ov, Y - fh + ov * 0.9); ctx.lineTo(cume[0], cume[1]); ctx.lineTo(beiralD[0], beiralD[1]); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(cume[0], cume[1]); ctx.lineTo(cume[0] + dx, cume[1] + dy); ctx.stroke(); ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
   if (tm.bandeirinhas) bandeirinhasCasa([[X0 - ov, Y - fh + ov * 0.9], cume, beiralD], s);
+  if (tm.teias) { ctx.save(); ctx.translate(X0 + fw * 0.06, Y - fh - rh * 0.02); ctx.scale(1, 1); desenhaTeia(0, 0, s * 0.13); ctx.restore(); }
   // janelinha redonda na empena
   ctx.fillStyle = tm.moldura; ctx.beginPath(); ctx.arc(cume[0], Y - fh - rh * 0.4, s * 0.045, 0, 7); ctx.fill();
   ctx.fillStyle = '#ffe9a8'; ctx.beginPath(); ctx.arc(cume[0], Y - fh - rh * 0.4, s * 0.03, 0, 7); ctx.fill();
@@ -3478,6 +3484,7 @@ function drawDogSpot(slot, s, t, home) {
       ctx.beginPath(); ctx.ellipse(p.x, p.y, W * 0.26, W * 0.08, 0, 0, 7); ctx.stroke();
     }
     drawDog(p.x, p.y, W * 0.72, t, d.raca, !dogAwake(d), d.skin);
+    if (home && !seg && halMald('osso')) { const bx = p.x + W * 0.28, by = p.y - W * 0.03; ctx.fillStyle = '#f4efe2'; ctx.strokeStyle = '#b8b0a0'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(bx - W * 0.16, by - W * 0.025, W * 0.32, W * 0.05, W * 0.02); ctx.fill(); ctx.stroke(); for (const sx of [-1, 1]) for (const sy of [-1, 1]) { ctx.beginPath(); ctx.arc(bx + sx * W * 0.16, by + sy * W * 0.028, W * 0.03, 0, 7); ctx.fill(); ctx.stroke(); } }
   } else {
     const R = clamp(W * 0.1, 9, 14), m = seg ? { x: p.x, y: p.y - W * 0.18 } : { x: k.x, y: k.y - W * 0.52 };
     ctx.fillStyle = 'rgba(255,253,242,.95)'; ctx.strokeStyle = '#6b4220'; ctx.lineWidth = 2;
@@ -4545,7 +4552,7 @@ function drawRoca(s, t, home) {
   drawCritters(t, tod);
   nightOverlay(tod);
   drawWeather(t);
-  drawTemaCriancas(t);
+  drawTemaCriancas(t); drawTemaHalloween(t);
   if (home) drawAlertaInvasao(t);
   for (let i = 0; i < N; i++) {
     const k = plotBubble(s.plots[i], home);
@@ -4743,7 +4750,7 @@ function drawPen(s, t, home, dt) {
   drawCritters(t, tod);
   nightOverlay(tod);
   drawWeather(t);
-  drawTemaCriancas(t);
+  drawTemaCriancas(t); drawTemaHalloween(t);
   for (const [a, m, k, sc] of bubbles) { const p = iso(m.u, m.v); drawBubbleAt(p.x, p.y - ANIMAL_H[drawKind(a)] * sc - W * 0.2, k, a, t, m.u * 7); }
   dogBubble('animais', s, t, home); dogBubble('animais2', s, t, home);
 }
@@ -5021,7 +5028,7 @@ function drawRoom(s, t, home) {
   }
   const hv = hover && hover.kind === 'decor' && decorCenter(hover.id);
   if (hv) { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(hv.x, hv.y, W * 0.42, 0, 7); ctx.stroke(); }
-  drawTemaCriancas(t);
+  drawTemaCriancas(t); drawTemaHalloween(t);
 }
 
 // Caminha do gato, no chão da sala. Clicar nela troca o nome dele.
@@ -6101,6 +6108,9 @@ $('#pane').addEventListener('click', e => {
   if (d.papelCarta) { state.papelCarta = d.papelCarta; sfx('click'); save(); return renderPane(); }
   if (d.papelParede) { if (!paredeLiberada(d.papelParede)) return; state.papelParede = d.papelParede === 'padrao' ? '' : d.papelParede; sfx('click'); done(); return renderPane(); }
   if (d.skinCao) { const [sl, sk] = d.skinCao.split(':'), dg = state.dogs[sl]; if (dg && (sk === 'padrao' || (SKIN_CAO[sk] && temTrevoItem('cao:' + sk)))) { dg.skin = sk === 'padrao' ? '' : sk; sfx('click'); done(); renderPane(); if (isHome()) setScene(scene); } return; }
+  if (d.halEnviar) return enviarCartaHal(d.halEnviar);
+  if (d.halAbrir) { halCartaTick(); return; }
+  if (d.halResgatar) return resgatarHal(d.halResgatar);
   if (d.evResgatar) return resgatarEvento(d.evResgatar);
   if (d.evComprar) return comprarEnfeiteEvento(d.evComprar);
   if (d.chocDilema !== undefined) { const ov = state.chocadeira.ovos[Number(d.chocDilema)]; if (ov) { closePanel(); dilemaChoc(ov); } return; }
@@ -6355,7 +6365,7 @@ function tipDecor(id) {
 let lastTip = '';
 function updateTip() {
   const show = hover && $('#ctxMenu').hidden && (pointer.inside && !pointer.touch || performance.now() < pointer.tipUntil);
-  const html = !show ? null : hover.kind === 'plot' ? tipPlot(hover.i) : hover.kind === 'minaentrada' ? `<b>⛏️ Mina</b><br>Clique para minerar: picaretas ${minaDe().ferr.pic} · dinamites ${minaDe().ferr.din} · TNT ${minaDe().ferr.tnt}.` : hover.kind === 'animal' ? tipAnimal(hover.id) : hover.kind === 'dog' ? tipDog(hover.slot) : hover.kind === 'canil' ? tipCanil(hover.slot) : hover.kind === 'caminha' ? tipCaminha(hover.id) : hover.kind === 'abrigo' ? tipAbrigo(hover.id) : hover.kind === 'land' ? tipLand() : hover.kind === 'caca' ? (state.level >= CACA_NIVEL ? '<b>🎯 Trilha da caçada</b><br>Clique para caçar pragas com o estilingue ou a espingarda, e armar a arapuca.' : `<b>🎯 Trilha da caçada</b><br>Libera no nível ${CACA_NIVEL}.`) : hover.kind === 'bicho' ? tipBicho(hover.i) : hover.kind === 'avatar' ? (hover.quem === 'dono' ? `<b>${esc(view.nome)}</b><br>${view.avatar && view.avatar.sexo === 'f' ? 'Dona' : 'Dono'} de ${esc(view.fazenda || 'Roça Feliz')}. Clique para dar um oi.` : `<b>${esc(meuApelido())}</b>${meuApelido() === 'Você' ? '' : ' (você)'}<br>Clique para dar um oi.`) : hover.kind === 'invasor' ? `<b>${invasor ? (invasor.tipo === 'javali' ? '🐗 Javali' : '🐀 Rato') : 'Praga'} na plantação!</b><br>Clique para espantar antes que ele coma.` : hover.kind === 'armadilha' ? `<b>🪤 Armadilha de pragas</b><br>${armadilhaPronta() ? 'Carregada: pega a próxima praga que invadir a plantação.' : `Recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`}` : hover.kind === 'mural' ? `<b>📷 Mural da caçada</b><br>${hover.n} foto${hover.n === 1 ? '' : 's'} de bichos. ${isHome() ? 'Clique para abrir o Livro da caçada.' : ''}` : hover.kind === 'folhas' ? '<b>🍂 Monte de folhas</b><br>Clique e o avatar vai rastelar (+XP e umas moedinhas).' : hover.kind === 'lago' ? `<b>🎣 Lago</b><br>Clique para pescar (🪱 ${iscasDe().minhoca || 0} minhocas).` : hover.kind === 'enfeite' ? tipEnfeite(hover.id, hover.key, hover.sc) : hover.kind === 'obj' ? null : hover.kind === 'celeiro' ? `<b>${isHome() ? 'Seu celeiro' : 'Celeiro de ' + esc(view.nome)}</b>${isHome() ? '<br>Clique para ver o que está guardado.' : ''}` : hover.kind === 'casa' ? `<b>${isHome() ? 'Sua casa' : 'Casa de ' + esc(view.nome)}</b><br>${isHome() ? 'Clique para entrar ou trocar o tema.' : 'Clique para entrar.'}` : hover.kind === 'balao' ? '<b>🎈 Balão</b><br>Clique para estourar!' : hover.kind === 'decor' ? tipDecor(hover.id) : null;
+  const html = !show ? null : hover.kind === 'plot' ? tipPlot(hover.i) : hover.kind === 'minaentrada' ? `<b>⛏️ Mina</b><br>Clique para minerar: picaretas ${minaDe().ferr.pic} · dinamites ${minaDe().ferr.din} · TNT ${minaDe().ferr.tnt}.` : hover.kind === 'animal' ? tipAnimal(hover.id) : hover.kind === 'dog' ? tipDog(hover.slot) : hover.kind === 'canil' ? tipCanil(hover.slot) : hover.kind === 'caminha' ? tipCaminha(hover.id) : hover.kind === 'abrigo' ? tipAbrigo(hover.id) : hover.kind === 'land' ? tipLand() : hover.kind === 'caca' ? (state.level >= CACA_NIVEL ? '<b>🎯 Trilha da caçada</b><br>Clique para caçar pragas com o estilingue ou a espingarda, e armar a arapuca.' : `<b>🎯 Trilha da caçada</b><br>Libera no nível ${CACA_NIVEL}.`) : hover.kind === 'bicho' ? tipBicho(hover.i) : hover.kind === 'avatar' ? (hover.quem === 'dono' ? `<b>${esc(view.nome)}</b><br>${view.avatar && view.avatar.sexo === 'f' ? 'Dona' : 'Dono'} de ${esc(view.fazenda || 'Roça Feliz')}. Clique para dar um oi.` : `<b>${esc(meuApelido())}</b>${meuApelido() === 'Você' ? '' : ' (você)'}<br>Clique para dar um oi.`) : hover.kind === 'invasor' ? `<b>${invasor ? (invasor.tipo === 'javali' ? '🐗 Javali' : '🐀 Rato') : 'Praga'} na plantação!</b><br>Clique para espantar antes que ele coma.` : hover.kind === 'armadilha' ? `<b>🪤 Armadilha de pragas</b><br>${armadilhaPronta() ? 'Carregada: pega a próxima praga que invadir a plantação.' : `Recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`}` : hover.kind === 'mural' ? `<b>📷 Mural da caçada</b><br>${hover.n} foto${hover.n === 1 ? '' : 's'} de bichos. ${isHome() ? 'Clique para abrir o Livro da caçada.' : ''}` : hover.kind === 'folhas' ? '<b>🍂 Monte de folhas</b><br>Clique e o avatar vai rastelar (+XP e umas moedinhas).' : hover.kind === 'lago' ? `<b>🎣 Lago</b><br>Clique para pescar (🪱 ${iscasDe().minhoca || 0} minhocas).` : hover.kind === 'enfeite' ? tipEnfeite(hover.id, hover.key, hover.sc) : hover.kind === 'obj' ? null : hover.kind === 'celeiro' ? `<b>${isHome() ? 'Seu celeiro' : 'Celeiro de ' + esc(view.nome)}</b>${isHome() ? '<br>Clique para ver o que está guardado.' : ''}` : hover.kind === 'casa' ? `<b>${isHome() ? 'Sua casa' : 'Casa de ' + esc(view.nome)}</b><br>${isHome() ? 'Clique para entrar ou trocar o tema.' : 'Clique para entrar.'}` : hover.kind === 'balao' ? '<b>🎈 Balão</b><br>Clique para estourar!' : hover.kind === 'lobo' ? '<b>🐺 Lobo</b><br>Clique para assustar (às vezes ele deixa moedas).' : hover.kind === 'corvo' ? '<b>🐦‍⬛ Corvo</b><br>Está atrasando a planta. Clique para espantar!' : hover.kind === 'teia' ? '<b>🕸️ Teia de aranha</b><br>Clique para limpar (+1 bala).' : hover.kind === 'esqueleto' ? '<b>💀 Esqueleto dançarino</b><br>Clique para ganhar umas moedinhas.' : hover.kind === 'decor' ? tipDecor(hover.id) : null;
   if (!html) { tip.hidden = true; lastTip = ''; return; }
   if (html !== lastTip) { tip.innerHTML = html; lastTip = html; }
   tip.hidden = false;
@@ -6547,6 +6557,10 @@ cv.addEventListener('click', e => {
   else if (target.kind === 'folhas') rastelarFolhas(target.id);
   else if (target.kind === 'invasor') espantarInvasor();
   else if (target.kind === 'balao') estourarBalao(target.id);
+  else if (target.kind === 'lobo') assustarLobo(target.id);
+  else if (target.kind === 'corvo') espantarCorvo(target.i);
+  else if (target.kind === 'teia') limparTeia(target.qual);
+  else if (target.kind === 'esqueleto') cutucarEsqueleto();
   else if (target.kind === 'armadilha') toast(armadilhaPronta() ? '🪤 Armadilha carregada: pega a próxima praga que invadir a plantação.' : `🪤 Armadilha recarregando: pronta em ${fmt((state.armadilha.pronta - Date.now()) / 1000)}.`);
   else if (target.kind === 'mural') { abrirCaca(); if (caca) { cacaLivro = true; renderCaca(); } }
   else if (target.kind === 'avatar' && target.quem === 'dono') { falar('avatar:dono', view.nome, sorteia(FALAS_DONO.concat(FALAS_AVATAR))); sfx('fala'); }
@@ -6571,13 +6585,13 @@ function applySettings() {
   if (window.RFAudio) window.RFAudio.configure({
     music: settings.music, sfx: settings.sfx, musicVol: settings.musicVol, sfxVol: settings.sfxVol, track: settings.track,
   });
-  root.dataset.tema = timeOfDay() === 'noite' ? 'noite' : 'dia';
+  root.dataset.tema = timeOfDay() === 'noite' || halloweenAtivo() ? 'noite' : 'dia';
 }
 function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* sem armazenamento */ }
   applySettings();
 }
-const TRACK_INFO = ['Violão e flauta, bem tranquila', 'Valsa lenta de sanfona', 'Viola caipira no fim da tarde', 'Rock rural: guitarra, bateria e viola', 'Viola de raiz em terças', 'Sanfona, zabumba e triângulo', 'Valsa de flauta e violão ao luar', 'Cirandinha de sininhos, alegre (Dia das Crianças)'];
+const TRACK_INFO = ['Violão e flauta, bem tranquila', 'Valsa lenta de sanfona', 'Viola caipira no fim da tarde', 'Rock rural: guitarra, bateria e viola', 'Viola de raiz em terças', 'Sanfona, zabumba e triângulo', 'Valsa de flauta e violão ao luar', 'Cirandinha de sininhos, alegre (Dia das Crianças)', 'Valsa sombria de órgão, com risadas de bruxa (Halloween)'];
 // Nomes: dar o primeiro nome é de graça; trocar um nome que já existe custa 100 moedas (cada um).
 const CUSTO_NOME = 100;
 function custoNomes() {
@@ -7011,7 +7025,7 @@ function rollPeriods() {
 }
 function track(ev, n = 1) {
   if (!state) return;
-  rankPontos(ev); eventoTrack(ev, n);
+  rankPontos(ev); eventoTrack(ev, n); halTrack(ev, n);
   if (!state.missions) rollPeriods();
   let pronto = false;
   for (const m of [...state.missions.dia, ...state.missions.semana]) {
@@ -7153,6 +7167,7 @@ const PRESENTE_AMIGO = [
 // Presente de plantas: o amigo escolhe qual planta (das que você já liberou). Cada nível de amizade dá mais.
 const plantasPresente = lvl => 2 + Math.floor(lvl / 2);
 const presenteDe = id => {
+  if (id.startsWith('carta:') && HAL_CARTAS[id.slice(6)]) { const tp = id.slice(6), C = HAL_CARTAS[tp]; return { id, nome: () => `uma carta assombrada ${C.emoji} (abra com cuidado!)`, dar: (st, lvl, who) => { halDe().caixa.push({ tipo: tp, de: who || 'um amigo', at: Date.now() }); } }; }
   if (id.startsWith('filhote:') && ANIMAL[id.slice(8)]) { const k = id.slice(8); return { id, nome: () => `1 filhote de ${ANIMAL[k].nome.toLowerCase()} (resgate em Loja › Animais)`, dar: st => { st.animalCred = st.animalCred || {}; st.animalCred[k] = (st.animalCred[k] || 0) + 1; } }; }
   const c = id.startsWith('planta:') && CROP[id.slice(7)];
   if (c) return { id, nome: lvl => `${plantasPresente(lvl)} plantas de ${c.nome.toLowerCase()}`, dar: (st, lvl) => { st.barn = st.barn || {}; st.barn[c.prod] = (st.barn[c.prod] || 0) + plantasPresente(lvl); } };
@@ -8066,7 +8081,7 @@ function drawAvatarWalk(sc, t, quem = 'eu') {
     w.tu = clamp(w.fu + (Math.random() - 0.5) * 4, a.u0, a.u1); w.tv = clamp(w.fv + (Math.random() - 0.5) * 4, a.v0, a.v1);
     const dist = Math.hypot(w.tu - w.fu, w.tv - w.fv), sx = (w.tu - w.fu) - (w.tv - w.fv);
     if (Math.abs(sx) > 0.01) w.dir = sx > 0 ? 1 : -1;
-    w.t0 = t; w.dur = dist / 0.7 * 1000; w.wait = 1200 + Math.random() * 3500; k = 0;
+    w.t0 = t; w.dur = dist / (0.7 * (quem === 'eu' && isHome() && halMald('vassoura') ? 1.9 : 1)) * 1000; w.wait = 1200 + Math.random() * 3500; k = 0;
   }
   const u = w.fu + (w.tu - w.fu) * k, v = w.fv + (w.tv - w.fv) * k, q = iso(u, v), W = L.W;
   const esc = W / 95 * (sc === 'animais' ? 1.25 : 1);
@@ -8077,6 +8092,7 @@ function drawAvatarWalk(sc, t, quem = 'eu') {
   // Indo rastelar um monte de folhas: já mostra o rastelo na mão no caminho, não só ao chegar.
   const avTarefa = quem === 'eu' && w.tarefa ? Object.assign({}, state.avatar, { mao: 'rastelo' }) : state.avatar;
   drawAvatar(ctx, q.x, q.y, esc, quem === 'dono' ? view.avatar : avTarefa, t, k < 1, w.dir);
+  if (quem === 'eu' && isHome()) drawHalAvatarExtras(q, esc, t, k < 1);
   if (quem === 'eu') drawAraras(u, v, esc, t);
 }
 // As araras voam junto com o avatar: seguem de longe, devagar, balançando no ar.
@@ -9436,14 +9452,17 @@ let missSeg = 'dia';
 function missoesHTML() {
   rollPeriods();
   if (missSeg === 'evento' && !eventoAtivo()) missSeg = 'dia';
+  if (missSeg === 'halloween' && !halloweenAtivo()) missSeg = 'dia';
   if (missSeg === 'colecao' && state.newStamps) { state.newStamps = 0; setTimeout(renderTabs, 0); save(); }
   const segs = [['dia', 'Diárias'], ['semana', 'Semanais'], ['vila', 'Vila'], ['colecao', 'Coleção'], ['trevos', '🍀 Trevos']];
   if (eventoAtivo()) segs.unshift(['evento', '🎈 Evento']);
-  const conta = { evento: evProntas(), dia: prontasDe('dia'), semana: prontasDe('semana'), vila: vilaProntos(), colecao: state.newStamps || 0, trevos: trevosPendentes() };
+  if (halloweenAtivo()) segs.unshift(['halloween', '🎃 Halloween']);
+  const conta = { halloween: halloweenAtivo() ? halProntas() + Object.values(halDe().tem).filter(Boolean).length + halDe().caixa.length : 0, evento: evProntas(), dia: prontasDe('dia'), semana: prontasDe('semana'), vila: vilaProntos(), colecao: state.newStamps || 0, trevos: trevosPendentes() };
   let html = `<div class="seg small" role="tablist">${segs.map(([id, n]) => `<button type="button" role="tab" data-mseg="${id}" aria-selected="${missSeg === id}">${n}${conta[id] ? `<span class="badge" aria-label="${conta[id]} novidades">${conta[id]}</span>` : ''}</button>`).join('')}</div>`;
   const est = estacao();
   html += `<div class="row sel"><div class="avatar" style="background:#7aa35a;font-size:26px">${est.icone}</div><div><div class="name">${est.nome}</div>
     <div class="meta">Esta semana rendem ${Math.round(ESTACAO_BONUS * 100)}% a mais: ${est.plantas.map(id => (CROP[id] || ENFEITE[id] || { nome: id }).nome.toLowerCase()).join(', ')}.</div></div><div></div></div>`;
+  if (missSeg === 'halloween') return html + halHTML();
   if (missSeg === 'evento') return html + eventoHTML();
   if (missSeg === 'vila') return html + vilaHTML();
   if (missSeg === 'trevos') return html + trevosHTML();
@@ -10055,6 +10074,7 @@ $('#confirmaNao').addEventListener('click', () => fecharConfirma(false));
 $('#confirmaModal').addEventListener('click', e => { if (e.target === $('#confirmaModal')) fecharConfirma(false); });
 $('#escolhaOps').addEventListener('click', e => { const b = e.target.closest('[data-escolha]'); if (!b || b.disabled) return; const o = escolhaOps[Number(b.dataset.escolha)]; fecharEscolha(); if (o && o.fn) o.fn(); });
 $('#escolhaModal').addEventListener('click', e => { if (e.target === $('#escolhaModal')) fecharEscolha(); });
+$('#cartaBtn').addEventListener('click', halCartaBotao);
 $('#minaModal').addEventListener('click', e => {
   if (e.target === $('#minaModal') || e.target.closest('[data-close]')) return fecharMinaModal();
   if (e.target.closest('[data-mina-info]')) { fecharMinaModal(); openPanel('mina'); }
@@ -10280,6 +10300,14 @@ const ENFEITES = [
   { id: 'carrodeboi',   nome: 'Carro de boi',              especial: true, trevo: true, conforto: 3 },
   { id: 'trofeuchupa',  nome: 'Troféu do Chupa-cabra',     especial: true, caca: true, conforto: 3 },
   { id: 'chocadeira',   nome: 'Chocadeira',                especial: true, chocadeira: true, soRancho: true, conforto: 0 },
+  { id: 'hal_lanterna', nome: 'Lanterna de abóbora', especial: true, halloween: true, conforto: 2, custo: 500 },
+  { id: 'hal_gato', nome: 'Gato preto', especial: true, halloween: true, conforto: 2, custo: 500 },
+  { id: 'hal_corvo', nome: 'Corvo no poste', especial: true, halloween: true, conforto: 2, custo: 500 },
+  { id: 'hal_caldeirao', nome: 'Caldeirão borbulhante', especial: true, halloween: true, conforto: 2, custo: 500 },
+  { id: 'hal_vassoura', nome: 'Vassoura de bruxa', especial: true, halloween: true, conforto: 2, custo: 500 },
+  { id: 'hal_caveira', nome: 'Caveira com vela', especial: true, halloween: true, conforto: 2, custo: 500 },
+  { id: 'hal_livro', nome: 'Livro de feitiços', especial: true, halloween: true, conforto: 2, custo: 500 },
+  { id: 'hal_tumulo', nome: 'Túmulo assombrado', especial: true, halloween: true, conforto: 2, custo: 500 },
   { id: 'ev_balanco',   nome: 'Balanço colorido',          especial: true, evento: true, conforto: 2, custo: 600 },
   { id: 'ev_escorrega', nome: 'Escorregador',              especial: true, evento: true, conforto: 2, custo: 900 },
   { id: 'ev_castelo',   nome: 'Castelinho de areia',       especial: true, evento: true, conforto: 2, custo: 700 },
@@ -10294,7 +10322,7 @@ const ENFEITES = [
   { id: 'boibumba',     nome: 'Boi-bumbá',                 especial: true, trevo: true, conforto: 3 },
 ];
 // Etiqueta de onde veio um item especial.
-const origemEnfeite = (e, s) => e.evento ? 'Dia das Crianças 2026 🎈' : e.chocadeira ? 'Choca os ovos das aves do rancho 🥚' : e.caca ? 'Troféu da caçada 🎯' : e.trevo ? 'Exclusivo da Loja do Trevo 🍀' : e.vila ? 'Presente da vila' : `Especial dos pioneiros · ${obtidoEm(s)}`;
+const origemEnfeite = (e, s) => e.halloween ? 'Coleção de Halloween 2026 🎃' : e.evento ? 'Dia das Crianças 2026 🎈' : e.chocadeira ? 'Choca os ovos das aves do rancho 🥚' : e.caca ? 'Troféu da caçada 🎯' : e.trevo ? 'Exclusivo da Loja do Trevo 🍀' : e.vila ? 'Presente da vila' : `Especial dos pioneiros · ${obtidoEm(s)}`;
 const ENFEITE = Object.fromEntries(ENFEITES.map(e => [e.id, e]));
 // Lugares antigos (saves de antes do modo Mover): viram posições livres.
 const LUGARES = {
@@ -11521,6 +11549,8 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + 21 * s, y - 36 * s, 1.5 * s, 0, 7); ctx.fill(); ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x + 21.4 * s, y - 36 * s, 0.7 * s, 0, 7); ctx.fill();
     ctx.strokeStyle = '#f4efe2'; ctx.lineWidth = 2.2 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x + 19 * s, y - 39 * s); ctx.quadraticCurveTo(x + 15 * s, y - 49 * s, x + 21 * s, y - 52 * s); ctx.moveTo(x + 26 * s, y - 39 * s); ctx.quadraticCurveTo(x + 31 * s, y - 49 * s, x + 25 * s, y - 52 * s); ctx.stroke(); ctx.lineCap = 'butt';
     ctx.fillStyle = '#f06292'; ctx.beginPath(); ctx.arc(x + 23 * s, y - 40 * s, 1.8 * s, 0, 7); ctx.fill();
+  } else if (id.startsWith('hal_')) {
+    desenhaHalEnfeite(id, x, y, s, t);
   } else if (id === 'ev_balanco') {
     // balanço de parquinho: pernas listradas, travessa azul, assento vermelho e um balão amarrado
     for (const sx of [-1, 1]) { ctx.lineWidth = 4 * s; ctx.lineCap = 'round'; ctx.strokeStyle = '#e53b2f'; ctx.beginPath(); ctx.moveTo(x + sx * 24 * s, y); ctx.lineTo(x + sx * 12 * s, y - 46 * s); ctx.stroke(); ctx.strokeStyle = '#ffd54a'; ctx.lineWidth = 1.6 * s; ctx.beginPath(); ctx.moveTo(x + sx * 20 * s, y - 9 * s); ctx.lineTo(x + sx * 17 * s, y - 20 * s); ctx.stroke(); }
@@ -11558,7 +11588,7 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.fillStyle = '#ffb300'; ctx.beginPath(); ctx.ellipse(x, y - 54 * s + Math.sin(t / 120) * 0.5 * s, 2 * s, 3.5 * s, 0, 0, 7); ctx.fill();
   }
 }
-const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && (['arvore', 'colmeia'].includes(ENFEITE[id].fruteira) || ENFEITE[id].deco === 'arvore') ? 1.1 : ENFEITE[id] && ENFEITE[id].deco ? 1.7 : { chocadeira: 0.78, bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4, ev_balanco: 1.4, ev_escorrega: 1.3, ev_castelo: 1.5, lagovitoria: 1.3, coreto: 1.2, festajunina: 1.3, moinhoagua: 1.4, ipebranco: 1.2, flamboyant: 1.1, postelampiao: 1.3, rede: 1.4, boibumba: 1.4 }[id] || 1.6, 0));
+const enfeiteIcon = id => makeIcon('enf3:' + id, () => drawEnfeite(id, 48, 88, ENFEITE[id] && (['arvore', 'colmeia'].includes(ENFEITE[id].fruteira) || ENFEITE[id].deco === 'arvore') ? 1.1 : ENFEITE[id] && ENFEITE[id].deco ? 1.7 : { chocadeira: 0.78, bandeira: 1.15, espantalho: 1.3, moinho: 1.3, ipe: 1.2, fogueira: 1.5, balanco: 1.4, arcoflores: 1.4, peixedourado: 1.5, carrodeboi: 1.4, hal_lanterna: 1.5, hal_gato: 1.5, hal_corvo: 1.3, hal_caldeirao: 1.5, hal_vassoura: 1.4, hal_caveira: 1.6, hal_livro: 1.4, hal_tumulo: 1.4, ev_balanco: 1.4, ev_escorrega: 1.3, ev_castelo: 1.5, lagovitoria: 1.3, coreto: 1.2, festajunina: 1.3, moinhoagua: 1.4, ipebranco: 1.2, flamboyant: 1.1, postelampiao: 1.3, rede: 1.4, boibumba: 1.4 }[id] || 1.6, 0));
 
 // ============================================================
 // Pomar: frutíferas (arbustos e árvores) plantadas no gramado. Dão frutas de tempos em tempos
@@ -12689,7 +12719,7 @@ const INVASAO_ESPERA = 60e3, INVASAO_CADA = 8 * 3600e3, ARMADILHA = { nivel: CAC
 const sessaoIni = Date.now();
 const armadilhaPronta = () => !!state.armadilha && Date.now() >= (state.armadilha.pronta || 0);
 function invasaoTick(forca) {
-  if (!state || !isHome() || state.level < CACA_NIVEL || invasor) return;
+  if (!state || !isHome() || state.level < CACA_NIVEL || invasor || halMald('espantalho')) return;
   const agora = Date.now();
   if (!forca) {
     if (scene !== 'roca' || document.hidden || !$('#pesca').hidden || !$('#caca').hidden || agora - sessaoIni < 60e3) return; // só com você olhando a roça
@@ -12701,7 +12731,7 @@ function invasaoTick(forca) {
   state.invasaoUlt = agora; save();
   const tipo = state.level >= 12 && Math.random() < 0.35 ? 'javali' : 'rato', i = alvos[Math.floor(Math.random() * alvos.length)];
   const u = plotU(i) + 0.5, v = plotV(i) + 0.5, lado = Math.random() < 0.5 ? 1 : -1;
-  const caes = ['roca', 'roca2'].filter(k => state.dogs && dogAwake(state.dogs[k]) && Math.random() < 0.75); // cada cachorro acordado tem 3 chances em 4 de ir
+  const caes = halMald('osso') ? [] : ['roca', 'roca2'].filter(k => state.dogs && dogAwake(state.dogs[k]) && Math.random() < 0.75); // cada cachorro acordado tem 3 chances em 4 de ir
   invasor = { tipo, i, u, v, fase: 'chegando', t0: performance.now(), de: [u + 4 * lado, v + 3.5], dir: lado > 0 ? -1 : 1, caes,
     destino: armadilhaPronta() ? 'armadilha' : caes.length ? 'cachorro' : 'espera' };
   pinscherReclama('AU AU AU! BICHO NA PLANTAÇÃO! 😡');
@@ -13057,6 +13087,14 @@ const TREVO_LOJA = [
   { id: 'cao:cinza', nome: 'Pelagem cinza', tipo: 'Animal', preco: 20, desc: 'Para qualquer cachorro seu. Escolha em Loja › Cães.' },
   { id: 'cao:creme', nome: 'Pelagem creme', tipo: 'Animal', preco: 20, desc: 'Para qualquer cachorro seu. Escolha em Loja › Cães.' },
   { id: 'cao:tigrado', nome: 'Pelagem tigrada', tipo: 'Animal', preco: 30, desc: 'Com listras de onça… digo, de gato. Para qualquer cachorro seu. Escolha em Loja › Cães.' },
+  { id: 'enfeite:hal_lanterna', nome: 'Lanterna de abóbora', tipo: 'Halloween', evento: 'halloween', preco: 25, desc: 'Coleção de Halloween (+2% XP). Só até 31/10.' },
+  { id: 'enfeite:hal_gato', nome: 'Gato preto', tipo: 'Halloween', evento: 'halloween', preco: 25, desc: 'Coleção de Halloween (+2% XP). Só até 31/10.' },
+  { id: 'enfeite:hal_corvo', nome: 'Corvo no poste', tipo: 'Halloween', evento: 'halloween', preco: 30, desc: 'Coleção de Halloween (+2% XP). Só até 31/10.' },
+  { id: 'enfeite:hal_caldeirao', nome: 'Caldeirão borbulhante', tipo: 'Halloween', evento: 'halloween', preco: 35, desc: 'Coleção de Halloween (+2% XP). Só até 31/10.' },
+  { id: 'enfeite:hal_vassoura', nome: 'Vassoura de bruxa', tipo: 'Halloween', evento: 'halloween', preco: 30, desc: 'Coleção de Halloween (+2% XP). Só até 31/10.' },
+  { id: 'enfeite:hal_caveira', nome: 'Caveira com vela', tipo: 'Halloween', evento: 'halloween', preco: 30, desc: 'Coleção de Halloween (+2% XP). Só até 31/10.' },
+  { id: 'enfeite:hal_livro', nome: 'Livro de feitiços', tipo: 'Halloween', evento: 'halloween', preco: 35, desc: 'Coleção de Halloween (+2% XP). Só até 31/10.' },
+  { id: 'enfeite:hal_tumulo', nome: 'Túmulo assombrado', tipo: 'Halloween', evento: 'halloween', preco: 35, desc: 'Coleção de Halloween (+2% XP). Só até 31/10.' },
   { id: 'util:iscaouro',  nome: 'Isca dourada',             tipo: 'Útil', preco: 10, repete: true, desc: 'Na pescaria, garante o peixe mais raro que o ponto tiver (escolha 🌟 na janela da pesca).', usar: () => { iscasDe().dourada = (iscasDe().dourada || 0) + 1; } },
   { id: 'util:ovo',       nome: 'Ovo misterioso',           tipo: 'Útil', preco: 30, repete: true, desc: 'Vai direto para a chocadeira e nasce de cor ou raça rara.', pode: podeOvoMisterioso, naoPode: 'Precisa de uma chocadeira no rancho com espaço livre.', usar: ovoMisterioso },
   { id: 'util:plantas',   nome: 'Pacote de plantas',        tipo: 'Útil', preco: 8,  repete: true, desc: '4 de cada de 3 plantas sorteadas dentro do seu nível.', usar: pacoteDePlantas },
@@ -13065,7 +13103,7 @@ const TREVO_LOJA = [
   { id: 'util:kitmina',   nome: 'Kit da mina',              tipo: 'Útil', preco: 12, repete: true, desc: '5 picaretas, 1 dinamite e 1 TNT.', usar: () => { darFerr('pic', 5); darFerr('din', 1); darFerr('tnt', 1); } },
   { id: 'util:nome',      nome: 'Troca de nome grátis',     tipo: 'Útil', preco: 5,  repete: true, desc: 'Renomeia um animal ou cachorro sem gastar moedas.', usar: () => { state.nomeGratis = (state.nomeGratis || 0) + 1; } },
 ];
-const TREVO_TIPOS = ['Útil', 'Avatar', 'Enfeite', 'Tema', 'Casa', 'Carta', 'Perfil', 'Animal', 'Música'];
+const TREVO_TIPOS = ['Halloween', 'Útil', 'Avatar', 'Enfeite', 'Tema', 'Casa', 'Carta', 'Perfil', 'Animal', 'Música'];
 const musicaLiberada = k => !(window.RFAudio && window.RFAudio.exclusivas && window.RFAudio.exclusivas[k]) || temTrevoItem('musica:' + k);
 function iconeTrevoItem(it) {
   const [tipo, id] = it.id.split(':');
@@ -13155,8 +13193,8 @@ function trevoLojaHTML() {
   const t = trevosDe();
   let html = `<div class="row sel"><div class="avatar" style="background:#2f8a2f;font-size:26px">🍀</div><div><div class="name">Você tem ${t.saldo} trevo${t.saldo === 1 ? '' : 's'}</div><div class="meta">Ganhe resgatando peixes, domínio de pesca e conquistas em Missões › 🍀 Trevos.</div></div><button class="btn ghost" data-abrir-trevos="1">Ganhar</button></div>
     <p class="hint">Itens exclusivos: só se conseguem com trevos. Os úteis dá para trocar quantas vezes quiser.</p>`;
-  for (const it of TREVO_TIPOS.flatMap(tp => { const l = TREVO_LOJA.filter(x => x.tipo === tp); return l.length ? [{ cab: tp }, ...l] : []; })) {
-    if (it.cab) { html += `<p class="trevocab">${{ 'Útil': '🧺 Úteis', Avatar: '🧑‍🌾 Para o avatar', Enfeite: '🌼 Enfeites', Tema: '🏡 Temas da casa e da cerca', Casa: '🧱 Papel de parede da casa', Carta: '✉️ Papel de carta', Perfil: '🪪 Selo de perfil', Animal: '🐾 Animais', 'Música': '🎵 Músicas' }[it.cab]}</p>`; continue; }
+  for (const it of TREVO_TIPOS.flatMap(tp => { const l = TREVO_LOJA.filter(x => x.tipo === tp && (!x.evento || halloweenAtivo())); return l.length ? [{ cab: tp }, ...l] : []; })) {
+    if (it.cab) { html += `<p class="trevocab">${{ 'Útil': '🧺 Úteis', Avatar: '🧑‍🌾 Para o avatar', Enfeite: '🌼 Enfeites', Tema: '🏡 Temas da casa e da cerca', Halloween: '🎃 Coleção de Halloween (só até 31/10)', Casa: '🧱 Papel de parede da casa', Carta: '✉️ Papel de carta', Perfil: '🪪 Selo de perfil', Animal: '🐾 Animais', 'Música': '🎵 Músicas' }[it.cab]}</p>`; continue; }
     const tem = t.itens[it.id] && !it.repete;
     html += `<div class="row ${tem ? 'sel' : ''}"><img alt="" src="${iconeTrevoItem(it)}"><div><div class="name">${it.nome} <span class="tag">${it.tipo}</span></div><div class="meta">${it.desc}</div></div>
       ${tem ? '<button class="btn ghost" disabled>Já é seu</button>' : `<button class="btn gold" data-trevo-comprar="${it.id}" ${t.saldo < it.preco ? 'disabled' : ''}>🍀 ${it.preco}</button>`}</div>`;
@@ -13314,12 +13352,12 @@ function desenhaBalao(x, y, r, cor) {
   ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(x - r * 0.3, y - r * 0.38, r * 0.14, r * 0.28, 0.3, 0, 7); ctx.fill();
 }
 // Fio de bandeirinhas entre dois pontos do cenário.
-function bandeirasMundo(a, b, sag, t) {
+function bandeirasMundo(a, b, sag, t, cores = EV_CORES) {
   const n = Math.max(5, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / (L.W * 0.2))), w = Math.max(4, L.W * 0.035);
   ctx.strokeStyle = 'rgba(80,60,40,.75)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo((a.x + b.x) / 2, (a.y + b.y) / 2 + sag * 2, b.x, b.y); ctx.stroke();
   for (let k = 0; k < n; k++) {
     const f = (k + 0.5) / n, x = (1 - f) * (1 - f) * a.x + 2 * f * (1 - f) * ((a.x + b.x) / 2) + f * f * b.x, y = (1 - f) * (1 - f) * a.y + 2 * f * (1 - f) * ((a.y + b.y) / 2 + sag * 2) + f * f * b.y, sw = Math.sin(t / 500 + k * 0.7) * 1.6;
-    ctx.fillStyle = EV_CORES[k % EV_CORES.length]; ctx.beginPath(); ctx.moveTo(x - w, y); ctx.lineTo(x + w, y); ctx.lineTo(x + sw, y + w * 2.2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = cores[k % cores.length]; ctx.beginPath(); ctx.moveTo(x - w, y); ctx.lineTo(x + w, y); ctx.lineTo(x + sw, y + w * 2.2); ctx.closePath(); ctx.fill();
   }
 }
 // Cacho de balões amarrado no chão em (x, y).
@@ -13365,6 +13403,438 @@ function drawTemaCriancas(t) {
   }
 }
 // ============================================================
+// Evento: Halloween 2026 (de 17/10 até 31/10, 23:59)
+// ============================================================
+// Tema assombrado, música sombria, lobos passeando e uivando, coleção de enfeites e as cartas assombradas:
+// todo dia você ganha 3 cartas (abóbora gigante, fantasma e esqueleto) para mandar a amigos; ao abrir, cai uma maldição.
+const HAL = { id: 'halloween2026', ini: new Date(2026, 9, 17, 0, 0, 0).getTime(), fim: new Date(2026, 9, 31, 23, 59, 59).getTime() };
+const halloweenAtivo = () => { const n = Date.now(); return n >= HAL.ini && n <= HAL.fim; };
+const halDe = () => { if (!state.halloween || state.halloween.id !== HAL.id) state.halloween = { id: HAL.id, dia: '', tem: {}, caixa: [], mald: {}, prog: {}, feitas: {}, lobos: { d: '', n: 0 }, corvos: [], teia: {}, skel: null, cliques: { d: '', n: 0 } }; return state.halloween; };
+const halMald = id => !!(state && state.halloween && state.halloween.id === HAL.id && state.halloween.mald[id] > Date.now());
+const HAL_H = 3600e3;
+const HAL_CARTAS = { abobora: { nome: 'Abóbora gigante', emoji: '🎃' }, fantasma: { nome: 'Fantasma', emoji: '👻' }, esqueleto: { nome: 'Esqueleto', emoji: '💀' } };
+const HAL_MALD = {
+  abobora:    { nome: 'Cabeça de abóbora',    emoji: '🎃', dur: 12 * HAL_H,    txt: 'Você virou uma abóbora! Seu avatar fica com cabeça de abóbora por 12 horas.' },
+  fantasma:   { nome: 'Fantasma travesso',    emoji: '👻', dur: 30 * 60e3,     txt: 'Um fantasma travesso vai seguir o seu avatar e jogar pragas nas suas plantas por 30 minutos!' },
+  neblina:    { nome: 'Neblina pesada',       emoji: '🌫️', dur: 4 * HAL_H,     txt: 'Uma neblina pesada cobriu a roça por 4 horas.' },
+  medo:       { nome: 'Cachorro com medo',    emoji: '🐶', dur: 1 * HAL_H,     txt: 'Seus cachorros ficaram com medo e se esconderam: só acordam quando o susto passar (1 hora).' },
+  danca:      { nome: 'Esqueleto dançarino',  emoji: '💀', dur: 4 * HAL_H,     txt: 'Um esqueleto está dançando no seu gramado por 4 horas. Clique nele para ganhar umas moedinhas!' },
+  corvos:     { nome: 'Corvos nas plantas',   emoji: '🐦‍⬛', dur: 3 * HAL_H,     txt: 'Corvos pousaram em 3 canteiros e as plantas crescem mais devagar. Clique neles para espantar!' },
+  lua:        { nome: 'Lua de sangue',        emoji: '🩸', dur: 1 * HAL_H,     txt: 'Lua de sangue! Os lobos uivam sem parar e a terra seca bem mais rápido por 1 hora.' },
+  teia:       { nome: 'Teias de aranha',      emoji: '🕸️', dur: 2 * HAL_H,     txt: 'Teias de aranha cobriram a casa e o celeiro! Clique nelas para limpar (dá doce). Se ninguém limpar, somem em 2 horas.' },
+  osso:       { nome: 'Osso gigante',         emoji: '🦴', dur: 2 * HAL_H,     txt: 'O esqueleto deixou um osso gigante na casinha: o cachorro não larga e não persegue pragas por 2 horas.' },
+  vassoura:   { nome: 'Vassoura mágica',      emoji: '🧹', dur: 2 * HAL_H,     bencao: true, txt: 'Era uma bênção! Você ganhou uma vassoura mágica: seu avatar voa rápido por 2 horas.' },
+  espantalho: { nome: 'Espantalho vivo',      emoji: '🌾', dur: 3 * HAL_H,     bencao: true, txt: 'Era uma bênção! Um espantalho vivo protege a roça: nenhuma praga invade por 3 horas.' },
+  dourada:    { nome: 'Colheita dourada',     emoji: '✨', dur: 0,             bencao: true, inst: true, txt: 'Era uma bênção! Sua próxima plantação vira colheita dourada, e ainda veio dinheiro e doces!' },
+};
+const HAL_POOL = { abobora: ['abobora'], fantasma: ['fantasma', 'neblina', 'medo', 'bencao'], esqueleto: ['danca', 'corvos', 'lua', 'teia', 'osso', 'bencao'] };
+const HAL_BENCAOS = ['dourada', 'vassoura', 'espantalho'];
+const halAtivas = () => Object.keys(HAL_MALD).filter(id => !HAL_MALD[id].inst && halMald(id));
+// Sorteia a maldição da carta. Com 3 ativas, só vale quem já está ativa (aí soma tempo); sem nenhuma possível, devolve null (a carta espera).
+function halSortear(tipo) {
+  const ativas = halAtivas(), cheio = ativas.length >= 3, itens = [];
+  for (const id of HAL_POOL[tipo]) { if (id === 'bencao') HAL_BENCAOS.forEach(b => itens.push([b, 1 / HAL_BENCAOS.length])); else itens.push([id, 1]); }
+  const ok = cheio ? itens.filter(([id]) => ativas.includes(id) || id === 'dourada') : itens;
+  if (!ok.length) return null;
+  let r = Math.random() * ok.reduce((t, [, w]) => t + w, 0);
+  for (const [id, w] of ok) { r -= w; if (r <= 0) return id; }
+  return ok[0][0];
+}
+function halAplicar(id) {
+  const M = HAL_MALD[id], h = halDe(), agora = Date.now();
+  if (M.inst) { state.ouroProx = (state.ouroProx || 0) + 1; state.coins += 150; state.barn.bala = (state.barn.bala || 0) + 2; sfx('level'); done(); return; }
+  h.mald[id] = Math.max(agora, h.mald[id] || 0) + M.dur; // repetida: soma o tempo
+  if (id === 'corvos') {
+    const livres = state.plots.map((p, i) => i).filter(i => state.plots[i].s !== 'locked' && !state.plots[i].corvo);
+    for (let k = 0; k < 3 && livres.length; k++) { const i = livres.splice(Math.floor(Math.random() * livres.length), 1)[0]; state.plots[i].corvo = 1; h.corvos.push(i); }
+  } else if (id === 'teia') { h.teia = { casa: 1, celeiro: 1 };
+  } else if (id === 'danca' && !h.skel) { const a = avatarArea('roca'); h.skel = { u: a.u0 + Math.random() * (a.u1 - a.u0), v: a.v0 + Math.random() * (a.v1 - a.v0) };
+  } else if (id === 'fantasma') h.fantasmaProx = agora + 8000;
+  done();
+}
+// ---- Cartas: 3 por dia; enviar a um amigo; abrir as que chegam ----
+function halDiaReset() { const h = halDe(), hoje = localDay(); if (h.dia === hoje) return false; h.dia = hoje; h.tem = { abobora: 1, fantasma: 1, esqueleto: 1 }; return true; }
+function halEntrada() {
+  if (!state || !halloweenAtivo()) return;
+  const h = halDe();
+  if (!settings.evHalloweenMusica && window.RFAudio && window.RFAudio.tracks.length > 8) { settings.evHalloweenMusica = 1; settings.track = 8; saveSettings(); if (settings.music) setTimeout(() => toast('🎵 Tocando "Noite das Bruxas", a música do Halloween! Troque em ⚙️ › Música.', 'good'), 4500); }
+  if (!h.presente) {
+    h.presente = 1; state.skins.assombrada = true; state.invNovos = (state.invNovos || 0) + 1;
+    const msg = '🎃 Halloween na Roça Feliz! Até 31/10, às 23:59, a roça está assombrada: lobos uivando, morcegos e uma música sombria. Seu presente: a Casa Assombrada (em Loja › Temas, ou clicando na casa). Todo dia você ganha 3 cartas (🎃 abóbora gigante, 👻 fantasma e 💀 esqueleto) para mandar a amigos: quando abrirem, cai uma maldição! Veja em Missões › 🎃 Halloween.';
+    addNews(msg); setTimeout(() => toast(msg, 'good'), 2600); done();
+  }
+  if (halDiaReset()) { const m = '🎃 Chegaram as 3 cartas de hoje: abóbora gigante, fantasma e esqueleto. Mande para amigos em Missões › 🎃 Halloween!'; addNews(m); setTimeout(() => toast(m, 'good'), 3600); done(); }
+  if (!h.avisoFim && Date.now() >= new Date(2026, 9, 31, 0, 0, 0).getTime()) { h.avisoFim = 1; const m = '🎃 Último dia de Halloween! Termina hoje, às 23:59. Mande as cartas, pegue os prêmios das missões e passe na Loja do Trevo.'; addNews(m); setTimeout(() => toast(m, 'good'), 1500); done(); }
+}
+function enviarCartaHal(tipo) {
+  const h = halDe(), C = HAL_CARTAS[tipo]; halDiaReset();
+  if (!halloweenAtivo()) return;
+  if (!h.tem[tipo]) return toast('Essa carta já foi enviada hoje. Amanhã vêm 3 novas!');
+  if (!user) return toast('Entre com o Google para mandar cartas aos amigos.');
+  const amigos = state.friends.filter(u => friendInfo[u] && friendInfo[u] !== 'loading' && !friendInfo[u].erro);
+  if (!amigos.length) return toast('Você ainda não tem amigos para mandar a carta. Adicione em Amigos!');
+  escolher(`Para qual amigo mandar a carta ${C.emoji} ${C.nome}? Quando ele abrir, cai uma maldição!`, [
+    ...amigos.map(u => ({ txt: esc(friendInfo[u].name), fn: () => perguntar(`Mandar a carta ${C.emoji} ${C.nome} para ${friendInfo[u].name}?`, () => mandarCartaHal(u, tipo)) })),
+    { txt: 'Cancelar', ghost: true },
+  ]);
+}
+async function mandarCartaHal(uid, tipo) {
+  const h = halDe(), C = HAL_CARTAS[tipo], f = friendInfo[uid]; if (!h.tem[tipo] || !user) return;
+  h.tem[tipo] = 0; done(); renderPane();
+  try {
+    await Cloud.sendVisit(uid, { t: 'gift', gift: 'carta:' + tipo, nivel: 0, from: user.uid, fromName: meuApelido(), at: Date.now() });
+    avisarAmigo(uid, 'presente', `${C.emoji} ${meuApelido()} te mandou uma carta assombrada! Abra se tiver coragem…`);
+    sfx('buy'); addXP(2, null); track('carta'); ganharAmizade(uid);
+    toast(`${C.emoji} Carta enviada para ${f && f.name ? f.name : 'seu amigo'}! Agora é esperar ele abrir… 😈`, 'good'); done();
+  } catch (e) {
+    console.warn(e); h.tem[tipo] = 1; done(); renderPane();
+    if (e && e.code === 'permission-denied') reatarAmizade(uid); else toast('Não consegui enviar a carta agora. Tente de novo.', 'bad');
+  }
+}
+// Carta chegando: aparece em primeiro plano para abrir (uma de cada vez).
+let halCartaAtual = null;
+function halCartaTick() {
+  if (!state || !halloweenAtivo() || halCartaAtual || isGated() || document.hidden || !isHome() || escolhaAberta()) return;
+  if (['#boasvindas', '#presente', '#nome'].some(q => $(q) && !$(q).hidden)) return;
+  const h = halDe(), c = h.caixa.find(x => halSortear(x.tipo) !== null);
+  if (c) mostrarCartaHal(c);
+}
+function mostrarCartaHal(c) {
+  const C = HAL_CARTAS[c.tipo]; halCartaAtual = c;
+  $('#cartaArte').innerHTML = `<img alt="" src="${halIcone(c.tipo)}">`;
+  $('#cartaDe').textContent = `📮 Carta de ${c.de}`;
+  $('#cartaTxt').textContent = `Uma carta lacrada com cera preta, com ${C.emoji} ${C.nome.toLowerCase()} desenhado no envelope. Abra se tiver coragem…`;
+  $('#cartaBtn').textContent = '🕯️ Abrir a carta'; $('#cartaBtn').dataset.fase = 'abrir';
+  $('#cartaModal').hidden = false;
+}
+function halCartaBotao() {
+  const c = halCartaAtual; if (!c) return;
+  if ($('#cartaBtn').dataset.fase === 'fechar') { $('#cartaModal').hidden = true; halCartaAtual = null; setTimeout(halCartaTick, 600); return; }
+  const id = halSortear(c.tipo); if (!id) { $('#cartaModal').hidden = true; halCartaAtual = null; return; }
+  const h = halDe(), M = HAL_MALD[id], i = h.caixa.indexOf(c); if (i >= 0) h.caixa.splice(i, 1);
+  halAplicar(id); track('abrir'); sfx(M.bencao ? 'level' : 'bruxa');
+  const C = HAL_CARTAS[c.tipo];
+  $('#cartaDe').textContent = M.bencao ? '😈 MALDIÇÃO!…' : `${M.emoji} ${M.nome}!`;
+  $('#cartaTxt').textContent = M.bencao ? 'Uma voz sussurra: você será amaldiçoado por…' : M.txt;
+  $('#cartaBtn').dataset.fase = 'fechar'; $('#cartaBtn').textContent = M.bencao ? '…' : 'Ok…'; $('#cartaBtn').disabled = !!M.bencao;
+  if (M.bencao) setTimeout(() => { if (halCartaAtual !== c) return; $('#cartaDe').textContent = `${M.emoji} ${M.nome}!`; $('#cartaTxt').textContent = M.txt; $('#cartaBtn').textContent = 'Que alívio!'; $('#cartaBtn').disabled = false; sfx('level'); }, 2600);
+  toast(`${C.emoji} Carta de ${c.de} aberta: ${M.bencao ? 'era uma bênção!' : M.nome}`, M.bencao ? 'good' : 'bad');
+}
+// ---- Efeitos que rodam a cada segundo ----
+function halTick() {
+  if (!state || isGated() || !state.halloween || state.halloween.id !== HAL.id) return;
+  const h = state.halloween, agora = Date.now();
+  if (h.corvos.length && !halMald('corvos')) { for (const i of h.corvos) if (state.plots[i]) delete state.plots[i].corvo; h.corvos = []; done(); }
+  if ((h.teia.casa || h.teia.celeiro) && !halMald('teia')) { h.teia = {}; done(); }
+  if (h.skel && !halMald('danca')) { h.skel = null; done(); }
+  if (halMald('fantasma') && isHome() && agora >= (h.fantasmaProx || 0)) {
+    h.fantasmaProx = agora + 18000 + Math.random() * 14000;
+    const alvos = state.plots.map((p, i) => i).filter(i => { const p = state.plots[i]; return p.s === 'growing' && !p.b && !p.dry && !p.podre && !p.corvo; });
+    if (alvos.length) { const i = alvos[Math.floor(Math.random() * alvos.length)], p = state.plots[i]; if (Math.random() < 0.5) p.b = 1; else p.dry = true; if (scene === 'roca') popupAt(cellCenter(i), '👻 Buuu!', '#c8a8ff'); done(); }
+  }
+}
+// ---- Missões e coleção ----
+const HAL_ITENS = ['hal_lanterna', 'hal_gato', 'hal_corvo', 'hal_caldeirao', 'hal_vassoura', 'hal_caveira', 'hal_livro', 'hal_tumulo'];
+const HAL_MISSOES = [
+  { id: 'colher',  ev: 'colher',  txt: 'Colha {n} vezes',                   alvo: 25, moedas: 300, doce: ['bala', 3],     item: 'hal_lanterna' },
+  { id: 'regar',   ev: 'regar',   txt: 'Regue {n} canteiros',               alvo: 15, moedas: 200, doce: ['pirulito', 2], item: 'hal_gato' },
+  { id: 'pescar',  ev: 'pescar',  txt: 'Pesque {n} peixes',                 alvo: 3,  moedas: 250, doce: ['bala', 3],     item: 'hal_corvo' },
+  { id: 'coletar', ev: 'coletar', txt: 'Recolha {n} produtos dos animais',  alvo: 10, moedas: 250, doce: ['pirulito', 2], item: 'hal_caldeirao', need: () => state.animals.some(a => ANIMAL[a.k].tipo === 'prod') },
+  { id: 'carta',   ev: 'carta',   txt: 'Mande {n} cartas assombradas',      alvo: 3,  moedas: 300, doce: ['bala', 5],     item: 'hal_vassoura', need: () => state.friends.length > 0 },
+  { id: 'abrir',   ev: 'abrir',   txt: 'Abra {n} cartas',                   alvo: 3,  moedas: 250, doce: ['pirulito', 3], item: 'hal_caveira' },
+  { id: 'minerar', ev: 'minerar', txt: 'Quebre {n} pedras na mina',         alvo: 6,  moedas: 300, doce: ['bala', 3],     item: 'hal_livro', need: () => state.level >= MINA_NIVEL },
+  { id: 'lobo',    ev: 'lobo',    txt: 'Assuste {n} lobos',                 alvo: 3,  moedas: 200, doce: ['pirulito', 3], item: 'hal_tumulo' },
+];
+const halMissoes = () => HAL_MISSOES.filter(m => !m.need || m.need());
+const halProntas = () => halloweenAtivo() && state ? halMissoes().filter(m => (halDe().prog[m.id] || 0) >= m.alvo && !halDe().feitas[m.id]).length : 0;
+function halTrack(ev, n) {
+  if (!state || !halloweenAtivo()) return;
+  const h = halDe(); let pronto = false;
+  for (const m of HAL_MISSOES) {
+    if (m.ev !== ev || h.feitas[m.id] || (h.prog[m.id] || 0) >= m.alvo) continue;
+    h.prog[m.id] = Math.min(m.alvo, (h.prog[m.id] || 0) + n);
+    if (h.prog[m.id] >= m.alvo) pronto = true;
+  }
+  if (pronto) { toast('🎃 Missão de Halloween cumprida! Pegue o prêmio em Missões › 🎃 Halloween.', 'good'); sfx('level'); renderTabs(); }
+}
+function resgatarHal(id) {
+  if (!halloweenAtivo()) return;
+  const m = HAL_MISSOES.find(x => x.id === id), h = halDe(); if (!m || h.feitas[id] || (h.prog[id] || 0) < m.alvo) return;
+  h.feitas[id] = 1; state.coins += m.moedas; state.barn[m.doce[0]] = (state.barn[m.doce[0]] || 0) + m.doce[1];
+  state.enfeites[m.item] = (state.enfeites[m.item] || 0) + 1; state.invNovos = (state.invNovos || 0) + 1;
+  sfx('level'); addXP(5, null); toast(`🎃 Prêmio: ${m.moedas} moedas + ${m.doce[1]} ${m.doce[1] > 1 ? PRODUCT[m.doce[0]].nomePl : PRODUCT[m.doce[0]].nome.toLowerCase()} + ${ENFEITE[m.item].nome} (no Inventário)!`, 'good'); done(); renderPane(); renderHUD();
+}
+const halTemItem = id => (state.enfeites[id] || 0) > 0 || ['roca', 'animais'].some(sc => objetosDe(state, sc).some(o => o.id === id));
+function halHTML() {
+  const h = halDe(); halDiaReset();
+  const falta = HAL.fim - Date.now(), d = Math.floor(falta / 86400e3), hh = Math.floor((falta % 86400e3) / 3600e3);
+  let html = `<div class="row sel"><div class="avatar" style="background:#7a3fb0;font-size:26px">🎃</div><div><div class="name">Halloween</div><div class="meta">Termina em 31/10, às 23:59 · faltam ${d ? d + 'd ' : ''}${hh}h. Lobos uivam na roça, e a coleção e as cartas rendem prêmios. Itens da coleção também na Loja do Trevo 🍀.</div></div><div></div></div>`;
+  html += `<h3>📮 Cartas assombradas</h3><p class="hint">Todo dia você ganha 3 cartas. Mande a amigos: quando abrirem, cai uma maldição (que passa sozinha, sem perder nada).</p>`;
+  const nCaixa = h.caixa.length;
+  if (nCaixa) html += `<div class="row sel"><div class="avatar" style="background:#e0463a;font-size:22px">✉️</div><div><div class="name">${nCaixa} carta${nCaixa > 1 ? 's' : ''} para abrir</div><div class="meta">Amigos mandaram cartas para você. Coragem!</div></div><button class="btn gold" data-hal-abrir="1">Abrir</button></div>`;
+  for (const [tipo, C] of Object.entries(HAL_CARTAS)) html += `<div class="row ${h.tem[tipo] ? '' : 'locked'}"><img alt="" src="${halIcone(tipo)}"><div><div class="name">${C.emoji} ${C.nome}</div><div class="meta">${h.tem[tipo] ? 'Disponível hoje' : 'Enviada hoje; volta amanhã'}</div></div><button class="btn gold" data-hal-enviar="${tipo}" ${h.tem[tipo] ? '' : 'disabled'}>Enviar</button></div>`;
+  const ativas = halAtivas();
+  html += `<h3>🕯️ Maldições ativas (${ativas.length} de 3)</h3>`;
+  html += ativas.length ? ativas.map(id => { const M = HAL_MALD[id]; return `<div class="row"><div class="avatar" style="background:#4a2a6a;font-size:22px">${M.emoji}</div><div><div class="name">${M.nome}${M.bencao ? ' <span class="tag">bênção</span>' : ''}</div><div class="meta">faltam ${fmt((h.mald[id] - Date.now()) / 1000)}</div></div><div></div></div>`; }).join('') : '<div class="empty">Nenhuma maldição agora. 😇</div>';
+  html += `<h3>🎯 Missões do evento</h3>`;
+  for (const m of halMissoes()) {
+    const v = Math.min(m.alvo, h.prog[m.id] || 0), feita = h.feitas[m.id], pronta = v >= m.alvo && !feita;
+    html += `<div class="row ${pronta ? 'sel' : ''}"><img alt="" src="${enfeiteIcon(m.item)}"><div><div class="name">${m.txt.replace('{n}', m.alvo)}</div><div class="meta">${v}/${m.alvo} · prêmio: ${ENFEITE[m.item].nome} + ${m.moedas} moedas + ${m.doce[1]} ${m.doce[1] > 1 ? PRODUCT[m.doce[0]].nomePl : PRODUCT[m.doce[0]].nome.toLowerCase()}</div><div class="mbar"><i style="width:${Math.round(v / m.alvo * 100)}%"></i></div></div>
+      ${feita ? '<button class="btn ghost" disabled>Resgatado</button>' : pronta ? `<button class="btn gold" data-hal-resgatar="${m.id}">Resgatar</button>` : '<button class="btn ghost" disabled>Em andamento</button>'}</div>`;
+  }
+  const tem = HAL_ITENS.filter(halTemItem).length;
+  html += `<h3>🏺 Coleção (${tem} de ${HAL_ITENS.length})</h3><div class="colgrid">${HAL_ITENS.map(id => `<div class="colitem ${halTemItem(id) ? '' : 'falta'}" title="${ENFEITE[id].nome}"><img alt="" src="${enfeiteIcon(id)}" style="${halTemItem(id) ? '' : 'filter:grayscale(1) brightness(.4)'}"><small>${halTemItem(id) ? ENFEITE[id].nome : '???'}</small></div>`).join('')}</div>`;
+  return html;
+}
+
+// ---- Desenhos do Halloween ----
+function desenhaAbobora(x, y, r, brilho, t = 0) {
+  if (brilho) { const g = ctx.createRadialGradient(x, y - r * 0.1, r * 0.2, x, y - r * 0.1, r * 2.2); g.addColorStop(0, 'rgba(255,170,40,.45)'); g.addColorStop(1, 'rgba(255,170,40,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - r * 0.1, r * 2.2, 0, 7); ctx.fill(); }
+  ctx.fillStyle = '#e8741a'; ctx.beginPath(); ctx.ellipse(x - r * 0.45, y, r * 0.7, r * 0.9, 0, 0, 7); ctx.ellipse(x + r * 0.45, y, r * 0.7, r * 0.9, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f08a28'; ctx.beginPath(); ctx.ellipse(x, y, r * 0.78, r * 0.95, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(120,50,0,.45)'; ctx.lineWidth = Math.max(1, r * 0.06); for (const dx of [-0.42, 0.42]) { ctx.beginPath(); ctx.ellipse(x + r * dx, y, r * 0.2, r * 0.9, 0, 0, 7); ctx.stroke(); }
+  ctx.fillStyle = '#4f7a2a'; ctx.fillRect(x - r * 0.1, y - r * 1.22, r * 0.2, r * 0.32);
+  const lume = brilho ? '#ffe27a' : '#3a1a05'; ctx.fillStyle = lume;
+  ctx.beginPath(); ctx.moveTo(x - r * 0.5, y - r * 0.25); ctx.lineTo(x - r * 0.22, y - r * 0.25); ctx.lineTo(x - r * 0.36, y - r * 0.52); ctx.fill(); ctx.beginPath(); ctx.moveTo(x + r * 0.5, y - r * 0.25); ctx.lineTo(x + r * 0.22, y - r * 0.25); ctx.lineTo(x + r * 0.36, y - r * 0.52); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x - r * 0.5, y + r * 0.2); for (let k = 0; k <= 4; k++) ctx.lineTo(x - r * 0.5 + k * r * 0.25, y + r * (k % 2 ? 0.2 : 0.48)); ctx.lineTo(x + r * 0.5, y + r * 0.2); ctx.closePath(); ctx.fill();
+}
+function desenhaFantasma(x, y, r, t = 0) {
+  const o = Math.sin(t / 400) * r * 0.06;
+  ctx.fillStyle = 'rgba(245,245,255,.92)'; ctx.beginPath(); ctx.moveTo(x - r * 0.8, y + r * 0.9);
+  ctx.lineTo(x - r * 0.8, y - r * 0.2); ctx.arc(x, y - r * 0.2, r * 0.8, Math.PI, 0); ctx.lineTo(x + r * 0.8, y + r * 0.9);
+  for (let k = 3; k >= 0; k--) ctx.quadraticCurveTo(x + r * (0.8 - (3 - k) * 0.4 - 0.2), y + r * 1.25 + o * (k % 2 ? 1 : -1), x + r * (0.8 - (4 - k) * 0.4), y + r * 0.9);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1f1f2a'; ctx.beginPath(); ctx.ellipse(x - r * 0.3, y - r * 0.25, r * 0.13, r * 0.2, 0, 0, 7); ctx.ellipse(x + r * 0.3, y - r * 0.25, r * 0.13, r * 0.2, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x, y + r * 0.2, r * 0.15, r * 0.22, 0, 0, 7); ctx.fill();
+}
+function desenhaEsqueleto(x, y, s, t = 0, danca = true) {
+  const b = danca ? Math.sin(t / 160) : 0, braco = danca ? Math.sin(t / 160 + 1) * 0.9 : 0;
+  ctx.strokeStyle = '#f0ece0'; ctx.lineWidth = 2.4 * s; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x, y - 20 * s); ctx.lineTo(x, y - 38 * s); ctx.stroke(); // coluna
+  for (let k = 0; k < 4; k++) { ctx.lineWidth = 1.6 * s; ctx.beginPath(); ctx.moveTo(x - 7 * s, y - (35 - k * 4) * s); ctx.lineTo(x + 7 * s, y - (35 - k * 4) * s); ctx.stroke(); }
+  ctx.lineWidth = 2.4 * s;
+  ctx.beginPath(); ctx.moveTo(x - 2 * s, y - 20 * s); ctx.lineTo(x - (6 + b * 3) * s, y - 8 * s); ctx.lineTo(x - (7 + b * 4) * s, y); ctx.moveTo(x + 2 * s, y - 20 * s); ctx.lineTo(x + (6 - b * 3) * s, y - 8 * s); ctx.lineTo(x + (7 - b * 4) * s, y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x - 7 * s, y - 36 * s); ctx.lineTo(x - (13 + braco * 4) * s, y - (26 + braco * 8) * s); ctx.moveTo(x + 7 * s, y - 36 * s); ctx.lineTo(x + (13 - braco * 4) * s, y - (26 - braco * 8) * s); ctx.stroke();
+  ctx.fillStyle = '#f6f2e6'; ctx.beginPath(); ctx.arc(x, y - 46 * s + b * 1.2 * s, 7 * s, 0, 7); ctx.fill(); ctx.fillRect(x - 4 * s, y - 42 * s + b * 1.2 * s, 8 * s, 4.5 * s);
+  ctx.fillStyle = '#1a1a22'; ctx.beginPath(); ctx.arc(x - 2.8 * s, y - 47 * s + b * 1.2 * s, 1.9 * s, 0, 7); ctx.arc(x + 2.8 * s, y - 47 * s + b * 1.2 * s, 1.9 * s, 0, 7); ctx.fill();
+  ctx.lineCap = 'butt';
+}
+const halIcone = tipo => makeIcon('hal:' + tipo, () => {
+  if (tipo === 'abobora') desenhaAbobora(48, 56, 34, true);
+  else if (tipo === 'fantasma') desenhaFantasma(48, 46, 32, 0);
+  else desenhaEsqueleto(48, 86, 1.7, 0, false);
+});
+// Morcego (silhueta) batendo asa.
+function desenhaMorcego(x, y, s, t) {
+  const a = Math.sin(t / 90) * 0.7;
+  ctx.fillStyle = '#18101f';
+  for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + d * 9 * s, y - (8 + a * 8) * s, x + d * 17 * s, y - (1 + a * 5) * s); ctx.quadraticCurveTo(x + d * 12 * s, y + 2 * s, x + d * 9 * s, y + 3 * s); ctx.quadraticCurveTo(x + d * 5 * s, y + 1 * s, x, y + 4 * s); ctx.fill(); }
+  ctx.beginPath(); ctx.ellipse(x, y + 1 * s, 3 * s, 4 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f2c14e'; ctx.fillRect(x - 2 * s, y - 0.5 * s, 1 * s, 1 * s); ctx.fillRect(x + 1 * s, y - 0.5 * s, 1 * s, 1 * s);
+}
+function desenhaTeia(x, y, r, lados = 5) {
+  ctx.strokeStyle = 'rgba(235,235,245,.85)'; ctx.lineWidth = 1;
+  for (let k = 0; k < lados; k++) { const a = Math.PI * 0.5 * k / (lados - 1); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); ctx.stroke(); }
+  for (let q = 1; q <= 3; q++) { ctx.beginPath(); for (let k = 0; k < lados; k++) { const a = Math.PI * 0.5 * k / (lados - 1), rr = r * q / 3 * (k % 2 ? 0.88 : 1); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.stroke(); }
+}
+function desenhaCorvo(x, y, s, t) {
+  const b = Math.sin(t / 700) * 0.6 * s;
+  ctx.fillStyle = '#16121c'; ctx.beginPath(); ctx.ellipse(x, y - 9 * s + b, 8 * s, 6 * s, -0.3, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(x - 6 * s, y - 8 * s + b); ctx.lineTo(x - 15 * s, y - 4 * s); ctx.lineTo(x - 5 * s, y - 5 * s + b); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 7 * s, y - 15 * s + b, 4 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = '#e8a02a'; ctx.beginPath(); ctx.moveTo(x + 10 * s, y - 16 * s + b); ctx.lineTo(x + 16 * s, y - 14.5 * s + b); ctx.lineTo(x + 10 * s, y - 13 * s + b); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillRect(x + 7.5 * s, y - 16.6 * s + b, 1.4 * s, 1.4 * s);
+  ctx.strokeStyle = '#e8a02a'; ctx.lineWidth = 1.2 * s; ctx.beginPath(); ctx.moveTo(x - 1 * s, y - 4 * s); ctx.lineTo(x - 1 * s, y); ctx.moveTo(x + 3 * s, y - 4 * s); ctx.lineTo(x + 3 * s, y); ctx.stroke();
+}
+// Os 8 enfeites colecionáveis (entram no desenho dos enfeites).
+function desenhaHalEnfeite(id, x, y, s, t) {
+  if (id === 'hal_lanterna') { desenhaAbobora(x, y - 16 * s, 17 * s, true, t); }
+  else if (id === 'hal_gato') {
+    ctx.fillStyle = '#17121f'; ctx.beginPath(); ctx.ellipse(x, y - 10 * s, 11 * s, 11 * s, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(x + 2 * s, y - 27 * s, 8 * s, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - 4 * s, y - 32 * s); ctx.lineTo(x - 3 * s, y - 40 * s); ctx.lineTo(x + 1 * s, y - 34 * s); ctx.fill(); ctx.beginPath(); ctx.moveTo(x + 5 * s, y - 34 * s); ctx.lineTo(x + 8 * s, y - 40 * s); ctx.lineTo(x + 9 * s, y - 31 * s); ctx.fill();
+    ctx.strokeStyle = '#17121f'; ctx.lineWidth = 3 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - 10 * s, y - 6 * s); ctx.quadraticCurveTo(x - 24 * s, y - 8 * s, x - 18 * s, y - 24 * s + Math.sin(t / 500) * 2 * s); ctx.stroke(); ctx.lineCap = 'butt';
+    ctx.fillStyle = '#ffe14a'; ctx.beginPath(); ctx.ellipse(x - 0.5 * s, y - 28 * s, 1.8 * s, 2.6 * s, 0, 0, 7); ctx.ellipse(x + 5 * s, y - 28 * s, 1.8 * s, 2.6 * s, 0, 0, 7); ctx.fill();
+  } else if (id === 'hal_corvo') {
+    ctx.fillStyle = '#6b4a2a'; ctx.fillRect(x - 2 * s, y - 26 * s, 4 * s, 26 * s); ctx.fillRect(x - 9 * s, y - 24 * s, 18 * s, 3 * s);
+    desenhaCorvo(x + 1 * s, y - 26 * s, s * 1.3, t);
+  } else if (id === 'hal_caldeirao') {
+    for (const dx of [-8, 0, 8]) { const f = Math.sin(t / 110 + dx) * 2 * s; ctx.fillStyle = dx ? '#ff9a2a' : '#ffd54a'; ctx.beginPath(); ctx.moveTo(x + (dx - 5) * s, y); ctx.quadraticCurveTo(x + dx * s, y - (13 + f) * s, x + (dx + 5) * s, y); ctx.fill(); }
+    ctx.fillStyle = '#1b1b22'; ctx.beginPath(); ctx.ellipse(x, y - 17 * s, 17 * s, 14 * s, 0, 0, 7); ctx.fill(); ctx.fillRect(x - 16 * s, y - 22 * s, 32 * s, 3 * s);
+    ctx.fillStyle = '#7ae04a'; ctx.beginPath(); ctx.ellipse(x, y - 23 * s, 14 * s, 4 * s, 0, 0, 7); ctx.fill();
+    for (let k = 0; k < 3; k++) { const f = ((t / 900) + k / 3) % 1; ctx.globalAlpha = 1 - f; ctx.fillStyle = '#b6f08a'; ctx.beginPath(); ctx.arc(x + (k * 8 - 8) * s, y - (24 + f * 20) * s, (2.5 + k % 2) * s, 0, 7); ctx.fill(); } ctx.globalAlpha = 1;
+  } else if (id === 'hal_vassoura') {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(-0.25); ctx.strokeStyle = '#7a4a22'; ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo(0, -46 * s); ctx.lineTo(0, -8 * s); ctx.stroke();
+    ctx.fillStyle = '#c9a24a'; ctx.beginPath(); ctx.moveTo(-3 * s, -12 * s); ctx.lineTo(3 * s, -12 * s); ctx.lineTo(9 * s, 4 * s); ctx.lineTo(-9 * s, 4 * s); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#8a6a2a'; ctx.lineWidth = 1 * s; for (const dx of [-5, -2, 1, 4]) { ctx.beginPath(); ctx.moveTo(dx * s * 0.5, -10 * s); ctx.lineTo(dx * s * 1.4, 4 * s); ctx.stroke(); } ctx.restore();
+  } else if (id === 'hal_caveira') {
+    ctx.fillStyle = '#5a5a66'; ctx.fillRect(x - 12 * s, y - 8 * s, 24 * s, 8 * s);
+    ctx.fillStyle = '#f6f2e6'; ctx.beginPath(); ctx.arc(x, y - 22 * s, 11 * s, 0, 7); ctx.fill(); ctx.fillRect(x - 6 * s, y - 16 * s, 12 * s, 8 * s);
+    ctx.fillStyle = '#1a1a22'; ctx.beginPath(); ctx.arc(x - 4.5 * s, y - 23 * s, 3 * s, 0, 7); ctx.arc(x + 4.5 * s, y - 23 * s, 3 * s, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(x - 1.5 * s, y - 18 * s); ctx.lineTo(x + 1.5 * s, y - 18 * s); ctx.lineTo(x, y - 15 * s); ctx.fill();
+    ctx.fillStyle = '#f2e6c8'; ctx.fillRect(x + 12 * s, y - 20 * s, 4 * s, 12 * s); ctx.fillStyle = '#ffb020'; ctx.beginPath(); ctx.ellipse(x + 14 * s, y - 23 * s + Math.sin(t / 100) * 0.5 * s, 2 * s, 3.4 * s, 0, 0, 7); ctx.fill();
+  } else if (id === 'hal_livro') {
+    ctx.fillStyle = '#4a2a14'; ctx.fillRect(x - 3 * s, y - 14 * s, 6 * s, 14 * s); ctx.fillRect(x - 10 * s, y - 2 * s, 20 * s, 3 * s);
+    const brilho = 0.5 + 0.4 * Math.sin(t / 400); ctx.fillStyle = `rgba(180,110,255,${brilho * 0.5})`; ctx.beginPath(); ctx.arc(x, y - 28 * s, 20 * s, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f4ead0'; ctx.beginPath(); ctx.moveTo(x, y - 18 * s); ctx.lineTo(x - 15 * s, y - 24 * s); ctx.lineTo(x - 15 * s, y - 35 * s); ctx.lineTo(x, y - 29 * s); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(x, y - 18 * s); ctx.lineTo(x + 15 * s, y - 24 * s); ctx.lineTo(x + 15 * s, y - 35 * s); ctx.lineTo(x, y - 29 * s); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#7a3fb0'; ctx.lineWidth = 1 * s; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(x - 12 * s, y - (27 + k * 2.5) * s); ctx.lineTo(x - 3 * s, y - (23 + k * 2.5) * s); ctx.moveTo(x + 12 * s, y - (27 + k * 2.5) * s); ctx.lineTo(x + 3 * s, y - (23 + k * 2.5) * s); ctx.stroke(); }
+  } else if (id === 'hal_tumulo') {
+    ctx.fillStyle = '#4a5a3a'; ctx.beginPath(); ctx.ellipse(x, y - 2 * s, 22 * s, 6 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#8a8a98'; ctx.beginPath(); ctx.moveTo(x - 12 * s, y - 2 * s); ctx.lineTo(x - 12 * s, y - 30 * s); ctx.arc(x, y - 30 * s, 12 * s, Math.PI, 0); ctx.lineTo(x + 12 * s, y - 2 * s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#6a6a78'; ctx.font = `800 ${Math.round(9 * s)}px serif`; ctx.textAlign = 'center'; ctx.fillText('RIP', x, y - 24 * s); ctx.fillRect(x - 1 * s, y - 20 * s, 2 * s, 10 * s); ctx.fillRect(x - 4 * s, y - 17 * s, 8 * s, 2 * s);
+  }
+}
+
+// ---- Lobos que passeiam e uivam (só enfeite; clicar assusta e rende uns trocados) ----
+const LOBO_BICHO = { forma: 'canido', pernasLongas: true, cor: '#6a6f7a', tam: 1.3, nome: 'Lobo' };
+let halLobos = [], halLoboProx = 0;
+function halLobosTick(now) {
+  if (!halloweenAtivo() || isGated() || !['roca', 'animais'].includes(scene)) { halLobos = []; return; }
+  if (halLobos.some(l => l.sc !== scene)) halLobos = [];
+  const quer = halMald('lua') ? 3 : 2;
+  if (halLobos.length < quer && now >= halLoboProx) {
+    const a = avatarArea(scene), u = a.u0 + Math.random() * (a.u1 - a.u0), v = a.v0 + Math.random() * (a.v1 - a.v0);
+    halLobos.push({ id: newId(), sc: scene, fu: u, fv: v, tu: u, tv: v, t0: now, dur: 0, wait: 1500, dir: 1, howlAte: 0, prox: now + 4000 + Math.random() * 9000 });
+    halLoboProx = now + (halMald('lua') ? 6000 : 14000);
+  }
+}
+function halLoboPos(l, now) { const k = l.dur ? Math.min(1, (now - l.t0) / l.dur) : 1; return { u: l.fu + (l.tu - l.fu) * k, v: l.fv + (l.tv - l.fv) * k, k }; }
+function desenhaLobos(t, now) {
+  halLobosTick(now);
+  const W = L.W, a = avatarArea(scene), lua = halMald('lua');
+  for (const l of halLobos) {
+    let p = halLoboPos(l, now);
+    const uivando = now < l.howlAte;
+    if (!uivando && p.k >= 1 && now - l.t0 > l.dur + l.wait) {
+      l.fu = p.u; l.fv = p.v; l.tu = clamp(l.fu + (Math.random() - 0.5) * 5, a.u0, a.u1); l.tv = clamp(l.fv + (Math.random() - 0.5) * 5, a.v0, a.v1);
+      const sx = (l.tu - l.fu) - (l.tv - l.fv); if (Math.abs(sx) > 0.01) l.dir = sx > 0 ? 1 : -1;
+      l.t0 = now; l.dur = Math.hypot(l.tu - l.fu, l.tv - l.fv) / 0.55 * 1000; l.wait = 2000 + Math.random() * 4500; p = halLoboPos(l, now);
+    }
+    if (!uivando && now >= l.prox) { // uiva: para no lugar, solta o uivo, e os cachorros acordados respondem
+      l.fu = l.tu = p.u; l.fv = l.tv = p.v; l.dur = 0; l.t0 = now; l.howlAte = now + 2800; l.prox = now + (lua ? 6000 + Math.random() * 6000 : 18000 + Math.random() * 26000);
+      sfx('uivo'); p = halLoboPos(l, now);
+      if (isHome()) setTimeout(() => { for (const slot of SLOTS_CAO) { const d = state.dogs[slot]; if (baseSlot(slot) === scene && dogAwake(d)) { falar('dog:' + slot, d.nome, sorteia(['AU AU AU! Lobo!', 'Grrr… quem é esse?!', 'AU! Fora daqui!'])); somLatido(d.raca); } } }, 900);
+    }
+    const q = iso(p.u, p.v), esc = W / 100 * 2.1, correndo = p.k < 1 && !!l.dur;
+    ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.14, W * 0.04, 0, 0, 7); ctx.fill();
+    ctx.save(); if (l.dir < 0) { ctx.translate(q.x * 2, 0); ctx.scale(-1, 1); }
+    drawBicho(ctx, q.x, q.y + W * 0.02 - (correndo ? Math.abs(Math.sin(t / 110)) * W * 0.012 : 0), esc, LOBO_BICHO, t, correndo); ctx.restore();
+    if (uivando) {
+      const f = (l.howlAte - now) / 2800, hx = q.x + (l.dir > 0 ? W * 0.1 : -W * 0.1), hy = q.y - W * 0.28;
+      ctx.strokeStyle = `rgba(230,220,255,${0.8 * f})`; ctx.lineWidth = 2; for (let k = 1; k <= 3; k++) { ctx.beginPath(); ctx.arc(hx, hy, W * 0.05 * k + (1 - f) * W * 0.05, -2.4, -0.7); ctx.stroke(); }
+      ctx.font = `900 ${Math.round(clamp(W * 0.12, 12, 18))}px 'Baloo 2', system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillStyle = `rgba(235,225,255,${Math.min(1, f * 2)})`; ctx.fillText('Auuuuu!', q.x, q.y - W * 0.42 - (1 - f) * 8);
+    }
+    if (hover && hover.kind === 'lobo' && hover.id === l.id) { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.2, W * 0.07, 0, 0, 7); ctx.stroke(); }
+    hits.push({ kind: 'lobo', id: l.id, x: q.x, y: q.y - W * 0.14, r: Math.max(W * 0.26, 22) });
+  }
+}
+function assustarLobo(id) {
+  const i = halLobos.findIndex(l => l.id === id); if (i < 0) return;
+  const l = halLobos[i], q = iso(halLoboPos(l, performance.now()).u, halLoboPos(l, performance.now()).v); halLobos.splice(i, 1); halLoboProx = performance.now() + 20000;
+  if (!isHome()) return toast('🐺 O lobo fugiu correndo!');
+  const h = halDe(), hoje = localDay(); if (h.lobos.d !== hoje) h.lobos = { d: hoje, n: 0 };
+  let txt = '🐺 O lobo se assustou e fugiu!';
+  if (h.lobos.n < 3) { h.lobos.n++; const m = 20 + Math.floor(Math.random() * 25); addCoins(m, { x: q.x, y: q.y - 20 }); txt += ` Deixou ${m} moedas pra trás.`; }
+  sfx('bark'); toast(txt, 'good'); track('lobo'); done();
+}
+// ---- Tema: bandeirinhas de morcego, abóboras acesas, teias, morcegos voando, lobos e as maldições ----
+const HAL_CORES = ['#ff7a1a', '#8a4fc8', '#2a2a32', '#8fd05a'];
+function halFundo(t, now) {
+  const cw = L.cw, ch = L.ch;
+  ctx.fillStyle = 'rgba(50,16,86,.2)'; ctx.fillRect(0, 0, cw, ch); // véu roxo da noite de Halloween
+  const g = ctx.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.4, cw / 2, ch / 2, Math.max(cw, ch) * 0.8); g.addColorStop(0, 'rgba(10,0,25,0)'); g.addColorStop(1, 'rgba(10,0,25,.38)'); ctx.fillStyle = g; ctx.fillRect(0, 0, cw, ch);
+  if (isHome() && halMald('lua')) { const pu = 0.5 + 0.5 * Math.sin(now / 900); ctx.fillStyle = `rgba(170,10,20,${0.14 + pu * 0.06})`; ctx.fillRect(0, 0, cw, ch); }
+  if (isHome() && halMald('neblina')) for (let k = 0; k < 7; k++) {
+    const x = ((k * 0.19 + now / 70000) % 1.3 - 0.15) * cw, y = ch * (0.35 + (k % 4) * 0.16) + Math.sin(now / 3000 + k) * 14, r = Math.max(cw, ch) * 0.28;
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(225,225,235,.26)'); gr.addColorStop(1, 'rgba(225,225,235,0)'); ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+}
+function drawTemaHalloween(t) {
+  if (!halloweenAtivo() || isGated()) return;
+  const W = L.W, s = S(), now = performance.now(), home = isHome();
+  halFundo(t, now);
+  if (scene === 'roca') {
+    const c = posOf(s, 'roca', 'casa'), g = posOf(s, 'roca', 'celeiro'), k = posOf(s, 'roca', 'canil');
+    const pc = iso(c[0], c[1]), pg = iso(g[0], g[1]), pk = iso(k[0], k[1]);
+    bandeirasMundo({ x: pc.x, y: pc.y - W * 0.62 }, { x: pg.x, y: pg.y - W * 0.66 }, W * 0.05, now, HAL_CORES);
+    bandeirasMundo({ x: pg.x, y: pg.y - W * 0.66 }, { x: pk.x, y: pk.y - W * 0.38 }, W * 0.04, now, HAL_CORES);
+    desenhaAbobora(pc.x + W * 0.55, pc.y + W * 0.02, W * 0.06, true, now); desenhaAbobora(pg.x - W * 0.6, pg.y + W * 0.02, W * 0.07, true, now); desenhaAbobora(pk.x + W * 0.35, pk.y + W * 0.05, W * 0.045, true, now);
+    ctx.save(); ctx.translate(pc.x - W * 0.3, pc.y - W * 0.62); desenhaTeia(0, 0, W * 0.16); ctx.restore();
+    // teias de maldição (clicar limpa)
+    const h = home && state.halloween ? state.halloween : null;
+    if (h && h.teia.casa && halMald('teia')) { ctx.save(); ctx.translate(pc.x - W * 0.34, pc.y - W * 0.6); ctx.scale(1.9, 1.9); desenhaTeia(0, 0, W * 0.16); ctx.restore(); hits.push({ kind: 'teia', qual: 'casa', x: pc.x - W * 0.15, y: pc.y - W * 0.35, r: W * 0.3 }); }
+    if (h && h.teia.celeiro && halMald('teia')) { ctx.save(); ctx.translate(pg.x - W * 0.38, pg.y - W * 0.62); ctx.scale(1.9, 1.9); desenhaTeia(0, 0, W * 0.16); ctx.restore(); hits.push({ kind: 'teia', qual: 'celeiro', x: pg.x - W * 0.2, y: pg.y - W * 0.38, r: W * 0.3 }); }
+    if (home) {
+      // corvos nos canteiros
+      for (const i of state.halloween ? state.halloween.corvos : []) { const p = state.plots[i]; if (!p || !p.corvo) continue; const m = cellCenter(i); desenhaCorvo(m.x, m.y - W * 0.02, W / 100 * 0.9, now); hits.push({ kind: 'corvo', i, x: m.x, y: m.y - W * 0.1, r: Math.max(W * 0.2, 20) }); }
+      // esqueleto dançarino
+      if (state.halloween && state.halloween.skel && halMald('danca')) { const e = state.halloween.skel, q = iso(e.u, e.v); ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.08, W * 0.03, 0, 0, 7); ctx.fill(); desenhaEsqueleto(q.x, q.y, W / 100 * 1.4, now, true); hits.push({ kind: 'esqueleto', x: q.x, y: q.y - W * 0.3, r: Math.max(W * 0.2, 22) }); }
+      // fantasma travesso seguindo o avatar
+      const w = avWalk['roca:eu'];
+      if (halMald('fantasma') && w && w.tela) { const bob = Math.sin(now / 500) * W * 0.02; desenhaFantasma(w.tela.x + W * 0.2, w.tela.y - W * 0.02 + bob, W * 0.07, now); }
+      // espantalho vivo passeando
+      if (halMald('espantalho')) desenhaEspantalhoVivo(now);
+    }
+  } else if (scene === 'animais') {
+    const k = posOf(s, 'animais', 'canil'), pk = iso(k[0], k[1]), a = iso(0.4, RANCH_R + 0.5), b = iso(RANCH_C - 0.4, RANCH_R + 0.5);
+    for (const q of [a, b]) { ctx.strokeStyle = '#4a3a2a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x, q.y - W * 0.5); ctx.stroke(); }
+    bandeirasMundo({ x: a.x, y: a.y - W * 0.5 }, { x: b.x, y: b.y - W * 0.5 }, W * 0.07, now, HAL_CORES);
+    desenhaAbobora(pk.x - W * 0.4, pk.y + W * 0.04, W * 0.055, true, now);
+  } else if (scene === 'casa') {
+    const H = 1.18;
+    bandeirasMundo(P(0, ROOM, H), P(0, 0, H), W * 0.05, now, HAL_CORES); bandeirasMundo(P(0, 0, H), P(ROOM, 0, H), W * 0.05, now, HAL_CORES);
+    const q = P(ROOM - 0.5, 0.5, 0); desenhaAbobora(q.x, q.y, W * 0.07, true, now);
+    const r = P(0.3, ROOM - 0.4, 0); desenhaAbobora(r.x, r.y, W * 0.05, true, now);
+    const tq = P(0, 0, H - 0.02); desenhaTeia(tq.x, tq.y, W * 0.35);
+  }
+  if (['roca', 'animais'].includes(scene)) {
+    // morcegos voando
+    const a = avatarArea(scene);
+    for (let k = 0; k < 4; k++) { const ang = now / (5200 + k * 900) + k * 1.7, q = iso((a.u0 + a.u1) / 2 + Math.cos(ang) * 4.2, (a.v0 + a.v1) / 2 + Math.sin(ang * 1.1) * 3), alt = W * (0.9 + 0.35 * Math.sin(now / 1300 + k)); desenhaMorcego(q.x, q.y - alt, W / 100 * 0.9, now + k * 70); }
+    desenhaLobos(t, now);
+  }
+}
+// Espantalho vivo: passeia pela roça enquanto a bênção durar.
+let halEsp = null;
+function desenhaEspantalhoVivo(now) {
+  const a = avatarArea('roca'), W = L.W;
+  if (!halEsp) { const u = a.u0 + Math.random() * (a.u1 - a.u0), v = a.v0 + Math.random() * (a.v1 - a.v0); halEsp = { fu: u, fv: v, tu: u, tv: v, t0: now, dur: 0, wait: 1500 }; }
+  const k = halEsp.dur ? Math.min(1, (now - halEsp.t0) / halEsp.dur) : 1;
+  if (k >= 1 && now - halEsp.t0 > halEsp.dur + halEsp.wait) { halEsp.fu = halEsp.tu; halEsp.fv = halEsp.tv; halEsp.tu = clamp(halEsp.fu + (Math.random() - 0.5) * 5, a.u0, a.u1); halEsp.tv = clamp(halEsp.fv + (Math.random() - 0.5) * 5, a.v0, a.v1); halEsp.t0 = now; halEsp.dur = Math.hypot(halEsp.tu - halEsp.fu, halEsp.tv - halEsp.fv) / 0.5 * 1000; halEsp.wait = 1500 + Math.random() * 3000; }
+  const u = halEsp.fu + (halEsp.tu - halEsp.fu) * k, v = halEsp.fv + (halEsp.tv - halEsp.fv) * k, q = iso(u, v), s = W / 100 * 1.25, bal = Math.sin(now / 200) * (k < 1 ? 3 : 1);
+  ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.07, W * 0.025, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#7a4a22'; ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x, q.y - 40 * s); ctx.moveTo(q.x - 18 * s, q.y - 32 * s + bal); ctx.lineTo(q.x + 18 * s, q.y - 32 * s - bal); ctx.stroke();
+  ctx.fillStyle = '#c0572a'; ctx.beginPath(); ctx.moveTo(q.x - 8 * s, q.y - 22 * s); ctx.lineTo(q.x + 8 * s, q.y - 22 * s); ctx.lineTo(q.x + 6 * s, q.y - 38 * s); ctx.lineTo(q.x - 6 * s, q.y - 38 * s); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#e8c65a'; for (const dx of [-17, 15]) ctx.fillRect(q.x + dx * s, q.y - 32 * s + bal * (dx < 0 ? 1 : -1), 3 * s, 7 * s);
+  ctx.fillStyle = '#d9b44a'; ctx.beginPath(); ctx.arc(q.x, q.y - 46 * s, 8 * s, 0, 7); ctx.fill(); ctx.fillStyle = '#3a1a05'; ctx.beginPath(); ctx.arc(q.x - 3 * s, q.y - 47 * s, 1.3 * s, 0, 7); ctx.arc(q.x + 3 * s, q.y - 47 * s, 1.3 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = '#5a3a1a'; ctx.beginPath(); ctx.ellipse(q.x, q.y - 53 * s, 12 * s, 2.5 * s, 0, 0, 7); ctx.fill(); ctx.fillRect(q.x - 6 * s, q.y - 62 * s, 12 * s, 9 * s);
+}
+function espantarCorvo(i) {
+  const h = halDe(), p = state.plots[i]; if (!p || !p.corvo) return;
+  delete p.corvo; h.corvos = h.corvos.filter(x => x !== i); sfx('collect'); popupAt(cellCenter(i), 'Xô, corvo!', '#c8a8ff');
+  if (!h.corvos.length) { h.mald.corvos = 0; toast('🐦‍⬛ Todos os corvos foram espantados!', 'good'); }
+  done();
+}
+function limparTeia(qual) {
+  const h = halDe(); if (!h.teia[qual]) return;
+  h.teia[qual] = 0; state.barn.bala = (state.barn.bala || 0) + 1; sfx('collect'); toast(`🕸️ Teia da ${qual === 'casa' ? 'casa' : 'celeiro'} limpa! +1 bala`, 'good');
+  if (!h.teia.casa && !h.teia.celeiro) h.mald.teia = 0;
+  done();
+}
+function cutucarEsqueleto() {
+  const h = halDe(), hoje = localDay(); if (h.cliques.d !== hoje) h.cliques = { d: hoje, n: 0 };
+  sfx('collect');
+  if (h.cliques.n >= 10) return toast('💀 O esqueleto só dança… (hoje ele já deu todas as moedinhas)');
+  h.cliques.n++; addCoins(3, null); toast('💀 +3 moedas! O esqueleto dançou mais forte.', 'good'); done();
+}
+// Extras do avatar: cabeça de abóbora (maldição) e vassoura mágica (bênção).
+function drawHalAvatarExtras(q, esc, t, andando) {
+  if (halMald('vassoura')) {
+    ctx.save(); ctx.translate(q.x, q.y - 8 * esc); ctx.rotate(-0.12); ctx.strokeStyle = '#7a4a22'; ctx.lineWidth = 2.4 * esc; ctx.beginPath(); ctx.moveTo(-24 * esc, 0); ctx.lineTo(18 * esc, 0); ctx.stroke();
+    ctx.fillStyle = '#c9a24a'; ctx.beginPath(); ctx.moveTo(-24 * esc, -3 * esc); ctx.lineTo(-38 * esc, -5 * esc); ctx.lineTo(-38 * esc, 5 * esc); ctx.lineTo(-24 * esc, 3 * esc); ctx.closePath(); ctx.fill(); ctx.restore();
+    for (let k = 0; k < 5; k++) { const f = ((t / 600) + k / 5) % 1; ctx.globalAlpha = 1 - f; ctx.fillStyle = k % 2 ? '#ffd54a' : '#c8a8ff'; ctx.beginPath(); ctx.arc(q.x - (30 + f * 30) * esc, q.y - 8 * esc + Math.sin(k * 3 + f * 5) * 6 * esc, 1.8 * esc, 0, 7); ctx.fill(); } ctx.globalAlpha = 1;
+  }
+  if (halMald('abobora')) desenhaAbobora(q.x, q.y - 54 * esc, 13 * esc, true, t);
+}
+
+// ============================================================
 // Laço principal
 // ============================================================
 // 30 fps bastam pra um jogo de fazenda (nada precisa de 60+) e o canvas é a maior parte do
@@ -13392,7 +13862,7 @@ function start(data) {
   state = (data && data.state && migrate(data.state)) || load() || newState();
   state.tool = 'hand'; // o jogo sempre começa com a Mão
   applySettings();
-  rollPeriods(); presentePioneiro(); eventoEntrada(); checarNovidades();
+  rollPeriods(); presentePioneiro(); eventoEntrada(); halEntrada(); checarNovidades();
   resize(); setScene('roca'); renderHUD(); renderAccount(); renderPane(); paintMenuIcons(); afterUpdate(); renderTabs();
   ultimaChecagem = Date.now(); autoUpdate();
   // app instalável (celular, tablet e o app de Android): abre mesmo sem internet
