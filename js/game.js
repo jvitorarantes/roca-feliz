@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 289, txt: "🎃 Halloween em tudo: casa, celeiro, casinha do cachorro, abrigos dos animais e cercas ficam assombrados (roxo e laranja, com mini abóboras nas cercas) enquanto durar o evento, e todos os bichos e cachorros ganharam chapeuzinho de bruxa!" },
   { v: 288, txt: "🎃 Cartas de Halloween agora vão dentro do chat do amigo (e as antigas chegam assim que ele atualiza o jogo). A música \"Noite das Bruxas\" toca sozinha para todos durante o evento. Na lista de Amigos aparece a versão do jogo de cada um. As 3 cartas de hoje foram devolvidas uma vez." },
   { v: 287, txt: "🎃 Halloween! De hoje até 31/10, às 23:59: a roça fica assombrada (véu roxo, morcegos, abóboras acesas, teias e bandeirinhas de morcego), com música sombria e risadas de bruxa, e lobos passeando e uivando (os cachorros respondem!). Todo dia você ganha 3 cartas (🎃 abóbora gigante, 👻 fantasma, 💀 esqueleto) para mandar a amigos: quando abrem, cai uma maldição que passa sozinha. Tem missões, uma coleção de 8 enfeites (também na Loja do Trevo) e a Casa Assombrada de presente. Veja tudo em Missões › 🎃 Halloween." },
   { v: 286, txt: "Dois avisos novos: (1) quando a ração do cachorro acabar e você clicar nele, o jogo oferece comprar 1 ração na hora e já dar para ele. (2) Chocadeira cheia / abrigo cheio: quando um ovo está pronto mas não cabe no abrigo, o jogo pergunta o que fazer: aguardar, vender um animal do abrigo para abrir vaga, vender o filhote ou doar o filhote para um amigo à sua escolha (ele resgata em Loja › Animais). Na chocadeira, o ovo sem vaga ganhou o botão 'Sem vaga: e agora?'." },
@@ -2847,6 +2848,16 @@ function animalScale(a, base) {
   if (a.nasc) k *= 0.62 + 0.38 * Math.min(1, (Date.now() - a.nasc) / DAY); // filhote cresce em um dia
   return k;
 }
+// Chapeuzinho de bruxa (Halloween) na cabeça dos bichos; (x, y) é o topo da cabeça, w a largura da aba.
+function chapeuHal(x, y, w, dir = 1, cor = 0) {
+  const c = ['#2a1740', '#4a2a78', '#1f1233'][cor % 3];
+  ctx.save(); ctx.translate(x, y); ctx.rotate(0.12 * dir);
+  ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(0, 0, w * 0.62, w * 0.16, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-w * 0.34, -w * 0.04); ctx.quadraticCurveTo(-w * 0.1, -w * 0.5, w * 0.12 * dir, -w * 1.0); ctx.quadraticCurveTo(w * 0.18 * dir, -w * 0.5, w * 0.34, -w * 0.04); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ff8a1a'; ctx.fillRect(-w * 0.32, -w * 0.2, w * 0.64, w * 0.12);
+  ctx.fillStyle = '#ffd54a'; ctx.fillRect(-w * 0.07, -w * 0.21, w * 0.14, w * 0.14);
+  ctx.restore();
+}
 function drawAnimalAt(a, m, base, t) {
   const p = iso(m.u, m.v), W = L.W, kind = drawKind(a), sc = animalScale(a, base);
   if (hover && hover.kind === 'animal' && hover.id === a.id) {
@@ -2859,6 +2870,10 @@ function drawAnimalAt(a, m, base, t) {
   drawAnimal(kind, p.x, py, sc, t, m.dir, m.moving, kind === 'gato' ? corGato(a) : undefined);
   if (a.cor) ctx.restore();
   const h = ANIMAL_H[kind] * sc;
+  if (halloweenAtivo() && kind !== 'abelha' && kind !== 'tartaruga') {
+    const peq = SMALL_ANIMALS.includes(kind) || kind === 'pavao' || kind === 'arara', fr = kind === 'arara' ? 0 : peq ? 0.12 : kind === 'avestruz' ? 0.1 : 0.3;
+    chapeuHal(p.x + (m.dir || 1) * h * fr, py - h * 0.94, clamp(h * 0.36, 8, 26), m.dir || 1, a.id ? String(a.id).length : 0);
+  }
   if (m.enc && m.enc.papel === 'sobe') { ctx.font = `${Math.round(W * 0.13)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('💕', p.x, py - h - W * 0.08 - ((performance.now() - m.enc.ini) / 40) % (W * 0.1)); }
   if (a.raro) { ctx.font = `${Math.round(W * 0.14)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('✨', p.x + W * 0.12, p.y - h - W * 0.02 + Math.sin(t / 300) * 2); }
   m.topo = { x: p.x, y: p.y - h - W * 0.05 };
@@ -3193,7 +3208,9 @@ function janelaCasa(x, y, w, h, tm) {
   ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(x + 1, y + 1, w * 0.35, h * 0.4);
   ctx.strokeStyle = tm.moldura; ctx.lineWidth = Math.max(1, w * 0.1); ctx.beginPath(); ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2, y + h); ctx.moveTo(x, y + h / 2); ctx.lineTo(x + w, y + h / 2); ctx.stroke();
 }
+const skinHal = skin => (typeof halloweenAtivo === 'function' && halloweenAtivo()) ? 'assombrada' : skin; // durante o Halloween tudo fica assombrado
 function temaCasa(skin, cor) {
+  skin = skinHal(skin);
   const tm = TEMA_CASA[skin] && skin !== 'classico' ? TEMA_CASA[skin] : TEMA_CASA.classico;
   return cor && !TEMA_CASA[skin] ? Object.assign({}, tm, { parede: cor }) : tm;
 }
@@ -3422,6 +3439,7 @@ function drawKennel(x, y, s, skin, costas) {
   // casinha em "2,5D": frente com empena, lateral mais escura, telhado com beiral, plaquinha e tigela.
   // Com tema de casa, usa as cores do celeiro do tema.
   const fw = s * 0.5, fh = s * 0.3, rh = s * 0.22, dx = s * 0.26, dy = -s * 0.13, ov = s * 0.04;
+  skin = skinHal(skin);
   const tm = TEMA_CASA[skin] && skin !== 'classico' ? TEMA_CASA[skin] : null;
   const X0 = x - (fw + dx) / 2, Y = y - dy / 2, mad = tm ? tm.celeiro : '#b88350', tel = tm ? tm.celTelhado : '#c8402f';
   ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(x, y, s * 0.46, s * 0.1, 0, 0, 7); ctx.fill();
@@ -3486,6 +3504,7 @@ function drawDogSpot(slot, s, t, home) {
       ctx.beginPath(); ctx.ellipse(p.x, p.y, W * 0.26, W * 0.08, 0, 0, 7); ctx.stroke();
     }
     drawDog(p.x, p.y, W * 0.72, t, d.raca, !dogAwake(d), d.skin);
+    if (halloweenAtivo()) chapeuHal(p.x - W * 0.18, p.y - (dogAwake(d) ? W * 0.29 : W * 0.15), W * 0.13, -1, slot.length);
     if (home && !seg && halMald('osso')) { const bx = p.x + W * 0.28, by = p.y - W * 0.03; ctx.fillStyle = '#f4efe2'; ctx.strokeStyle = '#b8b0a0'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(bx - W * 0.16, by - W * 0.025, W * 0.32, W * 0.05, W * 0.02); ctx.fill(); ctx.stroke(); for (const sx of [-1, 1]) for (const sy of [-1, 1]) { ctx.beginPath(); ctx.arc(bx + sx * W * 0.16, by + sy * W * 0.028, W * 0.03, 0, 7); ctx.fill(); ctx.stroke(); } }
   } else {
     const R = clamp(W * 0.1, 9, 14), m = seg ? { x: p.x, y: p.y - W * 0.18 } : { x: k.x, y: k.y - W * 0.52 };
@@ -3516,7 +3535,10 @@ function drawFence(cols, rows, side) { const e = -0.14; drawFenceRect(e, e, cols
 // Um trecho de cerca de a até b, no estilo do tema da roça.
 function fenceRun(a, b, steps, skipFirst, tm) {
   const W = L.W;
+  const hal = halloweenAtivo();
+  if (hal) tm = Object.assign({}, tm, { poste: '#2b1c3f', trilho: '#5a4676', topo: '#ff8a1a' });
   if (tm.pedra) {
+    if (hal) tm = Object.assign({}, tm, { trilho: '#4a3a62', topo: '#ff8a1a' });
     // muro baixo de pedra
     const h = W * 0.16;
     ctx.fillStyle = tm.trilho; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(b.x, b.y - h); ctx.lineTo(a.x, a.y - h); ctx.closePath(); ctx.fill();
@@ -3539,7 +3561,10 @@ function fenceRun(a, b, steps, skipFirst, tm) {
       for (let k = 1; k < steps * 4; k++) { const q = lerp(a, b, k / (steps * 4)); ctx.beginPath(); ctx.moveTo(q.x - 2, q.y - W * h - 2); ctx.lineTo(q.x + 2, q.y - W * h + 2); ctx.moveTo(q.x + 2, q.y - W * h - 2); ctx.lineTo(q.x - 2, q.y - W * h + 2); ctx.stroke(); }
     }
   } else for (const h of [0.08, 0.16]) line({ x: a.x, y: a.y - W * h }, { x: b.x, y: b.y - W * h }, tm.trilho, W * 0.03);
-  for (let k = skipFirst ? 1 : 0; k <= steps; k++) post(lerp(a, b, k / steps));
+  for (let k = skipFirst ? 1 : 0; k <= steps; k++) {
+    const q = lerp(a, b, k / steps); post(q);
+    if (hal && k % 3 === 0) desenhaAbobora(q.x, q.y - W * 0.23, W * 0.032, false);
+  }
 }
 function drawFenceRect(u0, v0, u1, v1, side) {
   const tm = temaDe(S());
@@ -4597,8 +4622,10 @@ const sm0 = k => !!k.small;
 // Abrigo com o acabamento do tema da casa (friso e textura), mas cada bicho mantém sua cor e formato
 // próprios — senão, com um tema ativo, todos os abrigos ficavam da mesma cor e pareciam iguais.
 function lookDoAbrigo(id, skin) {
-  const k = SHED_LOOK[id], tm = TEMA_CASA[skin] && skin !== 'classico' ? TEMA_CASA[skin] : null;
+  const k = SHED_LOOK[id]; skin = skinHal(skin);
+  const tm = TEMA_CASA[skin] && skin !== 'classico' ? TEMA_CASA[skin] : null;
   if (!tm) return k;
+  if (skin === 'assombrada') return Object.assign({}, k, { wall: '#5a4676', wallR: '#43345a', roof: '#2a1740', roofD: '#1f1233', frisoCor: '#ff9a2a', trim: false, pedra: false, tabuas: false });
   return Object.assign({}, k, { frisoCor: tm.friso, pedra: !!tm.pedra || k.pedra, tabuas: !!tm.tabuas });
 }
 function drawShed(id, u0, v0, lv, t, skin) {
