@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 298, txt: "🐺 Tirei o som do uivo dos lobos do Halloween. Eles continuam uivando no visual (ondinhas e \"Auuuuu!\") e os cachorros ainda respondem latindo." },
   { v: 297, txt: "🤝 Interações na Vila! Toque em outro jogador e escolha: aperto de mão, abraço, toca aqui, soquinho, dançar juntos ou beijo (date, só entre amigos). A pessoa vê um balão e precisa aceitar. Aí você anda até ela e os dois fazem a cena juntos, com emojis e corações. Dá para desligar os convites no botão Interações da Vila." },
   { v: 296, txt: "Vila: toque em outro jogador para convidar para ser amigo ou, se já forem amigos, mandar mensagem privada. Quando alguém te convida, aparece um balão com Aceitar / Depois. As mensagens do chat da Vila somem em 30 segundos (ou quando passam de 4 linhas). E o uivo de lobo saiu da música de Halloween." },
   { v: 295, txt: "🏘️ A Vila agora é uma tela grande e tem botão na lateral, abaixo do Rancho! Dentro dela: Mural (metas de todos, chefe ao vivo e ranking do dia), Mercado para comprar e vender produtos com outros jogadores, Lago de pesca, Arena de cabo de guerra em times e casinhas para decorar e visitar. Tudo em tempo real." },
@@ -13786,7 +13787,7 @@ function desenhaLobos(t, now) {
     }
     if (!uivando && now >= l.prox) { // uiva: para no lugar, solta o uivo, e os cachorros acordados respondem
       l.fu = l.tu = p.u; l.fv = l.tv = p.v; l.dur = 0; l.t0 = now; l.howlAte = now + 2800; l.prox = now + (lua ? 6000 + Math.random() * 6000 : 18000 + Math.random() * 26000);
-      sfx('uivo'); p = halLoboPos(l, now);
+      p = halLoboPos(l, now); // uiva só no visual (balão 'Auuuuu!'): o som foi tirado
       if (isHome()) setTimeout(() => { for (const slot of SLOTS_CAO) { const d = state.dogs[slot]; if (baseSlot(slot) === scene && dogAwake(d)) { falar('dog:' + slot, d.nome, sorteia(['AU AU AU! Lobo!', 'Grrr… quem é esse?!', 'AU! Fora daqui!'])); somLatido(d.raca); } } }, 900);
     }
     const q = iso(p.u, p.v), esc = W / 100 * 2.1, correndo = p.k < 1 && !!l.dur;
