@@ -352,7 +352,7 @@
       const ch = tr.chords[bar];
       // A melodia descansa de vez em quando (a cada 3ª volta) para a música respirar.
       const withMelody = loop % 3 !== 2;
-      if (tr.halloween && s === 0) { if (bar === 7 && Math.random() < 0.35) uivoLobo(t + eighth * 2, 0.07); }
+      
       if (tr.rock) {
         // bateria: bumbo no 1, no "e" do 2 e no 3; caixa no 2 e no 4; chimbal em todas as colcheias
         if (s === 0 || s === 3 || s === 4) bumbo(t);

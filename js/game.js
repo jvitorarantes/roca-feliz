@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 296, txt: "Vila: toque em outro jogador para convidar para ser amigo ou, se já forem amigos, mandar mensagem privada. Quando alguém te convida, aparece um balão com Aceitar / Depois. As mensagens do chat da Vila somem em 30 segundos (ou quando passam de 4 linhas). E o uivo de lobo saiu da música de Halloween." },
   { v: 295, txt: "🏘️ A Vila agora é uma tela grande e tem botão na lateral, abaixo do Rancho! Dentro dela: Mural (metas de todos, chefe ao vivo e ranking do dia), Mercado para comprar e vender produtos com outros jogadores, Lago de pesca, Arena de cabo de guerra em times e casinhas para decorar e visitar. Tudo em tempo real." },
   { v: 294, txt: "🏘️ Praça da Vila! Uma sala em tempo real onde todos os jogadores entram, andam (toque no chão), conversam, mandam emojis e cumprem metas juntos (colher, regar, pescar…) para ganhar prêmios. O ping aparece no topo da tela. Entre por Amigos › Praça da Vila." },
   { v: 293, txt: "🐺 Os lobos do Halloween não somem mais ao toque: eles saem correndo e ficam uivando. E a risada da bruxa saiu da música de fundo (ela só aparece ao abrir uma carta)." },
@@ -2524,8 +2525,33 @@ function onRequests(list) {
   for (const r of requests) if (!seen.has(r.from)) toast(r.reatar ? `${firstName(r.name)} quer reatar a amizade! Veja na aba Amigos.` : `${firstName(r.name)} quer ser seu amigo! Veja na aba Amigos.`, 'good');
   renderTabs();
   if (tab === 'amigos') renderPane();
+  conviteBalao();
+}
+// Balão de convite: aparece por cima de tudo, com Aceitar / Depois.
+const conviteAdiado = new Set();
+function conviteBalao() {
+  let el = $('#conviteBalao');
+  if (!el) { el = document.createElement('div'); el.id = 'conviteBalao'; el.className = 'convitebalao'; el.hidden = true; document.body.appendChild(el);
+    el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const uid = b.dataset.uid; if (b.dataset.acao === 'aceitar') acceptRequest(uid); else conviteAdiado.add(uid); conviteBalao(); }); }
+  const r = requests.find(x => !conviteAdiado.has(x.from) && !state.friends.includes(x.from));
+  if (!r) { el.hidden = true; return; }
+  el.innerHTML = `<div>🤝 <b>${esc(firstName(r.name))}</b> ${r.reatar ? 'quer reatar a amizade' : 'quer ser seu amigo'}!</div><div class="cbbtns"><button type="button" class="btn gold" data-acao="aceitar" data-uid="${esc(r.from)}">Aceitar</button><button type="button" class="btn ghost" data-acao="depois" data-uid="${esc(r.from)}">Depois</button></div>`;
+  el.hidden = false; sfx('level');
 }
 
+// Pedido de amizade por uid (código digitado ou toque num jogador da Vila).
+async function pedirAmizade(uid, code) {
+  if (!user || uid === user.uid) return;
+  if (state.friends.includes(uid)) return toast('Vocês já são amigos.');
+  if (requests.some(r => r.from === uid)) return acceptRequest(uid);
+  if (state.sent[uid]) return toast('Você já mandou um pedido para essa pessoa.');
+  state.sent[uid] = { at: Date.now(), code: code || '' };
+  await cloudSave(); // libera a sua roça para essa pessoa espiar antes de aceitar
+  await Cloud.sendRequest(uid, { from: user.uid, fromName: meuApelido(), fromPhoto: fotoParaSalvar(), fromMoldura: molduraAtual(), at: Date.now() });
+  avisarAmigo(uid, 'pedido', `${meuApelido()} quer ser seu amigo na Roça Feliz!`);
+  toast('Pedido enviado! A amizade começa quando a pessoa aceitar.', 'good');
+  done();
+}
 async function addFriend(code) {
   if (!user) return;
   code = Cloud.normalizeCode(code);
@@ -2534,15 +2560,7 @@ async function addFriend(code) {
   try {
     const uid = await Cloud.findCode(code);
     if (!uid) return toast('Não achei ninguém com esse código.', 'bad');
-    if (state.friends.includes(uid)) return toast('Vocês já são amigos.');
-    if (requests.some(r => r.from === uid)) return acceptRequest(uid);
-    if (state.sent[uid]) return toast('Você já mandou um pedido para essa pessoa.');
-    state.sent[uid] = { at: Date.now(), code };
-    await cloudSave(); // libera a sua roça para essa pessoa espiar antes de aceitar
-    await Cloud.sendRequest(uid, { from: user.uid, fromName: meuApelido(), fromPhoto: fotoParaSalvar(), fromMoldura: molduraAtual(), at: Date.now() });
-    avisarAmigo(uid, 'pedido', `${meuApelido()} quer ser seu amigo na Roça Feliz!`);
-    toast('Pedido enviado! A amizade começa quando a pessoa aceitar.', 'good');
-    done();
+    await pedirAmizade(uid, code);
   } catch (e) {
     console.warn(e);
     toast('Não consegui mandar o pedido agora. Tente de novo.', 'bad');
@@ -14007,7 +14025,7 @@ function pracaEntrar() {
   praca.chat = [];
   if (praca.refs.chat) praca.refs.chat.off();
   praca.refs.chat = rt.ref('praca/chat').orderByChild('ts').limitToLast(30);
-  praca.refs.chat.on('child_added', s => { const m = s.val(); if (!m || typeof m.t !== 'string') return; praca.chat.push(m); praca.chat = praca.chat.slice(-30); if (Date.now() - (m.ts || 0) < 8000) praca.falas[m.u] = { t: m.t.slice(0, 60), ate: performance.now() + 5000 }; pracaLog(); });
+  praca.refs.chat.on('child_added', s => { const m = s.val(); if (!m || typeof m.t !== 'string') return; m.rec = Date.now(); praca.chat.push(m); praca.chat = praca.chat.slice(-30); if (Date.now() - (m.ts || 0) < 8000) praca.falas[m.u] = { t: m.t.slice(0, 60), ate: performance.now() + 5000 }; pracaLog(); });
   pracaOuvir('mercado', rt.ref('praca/mercado').orderByChild('ts').limitToLast(80), s => { praca.mercado = s.val() || {}; if (praca.painel === 'mercado' && praca.mtab !== 'vender') pracaPainel(); });
   pracaOuvir('casas', rt.ref('praca/casas').orderByChild('ts').limitToLast(30), s => { praca.casas = s.val() || {}; if (praca.painel === 'casa') pracaPainel(); });
   pracaOuvir('rank', rt.ref('praca/rank/' + praca.progDia), s => { praca.rank = s.val() || {}; if (praca.painel === 'mural') pracaPainel(); });
@@ -14053,7 +14071,8 @@ function pracaRecebe(todos) {
 }
 function pracaLog() {
   const el = $('#pracaLog'); if (!el) return;
-  el.innerHTML = praca.chat.slice(-4).map(m => `<div><b>${esc(m.n || '?')}:</b> ${esc(m.t)}</div>`).join('');
+  const agora = Date.now(), vivas = praca.chat.filter(m => agora - (m.rec || 0) < 30000).slice(-4); // somem em 30s ou quando passam de 4 linhas
+  el.innerHTML = vivas.map(m => `<div><b>${esc(m.n || '?')}:</b> ${esc(m.t)}</div>`).join('');
 }
 function pracaEnviarChat(txt) {
   txt = String(txt || '').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
@@ -14079,7 +14098,7 @@ function pracaTick(forca) {
     praca.rt.ref(`praca/rank/${dia}/${user.uid}`).transaction(cur => { const p0 = (cur && cur.p) || 0; return { n: meuApelido().slice(0, 24), p: Math.min(p0 + 300, Math.max(p0, meu)) }; }).catch(() => {});
   }
 }
-setInterval(() => { try { if (praca.aberta) { pracaTick(); pracaSlots(); } } catch (e) { /* sem vila */ } }, 1000);
+setInterval(() => { try { if (praca.aberta) { pracaTick(); pracaSlots(); pracaLog(); } } catch (e) { /* sem vila */ } }, 1000);
 // ---- Painel: Mural, Mercado, Lago, Arena e casinhas ----
 function pracaPainelAbrir(id) { praca.painel = id; praca.mtab = 'comprar'; pracaPainel(); }
 function pracaBossAtivo() { const t = pracaAgora() % VILA_BOSS_CICLO; return t < VILA_BOSS_JANELA && praca.boss < VILA_BOSS_HP; }
@@ -14094,6 +14113,7 @@ function pracaPainel() {
   else if (id === 'lago') box.innerHTML = topo('🎣 Lago da Vila') + pracaHtmlLago();
   else if (id === 'arena') box.innerHTML = topo('🪢 Arena: cabo de guerra') + pracaHtmlArena();
   else if (id === 'casa') box.innerHTML = topo('🏠 Minha casinha') + pracaHtmlCasa();
+  else if (id.startsWith('jog:')) box.innerHTML = topo('👤 Jogador') + pracaHtmlJogador(id.slice(4));
   else if (id.startsWith('ver:')) box.innerHTML = topo('🏠 Casinha') + pracaHtmlVer(id.slice(4));
 }
 function pracaHtmlMural() {
@@ -14230,6 +14250,24 @@ function pracaPublicarCasa() {
   praca.rt.ref('praca/casas/' + user.uid).set({ n: meuApelido().slice(0, 24), sk: String(state.skin || 'classico').slice(0, 20), d: (praca.decorSel || []).slice(0, 3), ts: firebase.database.ServerValue.TIMESTAMP })
     .then(() => { sfx('buy'); toast('🏠 Sua casinha está na vila!', 'good'); }).catch(() => toast('Não consegui publicar agora.', 'bad'));
 }
+function pracaHtmlJogador(uid) {
+  const j = praca.jog[uid]; if (!j) return '<div class="vp-card">Esse jogador saiu da praça.</div>';
+  const amigo = state.friends.includes(uid), recebeu = requests.some(r => r.from === uid), enviou = !!state.sent[uid];
+  let h = `<div class="vp-card"><b>${esc(j.n || 'Jogador')}</b>`;
+  if (amigo) h += `<div>✅ Vocês são amigos.</div><div class="vp-priv"><input id="vpPrivTxt" maxlength="200" placeholder="Mensagem privada para ${esc(firstName(j.n || 'ele'))}…" autocomplete="off" data-uid="${esc(uid)}"><button class="btn" type="button" data-vila-priv="${esc(uid)}">Enviar</button></div><button class="btn ghost" type="button" data-vila-conversa="${esc(uid)}">💬 Ver conversa completa</button>`;
+  else {
+    h += `<div>Só amigos podem trocar mensagens privadas.</div>`;
+    h += recebeu ? `<button class="btn gold" type="button" data-vila-aceitar="${esc(uid)}">🤝 Aceitar o convite dele</button>` : enviou ? '<button class="btn ghost" type="button" disabled>⏳ Convite enviado</button>' : `<button class="btn gold" type="button" data-vila-convidar="${esc(uid)}">🤝 Convidar para ser amigo</button>`;
+  }
+  return h + '</div>';
+}
+async function pracaPrivada(uid) {
+  const inp = $('#vpPrivTxt'); if (!inp) return;
+  const txt = inp.value.replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (!txt || !state.friends.includes(uid) || Date.now() - praca.ult < 800) return; praca.ult = Date.now();
+  try { await Cloud.enviarMsg(user.uid, uid, { txt, at: Date.now(), nome: meuApelido() }); inp.value = ''; toast('💬 Mensagem enviada!', 'good'); avisarAmigo(uid, 'chat', `💬 ${meuApelido()} te mandou uma mensagem`); }
+  catch (e) { console.warn(e); toast('Não consegui enviar. Tente de novo.', 'bad'); }
+}
 function pracaHtmlVer(uid) {
   const c = praca.casas[uid]; if (!c) return '<div class="vp-card">Essa casinha saiu da vila.</div>';
   const amigo = state.friends.includes(uid);
@@ -14337,6 +14375,7 @@ function pracaDesenha(g, c, now, dpr) {
     const top = q.y - 72 * es;
     g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff';
     g.strokeText(o.n, q.x, top); g.fillText(o.n, q.x, top);
+    if (!o.me) praca.hits.push({ id: 'jog:' + o.uid, x: q.x, y: q.y - 34 * es, r: Math.max(28 * es, 18 * dpr) });
     const fa = praca.falas[o.uid]; let yb = top - 8 * dpr;
     if (e.emote && e.emote.ate > now) { g.font = `${Math.round(24 * dpr)}px system-ui`; g.fillText(e.emote.k, q.x, yb - 2 * dpr); yb -= 26 * dpr; }
     if (fa && fa.ate > now) {
@@ -14386,6 +14425,10 @@ $('#praca')?.addEventListener('click', e => {
   if ((b = q('[data-vila-cancelar]'))) return pracaCancelar(b.dataset.vilaCancelar);
   if ((b = q('[data-vila-receber]'))) return pracaReceber(b.dataset.vilaReceber);
   if ((b = q('[data-vila-decor]'))) { const e2 = b.dataset.vilaDecor, s2 = praca.decorSel || (praca.decorSel = []), i = s2.indexOf(e2); if (i >= 0) s2.splice(i, 1); else if (s2.length < 3) s2.push(e2); else toast('Até 3 enfeites.'); return pracaPainel(); }
+  if ((b = q('[data-vila-priv]'))) return pracaPrivada(b.dataset.vilaPriv);
+  if ((b = q('[data-vila-conversa]'))) { const u2 = b.dataset.vilaConversa; return abrirChat(u2); }
+  if ((b = q('[data-vila-convidar]'))) { const u2 = b.dataset.vilaConvidar; return pedirAmizade(u2).then(pracaPainel).catch(() => toast('Não consegui mandar o convite agora.', 'bad')); }
+  if ((b = q('[data-vila-aceitar]'))) return acceptRequest(b.dataset.vilaAceitar).then(pracaPainel);
   if (q('[data-vila-publicar]')) return pracaPublicarCasa();
   if (q('[data-vila-tirar]')) { praca.rt.ref('praca/casas/' + user.uid).remove().catch(() => {}); praca.decorSel = []; return; }
   if ((b = q('[data-vila-visitar]'))) { const uid = b.dataset.vilaVisitar; pracaSair(); return visitFriend(uid); }

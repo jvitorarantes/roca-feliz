@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="295">
+<meta name="rf-version" content="296">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -548,6 +548,10 @@
   .pracaform input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 12px; border: 2px solid var(--wood); font: inherit; }
   .pracameta { display: grid; gap: 4px; }
   .barra { height: 10px; border-radius: 6px; background: rgba(0,0,0,.15); overflow: hidden; } .barra i { display: block; height: 100%; background: #4fc03a; }
+  .convitebalao { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 99999; background: #fffbe8; color: #2f2a1f; border: 4px solid var(--wood); border-radius: 18px; padding: 10px 14px; box-shadow: 0 6px 0 rgba(0,0,0,.25); font-weight: 700; display: grid; gap: 8px; max-width: min(92vw, 360px); text-align: center; }
+  .convitebalao .btn.ghost { color: #5a3a14; border: 2px solid var(--wood); background: #fff; }
+  .convitebalao .cbbtns { display: flex; gap: 8px; justify-content: center; }
+  .vp-priv { display: flex; gap: 6px; } .vp-priv input { flex: 1; min-width: 0; }
   .pingchip { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); z-index: 30; background: rgba(30,22,10,.72); color: #fff; font: 800 12px system-ui, sans-serif; padding: 3px 10px; border-radius: 12px; cursor: pointer; white-space: nowrap; }
   .pescacard { width: min(100%, 480px); }
   .pescacv { display: block; width: 100%; height: min(300px, 42vh); background: #6cb6e8; cursor: pointer; }
@@ -1166,8 +1170,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=295"></script>
+<script src="js/audio.js?v=296"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=295"></script>
+<script src="js/game.js?v=296"></script>
 </body>
 </html>
