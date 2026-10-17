@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 317, txt: "🎃 Maldição da abóbora: enquanto você estiver com cabeça de abóbora, a sua foto de perfil também vira uma cabeça de abóbora (no seu cartão e para os amigos). Passando a maldição, a foto volta." },
   { v: 316, txt: "Quarto: os botões ganharam nome, \"↻ Girar\" e \"📦 Arquivar\" (o móvel arquivado volta para o seu inventário)." },
   { v: 315, txt: "Quarto: agora dá para ARRASTAR os móveis para mudar de lugar (aparece uma sombra verde onde cabe e vermelha onde não cabe). Os botões ↻ Girar e 📦 Arquivar ficaram no topo da tela, sempre visíveis, mesmo com o painel de móveis aberto." },
   { v: 314, txt: "🏠 Nova aba Quartos na Vila: lista os quartos de amigos (e os abertos a todos), com prévia dos móveis, quantas pessoas estão lá, botão Visitar e botão para deixar carta." },
@@ -5480,6 +5481,7 @@ const FOTOS_PERFIL = [
   { id: 'ipeflor', nome: 'Ipê em flor', emoji: '🌼', bg: ['#fff3b0', '#e0a010'], requer: () => temTrevoItem('foto:ipeflor'), dica: 'Troque na Loja do Trevo 🍀' },
   { id: 'lua', nome: 'Lua', emoji: '🌙', bg: ['#dcd8ff', '#1a1a50'], requer: () => temTrevoItem('foto:lua'), dica: 'Troque na Loja do Trevo 🍀' },
 ];
+FOTOS_PERFIL.push({ id: 'hal_abobora', nome: 'Cabeça de abóbora', emoji: '🎃', bg: ['#ffd28a', '#c8540f'], oculto: true }); // só aparece durante a maldição da abóbora
 const FOTO_PERFIL = Object.fromEntries(FOTOS_PERFIL.map(f => [f.id, f]));
 function fotoIconUrl(f) {
   return makeIcon('foto2:' + f.id, () => {
@@ -5495,13 +5497,16 @@ function fotoIconUrl(f) {
 for (const f of FOTOS_PERFIL) f.icon = () => fotoIconUrl(f);
 const fotoLiberada = f => !f.requer || f.requer();
 // A foto que EU mostro agora: o selo escolhido (se já liberado) ou a foto do Google.
+const aboboraAtiva = () => !!(state && typeof halMald === 'function' && halloweenAtivo() && halMald('abobora'));
 const fotoAtual = () => {
+  if (aboboraAtiva()) return FOTO_PERFIL.hal_abobora.icon(); // maldição da abóbora: foto de perfil de cabeça de abóbora
   const f = state && state.fotoPerfil && FOTO_PERFIL[state.fotoPerfil];
   if (f && fotoLiberada(f)) return f.icon();
   return (user && user.photo) || '';
 };
 // O que salvar/mandar pra nuvem: um link de verdade, ou "icone:xxx" pra um amigo saber desenhar o selo certo.
 const fotoParaSalvar = () => {
+  if (aboboraAtiva()) return 'icone:hal_abobora';
   const f = state && state.fotoPerfil && FOTO_PERFIL[state.fotoPerfil];
   return f && fotoLiberada(f) ? 'icone:' + f.id : ((user && user.photo) || '');
 };
@@ -5516,7 +5521,7 @@ function renderFotosCfg() {
   const sel = state.fotoPerfil || '';
   const opcoes = [];
   if (user && user.photo) opcoes.push(`<button type="button" class="fotobtn" data-foto="" aria-pressed="${!sel}"><img alt="" referrerpolicy="no-referrer" src="${esc(user.photo)}"><small>Do Google</small></button>`);
-  for (const f of FOTOS_PERFIL) {
+  for (const f of FOTOS_PERFIL.filter(x => !x.oculto)) {
     opcoes.push(fotoLiberada(f)
       ? `<button type="button" class="fotobtn" data-foto="${f.id}" aria-pressed="${sel === f.id}"><img alt="" src="${f.icon()}"><small>${esc(f.nome)}</small></button>`
       : `<button type="button" class="fotobtn trava" disabled title="🔒 ${esc(f.dica || '')}"><img alt="" src="${f.icon()}" style="opacity:.4"><small>🔒 ${esc(f.nome)}</small></button>`);
@@ -13627,7 +13632,9 @@ function halCartaBotao() {
   toast(`${C.emoji} Carta de ${c.de} aberta: ${M.bencao ? 'era uma bênção!' : M.nome}`, M.bencao ? 'good' : 'bad');
 }
 // ---- Efeitos que rodam a cada segundo ----
+let halAboboraAntes = false;
 function halTick() {
+  if (state && !isGated()) { const ab = aboboraAtiva(); if (ab !== halAboboraAntes) { halAboboraAntes = ab; renderHUD(); renderAccount(); } }
   if (!state || isGated() || !state.halloween || state.halloween.id !== HAL.id) return;
   const h = state.halloween, agora = Date.now();
   if (h.corvos.length && !halMald('corvos')) { for (const i of h.corvos) if (state.plots[i]) delete state.plots[i].corvo; h.corvos = []; done(); }
