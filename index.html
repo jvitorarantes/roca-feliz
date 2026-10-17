@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="318">
+<meta name="rf-version" content="319">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -228,6 +228,9 @@
   .mina-ferr { position: relative; display: grid; justify-items: center; gap: 2px; background: var(--card); border: 2px solid var(--panel-2); border-radius: 12px; padding: 8px 4px; font: inherit; color: inherit; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
   .mina-cel { display: grid; gap: 6px; align-content: start; }
   .mina-tudo { font-size: 12px; padding: 6px 4px; min-height: 0; }
+  .mina-cel { min-width: 0; }
+  .mina-qtd { display: flex; align-items: center; justify-content: center; gap: 2px; } .mina-qtd b { min-width: 18px; text-align: center; font-size: 13px; }
+  .mina-qtd button { border: 2px solid var(--wood); background: var(--card); border-radius: 8px; padding: 1px 4px; font: 800 12px system-ui; cursor: pointer; min-width: 0; } .mina-qtd button:disabled { opacity: .45; }
   .mina-ferr.sel { border-color: var(--gold); background: var(--sel); }
   .mina-ferr.vazio { opacity: .5; }
   .mina-ferr img { width: 54px; height: 54px; pointer-events: none; }
@@ -1201,8 +1204,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=318"></script>
+<script src="js/audio.js?v=319"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=318"></script>
+<script src="js/game.js?v=319"></script>
 </body>
 </html>

@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 319, txt: "Mina: em cada ferramenta agora dá para escolher a quantidade que quer usar de uma vez, com − e ＋ (ou Tudo), e o botão vira \"Usar N\"." },
   { v: 318, txt: "Amigos: na aba Amigos (e na lista de convidar da Vila) agora aparece a foto que o amigo escolheu no jogo (o selo). A foto do Google só aparece se ele não escolheu nenhuma no jogo." },
   { v: 317, txt: "🎃 Maldição da abóbora: enquanto você estiver com cabeça de abóbora, a sua foto de perfil também vira uma cabeça de abóbora (no seu cartão e para os amigos). Passando a maldição, a foto volta." },
   { v: 316, txt: "Quarto: os botões ganharam nome, \"↻ Girar\" e \"📦 Arquivar\" (o móvel arquivado volta para o seu inventário)." },
@@ -10085,9 +10086,11 @@ function abrirMinaModal() {
   cancelAnimationFrame(minaLoopId); minaLoopId = requestAnimationFrame(minaLoop);
 }
 function fecharMinaModal() { $('#minaModal').hidden = true; cancelAnimationFrame(minaLoopId); minaAnim = null; if (minaDrag) { minaDrag.ghost.remove(); minaDrag = null; } }
+const minaQ = {}; // quantidade escolhida de cada ferramenta para usar de uma vez
+const minaQtdDe = (f, M) => M.ferr[f] <= 0 ? 0 : clamp(minaQ[f] || 1, 1, M.ferr[f]);
 function renderMinaFerrs() {
   const M = minaDe();
-  $('#minaFerrs').innerHTML = Object.entries(MINA_FERR).map(([f, F]) => `<div class="mina-cel"><button type="button" class="mina-ferr ${M.sel === f ? 'sel' : ''} ${M.ferr[f] <= 0 ? 'vazio' : ''}" data-mina-ferr="${f}"><img alt="" draggable="false" src="${ferrIcon(f)}"><b>${F.nome}</b><small>${F.desc}</small><span class="qtd">${M.ferr[f]}</span></button><button type="button" class="btn ghost mina-tudo" data-mina-tudo="${f}" ${M.ferr[f] <= 0 ? 'disabled' : ''}>Usar tudo</button></div>`).join('');
+  $('#minaFerrs').innerHTML = Object.entries(MINA_FERR).map(([f, F]) => `<div class="mina-cel"><button type="button" class="mina-ferr ${M.sel === f ? 'sel' : ''} ${M.ferr[f] <= 0 ? 'vazio' : ''}" data-mina-ferr="${f}"><img alt="" draggable="false" src="${ferrIcon(f)}"><b>${F.nome}</b><small>${F.desc}</small><span class="qtd">${M.ferr[f]}</span></button><div class="mina-qtd"><button type="button" data-mina-q="${f}:-1" aria-label="Menos" ${M.ferr[f] <= 0 ? 'disabled' : ''}>−</button><b>${minaQtdDe(f, M)}</b><button type="button" data-mina-q="${f}:1" aria-label="Mais" ${M.ferr[f] <= 0 ? 'disabled' : ''}>＋</button><button type="button" data-mina-q="${f}:max" ${M.ferr[f] <= 0 ? 'disabled' : ''}>Máx</button></div><button type="button" class="btn ghost mina-tudo" data-mina-tudo="${f}" ${M.ferr[f] <= 0 ? 'disabled' : ''}>Usar ${minaQtdDe(f, M)}</button></div>`).join('');
 }
 function minaIniciar(f) {
   if (minaAnim) return;
@@ -10100,12 +10103,13 @@ function minaIniciar(f) {
 // Usa todas as ferramentas de um tipo de uma vez (sem a animação de cada batida) e mostra o total ganho.
 function minaUsarTudo(f) {
   if (minaAnim) return;
-  const M = minaDe(), F = MINA_FERR[f], n = M.ferr[f];
-  if (n <= 0) return toast(`Você está sem ${F.nomePl}.`, 'bad');
-  perguntar(`Usar ${n > 1 ? `todas as ${n} ${F.nomePl}` : `a ${F.nome.toLowerCase()}`} de uma vez?`, () => {
+  const M = minaDe(), F = MINA_FERR[f], tem = M.ferr[f], n = minaQtdDe(f, M);
+  if (tem <= 0) return toast(`Você está sem ${F.nomePl}.`, 'bad');
+  if (n === 1) return minaIniciar(f); // uma só: com a animação normal
+  perguntar(`Usar ${n === tem ? 'todas as ' : ''}${n} ${F.nomePl} de uma vez?`, () => {
     const soma = {};
     let usadas = 0;
-    while (M.ferr[f] > 0) { const res = minaUsar(f, true); if (!res) break; usadas++; for (const { m, n: q } of res) soma[m.id] = (soma[m.id] || 0) + q; }
+    while (usadas < n && M.ferr[f] > 0) { const res = minaUsar(f, true); if (!res) break; usadas++; for (const { m, n: q } of res) soma[m.id] = (soma[m.id] || 0) + q; }
     if (!usadas) return;
     M.sel = f; done(); renderMinaFerrs();
     minaMostrarGanho(Object.entries(soma).map(([id, q]) => ({ m: MINERIO[id], n: q })), 5000);
@@ -10164,7 +10168,8 @@ function minaLoop(now) {
   minaLoopId = requestAnimationFrame(minaLoop);
 }
 // Arrastar: a ferramenta vira um "fantasma" que segue o dedo/mouse; soltou em cima da pedra, usa. Tocar na ferramenta e depois na pedra também funciona.
-$('#minaFerrs').addEventListener('click', e => { const b = e.target.closest('[data-mina-tudo]'); if (b && !b.disabled) minaUsarTudo(b.dataset.minaTudo); });
+$('#minaFerrs').addEventListener('click', e => { const q = e.target.closest('[data-mina-q]'); if (q && !q.disabled) { const [f, a] = q.dataset.minaQ.split(':'), M = minaDe(); minaQ[f] = a === 'max' ? M.ferr[f] : clamp(minaQtdDe(f, M) + Number(a), 1, M.ferr[f]); sfx('click'); return renderMinaFerrs(); }
+  const b = e.target.closest('[data-mina-tudo]'); if (b && !b.disabled) minaUsarTudo(b.dataset.minaTudo); });
 $('#minaFerrs').addEventListener('pointerdown', e => {
   const b = e.target.closest('[data-mina-ferr]'); if (!b || minaAnim) return;
   const f = b.dataset.minaFerr; e.preventDefault();
