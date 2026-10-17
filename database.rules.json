@@ -42,6 +42,15 @@
           },
           "$outro": {
             ".validate": false
+          },
+          "ia": {
+            ".validate": "newData.isString() && newData.val().length <= 10"
+          },
+          "ic": {
+            ".validate": "newData.isString() && newData.val().length <= 40"
+          },
+          "iz": {
+            ".validate": "newData.isNumber()"
           }
         }
       },
@@ -171,6 +180,31 @@
           },
           "$outro": {
             ".validate": false
+          }
+        }
+      },
+      "inter": {
+        "$alvo": {
+          ".read": "auth != null && auth.uid === $alvo",
+          "$de": {
+            ".read": "auth != null && auth.uid === $de",
+            ".write": "auth != null && (auth.uid === $de || auth.uid === $alvo)",
+            ".validate": "newData.hasChildren(['n', 'k', 'ts'])",
+            "n": {
+              ".validate": "newData.isString() && newData.val().length <= 24"
+            },
+            "k": {
+              ".validate": "newData.isString() && newData.val().length <= 10"
+            },
+            "ts": {
+              ".validate": "newData.isNumber()"
+            },
+            "ok": {
+              ".validate": "newData.isNumber()"
+            },
+            "$outro": {
+              ".validate": false
+            }
           }
         }
       }

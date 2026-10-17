@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 297, txt: "🤝 Interações na Vila! Toque em outro jogador e escolha: aperto de mão, abraço, toca aqui, soquinho, dançar juntos ou beijo (date, só entre amigos). A pessoa vê um balão e precisa aceitar. Aí você anda até ela e os dois fazem a cena juntos, com emojis e corações. Dá para desligar os convites no botão Interações da Vila." },
   { v: 296, txt: "Vila: toque em outro jogador para convidar para ser amigo ou, se já forem amigos, mandar mensagem privada. Quando alguém te convida, aparece um balão com Aceitar / Depois. As mensagens do chat da Vila somem em 30 segundos (ou quando passam de 4 linhas). E o uivo de lobo saiu da música de Halloween." },
   { v: 295, txt: "🏘️ A Vila agora é uma tela grande e tem botão na lateral, abaixo do Rancho! Dentro dela: Mural (metas de todos, chefe ao vivo e ranking do dia), Mercado para comprar e vender produtos com outros jogadores, Lago de pesca, Arena de cabo de guerra em times e casinhas para decorar e visitar. Tudo em tempo real." },
   { v: 294, txt: "🏘️ Praça da Vila! Uma sala em tempo real onde todos os jogadores entram, andam (toque no chão), conversam, mandam emojis e cumprem metas juntos (colher, regar, pescar…) para ganhar prêmios. O ping aparece no topo da tela. Entre por Amigos › Praça da Vila." },
@@ -13942,6 +13943,15 @@ const VILA_DECOR = ['🌻', '🎃', '🪑', '🏮', '🌳', '⛲', '🧺', '🪴
 const VILA_BOSS_HP = 500, VILA_BOSS_CICLO = 15 * 60e3, VILA_BOSS_JANELA = 5 * 60e3, CABO_CICLO = 120e3, CABO_JOGO = 60e3, MERCADO_MAX = 4;
 const praca = { rt: null, on: false, aberta: false, ping: 0, conectado: false, off: 0, jog: {}, eu: null, chat: [], prog: {}, progDia: 0, pend: {}, falas: {}, refs: {}, ult: 0,
   painel: null, mtab: 'comprar', mercado: {}, casas: {}, cabo: {}, boss: 0, rank: {}, slotCabo: 0, slotBoss: 0, loc: { boss: 0, cabo: 0, rank: 0 }, hits: [], pesca: null, flutua: [], decorSel: null };
+const INTER = {
+  mao:    { e: '🤝', nome: 'Aperto de mão', txt: 'quer apertar a sua mão' },
+  abraco: { e: '🤗', nome: 'Abraço',        txt: 'quer te dar um abraço' },
+  toca:   { e: '🙌', nome: 'Toca aqui',     txt: 'quer bater na sua mão (toca aqui!)' },
+  soco:   { e: '👊', nome: 'Soquinho',      txt: 'quer dar um soquinho' },
+  danca:  { e: '💃', nome: 'Dançar juntos', txt: 'quer dançar com você' },
+  beijo:  { e: '💋', nome: 'Beijo (date)',  txt: 'quer te dar um beijo', amigo: true },
+};
+praca.interIn = {}; praca.interOut = null; praca.efeito = {};
 const pracaAgora = () => Date.now() + praca.off;
 const pracaSt = () => { if (!state.praca) state.praca = { on: 0, res: {}, c: { d: 0 } }; if (state.praca.c.d !== localDay()) state.praca.c = { d: localDay() }; return state.praca; };
 function pracaChip() {
@@ -13964,7 +13974,7 @@ async function pracaLigar() {
     pracaChip();
   } catch (e) { console.warn('praça:', e); praca.on = false; toast('Não consegui ligar a Vila agora. O Realtime Database está ativo no Firebase?', 'bad'); }
 }
-function pracaDesligouRede() { for (const k of ['jog', 'chat', 'mercado', 'casas', 'cabo', 'boss', 'rank']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; } praca.refs.eu = null; }
+function pracaDesligouRede() { for (const k of ['jog', 'chat', 'mercado', 'casas', 'cabo', 'boss', 'rank', 'inter', 'interOut']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; } praca.refs.eu = null; }
 async function pracaPing() {
   if (!praca.on || document.hidden) return;
   const t0 = performance.now();
@@ -14008,11 +14018,12 @@ function pracaAbrir() {
   if (!window.FIREBASE_CONFIG.databaseURL) return toast('A Vila precisa do Realtime Database no firebase-config.js.');
   praca.aberta = true; $('#praca').hidden = false; pracaChip();
   $('#pracaEmotes').innerHTML = PRACA_EMOTES.map(e => `<button type="button" data-praca-emote="${e}" aria-label="Emoji ${e}">${e}</button>`).join('');
-  $('#pracaNav').innerHTML = Object.entries(VILA_LOCAIS).map(([id, l]) => `<button type="button" data-vila-ir="${id}">${l.ic} ${l.nome}</button>`).join('') + '<button type="button" data-vila-ir="casa">🏠 Minha casa</button>';
+  pracaNav();
   pracaPainelAbrir(null);
   pracaLigar().then(() => { if (praca.on && praca.aberta) pracaEntrar(); });
   requestAnimationFrame(pracaFrame);
 }
+function pracaNav() { $('#pracaNav').innerHTML = Object.entries(VILA_LOCAIS).map(([id, l]) => `<button type="button" data-vila-ir="${id}">${l.ic} ${l.nome}</button>`).join('') + `<button type="button" data-vila-ir="casa">🏠 Minha casa</button><button type="button" data-vila-bloq title="Ligar/desligar convites de interação">${settings.semInter ? '🚫 Interações: off' : '✨ Interações: on'}</button>`; }
 function pracaOuvir(chave, ref, cb) { if (praca.refs[chave]) praca.refs[chave].off(); praca.refs[chave] = ref; ref.on('value', cb); }
 function pracaEntrar() {
   if (!praca.on || !praca.conectado || praca.refs.eu) return;
@@ -14029,6 +14040,7 @@ function pracaEntrar() {
   pracaOuvir('mercado', rt.ref('praca/mercado').orderByChild('ts').limitToLast(80), s => { praca.mercado = s.val() || {}; if (praca.painel === 'mercado' && praca.mtab !== 'vender') pracaPainel(); });
   pracaOuvir('casas', rt.ref('praca/casas').orderByChild('ts').limitToLast(30), s => { praca.casas = s.val() || {}; if (praca.painel === 'casa') pracaPainel(); });
   pracaOuvir('rank', rt.ref('praca/rank/' + praca.progDia), s => { praca.rank = s.val() || {}; if (praca.painel === 'mural') pracaPainel(); });
+  pracaOuvir('inter', rt.ref('praca/inter/' + user.uid), s => pracaInterRecebe(s.val() || {}));
   pracaSlots(true);
   // limpeza: mensagens com mais de 1 dia saem do servidor
   rt.ref('praca/chat').orderByChild('ts').endAt(Date.now() - 86400000).limitToFirst(15).once('value').then(s => s.forEach(c => { c.ref.remove().catch(() => {}); })).catch(() => {});
@@ -14044,9 +14056,9 @@ function pracaSlots(forca) {
 function pracaSair() {
   praca.aberta = false; $('#praca').hidden = true; pracaChip();
   pracaTick(true);
-  for (const k of ['jog', 'chat', 'mercado', 'casas', 'cabo', 'boss', 'rank']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; }
+  for (const k of ['jog', 'chat', 'mercado', 'casas', 'cabo', 'boss', 'rank', 'inter', 'interOut']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; }
   if (praca.refs.eu) { praca.refs.eu.onDisconnect().cancel(); praca.refs.eu.remove().catch(() => {}); praca.refs.eu = null; }
-  praca.jog = {}; praca.eu = null; praca.painel = null;
+  praca.jog = {}; praca.eu = null; praca.painel = null; praca.interIn = {}; praca.interOut = null; pracaInterBalao();
 }
 function pracaEnviarMov(extra) {
   const e = praca.eu; if (!e || !praca.refs.eu) return;
@@ -14065,7 +14077,7 @@ function pracaRecebe(todos) {
       j.fu = p.u; j.fv = p.v; j.tu = d.tu; j.tv = d.tv; j.t0 = agora; j.dur = dist / PRACA_VEL * 1000; j.sig = d.ts;
       if (Math.abs(du - dv) > 0.01) j.dir = du - dv > 0 ? 1 : -1;
     }
-    j.n = typeof d.n === 'string' ? d.n : 'Jogador'; j.a = d.a ? avatarOk(d.a) : null;
+    j.n = typeof d.n === 'string' ? d.n : 'Jogador'; j.a = d.a ? avatarOk(d.a) : null; j.ia = d.ia || null; j.ic = d.ic || null; j.iz = d.iz || 0;
     if (d.et && d.et !== j.et) { j.et = d.et; if (typeof d.ek === 'string') j.emote = { k: d.ek, ate: agora + 3200 }; }
   }
 }
@@ -14259,7 +14271,8 @@ function pracaHtmlJogador(uid) {
     h += `<div>Só amigos podem trocar mensagens privadas.</div>`;
     h += recebeu ? `<button class="btn gold" type="button" data-vila-aceitar="${esc(uid)}">🤝 Aceitar o convite dele</button>` : enviou ? '<button class="btn ghost" type="button" disabled>⏳ Convite enviado</button>' : `<button class="btn gold" type="button" data-vila-convidar="${esc(uid)}">🤝 Convidar para ser amigo</button>`;
   }
-  return h + '</div>';
+  h += '</div><div class="vp-card"><b>✨ Interagir</b><small>O outro jogador precisa aceitar.</small><div class="vp-inter">' + Object.entries(INTER).map(([k, I]) => `<button type="button" class="btn ${I.amigo && !amigo ? 'ghost' : ''}" data-vila-ia="${k}" data-uid="${esc(uid)}" ${I.amigo && !amigo ? 'disabled title="Só entre amigos"' : ''}>${I.e} ${I.nome}${I.amigo && !amigo ? ' 🔒' : ''}</button>`).join('') + '</div></div>';
+  return h;
 }
 async function pracaPrivada(uid) {
   const inp = $('#vpPrivTxt'); if (!inp) return;
@@ -14365,13 +14378,21 @@ function pracaDesenha(g, c, now, dpr) {
   for (const [uid, j] of Object.entries(praca.jog)) lista.push({ me: false, e: j, n: j.n, a: j.a || state.avatar, uid });
   for (const o of lista) { const p = pracaPos(o.e, now); o.p = p; o.s = p.u + p.v; }
   lista.sort((a, b) => a.s - b.s);
-  const es = clamp(G.tw / 20, 0.55, 1.5);
+  const es = clamp(G.tw / 20, 0.55, 1.5), porUid = Object.fromEntries(lista.map(o => [o.uid, o])), duplas = [];
+  for (const o of lista) { // pares que estão fazendo uma interação e já estão juntos
+    const e = o.e, par = e.ia && porUid[e.ic]; if (!par || !par.e.ia || par.e.ic !== o.uid || pracaAgora() - (e.iz || 0) > 14000 || o.uid > e.ic) continue;
+    const dist = Math.hypot(o.p.u - par.p.u, o.p.v - par.p.v), chave = o.uid + '|' + par.uid;
+    if (dist > 1.5) continue;
+    const ef = praca.efeito[chave] || (praca.efeito[chave] = { t0: now });
+    if (now - ef.t0 < 5000) { duplas.push({ a: o, b: par, k: e.ia, ef }); o.hop = par.hop = true; }
+  }
   for (const o of lista) {
     const e = o.e, p = o.p;
     if (o.me && e.dur && p.k >= 1) e.dur = 0;
     const q = pracaIso(p.u, p.v, G), andando = p.k < 1 && !!e.dur;
     g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, G.tw * 0.5, G.tw * 0.2, 0, 0, 7); g.fill();
-    drawAvatar(g, q.x, q.y, es, o.a, now, andando, e.dir);
+    const hop = o.hop ? Math.abs(Math.sin(now / 150)) * 7 * es : 0;
+    drawAvatar(g, q.x, q.y - hop, es, o.a, now, andando, e.dir);
     const top = q.y - 72 * es;
     g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff';
     g.strokeText(o.n, q.x, top); g.fillText(o.n, q.x, top);
@@ -14382,6 +14403,16 @@ function pracaDesenha(g, c, now, dpr) {
       g.font = `700 ${Math.round(11 * dpr)}px system-ui, sans-serif`; const tw = g.measureText(fa.t).width + 12 * dpr, bx = clamp(q.x - tw / 2, 4, c.width - tw - 4), by = yb - 18 * dpr;
       g.fillStyle = '#fff'; g.beginPath(); g.roundRect(bx, by, tw, 18 * dpr, 8 * dpr); g.fill(); g.fillStyle = '#2f2a1f'; g.textAlign = 'left'; g.fillText(fa.t, bx + 6 * dpr, by + 13 * dpr); g.textAlign = 'center';
     }
+  }
+  // efeitos das interações entre dois jogadores
+  for (const d of duplas) {
+    const I = INTER[d.k], qa = pracaIso(d.a.p.u, d.a.p.v, G), qb = pracaIso(d.b.p.u, d.b.p.v, G), mx = (qa.x + qb.x) / 2, my = Math.min(qa.y, qb.y) - 62 * es, t = (now - d.ef.t0) / 5000;
+    g.textAlign = 'center'; g.font = `${Math.round(34 * es * (1 + Math.sin(now / 120) * 0.08))}px system-ui`;
+    g.fillText(d.k === 'danca' ? (Math.floor(now / 350) % 2 ? '💃' : '🕺') : I.e, mx, my - t * 10);
+    const corac = d.k === 'beijo' || d.k === 'abraco' ? '❤️' : d.k === 'danca' ? '🎵' : '✨';
+    g.font = `${Math.round(16 * es)}px system-ui`;
+    for (let k = 0; k < 6; k++) { const ph = ((now / 1400) + k / 6) % 1; g.globalAlpha = 1 - ph; g.fillText(corac, mx + Math.sin(k * 2.4 + now / 500) * 26 * es, my + 12 * es - ph * 46 * es); }
+    g.globalAlpha = 1;
   }
   // números que sobem (golpes no chefe)
   praca.flutua = praca.flutua.filter(f => now - f.t < 700);
@@ -14394,11 +14425,68 @@ function pracaToque(ev) {
   const h = [...praca.hits].reverse().find(k => Math.hypot(k.x - x, k.y - y) < k.r);
   if (h) { if (h.id === 'boss') return pracaBater(); return pracaPainelAbrir(h.id); }
   const a = (x - G.cx) / G.tw, b = (y - G.cy) / (G.tw / 2); // a = u - v ; b = u + v
-  const u = clamp((a + b) / 2, 0.4, PRACA_N - 0.4), v = clamp((b - a) / 2, 0.4, PRACA_N - 0.4);
+  pracaIrPara(clamp((a + b) / 2, 0.4, PRACA_N - 0.4), clamp((b - a) / 2, 0.4, PRACA_N - 0.4));
+}
+function pracaIrPara(u, v, extra) {
   const e = praca.eu, p = pracaPos(e, performance.now());
   e.fu = p.u; e.fv = p.v; e.tu = u; e.tv = v; e.t0 = performance.now(); e.dur = Math.hypot(u - p.u, v - p.v) / PRACA_VEL * 1000;
   if (Math.abs((u - p.u) - (v - p.v)) > 0.01) e.dir = (u - p.u) - (v - p.v) > 0 ? 1 : -1;
-  pracaEnviarMov();
+  pracaEnviarMov(extra);
+}
+// ---- Interações entre jogadores: o outro precisa aceitar; depois os dois fazem a cena juntos ----
+function pracaInterPedir(alvo, k) {
+  const I = INTER[k], j = praca.jog[alvo]; if (!I || !j || !praca.refs.eu) return;
+  if (I.amigo && !state.friends.includes(alvo)) return toast('Esse só é possível entre amigos.');
+  if (praca.interOut && Date.now() - praca.interOut.ts < 30000) return toast('Espere a resposta do convite anterior.');
+  const ref = praca.rt.ref(`praca/inter/${alvo}/${user.uid}`);
+  ref.set({ n: meuApelido().slice(0, 24), k, ts: firebase.database.ServerValue.TIMESTAMP }).then(() => {
+    ref.onDisconnect().remove();
+    praca.interOut = { alvo, k, ts: Date.now(), viu: false };
+    toast(`${I.e} Convite enviado para ${firstName(j.n || 'o jogador')}. Aguardando…`);
+    pracaOuvir('interOut', ref, s => {
+      const v = s.val(), o = praca.interOut; if (!o || o.alvo !== alvo) return;
+      if (v && v.ok) { praca.interOut = null; ref.remove().catch(() => {}); praca.refs.interOut.off(); pracaInterIniciar(alvo, k, true); }
+      else if (v) o.viu = true;
+      else if (o.viu || Date.now() - o.ts > 1500) { praca.interOut = null; toast(`${firstName(j.n || 'O jogador')} não quis agora.`); praca.refs.interOut.off(); }
+    });
+    setTimeout(() => { if (praca.interOut && praca.interOut.alvo === alvo && praca.interOut.ts === (praca.interOut.ts)) { const o = praca.interOut; if (Date.now() - o.ts >= 29000) { praca.interOut = null; ref.remove().catch(() => {}); toast('Sem resposta ao convite.'); } } }, 30000);
+  }).catch(() => toast('Não consegui mandar o convite.', 'bad'));
+}
+function pracaInterRecebe(todos) {
+  const agora = Date.now();
+  for (const [de, r] of Object.entries(todos)) {
+    if (!r || !INTER[r.k] || r.ok) continue;
+    if (settings.semInter) { praca.rt.ref(`praca/inter/${user.uid}/${de}`).remove().catch(() => {}); continue; }
+    if (agora - (r.ts || 0) > 45000 && r.ts) { praca.rt.ref(`praca/inter/${user.uid}/${de}`).remove().catch(() => {}); continue; }
+    praca.interIn[de] = { k: r.k, n: String(r.n || 'Alguém').slice(0, 24), ts: r.ts || agora };
+  }
+  for (const de of Object.keys(praca.interIn)) if (!todos[de]) delete praca.interIn[de];
+  pracaInterBalao();
+}
+function pracaInterBalao() {
+  let el = $('#interBalao');
+  if (!el) { el = document.createElement('div'); el.id = 'interBalao'; el.className = 'convitebalao interbalao'; el.hidden = true; $('#praca').appendChild(el);
+    el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; pracaInterResponder(b.dataset.uid, b.dataset.acao === 'sim'); }); }
+  const de = Object.keys(praca.interIn)[0];
+  if (!de || !praca.aberta) { el.hidden = true; return; }
+  const r = praca.interIn[de], I = INTER[r.k];
+  el.innerHTML = `<div>${I.e} <b>${esc(firstName(r.n))}</b> ${I.txt}!</div><div class="cbbtns"><button type="button" class="btn gold" data-acao="sim" data-uid="${esc(de)}">Aceitar</button><button type="button" class="btn ghost" data-acao="nao" data-uid="${esc(de)}">Agora não</button></div>`;
+  el.hidden = false;
+}
+function pracaInterResponder(de, sim) {
+  const r = praca.interIn[de]; if (!r) return; delete praca.interIn[de];
+  const ref = praca.rt.ref(`praca/inter/${user.uid}/${de}`);
+  if (sim) { ref.update({ ok: 1 }).then(() => { sfx('level'); pracaInterIniciar(de, r.k, false); }).catch(() => toast('Não consegui aceitar agora.', 'bad')); }
+  else ref.remove().catch(() => {});
+  pracaInterBalao();
+}
+function pracaInterIniciar(com, k, sender) {
+  const I = INTER[k]; if (!praca.eu) return;
+  const j = praca.jog[com];
+  if (sender && j) { const p = pracaPos(j, performance.now()); pracaIrPara(clamp(p.u - 0.5, 0.4, PRACA_N - 0.4), clamp(p.v + 0.5, 0.4, PRACA_N - 0.4), { ia: k, ic: com, iz: firebase.database.ServerValue.TIMESTAMP, ek: I.e, et: Date.now() }); praca.eu.dir = 1; }
+  else { praca.eu.dir = -1; pracaEnviarMov({ ia: k, ic: com, iz: firebase.database.ServerValue.TIMESTAMP, ek: I.e, et: Date.now() }); }
+  praca.eu.ia = k; praca.eu.ic = com; praca.eu.iz = pracaAgora(); praca.eu.emote = { k: I.e, ate: performance.now() + 3200 };
+  setTimeout(() => { if (praca.eu && praca.eu.iz && pracaAgora() - praca.eu.iz > 11000) { praca.eu.ia = null; pracaEnviarMov({ ia: null, ic: null, iz: null }); } }, 12000);
 }
 $('#pracaCv')?.addEventListener('pointerdown', pracaToque);
 $('#pracaFechar')?.addEventListener('click', pracaSair);
@@ -14425,6 +14513,8 @@ $('#praca')?.addEventListener('click', e => {
   if ((b = q('[data-vila-cancelar]'))) return pracaCancelar(b.dataset.vilaCancelar);
   if ((b = q('[data-vila-receber]'))) return pracaReceber(b.dataset.vilaReceber);
   if ((b = q('[data-vila-decor]'))) { const e2 = b.dataset.vilaDecor, s2 = praca.decorSel || (praca.decorSel = []), i = s2.indexOf(e2); if (i >= 0) s2.splice(i, 1); else if (s2.length < 3) s2.push(e2); else toast('Até 3 enfeites.'); return pracaPainel(); }
+  if ((b = q('[data-vila-ia]'))) return pracaInterPedir(b.dataset.uid, b.dataset.vilaIa);
+  if (q('[data-vila-bloq]')) { settings.semInter = !settings.semInter; saveSettings(); pracaNav(); return toast(settings.semInter ? '🚫 Você não recebe mais convites de interação.' : '✅ Você volta a receber convites de interação.'); }
   if ((b = q('[data-vila-priv]'))) return pracaPrivada(b.dataset.vilaPriv);
   if ((b = q('[data-vila-conversa]'))) { const u2 = b.dataset.vilaConversa; return abrirChat(u2); }
   if ((b = q('[data-vila-convidar]'))) { const u2 = b.dataset.vilaConvidar; return pedirAmizade(u2).then(pracaPainel).catch(() => toast('Não consegui mandar o convite agora.', 'bad')); }

@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="296">
+<meta name="rf-version" content="297">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -527,7 +527,7 @@
   .modal-head .status.on { color: #b9f0a0; }
   .avisoitens { background: var(--card); border-radius: 12px; padding: 6px 10px; font-size: 13px; font-weight: 700; color: #2f2a1f; }
   #praca { padding: 0; align-items: stretch; }
-  .pracacard { width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--panel); color: var(--ink); }
+  .pracacard { width: 100%; max-width: 100vw; min-width: 0; overflow: hidden; height: 100%; display: flex; flex-direction: column; background: var(--panel); color: var(--ink); }
   .pracainfo { margin: 0 auto 0 10px; font-size: 12px; font-weight: 800; color: #f4e1c6; }
   .pracawrap { position: relative; flex: 1; min-height: 0; background: #2a1d3d; }
   #pracaCv { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
@@ -551,6 +551,8 @@
   .convitebalao { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 99999; background: #fffbe8; color: #2f2a1f; border: 4px solid var(--wood); border-radius: 18px; padding: 10px 14px; box-shadow: 0 6px 0 rgba(0,0,0,.25); font-weight: 700; display: grid; gap: 8px; max-width: min(92vw, 360px); text-align: center; }
   .convitebalao .btn.ghost { color: #5a3a14; border: 2px solid var(--wood); background: #fff; }
   .convitebalao .cbbtns { display: flex; gap: 8px; justify-content: center; }
+  .interbalao { top: 64px; z-index: 100000; }
+  .vp-inter { display: flex; flex-wrap: wrap; gap: 6px; } .vp-inter .btn { flex: 1 1 45%; }
   .vp-priv { display: flex; gap: 6px; } .vp-priv input { flex: 1; min-width: 0; }
   .pingchip { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); z-index: 30; background: rgba(30,22,10,.72); color: #fff; font: 800 12px system-ui, sans-serif; padding: 3px 10px; border-radius: 12px; cursor: pointer; white-space: nowrap; }
   .pescacard { width: min(100%, 480px); }
@@ -1170,8 +1172,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=296"></script>
+<script src="js/audio.js?v=297"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=296"></script>
+<script src="js/game.js?v=297"></script>
 </body>
 </html>
