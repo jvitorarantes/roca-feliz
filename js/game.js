@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 291, txt: "🎃 Corrigido: o Halloween começava às 00:00 de 17/10 e, no horário de Brasília, ainda era dia 16, então o tema e a aba Halloween não apareciam. Agora o evento já está valendo (até 31/10, 23:59)." },
   { v: 290, txt: "Corrigido: o botão Enviar das cartas de Halloween (Missões › 🎃 Halloween) dizia que não havia amigos quando os dados deles ainda não tinham carregado. Agora lista todos os seus amigos na hora." },
   { v: 289, txt: "🎃 Halloween em tudo: casa, celeiro, casinha do cachorro, abrigos dos animais e cercas ficam assombrados (roxo e laranja, com mini abóboras nas cercas) enquanto durar o evento, e todos os bichos e cachorros ganharam chapeuzinho de bruxa!" },
   { v: 288, txt: "🎃 Cartas de Halloween agora vão dentro do chat do amigo (e as antigas chegam assim que ele atualiza o jogo). A música \"Noite das Bruxas\" toca sozinha para todos durante o evento. Na lista de Amigos aparece a versão do jogo de cada um. As 3 cartas de hoje foram devolvidas uma vez." },
@@ -13446,11 +13447,11 @@ function drawTemaCriancas(t) {
   }
 }
 // ============================================================
-// Evento: Halloween 2026 (de 17/10 até 31/10, 23:59)
+// Evento: Halloween 2026 (de 16/10 até 31/10, 23:59)
 // ============================================================
 // Tema assombrado, música sombria, lobos passeando e uivando, coleção de enfeites e as cartas assombradas:
 // todo dia você ganha 3 cartas (abóbora gigante, fantasma e esqueleto) para mandar a amigos; ao abrir, cai uma maldição.
-const HAL = { id: 'halloween2026', ini: new Date(2026, 9, 17, 0, 0, 0).getTime(), fim: new Date(2026, 9, 31, 23, 59, 59).getTime() };
+const HAL = { id: 'halloween2026', ini: new Date(2026, 9, 16, 0, 0, 0).getTime(), fim: new Date(2026, 9, 31, 23, 59, 59).getTime() };
 const halloweenAtivo = () => { const n = Date.now(); return n >= HAL.ini && n <= HAL.fim; };
 const halDe = () => { if (!state.halloween || state.halloween.id !== HAL.id) state.halloween = { id: HAL.id, dia: '', tem: {}, caixa: [], mald: {}, prog: {}, feitas: {}, lobos: { d: '', n: 0 }, corvos: [], teia: {}, skel: null, cliques: { d: '', n: 0 } }; return state.halloween; };
 const halMald = id => !!(state && state.halloween && state.halloween.id === HAL.id && state.halloween.mald[id] > Date.now());
