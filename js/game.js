@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 294, txt: "🏘️ Praça da Vila! Uma sala em tempo real onde todos os jogadores entram, andam (toque no chão), conversam, mandam emojis e cumprem metas juntos (colher, regar, pescar…) para ganhar prêmios. O ping aparece no topo da tela. Entre por Amigos › Praça da Vila." },
   { v: 293, txt: "🐺 Os lobos do Halloween não somem mais ao toque: eles saem correndo e ficam uivando. E a risada da bruxa saiu da música de fundo (ela só aparece ao abrir uma carta)." },
   { v: 292, txt: "🎃 Cartas de Halloween: só dá para mandar uma carta por dia para cada amigo (as 3 do dia vão para 3 amigos diferentes)." },
   { v: 291, txt: "🎃 Corrigido: o Halloween começava às 00:00 de 17/10 e, no horário de Brasília, ainda era dia 16, então o tema e a aba Halloween não apareciam. Agora o evento já está valendo (até 31/10, 23:59)." },
@@ -2466,7 +2467,7 @@ function enterGame() {
   root.classList.remove('gated');
   if (state) { state.tool = 'hand'; renderTools(); }
   resize(); setScene(scene);
-  presentePioneiro(); eventoEntrada(); halEntrada(); checarNovidades();
+  presentePioneiro(); eventoEntrada(); halEntrada(); checarNovidades(); setTimeout(pracaEntrada, 1500);
   if (state.boasVindas && isHome()) setTimeout(abrirBoasVindas, 400);
   else setTimeout(() => { if (giftReady() && !isGated()) showGift(); }, 1500);
 }
@@ -6022,7 +6023,8 @@ function renderPane() {
       html += `<p class="hint">Entre com o Google para salvar a roça na nuvem, jogar em qualquer aparelho e visitar seus amigos.</p>
         <button class="gbtn" type="button" data-login style="justify-self:start">${GOOGLE_G}Entrar com Google</button>`;
     } else {
-      html += `<div class="codebox"><div><div class="meta">Seu código de amigo</div><strong>${esc(state.code || '······')}</strong></div>
+      html += `<div class="row sel"><div class="avatar" style="background:#4a7a3a;font-size:22px">🏘️</div><div><div class="name">Praça da Vila</div><div class="meta">Sala em tempo real: ande, converse e cumpra metas com todos os jogadores.</div></div><button class="btn gold" type="button" data-praca-abrir="1">Entrar</button></div>
+      <div class="codebox"><div><div class="meta">Seu código de amigo</div><strong>${esc(state.code || '······')}</strong></div>
           <button class="btn ghost" data-copy-code type="button">Copiar</button></div>
         <form class="addform" id="addFriend"><input id="friendCode" maxlength="7" placeholder="Código do amigo" autocomplete="off" aria-label="Código do amigo"><button class="btn" type="submit">Adicionar</button></form>`;
       const avatar = (photo, name, color, moldura) => {
@@ -6141,6 +6143,7 @@ $('#pane').addEventListener('click', e => {
   if (d.papelCarta) { state.papelCarta = d.papelCarta; sfx('click'); save(); return renderPane(); }
   if (d.papelParede) { if (!paredeLiberada(d.papelParede)) return; state.papelParede = d.papelParede === 'padrao' ? '' : d.papelParede; sfx('click'); done(); return renderPane(); }
   if (d.skinCao) { const [sl, sk] = d.skinCao.split(':'), dg = state.dogs[sl]; if (dg && (sk === 'padrao' || (SKIN_CAO[sk] && temTrevoItem('cao:' + sk)))) { dg.skin = sk === 'padrao' ? '' : sk; sfx('click'); done(); renderPane(); if (isHome()) setScene(scene); } return; }
+  if (d.pracaAbrir) return pracaAbrir();
   if (d.halEnviar) return enviarCartaHal(d.halEnviar);
   if (d.halAbrir) { halCartaTick(); return; }
   if (d.halResgatar) return resgatarHal(d.halResgatar);
@@ -7058,7 +7061,7 @@ function rollPeriods() {
 }
 function track(ev, n = 1) {
   if (!state) return;
-  rankPontos(ev); eventoTrack(ev, n); halTrack(ev, n);
+  rankPontos(ev); eventoTrack(ev, n); halTrack(ev, n); pracaTrack(ev, n);
   if (!state.missions) rollPeriods();
   let pronto = false;
   for (const m of [...state.missions.dia, ...state.missions.semana]) {
@@ -13896,6 +13899,233 @@ function drawHalAvatarExtras(q, esc, t, andando) {
 }
 
 // ============================================================
+// Praça da Vila: sala em tempo real (Realtime Database) onde todos os jogadores andam, conversam e cumprem metas juntos.
+// Andar é por toque: só mandamos (de, para) a cada toque, e os outros aparelhos animam o caminho. Barato e rápido.
+// ============================================================
+const PRACA_N = 9, PRACA_VEL = 2.3;
+const PRACA_EMOTES = ['👋', '❤️', '😂', '👏', '😱', '🎃'];
+const PRACA_METAS = [
+  { id: 'colher',  ev: 'colher',  nome: 'Colher na roça',        ic: '🌽', meta: 300, moedas: 250, doce: ['bala', 3] },
+  { id: 'regar',   ev: 'regar',   nome: 'Regar canteiros',       ic: '💧', meta: 200, moedas: 200, doce: ['pirulito', 2] },
+  { id: 'pescar',  ev: 'pescar',  nome: 'Pescar',                ic: '🎣', meta: 40,  moedas: 250, doce: ['bala', 3] },
+  { id: 'coletar', ev: 'coletar', nome: 'Recolher dos animais',  ic: '🥚', meta: 100, moedas: 200, doce: ['pirulito', 2] },
+  { id: 'minerar', ev: 'minerar', nome: 'Quebrar pedras na mina', ic: '⛏️', meta: 60,  moedas: 250, doce: ['bala', 3] },
+];
+const praca = { rt: null, on: false, aberta: false, ping: 0, conectado: false, jog: {}, eu: null, chat: [], prog: {}, progDia: 0, pend: {}, falas: {}, refs: {}, ult: 0, toquePos: null };
+const pracaSt = () => { if (!state.praca) state.praca = { on: 0, res: {}, c: { d: 0 } }; if (state.praca.c.d !== localDay()) state.praca.c = { d: localDay() }; return state.praca; };
+function pracaChip() {
+  const el = $('#pingChip'); if (!el) return;
+  if (!user || !Cloud.available || !state || !window.FIREBASE_CONFIG.databaseURL) { el.hidden = true; return; }
+  el.hidden = !!praca.aberta;
+  if (!praca.on) { el.textContent = '🏘️ Vila'; return; }
+  el.textContent = praca.conectado ? `🏘️ Vila · ${praca.ping < 120 ? '🟢' : praca.ping < 300 ? '🟡' : '🔴'} ${praca.ping || '…'} ms` : '🏘️ Vila · 🔴 sem conexão';
+}
+async function pracaLigar() {
+  if (praca.on || !user) return;
+  try {
+    const rt = praca.rt = await Cloud.rtInit(); praca.on = true; pracaSt().on = 1;
+    rt.ref('.info/connected').on('value', s => { praca.conectado = !!s.val(); if (praca.conectado && praca.aberta) pracaEntrar(); pracaChip(); });
+    pracaOuvirMetas();
+    setInterval(() => pracaPing(), 4000); pracaPing();
+    setInterval(pracaFlush, 5000);
+    setInterval(() => { if (praca.progDia !== localDay()) pracaOuvirMetas(); }, 60000);
+    pracaChip();
+  } catch (e) { console.warn('praça:', e); praca.on = false; toast('Não consegui ligar a Praça da Vila agora. O Realtime Database já foi ativado no Firebase?', 'bad'); }
+}
+async function pracaPing() {
+  if (!praca.on || document.hidden) return;
+  const t0 = performance.now();
+  try { await praca.rt.ref('praca/ping').once('value'); praca.ping = Math.round(performance.now() - t0); } catch (e) { praca.ping = 0; }
+  pracaChip();
+}
+function pracaOuvirMetas() {
+  if (praca.refs.metas) praca.refs.metas.off();
+  praca.progDia = localDay(); praca.prog = {};
+  praca.refs.metas = praca.rt.ref('praca/missao/' + praca.progDia);
+  praca.refs.metas.on('value', s => {
+    const antes = praca.prog; praca.prog = s.val() || {};
+    for (const m of PRACA_METAS) if ((praca.prog[m.id] || 0) >= m.meta && (antes[m.id] || 0) < m.meta && Object.keys(antes).length) { toast(`🎉 A vila completou a meta "${m.nome}"! Abra a Praça › 🎯 Metas para pegar o prêmio.`, 'good'); sfx('level'); }
+    if (praca.aberta) pracaDesenhaMetas();
+  });
+}
+// Cada ação conta para a meta da vila (guarda e manda em lotes a cada 5s).
+function pracaTrack(ev, n) {
+  if (!state || !praca.on || !PRACA_METAS.some(m => m.ev === ev)) return;
+  praca.pend[ev] = (praca.pend[ev] || 0) + n; const c = pracaSt().c; c[ev] = (c[ev] || 0) + n;
+}
+function pracaFlush() {
+  if (!praca.on || !praca.conectado) return;
+  for (const ev of Object.keys(praca.pend)) {
+    let n = praca.pend[ev]; if (!n) continue;
+    n = Math.min(n, 100); praca.pend[ev] -= n;
+    praca.rt.ref(`praca/missao/${praca.progDia}/${ev}`).transaction(v => (v || 0) + n).catch(() => { praca.pend[ev] = (praca.pend[ev] || 0) + n; });
+  }
+}
+function pracaResgatar(id) {
+  const m = PRACA_METAS.find(x => x.id === id), st = pracaSt(), chave = praca.progDia + ':' + id;
+  if (!m || (praca.prog[id] || 0) < m.meta || !(st.c[m.ev] > 0) || (st.res[chave])) return;
+  for (const k of Object.keys(st.res)) if (!k.startsWith(praca.progDia + ':')) delete st.res[k];
+  st.res[chave] = 1; state.coins += m.moedas; state.barn[m.doce[0]] = (state.barn[m.doce[0]] || 0) + m.doce[1];
+  sfx('level'); toast(`🎁 Prêmio da vila: ${m.moedas} moedas e ${m.doce[1]} doces!`, 'good'); done(); pracaDesenhaMetas();
+}
+function pracaDesenhaMetas() {
+  const box = $('#pracaMetas'); if (!box) return; const st = pracaSt();
+  box.innerHTML = '<p class="hint">Metas de hoje, de TODOS os jogadores juntos. Faça as tarefas na sua roça e, quando a vila bater a meta, pegue o prêmio aqui.</p>' + PRACA_METAS.map(m => {
+    const v = Math.min(m.meta, praca.prog[m.id] || 0), ok = v >= m.meta, pego = !!st.res[praca.progDia + ':' + m.id], seu = st.c[m.ev] || 0;
+    return `<div class="pracameta"><div>${m.ic} ${m.nome}: ${v}/${m.meta} <small>(você: ${seu})</small></div><div class="barra"><i style="width:${Math.round(v / m.meta * 100)}%"></i></div>
+      <div>${pego ? '✅ Prêmio recebido' : ok ? (seu > 0 ? `<button class="btn gold" type="button" data-praca-resg="${m.id}">Pegar ${m.moedas} moedas + ${m.doce[1]} doces</button>` : 'Ajude pelo menos uma vez para pegar o prêmio') : `Prêmio: ${m.moedas} moedas + ${m.doce[1]} doces`}</div></div>`;
+  }).join('');
+}
+// ---- Presença, movimento e chat ----
+function pracaAbrir() {
+  if (!user || !Cloud.available) return toast('Entre com o Google para ir à Praça da Vila.');
+  if (!window.FIREBASE_CONFIG.databaseURL) return toast('A praça precisa do Realtime Database no firebase-config.js.');
+  praca.aberta = true; $('#praca').hidden = false; pracaChip();
+  $('#pracaEmotes').innerHTML = PRACA_EMOTES.map(e => `<button type="button" data-praca-emote="${e}" aria-label="Emoji ${e}">${e}</button>`).join('');
+  pracaLigar().then(() => { if (praca.on && praca.aberta) { pracaEntrar(); pracaDesenhaMetas(); } });
+  requestAnimationFrame(pracaFrame);
+}
+function pracaEntrar() {
+  if (!praca.on || !praca.conectado || praca.refs.eu) return;
+  const rt = praca.rt, u0 = 2 + Math.random() * (PRACA_N - 4), v0 = 2 + Math.random() * (PRACA_N - 4);
+  praca.eu = { fu: u0, fv: v0, tu: u0, tv: v0, t0: performance.now(), dur: 0, dir: 1 };
+  const meu = praca.refs.eu = rt.ref('praca/jogadores/' + user.uid);
+  meu.onDisconnect().remove();
+  pracaEnviarMov();
+  praca.refs.jog = rt.ref('praca/jogadores'); praca.refs.jog.on('value', s => pracaRecebe(s.val() || {}));
+  praca.refs.chat = rt.ref('praca/chat').orderByChild('ts').limitToLast(30);
+  praca.chat = [];
+  praca.refs.chat.on('child_added', s => { const m = s.val(); if (!m || typeof m.t !== 'string') return; praca.chat.push(m); praca.chat = praca.chat.slice(-30); if (Date.now() - (m.ts || 0) < 8000) praca.falas[m.u] = { t: m.t.slice(0, 60), ate: performance.now() + 5000 }; pracaLog(); });
+  // limpeza: mensagens com mais de 1 dia saem do servidor
+  rt.ref('praca/chat').orderByChild('ts').endAt(Date.now() - 86400000).limitToFirst(15).once('value').then(s => s.forEach(c => { c.ref.remove().catch(() => {}); })).catch(() => {});
+}
+function pracaSair() {
+  praca.aberta = false; $('#praca').hidden = true; pracaChip(); $('#pracaMetas').hidden = true;
+  for (const k of ['jog', 'chat']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; }
+  if (praca.refs.eu) { praca.refs.eu.onDisconnect().cancel(); praca.refs.eu.remove().catch(() => {}); praca.refs.eu = null; }
+  praca.jog = {}; praca.eu = null; pracaChip();
+}
+function pracaEnviarMov(extra) {
+  const e = praca.eu; if (!e || !praca.refs.eu) return;
+  const p = pracaPos(e, performance.now());
+  praca.refs.eu.update(Object.assign({ n: meuApelido().slice(0, 24), a: state.avatar, fu: +e.fu.toFixed(2), fv: +e.fv.toFixed(2), tu: +e.tu.toFixed(2), tv: +e.tv.toFixed(2), ts: firebase.database.ServerValue.TIMESTAMP }, extra || {})).catch(e2 => console.warn('praça mov:', e2));
+}
+function pracaPos(e, now) { const k = e.dur ? Math.min(1, (now - e.t0) / e.dur) : 1; return { u: e.fu + (e.tu - e.fu) * k, v: e.fv + (e.tv - e.fv) * k, k }; }
+function pracaRecebe(todos) {
+  const agora = performance.now();
+  for (const uid of Object.keys(praca.jog)) if (!todos[uid]) delete praca.jog[uid];
+  for (const [uid, d] of Object.entries(todos)) {
+    if (uid === user.uid || !d || typeof d.fu !== 'number') continue;
+    let j = praca.jog[uid];
+    if (!j) j = praca.jog[uid] = { dir: 1, fu: d.tu, fv: d.tv, tu: d.tu, tv: d.tv, t0: agora, dur: 0, et: d.et || 0 };
+    if (j.sig !== d.ts) { // novo trajeto: parte de onde o jogador está agora na nossa tela
+      const p = pracaPos(j, agora), du = d.tu - p.u, dv = d.tv - p.v, dist = Math.hypot(du, dv);
+      j.fu = p.u; j.fv = p.v; j.tu = d.tu; j.tv = d.tv; j.t0 = agora; j.dur = dist / PRACA_VEL * 1000; j.sig = d.ts;
+      if (Math.abs(du - dv) > 0.01) j.dir = du - dv > 0 ? 1 : -1;
+    }
+    j.n = typeof d.n === 'string' ? d.n : 'Jogador'; j.a = d.a ? avatarOk(d.a) : null;
+    if (d.et && d.et !== j.et) { j.et = d.et; if (agora - (j.vistoEm || 0) > 0 && typeof d.ek === 'string') j.emote = { k: d.ek, ate: agora + 3200 }; }
+    j.vistoEm = agora;
+  }
+}
+function pracaLog() {
+  const el = $('#pracaLog'); if (!el) return;
+  el.innerHTML = praca.chat.slice(-5).map(m => `<div><b>${esc(m.n || '?')}:</b> ${esc(m.t)}</div>`).join('');
+}
+function pracaEnviarChat(txt) {
+  txt = String(txt || '').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+  if (!txt || !praca.on || Date.now() - praca.ult < 900) return;
+  praca.ult = Date.now();
+  praca.rt.ref('praca/chat').push({ u: user.uid, n: meuApelido().slice(0, 24), t: txt, ts: firebase.database.ServerValue.TIMESTAMP }).catch(() => toast('Não consegui mandar a mensagem.', 'bad'));
+  $('#pracaTxt').value = '';
+}
+function pracaEmote(k) {
+  if (!praca.eu || Date.now() - praca.ult < 600) return; praca.ult = Date.now();
+  praca.eu.emote = { k, ate: performance.now() + 3200 }; sfx('click');
+  pracaEnviarMov({ ek: k, et: Date.now() });
+}
+// ---- Desenho (canvas próprio, em "isométrico" simples) ----
+const pracaIso = (u, v, G) => ({ x: G.cx + (u - v) * G.tw, y: G.cy + (u + v) * G.tw / 2 });
+function pracaGeo(c) { const N = PRACA_N, tw = Math.min(c.width / (2 * N), c.height / (N + 3)) * 0.96; return { tw, cx: c.width / 2, cy: (c.height - N * tw) / 2 + tw * 0.9 }; }
+function pracaFrame(now) {
+  if (!praca.aberta) return;
+  const c = $('#pracaCv'), dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(c.clientWidth * dpr), h = Math.round(c.clientHeight * dpr);
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  const g = c.getContext('2d'), saved = ctx; ctx = g;
+  try { pracaDesenha(g, c, now, dpr); } catch (e) { console.warn('praça desenho:', e); }
+  ctx = saved; $('#pracaInfo').textContent = praca.conectado ? `👥 ${Object.keys(praca.jog).length + (praca.eu ? 1 : 0)} na praça · ${praca.ping || '…'} ms` : 'conectando…';
+  requestAnimationFrame(pracaFrame);
+}
+function pracaDesenha(g, c, now, dpr) {
+  const G = pracaGeo(c), N = PRACA_N, hal = halloweenAtivo();
+  g.fillStyle = hal ? '#2a1d3d' : '#8fd0f0'; g.fillRect(0, 0, c.width, c.height);
+  const L0 = pracaIso(0, 0, G), L1 = pracaIso(N, 0, G), L2 = pracaIso(N, N, G), L3 = pracaIso(0, N, G);
+  g.fillStyle = hal ? '#4a6a3a' : '#7cc653'; g.beginPath(); g.moveTo(L0.x, L0.y); g.lineTo(L1.x, L1.y); g.lineTo(L2.x, L2.y); g.lineTo(L3.x, L3.y); g.closePath(); g.fill();
+  g.strokeStyle = hal ? '#2a3a22' : '#5aa03a'; g.lineWidth = 3 * dpr; g.stroke();
+  // caminhos de pedra em cruz
+  g.fillStyle = hal ? '#6a6478' : '#d8cdb0';
+  for (const [a, b, c2, d] of [[N / 2 - 0.7, 0, N / 2 + 0.7, N], [0, N / 2 - 0.7, N, N / 2 + 0.7]]) { const p = [pracaIso(a, b, G), pracaIso(c2, b, G), pracaIso(c2, d, G), pracaIso(a, d, G)]; g.beginPath(); g.moveTo(p[0].x, p[0].y); p.slice(1).forEach(q => g.lineTo(q.x, q.y)); g.closePath(); g.fill(); }
+  // fonte no centro
+  const f = pracaIso(N / 2, N / 2, G), r = G.tw * 0.9;
+  g.fillStyle = '#9a96a8'; g.beginPath(); g.ellipse(f.x, f.y, r, r / 2, 0, 0, 7); g.fill();
+  g.fillStyle = '#5fb8e8'; g.beginPath(); g.ellipse(f.x, f.y - 2 * dpr, r * 0.8, r * 0.4, 0, 0, 7); g.fill();
+  g.fillStyle = '#9a96a8'; g.fillRect(f.x - r * 0.12, f.y - r * 0.9, r * 0.24, r * 0.8);
+  g.strokeStyle = 'rgba(200,240,255,.8)'; g.lineWidth = 2 * dpr; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(f.x, f.y - r * 0.9); g.quadraticCurveTo(f.x + k * r * 0.5, f.y - r * 1.3, f.x + k * r * 0.8, f.y - r * 0.3 + Math.sin(now / 300 + k) * 2); g.stroke(); }
+  // postes de luz e abóboras / flores nos cantos
+  for (const [u, v] of [[1, 1], [N - 1, 1], [1, N - 1], [N - 1, N - 1], [N / 2, 0.8], [N / 2, N - 0.8]]) {
+    const q = pracaIso(u, v, G); g.fillStyle = '#3a3a44'; g.fillRect(q.x - 2 * dpr, q.y - G.tw * 1.5, 4 * dpr, G.tw * 1.5);
+    const gl = g.createRadialGradient(q.x, q.y - G.tw * 1.6, 1, q.x, q.y - G.tw * 1.6, G.tw * 1.1); gl.addColorStop(0, hal ? 'rgba(255,170,40,.8)' : 'rgba(255,240,160,.7)'); gl.addColorStop(1, 'rgba(255,200,80,0)');
+    g.fillStyle = gl; g.beginPath(); g.arc(q.x, q.y - G.tw * 1.6, G.tw * 1.1, 0, 7); g.fill();
+    g.font = `${Math.round(G.tw * 0.9)}px system-ui`; g.textAlign = 'center'; g.fillText(hal ? '🎃' : '🌼', q.x + G.tw * 0.45, q.y + G.tw * 0.15);
+  }
+  // jogadores, do fundo para a frente
+  const lista = [];
+  if (praca.eu) lista.push({ me: true, e: praca.eu, n: meuApelido(), a: state.avatar, uid: user.uid });
+  for (const [uid, j] of Object.entries(praca.jog)) lista.push({ me: false, e: j, n: j.n, a: j.a || state.avatar, uid });
+  for (const o of lista) { const p = pracaPos(o.e, now); o.p = p; o.s = p.u + p.v; }
+  lista.sort((a, b) => a.s - b.s);
+  const esc = clamp(G.tw / 22, 0.55, 1.5);
+  for (const o of lista) {
+    const e = o.e, p = o.p; 
+    if (o.me && e.dur && p.k >= 1) e.dur = 0;
+    const q = pracaIso(p.u, p.v, G), andando = p.k < 1 && !!e.dur;
+    g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, G.tw * 0.5, G.tw * 0.2, 0, 0, 7); g.fill();
+    drawAvatar(g, q.x, q.y, esc, o.a, now, andando, e.dir);
+    const top = q.y - 72 * esc;
+    g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff';
+    g.strokeText(o.n, q.x, top); g.fillText(o.n, q.x, top);
+    const fa = praca.falas[o.uid]; let yb = top - 8 * dpr;
+    if (e.emote && e.emote.ate > now) { g.font = `${Math.round(24 * dpr)}px system-ui`; g.fillText(e.emote.k, q.x, yb - Math.min(10, (e.emote.ate - now) / 300) * 0 - 2 * dpr); yb -= 26 * dpr; }
+    if (fa && fa.ate > now) {
+      g.font = `700 ${Math.round(11 * dpr)}px system-ui, sans-serif`; const tw = g.measureText(fa.t).width + 12 * dpr, bx = clamp(q.x - tw / 2, 4, c.width - tw - 4), by = yb - 18 * dpr;
+      g.fillStyle = '#fff'; g.beginPath(); g.roundRect(bx, by, tw, 18 * dpr, 8 * dpr); g.fill(); g.fillStyle = '#2f2a1f'; g.textAlign = 'left'; g.fillText(fa.t, bx + 6 * dpr, by + 13 * dpr); g.textAlign = 'center';
+    }
+  }
+}
+function pracaToque(ev) {
+  if (!praca.eu) return;
+  const c = $('#pracaCv'), r = c.getBoundingClientRect(), dpr = c.width / r.width, G = pracaGeo(c);
+  const x = (ev.clientX - r.left) * dpr, y = (ev.clientY - r.top) * dpr;
+  const a = (x - G.cx) / G.tw, b = (y - G.cy) / (G.tw / 2); // a = u - v ; b = u + v
+  const u = clamp((a + b) / 2, 0.4, PRACA_N - 0.4), v = clamp((b - a) / 2, 0.4, PRACA_N - 0.4);
+  const e = praca.eu, p = pracaPos(e, performance.now());
+  e.fu = p.u; e.fv = p.v; e.tu = u; e.tv = v; e.t0 = performance.now(); e.dur = Math.hypot(u - p.u, v - p.v) / PRACA_VEL * 1000;
+  if (Math.abs((u - p.u) - (v - p.v)) > 0.01) e.dir = (u - p.u) - (v - p.v) > 0 ? 1 : -1;
+  pracaEnviarMov();
+}
+$('#pracaCv')?.addEventListener('pointerdown', pracaToque);
+$('#pracaFechar')?.addEventListener('click', pracaSair);
+$('#pracaForm')?.addEventListener('submit', e => { e.preventDefault(); pracaEnviarChat($('#pracaTxt').value); });
+$('#pracaMetasBtn')?.addEventListener('click', () => { const m = $('#pracaMetas'); m.hidden = !m.hidden; if (!m.hidden) pracaDesenhaMetas(); });
+$('#praca')?.addEventListener('click', e => {
+  const em = e.target.closest('[data-praca-emote]'); if (em) return pracaEmote(em.dataset.pracaEmote);
+  const rs = e.target.closest('[data-praca-resg]'); if (rs) return pracaResgatar(rs.dataset.pracaResg);
+  if (e.target === $('#praca')) pracaSair();
+});
+$('#pingChip')?.addEventListener('click', pracaAbrir);
+function pracaEntrada() { try { pracaChip(); if (user && state && pracaSt().on && !praca.on) pracaLigar(); } catch (e) { console.warn(e); } }
+
+// ============================================================
 // Laço principal
 // ============================================================
 // 30 fps bastam pra um jogo de fazenda (nada precisa de 60+) e o canvas é a maior parte do
@@ -13923,7 +14153,7 @@ function start(data) {
   state = (data && data.state && migrate(data.state)) || load() || newState();
   state.tool = 'hand'; // o jogo sempre começa com a Mão
   applySettings();
-  rollPeriods(); presentePioneiro(); eventoEntrada(); halEntrada(); checarNovidades();
+  rollPeriods(); presentePioneiro(); eventoEntrada(); halEntrada(); checarNovidades(); setTimeout(pracaEntrada, 1500);
   resize(); setScene('roca'); renderHUD(); renderAccount(); renderPane(); paintMenuIcons(); afterUpdate(); renderTabs();
   ultimaChecagem = Date.now(); autoUpdate();
   // app instalável (celular, tablet e o app de Android): abre mesmo sem internet

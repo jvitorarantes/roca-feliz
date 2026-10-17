@@ -1,0 +1,48 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "praca": {
+      "ping": { ".read": "auth != null" },
+      "jogadores": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.hasChildren(['n', 'fu', 'fv', 'tu', 'tv'])",
+          "n": { ".validate": "newData.isString() && newData.val().length <= 24" },
+          "a": { "$k": { ".validate": "(newData.isString() && newData.val().length < 24) || newData.isNumber() || newData.isBoolean()" } },
+          "fu": { ".validate": "newData.isNumber()" },
+          "fv": { ".validate": "newData.isNumber()" },
+          "tu": { ".validate": "newData.isNumber()" },
+          "tv": { ".validate": "newData.isNumber()" },
+          "ts": { ".validate": "newData.isNumber()" },
+          "ek": { ".validate": "newData.isString() && newData.val().length <= 4" },
+          "et": { ".validate": "newData.isNumber()" },
+          "$outro": { ".validate": false }
+        }
+      },
+      "chat": {
+        ".read": "auth != null",
+        ".indexOn": ["ts"],
+        "$id": {
+          ".write": "auth != null && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && data.child('ts').val() < now - 86400000))",
+          ".validate": "newData.hasChildren(['u', 'n', 't', 'ts'])",
+          "u": { ".validate": "newData.val() === auth.uid" },
+          "n": { ".validate": "newData.isString() && newData.val().length <= 24" },
+          "t": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120" },
+          "ts": { ".validate": "newData.val() === now" },
+          "$outro": { ".validate": false }
+        }
+      },
+      "missao": {
+        ".read": "auth != null",
+        "$dia": {
+          "$ev": {
+            ".write": "auth != null",
+            ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100"
+          }
+        }
+      }
+    }
+  }
+}

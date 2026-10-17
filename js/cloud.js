@@ -28,6 +28,16 @@
     return true;
   }
 
+  // Realtime Database (Praça da Vila): carrega só quando alguém entra na praça.
+  let rt = null;
+  async function rtInit() {
+    if (rt) return rt;
+    if (!available || !cfg.databaseURL) throw new Error('sem databaseURL');
+    await loadScript(SDK + 'firebase-database-compat.js');
+    rt = firebase.database();
+    return rt;
+  }
+
   async function signIn() {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
@@ -193,7 +203,7 @@
   window.RFCloud = {
     salvarRanking, lerRanking, lerRankingGlobal, sessaoAtual,
     marcarPresenca, watchPresenca,
-    enviarMsg, watchChat, apagarMsg,
+    enviarMsg, watchChat, apagarMsg, rtInit,
     ativarPush, desativarPush, salvarPush, mandarAviso, saveFarmSeguro, salvarBackup, listarBackups, apagarBackup,
     available, init, signIn, signOut, loadFarm, saveFarm, claimSession, watchFarm, claimCode, findCode, normalizeCode,
     sendVisit, watchVisits, deleteVisit, sendRequest, deleteRequest, requestExists, watchRequests,

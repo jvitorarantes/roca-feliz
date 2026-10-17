@@ -5,6 +5,7 @@ window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyCOhGUDO0_XS3JGkV5cAwC9oQHq-D3Y-AM",
   authDomain: "roca-feliz.firebaseapp.com",
   projectId: "roca-feliz",
+  databaseURL: "https://roca-feliz-default-rtdb.firebaseio.com", // Realtime Database (Praça da Vila)
   storageBucket: "roca-feliz.firebasestorage.app",
   messagingSenderId: "625452180491",
   appId: "1:625452180491:web:b949a5491b77ee89f0930e"
