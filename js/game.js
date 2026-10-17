@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 303, txt: "Vila estilo Habbo: toque numa cadeira e seu avatar anda até ela e senta (andar de novo levanta; se estiver ocupada, avisa). Tem mais cadeiras pela praça, e dá para tocar na fonte para jogar uma moeda e fazer um pedido. O toque agora escolhe o objeto mais perto do dedo." },
   { v: 302, txt: "Vila: o botão de ação (entrar no mercado, atacar, pescar…) não pisca mais e some quando o painel abre. No Mercado, em Vender, agora você vê os ícones dos seus produtos: toque num deles, escolha a quantidade e o preço (Mínimo / Justo / Máximo)." },
   { v: 301, txt: "Vila: agora dá para arrastar o mapa, dar zoom (pinça, roda do mouse ou botões ➕ ➖) e voltar para o seu avatar no 🎯. Andar ficou um pouco mais devagar, e o ícone/ping do topo da tela saiu (o ping fica só dentro da Vila)." },
   { v: 300, txt: "📣 Convidar amigos para a Vila! Na Vila, toque em Convidar amigos: quem estiver online vê um balão com Ir / Não / Silenciar 5 min, e quem estiver offline recebe uma notificação." },
@@ -14316,7 +14317,7 @@ const VILA_ZONAS = {
   bairro:   { nome: 'Bairro',   ic: '🏠', u: 33, v: 42 },
   campo:    { nome: 'Campo',    ic: '⚔️', u: 32, v: 33 },
 };
-const VILA_BANCOS = [[27, 21], [37, 21], [27, 29.5], [37, 29.5], [44.5, 15.5]];
+const VILA_BANCOS = [[27, 21, 1], [37, 21, -1], [27, 29.5, 1], [37, 29.5, -1], [44.5, 15.5, 1], [28.5, 25, 1], [35.5, 25, -1], [29.5, 17.5, 1], [34.5, 17.5, -1], [29.5, 32.5, 1], [34.5, 32.5, -1], [24, 23, 1], [40, 27, -1]];
 const VILA_POSTES = [[28, 20], [36, 20], [28, 30], [36, 30], [32, 13], [32, 40], [20, 25], [44, 25], [43, 14], [26, 44], [40, 44]];
 const VILA_NPCS = [
   { e: '🐕', cu: 32, cv: 25, r: 5.5, per: 16, ph: 0,   fala: ['Au au!', 'Au! (quer brincar)', '🐾'] },
@@ -14403,6 +14404,22 @@ function vilaAlcance(p, u, v) { // anda em linha reta até o último ponto livre
   for (let k = 1; k <= n; k++) { const x = p.u + (u - p.u) * k / n, y = p.v + (v - p.v) * k / n; if (vilaAgua(x, y)) break; ok = { u: x, v: y }; }
   return ok;
 }
+// Sentar nos bancos (como no Habbo): anda até a cadeira e senta; andar de novo levanta
+function vilaSentar(i) {
+  const b = VILA_BANCOS[i]; if (!b || !praca.eu) return;
+  if (Object.values(praca.jog).some(j => j.ia === 'sentar' && Math.hypot(j.tu - b[0], j.tv - b[1]) < 0.6)) return toast('Essa cadeira já está ocupada! 🪑');
+  praca.alvoAcao = null; praca.seguir = true; praca.eu.ia = 'sentar';
+  pracaIrPara(b[0], b[1], { ia: 'sentar', ic: null, iz: firebase.database.ServerValue.TIMESTAMP, ek: '😌', et: Date.now() });
+  praca.eu.ia = 'sentar'; praca.eu.emote = { k: '😌', ate: performance.now() + 3000 };
+}
+function vilaDesejo() {
+  if (Date.now() - (praca.ultDesejo || 0) < 1500) return; praca.ultDesejo = Date.now();
+  if (state.coins < 1) return toast('Você precisa de 1 moeda para fazer um pedido na fonte.');
+  const p = pracaPos(praca.eu, performance.now()); if (Math.hypot(p.u - 32, p.v - 25) > 5) { toast('Chegue mais perto da fonte!'); return pracaIrPara(32, 28.5); }
+  state.coins -= 1; sfx('water'); praca.flutua.push({ txt: '🪙 -1', u: 32, v: 25, t: performance.now() });
+  if (Math.random() < 0.08) { state.coins += 25; praca.flutua.push({ txt: '✨ +25', u: 32, v: 24, t: performance.now() + 300 }); toast('✨ Seu desejo na fonte foi atendido! +25 moedas', 'good'); sfx('level'); } else toast('🪙 Você jogou uma moeda e fez um pedido…');
+  done();
+}
 function vilaIrZona(id) { const z = VILA_ZONAS[id]; if (z) { pracaPainelAbrir(null); pracaIrPara(z.u, z.v); } }
 function pracaHud(now) {
   const el = $('#pracaHud'); if (!el) return;
@@ -14474,9 +14491,11 @@ function pracaDesenha(g, c, now, dpr) {
   g.textAlign = 'center'; g.font = `800 ${Math.round(12 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.6)'; g.fillStyle = 'rgba(255,255,255,.85)';
   for (const [id, z] of Object.entries(VILA_ZONAS)) { if (id === 'plaza') continue; const q = I(z.u, z.v); if (q.x > -80 && q.x < W + 80 && q.y > -40 && q.y < H + 40) { g.strokeText(`${z.ic} ${z.nome}`, q.x, q.y); g.fillText(`${z.ic} ${z.nome}`, q.x, q.y); } }
   // lista de coisas para desenhar, de trás para frente
+  const lista0 = []; if (praca.eu) lista0.push({ e: praca.eu, p: pracaPos(praca.eu, now) }); for (const j of Object.values(praca.jog)) lista0.push({ e: j, p: pracaPos(j, now) });
   const D = [], vis = q => q.x > -90 && q.x < W + 90 && q.y > -120 && q.y < H + 60, push = (s, fn) => D.push({ s, fn });
   if (!vilaDecor) vilaDecor = vilaGeraDecor();
   for (const d of vilaDecor) { const q = I(d.u, d.v); if (vis(q)) push(d.u + d.v, () => { g.font = `${Math.round(tw * d.s)}px system-ui`; g.textAlign = 'center'; g.fillText(d.e, q.x, q.y); }); }
+  praca.hits.push({ id: 'fonte', x: I(32, 25).x, y: I(32, 25).y - tw * 0.6, r: tw * 2 });
   { const q = I(32, 25); push(50, () => { const r = tw * 1.7; g.fillStyle = '#9a96a8'; g.beginPath(); g.ellipse(q.x, q.y, r, r / 2, 0, 0, 7); g.fill(); g.fillStyle = '#5fb8e8'; g.beginPath(); g.ellipse(q.x, q.y - 3 * dpr, r * 0.8, r * 0.4, 0, 0, 7); g.fill(); g.fillStyle = '#9a96a8'; g.fillRect(q.x - r * 0.12, q.y - r * 1.1, r * 0.24, r); g.strokeStyle = 'rgba(200,240,255,.85)'; g.lineWidth = 2 * dpr; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(q.x, q.y - r * 1.1); g.quadraticCurveTo(q.x + k * r * 0.5, q.y - r * 1.6, q.x + k * r * 0.8, q.y - r * 0.3 + Math.sin(now / 300 + k) * 2); g.stroke(); } }); }
   for (const [id, l] of Object.entries(VILA_LOCAIS)) {
     const q = I(l.u, l.v); if (!vis(q)) continue;
@@ -14488,7 +14507,9 @@ function pracaDesenha(g, c, now, dpr) {
     praca.hits.push({ id, x: q.x, y: q.y - tw, r: tw * 2.2 });
   }
   VILA_POSTES.forEach(([u, v]) => { const q = I(u, v); if (!vis(q)) return; push(u + v, () => { g.fillStyle = '#3a3a44'; g.fillRect(q.x - 2 * dpr, q.y - tw * 2.4, 4 * dpr, tw * 2.4); const a = 0.25 + noite * 0.6, gl = g.createRadialGradient(q.x, q.y - tw * 2.5, 1, q.x, q.y - tw * 2.5, tw * 2.2); gl.addColorStop(0, `rgba(255,${hal ? 170 : 230},${hal ? 40 : 130},${a})`); gl.addColorStop(1, 'rgba(255,200,80,0)'); g.fillStyle = gl; g.beginPath(); g.arc(q.x, q.y - tw * 2.5, tw * 2.2, 0, 7); g.fill(); }); });
-  VILA_BANCOS.forEach(([u, v], i) => { const q = I(u, v); if (!vis(q)) return; push(u + v, () => { g.font = `${Math.round(tw * 1.1)}px system-ui`; g.textAlign = 'center'; g.fillText('🪑', q.x, q.y); }); praca.hits.push({ id: 'banco:' + i, x: q.x, y: q.y - tw * 0.4, r: tw * 1.1 }); });
+  VILA_BANCOS.forEach(([u, v], i) => { const q = I(u, v); if (!vis(q)) return; const ocupado = lista0.some(o => o.e.ia === 'sentar' && Math.hypot(o.p.u - u, o.p.v - v) < 0.6);
+    if (!ocupado) push(u + v - 0.002, () => { g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 0.6, tw * 0.22, 0, 0, 7); g.fill(); g.font = `${Math.round(tw * 1.7)}px system-ui`; g.textAlign = 'center'; g.fillText('🪑', q.x, q.y + tw * 0.15); });
+    praca.hits.push({ id: 'banco:' + i, x: q.x, y: q.y - tw * 0.6, r: tw * 1.5 }); });
   { const q = I(13, 35.5); if (vis(q)) push(35.5 + 13, () => { g.font = `${Math.round(tw * 3)}px system-ui`; g.textAlign = 'center'; g.fillText('⛰️', q.x, q.y); g.fillStyle = '#1a1208'; g.beginPath(); g.ellipse(q.x, q.y - tw * 0.5, tw * 0.5, tw * 0.6, 0, Math.PI, 0); g.fill(); }); }
   if (vilaFesta()) { const q = I(32, 29); if (vis(q)) push(61, () => { g.font = `${Math.round(tw * 1.6 * (1 + Math.sin(now / 90) * 0.06))}px system-ui`; g.textAlign = 'center'; g.fillText('🔥', q.x, q.y); for (let k = 0; k < 4; k++) { const ph = ((now / 900) + k / 4) % 1; g.fillStyle = `hsla(${(k * 80 + now / 8) % 360},90%,60%,${1 - ph})`; g.beginPath(); g.arc(q.x + Math.sin(k * 2 + now / 300) * tw * 1.4, q.y - tw * 2 - ph * tw * 3, 3 * dpr, 0, 7); g.fill(); } }); }
   // casinhas
@@ -14510,7 +14531,7 @@ function pracaDesenha(g, c, now, dpr) {
   const lista = [];
   if (praca.eu) lista.push({ me: true, e: praca.eu, n: meuApelido(), a: state.avatar, uid: user.uid });
   for (const [uid, j] of Object.entries(praca.jog)) lista.push({ me: false, e: j, n: j.n, a: j.a || state.avatar, uid });
-  for (const o of lista) { o.p = pracaPos(o.e, now); }
+  for (const o of lista) { o.p = pracaPos(o.e, now); o.sentado = o.e.ia === 'sentar' && o.p.k >= 1; }
   const porUid = Object.fromEntries(lista.map(o => [o.uid, o])), duplas = [], es = clamp(tw / 24, 0.55, 1.25);
   for (const o of lista) {
     const e = o.e, par = e.ia && porUid[e.ic]; if (vilaDanca(o.p.u, o.p.v)) o.hop = true;
@@ -14525,7 +14546,8 @@ function pracaDesenha(g, c, now, dpr) {
     push(p.u + p.v + 0.001, () => {
       const andando = p.k < 1 && !!e.dur, hop = o.hop ? Math.abs(Math.sin(now / 150)) * 7 * es : 0;
       g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 0.5, tw * 0.2, 0, 0, 7); g.fill();
-      drawAvatar(g, q.x, q.y - hop, es, o.a, now, andando, e.dir);
+      if (o.sentado) { const dirS = (VILA_BANCOS.find(b2 => Math.hypot(b2[0] - p.u, b2[1] - p.v) < 0.6) || [0, 0, e.dir])[2]; g.save(); g.beginPath(); g.rect(q.x - 70 * es, q.y - 140 * es, 140 * es, 140 * es - 17 * es); g.clip(); drawAvatar(g, q.x, q.y + 1 * es, es, o.a, now, false, dirS); g.restore(); g.font = `${Math.round(tw * 1.7)}px system-ui`; g.textAlign = 'center'; g.fillText('🪑', q.x, q.y + tw * 0.15); }
+      else drawAvatar(g, q.x, q.y - hop, es, o.a, now, andando, e.dir);
       const top = q.y - 72 * es;
       g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff'; g.strokeText(o.n, q.x, top); g.fillText(o.n, q.x, top);
       const fa = praca.falas[o.uid]; let yb = top - 8 * dpr;
@@ -14565,14 +14587,15 @@ function pracaToque(ev) {
   if (!praca.eu) return;
   const c = $('#pracaCv'), r = c.getBoundingClientRect(), dpr = c.width / r.width, G = pracaGeo(c, dpr);
   const x = (ev.clientX - r.left) * dpr, y = (ev.clientY - r.top) * dpr, now = performance.now();
-  const h = [...praca.hits].reverse().find(k => Math.hypot(k.x - x, k.y - y) < k.r), p = pracaPos(praca.eu, now);
+  const h = praca.hits.map(k => ({ k, d: Math.hypot(k.x - x, k.y - y) / k.r })).filter(z => z.d < 1).sort((a, b) => a.d - b.d).map(z => z.k)[0], p = pracaPos(praca.eu, now);
   if (h) {
     const id = h.id;
     if (id === 'boss') { const b = pracaBossPos(); if (Math.hypot(p.u - b.u, p.v - b.v) > 6) { toast('Chegue mais perto do chefe para atacar!'); return pracaIrPara(b.u - 2, b.v + 2); } return pracaBater(); }
     if (id === 'mural' || id === 'mercado') { const l = VILA_LOCAIS[id]; if (Math.hypot(p.u - l.u, p.v - l.v) < 4) return pracaPainelAbrir(id); praca.alvoAcao = id; return pracaIrPara(l.u, l.v + 1.8); }
     if (id.startsWith('item:')) { const it = praca.spawns.find(z => z.i === Number(id.slice(5))); if (!it) return; if (Math.hypot(p.u - it.u, p.v - it.v) < 2.6) return vilaPegar(it); return pracaIrPara(it.u, it.v + 1.2); }
     if (id.startsWith('npc:')) { const i = Number(id.slice(4)), n = VILA_NPCS[i]; praca.npcFala[i] = { t: n.fala[Math.floor(Math.random() * n.fala.length)], ate: now + 3000 }; sfx('click'); return; }
-    if (id.startsWith('banco:')) { const [u, v] = VILA_BANCOS[Number(id.slice(6))]; pracaIrPara(u, v + 0.8, { ek: '😌', et: Date.now() }); praca.eu.emote = { k: '😌', ate: now + 4000 }; return; }
+    if (id.startsWith('banco:')) return vilaSentar(Number(id.slice(6)));
+    if (id === 'fonte') return vilaDesejo();
     return pracaPainelAbrir(id);
   }
   const a = (x - G.cx) / G.tw, b = (y - G.cy) / (G.tw / 2);
@@ -14581,6 +14604,7 @@ function pracaToque(ev) {
 }
 function pracaIrPara(u, v, extra) {
   const e = praca.eu, p = pracaPos(e, performance.now());
+  if (e.ia === 'sentar' && !(extra && extra.ia)) { e.ia = null; extra = Object.assign({ ia: null, ic: null, iz: null }, extra); } // levantou
   ({ u, v } = vilaAlcance(p, clamp(u, 0.5, PRACA_W - 0.5), clamp(v, 0.5, PRACA_H - 0.5)));
   e.fu = p.u; e.fv = p.v; e.tu = u; e.tv = v; e.t0 = performance.now(); e.dur = Math.hypot(u - p.u, v - p.v) / PRACA_VEL * 1000;
   if (Math.abs((u - p.u) - (v - p.v)) > 0.01) e.dir = (u - p.u) - (v - p.v) > 0 ? 1 : -1;
