@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="299">
+<meta name="rf-version" content="300">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -555,6 +555,8 @@
   .convitebalao { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 99999; background: #fffbe8; color: #2f2a1f; border: 4px solid var(--wood); border-radius: 18px; padding: 10px 14px; box-shadow: 0 6px 0 rgba(0,0,0,.25); font-weight: 700; display: grid; gap: 8px; max-width: min(92vw, 360px); text-align: center; }
   .convitebalao .btn.ghost { color: #5a3a14; border: 2px solid var(--wood); background: #fff; }
   .convitebalao .cbbtns { display: flex; gap: 8px; justify-content: center; }
+  .vilabalao { top: 10px; z-index: 100001; width: min(92vw, 340px); }
+  .convitebalao .btn { white-space: nowrap; }
   .interbalao { top: 64px; z-index: 100000; }
   .vp-inter { display: flex; flex-wrap: wrap; gap: 6px; } .vp-inter .btn { flex: 1 1 45%; }
   .vp-priv { display: flex; gap: 6px; } .vp-priv input { flex: 1; min-width: 0; }
@@ -1176,8 +1178,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=299"></script>
+<script src="js/audio.js?v=300"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=299"></script>
+<script src="js/game.js?v=300"></script>
 </body>
 </html>
