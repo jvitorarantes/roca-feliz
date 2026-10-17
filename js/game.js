@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 308, txt: "Vila: os botões Sair e Editar do quarto não ficam mais na tela depois que você volta para a Vila." },
   { v: 307, txt: "Vila: as mensagens antigas do chat não voltam mais ao abrir o jogo (só aparecem as dos últimos 30 segundos), e o botão de ação (abrir baú etc.) some na hora. 🎉 Salas de festa na Vila! Três prédios novos: Discoteca 🪩 (a pista acende e quem pisa nela dança sozinho, com a música Pista de Dança), Cinema 🎬 (poltronas para sentar e uma tela que passa filmes para todo mundo ao mesmo tempo) e Piscina 🏊 (entre na água!). Entram quantos jogadores quiserem, em tempo real." },
   { v: 306, txt: "🛏️ Quarto próprio estilo Habbo! Na Vila, toque em Meu quarto: monte o seu com móveis (cadeiras, sofá, cama, piano, TV, lareira, plantas, tapetes…), escolha parede e piso, e decida quem pode visitar. Amigos entram em tempo real, andam por entre os móveis e podem sentar e deitar. Você começa com alguns móveis grátis e compra mais com moedas." },
   { v: 305, txt: "Vila: corrigi o zoom. A pinça de dois dedos agora funciona direito e os avatares crescem e diminuem junto com o mapa (antes ficavam sempre do mesmo tamanho)." },
@@ -14502,6 +14503,7 @@ function pracaFrame(now) {
   try {
     if (praca.sala) { if (praca.eu && praca.eu.dur && pracaPos(praca.eu, now).k >= 1) praca.eu.dur = 0; const bb = $('#pracaAcao'); if (bb && !bb.hidden) bb.hidden = true; quartoBarra(); quartoDesenha(g, c, now, dpr); }
     else {
+    const qb = $('#quartoBar'); if (qb && !qb.hidden) qb.hidden = true; // fora do quarto/festa: some a barra Sair/Editar
     if (praca.eu) { const p = pracaPos(praca.eu, now); if (!praca.cam) praca.cam = { u: p.u, v: p.v }; if (praca.seguir !== false) { praca.cam.u += (p.u - praca.cam.u) * 0.14; praca.cam.v += (p.v - praca.cam.v) * 0.14; } vilaLogica(now, p); }
     pracaDesenha(g, c, now, dpr);
     }
@@ -14766,7 +14768,7 @@ function pracaIrSala(sid, dono, tipo) {
     else if (!tipo) { const v = quartoSt(); if (!praca.intro) { praca.intro = 1; toast('🏠 Este é o seu quarto! Toque em 🛠️ Editar para colocar móveis.', 'good'); } quartoPublicar(); }
     const sp = tipo ? FESTAS[tipo].spawn : [4.5, 8.5]; pracaPresenca(sp[0] + Math.random() * 0.8, sp[1] + Math.random() * 0.4);
   } else { praca.cam = null; praca.seguir = true; const vv = praca.volta || { u: 33, v: 41 }; praca.volta = null; pracaPresenca(vv.u + Math.random(), vv.v + Math.random()); }
-  pracaNav(); pracaHud();
+  pracaNav(); pracaHud(); quartoBarra();
 }
 function quartoMoveisHtml() {
   const v = quartoSt(), S = praca.sala; if (!S || S.dono !== user.uid) return '';
