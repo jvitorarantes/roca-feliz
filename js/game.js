@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 313, txt: "Voz: em 🎙️ Voz agora aparece o estado da permissão do microfone (permitida, bloqueada ou não pedida), o botão Pedir permissão agora e, se estiver bloqueada, o passo a passo para liberar nas configurações do celular (o navegador não deixa o jogo abrir as configurações sozinho)." },
   { v: 312, txt: "🎙️ Voz na Vila (fala só com os 6 mais perto, escolhidos por distância; sem custo)! Toque no ícone de microfone (🎤 → 🎙️) ao lado do zoom para ligar e desligar. Quem está perto ouve você, e a voz vai ficando mais baixa conforme a distância no mapa (e some no alcance). Aparece 🔊 ao lado do nome de quem está falando. Em 🎙️ Voz você escolhe ouvir ou não, voz só com amigos, e silencia pessoas (também no perfil). Funciona nos quartos e nas festas." },
   { v: 311, txt: "Vila: dá para pescar em qualquer beira do lago (não só no cais). Tocar na água da piscina agora faz o avatar andar até lá (antes só mostrava o nome). O avatar agora tem pose de sentado de verdade, em cima da cadeira, e nenhuma cadeira fica dentro da água." },
   { v: 310, txt: "🏘️ Vila: 5 novidades! (1) ✉️ Cartas: deixe cartas e presentes na caixa de correio 📮 de um amigo, mesmo offline. (2) ♟️ Damas entre dois jogadores nas mesas dos quartos e das festas. (3) 🐾 Escolha um bichinho seu para te acompanhar pela Vila. (4) 🏅 Títulos e selos por desafios, que aparecem no seu nome e perfil. (5) 📍 Lista de quem está onde, com botão para ir até lá. Você ganhou uma caixa de correio e uma mesa de damas grátis no inventário do quarto." },
@@ -14172,7 +14173,7 @@ function pracaPainel() {
   if (id === 'mural') box.innerHTML = topo('📋 Mural da Vila') + pracaHtmlMural();
   else if (id === 'mercado') box.innerHTML = topo('🏪 Mercado dos jogadores') + pracaHtmlMercado();
   else if (id === 'casa') box.innerHTML = topo('🏠 Minha casinha') + pracaHtmlCasa();
-  else if (id === 'voz') box.innerHTML = topo('🎙️ Voz da Vila') + pracaHtmlVoz();
+  else if (id === 'voz') { box.innerHTML = topo('🎙️ Voz da Vila') + pracaHtmlVoz(); if (!praca._pv) { praca._pv = 1; vozAtualizaPerm().finally(() => { praca._pv = 0; }); } }
   else if (id === 'onde') box.innerHTML = topo('📍 Quem está onde') + pracaHtmlOnde();
   else if (id === 'conq') box.innerHTML = topo('🏅 Títulos e selos') + pracaHtmlConq();
   else if (id === 'pet') box.innerHTML = topo('🐾 Meu pet') + pracaHtmlPet();
@@ -15190,7 +15191,7 @@ async function vozLigarMic() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.RTCPeerConnection) return toast('Este aparelho não permite voz no navegador.', 'bad');
   if (!voz.aviso) { voz.aviso = true; try { localStorage.setItem('rf-voz-aviso', '1'); } catch (e) { /* ok */ } toast('🎙️ A voz é ao vivo: jogadores perto de você vão te ouvir. Toque no 🎙️ de novo para silenciar. Dá para silenciar alguém no perfil.', 'good'); }
   try { voz.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
-  catch (e) { return toast('Não consegui usar o microfone. Libere a permissão do microfone no navegador/app.', 'bad'); }
+  catch (e) { toast('Não consegui usar o microfone. Veja como liberar a permissão.', 'bad'); vozAtualizaPerm().then(() => pracaPainelAbrir('voz')); return; }
   voz.mic = true; vozAudio(); voz.stopNivelL = vozNivel(voz.stream, user.uid); vozPublicar(); vozMicUI(); sfx('click');
 }
 function vozDesligarMic() {
@@ -15207,7 +15208,36 @@ function vozTrocouSala() { // mudou de lugar: derruba conexões, escuta os falan
 }
 function vozSair() { vozDesligarMic(); vozFecharTodos(); vozDespublicar(); voz.falantes = {}; }
 function vozMicUI() { const b = $('#pracaMic'); if (!b) return; b.classList.toggle('on', voz.mic); b.textContent = voz.mic ? '🎙️' : '🎤'; b.title = voz.mic ? 'Microfone ligado (toque para desligar)' : 'Microfone desligado (toque para ligar)'; b.setAttribute('aria-pressed', String(voz.mic)); }
+// Permissão do microfone: o navegador não deixa um site abrir as configurações do celular, então o jogo mostra o estado e o passo a passo
+async function vozAtualizaPerm() {
+  let est = 'indisponivel';
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) est = 'indisponivel';
+  else if (navigator.permissions && navigator.permissions.query) { try { const st = await navigator.permissions.query({ name: 'microphone' }); est = st.state; st.onchange = () => { voz.perm = st.state; if (praca.painel === 'voz') pracaPainel(); }; } catch (e) { est = 'prompt'; } }
+  else est = 'prompt';
+  if (voz.perm !== est) { voz.perm = est; if (praca.painel === 'voz') pracaPainel(); }
+  return est;
+}
+async function vozPedirPerm() { // pede a permissão (abre a caixinha do sistema) e já solta o microfone
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return toast('Este aparelho não permite voz no navegador.', 'bad');
+  try { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); st.getTracks().forEach(t => t.stop()); toast('✅ Microfone liberado! Agora toque no 🎤 para ligar.', 'good'); }
+  catch (e) { toast('Permissão negada. Veja o passo a passo abaixo.', 'bad'); }
+  vozAtualizaPerm();
+}
+function vozAjudaPerm() {
+  const ua = navigator.userAgent || '', android = /Android/i.test(ua), ios = /iPhone|iPad|iPod/i.test(ua), pwa = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+  const passos = android ? (pwa ? ['Abra as <b>Configurações do Android</b>.', 'Vá em <b>Apps</b> › <b>Roça Feliz</b> (ou <b>Chrome</b>).', 'Toque em <b>Permissões</b> › <b>Microfone</b> › <b>Permitir</b>.', 'Volte ao jogo e toque em <b>Pedir permissão agora</b>.'] : ['Toque nos <b>3 pontinhos ⋮</b> do Chrome › <b>Informações</b> (ou no ícone ⓘ ao lado do endereço).', 'Toque em <b>Permissões</b> › <b>Microfone</b> › <b>Permitir</b>.', 'Se ainda não aparecer, abra <b>Configurações do Android › Apps › Chrome › Permissões › Microfone</b> e escolha <b>Permitir</b>.', 'Volte ao jogo e toque em <b>Pedir permissão agora</b>.'])
+    : ios ? ['Abra <b>Ajustes</b> › <b>Safari</b> › <b>Microfone</b> e escolha <b>Perguntar</b> ou <b>Permitir</b>.', 'Ou toque em <b>aA</b> na barra do endereço › <b>Ajustes do site</b> › <b>Microfone</b> › <b>Permitir</b>.', 'Volte ao jogo e toque em <b>Pedir permissão agora</b>.']
+    : ['Clique no <b>cadeado</b> ao lado do endereço › <b>Configurações do site</b> › <b>Microfone</b> › <b>Permitir</b>.', 'Recarregue a página e toque em <b>Pedir permissão agora</b>.'];
+  return `<ol class="vp-passos">${passos.map(x => `<li>${x}</li>`).join('')}</ol>`;
+}
 function pracaHtmlVoz() {
+  const pm = voz.perm || 'prompt', ok = pm === 'granted', bloq = pm === 'denied', indis = pm === 'indisponivel';
+  const permHtml = `<div class="vp-card"><b>🔐 Permissão do microfone</b><div>${indis ? '❌ Este aparelho/navegador não permite voz.' : ok ? '✅ Permitida' : bloq ? '🚫 Bloqueada neste aparelho' : '⏳ Ainda não pedida'}</div>
+    ${ok || indis ? '' : `<button class="btn gold" type="button" data-vila-permpedir>🎤 Pedir permissão agora</button>`}
+    ${bloq ? `<small>O navegador não deixa o jogo abrir as configurações do celular. Faça assim:</small>${vozAjudaPerm()}` : ''}</div>`;
+  return pracaHtmlVoz0() + permHtml;
+}
+function pracaHtmlVoz0() {
   const perto = Object.keys(voz.falantes).filter(u => u !== user.uid).map(u => ({ u, n: (praca.jog[u] && praca.jog[u].n) || (praca.onde[u] && praca.onde[u].n) || 'Jogador', d: vozDist(u) }));
   return `<div class="vp-card"><b>🎙️ Voz da Vila</b><small>A voz fica mais baixa conforme a distância no mapa. Quem está longe você não ouve.</small>
     <div class="vp-inter"><button type="button" class="btn ${voz.mic ? 'gold' : ''}" data-vila-micl>${voz.mic ? '🎙️ Microfone ligado' : '🎤 Ligar microfone'}</button>
@@ -15337,6 +15367,7 @@ $('#praca')?.addEventListener('click', e => {
   if ((b = q('[data-vila-qparede]'))) { quartoSt().q.p = Number(b.dataset.vilaQparede); done(); quartoPublicar(); return pracaPainel(); }
   if ((b = q('[data-vila-qpiso]'))) { quartoSt().q.c = Number(b.dataset.vilaQpiso); done(); quartoPublicar(); return pracaPainel(); }
   if ((b = q('[data-vila-qacesso]'))) { quartoSt().q.a = b.dataset.vilaQacesso; done(); quartoPublicar(); return pracaPainel(); }
+  if (q('[data-vila-permpedir]')) return vozPedirPerm();
   if (q('#pracaMic') || q('[data-vila-micl]')) { if (voz.mic) { vozDesligarMic(); if (praca.painel === 'voz') pracaPainel(); } else vozLigarMic().then(() => { if (praca.painel === 'voz') pracaPainel(); }); return; }
   if (q('[data-vila-ouvir]')) { voz.ouvir = !voz.ouvir; try { localStorage.setItem('rf-voz-ouvir', voz.ouvir ? '1' : '0'); } catch (e) { /* ok */ } if (!voz.ouvir) vozFecharTodos('rx'); return pracaPainel(); }
   if (q('[data-vila-vamigos]')) { voz.soAmigos = !voz.soAmigos; try { localStorage.setItem('rf-voz-amigos', voz.soAmigos ? '1' : '0'); } catch (e) { /* ok */ } vozFecharTodos(); return pracaPainel(); }
