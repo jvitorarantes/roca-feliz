@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="294">
+<meta name="rf-version" content="295">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -526,18 +526,28 @@
   .modal-head .status { margin-right: auto; margin-left: 10px; color: #f4e1c6; }
   .modal-head .status.on { color: #b9f0a0; }
   .avisoitens { background: var(--card); border-radius: 12px; padding: 6px 10px; font-size: 13px; font-weight: 700; color: #2f2a1f; }
-  .pracacard { width: min(100%, 560px); }
+  #praca { padding: 0; align-items: stretch; }
+  .pracacard { width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--panel); color: var(--ink); }
   .pracainfo { margin: 0 auto 0 10px; font-size: 12px; font-weight: 800; color: #f4e1c6; }
-  .pracawrap { position: relative; background: #2a1d3d; }
-  #pracaCv { display: block; width: 100%; height: min(380px, 52vh); touch-action: none; cursor: pointer; }
-  .pracalog { position: absolute; left: 6px; bottom: 6px; right: 6px; font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000; pointer-events: none; display: grid; gap: 1px; }
+  .pracawrap { position: relative; flex: 1; min-height: 0; background: #2a1d3d; }
+  #pracaCv { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+  .pracalog { position: absolute; left: 6px; top: 6px; right: 60%; font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000; pointer-events: none; display: grid; gap: 1px; }
+  .pracapainel { position: absolute; left: 0; right: 0; bottom: 0; max-height: 62%; overflow-y: auto; background: var(--panel); border-top: 4px solid var(--wood); border-radius: 16px 16px 0 0; padding: 8px 10px 12px; display: grid; gap: 8px; }
+  .vp-head { display: flex; justify-content: space-between; align-items: center; font-size: 16px; }
+  .vp-card { background: var(--card); border-radius: 12px; padding: 8px 10px; display: grid; gap: 6px; font-size: 13px; font-weight: 700; }
+  .vp-card.row { grid-template-columns: 40px 1fr auto; align-items: center; } .vp-card.row img { width: 40px; height: 40px; }
+  .vp-card label { display: grid; gap: 2px; } .vp-card input, .vp-card select { padding: 6px 8px; border-radius: 10px; border: 2px solid var(--wood); font: inherit; }
+  .vp-corda { display: flex; height: 14px; border-radius: 8px; overflow: hidden; background: rgba(0,0,0,.15); } .vp-corda i { display: block; height: 100%; }
+  .vp-times { display: flex; gap: 8px; } .vp-times .btn { flex: 1; }
+  .vila-puxa { font-size: 22px; padding: 14px; }
+  .vp-decor { display: flex; flex-wrap: wrap; gap: 6px; } .vp-decor button { font-size: 22px; padding: 4px 8px; border-radius: 12px; border: 2px solid var(--wood); background: #fff; } .vp-decor button[aria-pressed="true"] { background: #b9f0a0; }
+  .pracanav { display: flex; gap: 6px; padding: 6px 8px 0; overflow-x: auto; } .pracanav button { flex: none; padding: 6px 10px; border-radius: 12px; border: 2px solid var(--wood); background: var(--card); font: 800 13px system-ui; cursor: pointer; }
   .pracaemotes { display: flex; gap: 6px; padding: 6px 8px 0; justify-content: center; flex-wrap: wrap; }
   .pracaemotes button { font-size: 20px; padding: 2px 8px; border-radius: 12px; border: 2px solid var(--wood); background: var(--card); cursor: pointer; }
   .pracaform { display: flex; gap: 6px; padding: 8px; }
   .pracaform input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 12px; border: 2px solid var(--wood); font: inherit; }
-  .pracametas { padding: 0 10px 10px; display: grid; gap: 8px; }
-  .pracameta { background: var(--card); border-radius: 12px; padding: 8px 10px; display: grid; gap: 4px; font-weight: 700; font-size: 13px; }
-  .pracameta .barra { height: 10px; border-radius: 6px; background: rgba(0,0,0,.15); overflow: hidden; } .pracameta .barra i { display: block; height: 100%; background: #4fc03a; }
+  .pracameta { display: grid; gap: 4px; }
+  .barra { height: 10px; border-radius: 6px; background: rgba(0,0,0,.15); overflow: hidden; } .barra i { display: block; height: 100%; background: #4fc03a; }
   .pingchip { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); z-index: 30; background: rgba(30,22,10,.72); color: #fff; font: 800 12px system-ui, sans-serif; padding: 3px 10px; border-radius: 12px; cursor: pointer; white-space: nowrap; }
   .pescacard { width: min(100%, 480px); }
   .pescacv { display: block; width: 100%; height: min(300px, 42vh); background: #6cb6e8; cursor: pointer; }
@@ -870,6 +880,7 @@
     <nav class="scenes over outline" id="scenes" role="tablist" aria-label="Lugar">
       <button class="roundbtn" type="button" role="tab" data-scene="roca" aria-selected="true"><span class="ic"></span><span class="lb">Roça</span></button>
       <button class="roundbtn" type="button" role="tab" data-scene="animais" aria-selected="false"><span class="ic"></span><span class="lb">Rancho</span></button>
+      <button class="roundbtn" type="button" data-scene="vila" aria-label="Vila"><span class="ic"></span><span class="lb">Vila</span></button>
       <button class="roundbtn" type="button" role="tab" data-scene="casa" aria-selected="false"><span class="ic"></span><span class="lb">Casa</span></button>
     </nav>
     <div class="giftwrap over outline"><button class="roundbtn" type="button" id="giftBtn"><span class="ic"></span><span class="lb">Presente</span></button>
@@ -966,12 +977,12 @@
   </div>
 </div>
 <div class="modal" id="praca" hidden role="dialog" aria-modal="true" aria-labelledby="pracaTitle">
-  <div class="modal-card pracacard">
-    <div class="modal-head"><h2 id="pracaTitle">Praça da Vila 🏘️</h2><span class="pracainfo" id="pracaInfo"></span><button class="iconbtn" type="button" id="pracaFechar" aria-label="Sair da praça"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-    <div class="pracawrap"><canvas id="pracaCv" aria-label="Praça"></canvas><div class="pracalog" id="pracaLog" aria-live="polite"></div></div>
+  <div class="pracacard">
+    <div class="modal-head"><h2 id="pracaTitle">Vila 🏘️</h2><span class="pracainfo" id="pracaInfo"></span><button class="iconbtn" type="button" id="pracaFechar" aria-label="Sair da Vila"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="pracawrap"><canvas id="pracaCv" aria-label="Mapa da Vila"></canvas><div class="pracalog" id="pracaLog" aria-live="polite"></div><div class="pracapainel" id="pracaPainel" hidden></div></div>
+    <div class="pracanav" id="pracaNav"></div>
     <div class="pracaemotes" id="pracaEmotes"></div>
-    <form class="pracaform" id="pracaForm"><input id="pracaTxt" maxlength="120" placeholder="Diga algo para a praça…" autocomplete="off" aria-label="Mensagem"><button class="btn" type="submit">Enviar</button><button class="btn gold" type="button" id="pracaMetasBtn">🎯 Metas</button></form>
-    <div class="pracametas" id="pracaMetas" hidden></div>
+    <form class="pracaform" id="pracaForm"><input id="pracaTxt" maxlength="120" placeholder="Diga algo para a vila…" autocomplete="off" aria-label="Mensagem"><button class="btn" type="submit">Enviar</button></form>
   </div>
 </div>
 <div class="pingchip" id="pingChip" hidden role="button" tabindex="0" title="Praça da Vila: toque para entrar"></div>
@@ -1155,8 +1166,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=294"></script>
+<script src="js/audio.js?v=295"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=294"></script>
+<script src="js/game.js?v=295"></script>
 </body>
 </html>

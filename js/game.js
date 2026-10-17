@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 295, txt: "🏘️ A Vila agora é uma tela grande e tem botão na lateral, abaixo do Rancho! Dentro dela: Mural (metas de todos, chefe ao vivo e ranking do dia), Mercado para comprar e vender produtos com outros jogadores, Lago de pesca, Arena de cabo de guerra em times e casinhas para decorar e visitar. Tudo em tempo real." },
   { v: 294, txt: "🏘️ Praça da Vila! Uma sala em tempo real onde todos os jogadores entram, andam (toque no chão), conversam, mandam emojis e cumprem metas juntos (colher, regar, pescar…) para ganhar prêmios. O ping aparece no topo da tela. Entre por Amigos › Praça da Vila." },
   { v: 293, txt: "🐺 Os lobos do Halloween não somem mais ao toque: eles saem correndo e ficam uivando. E a risada da bruxa saiu da música de fundo (ela só aparece ao abrir uma carta)." },
   { v: 292, txt: "🎃 Cartas de Halloween: só dá para mandar uma carta por dia para cada amigo (as 3 do dia vão para 3 amigos diferentes)." },
@@ -6298,12 +6299,12 @@ const MENU_ICONS = {
 };
 function paintMenuIcons() {
   document.querySelectorAll('.tab .ic').forEach(el => { el.innerHTML = MENU_ICONS[el.parentNode.dataset.tab]; });
-  const sc = { roca: `<img alt="" src="${cropIcon('milho')}">`, animais: `<img alt="" src="${animalIcon('vaca')}">`, casa: MENU_ICONS.casa };
+  const sc = { roca: `<img alt="" src="${cropIcon('milho')}">`, animais: `<img alt="" src="${animalIcon('vaca')}">`, casa: MENU_ICONS.casa, vila: '<span style="font-size:26px;line-height:1">🏘️</span>' };
   document.querySelectorAll('#scenes .ic').forEach(el => { el.innerHTML = sc[el.parentNode.dataset.scene]; });
   const g = document.querySelector('#giftBtn .ic'); if (g) g.innerHTML = MENU_ICONS.presente;
   const m = document.querySelector('#moveBtn .ic'); if (m) m.innerHTML = MENU_ICONS.mover;
 }
-document.querySelectorAll('#scenes button').forEach(b => b.addEventListener('click', () => setScene(b.dataset.scene)));
+document.querySelectorAll('#scenes button').forEach(b => b.addEventListener('click', () => b.dataset.scene === 'vila' ? pracaAbrir() : setScene(b.dataset.scene)));
 $('#goHome').addEventListener('click', () => goHome());
 $('#penActions').addEventListener('click', e => {
   if (e.target.closest('[data-feed-all]')) feedAll();
@@ -13899,10 +13900,11 @@ function drawHalAvatarExtras(q, esc, t, andando) {
 }
 
 // ============================================================
-// Praça da Vila: sala em tempo real (Realtime Database) onde todos os jogadores andam, conversam e cumprem metas juntos.
+// Vila: tela própria, em tempo real (Realtime Database). Todos os jogadores andam juntos, conversam, mandam emojis e usam:
+// Mural (metas da vila, chefe ao vivo e ranking), Mercado entre jogadores, Lago (pesca), Arena (cabo de guerra) e casinhas.
 // Andar é por toque: só mandamos (de, para) a cada toque, e os outros aparelhos animam o caminho. Barato e rápido.
 // ============================================================
-const PRACA_N = 9, PRACA_VEL = 2.3;
+const PRACA_N = 12, PRACA_VEL = 2.3;
 const PRACA_EMOTES = ['👋', '❤️', '😂', '👏', '😱', '🎃'];
 const PRACA_METAS = [
   { id: 'colher',  ev: 'colher',  nome: 'Colher na roça',        ic: '🌽', meta: 300, moedas: 250, doce: ['bala', 3] },
@@ -13911,7 +13913,18 @@ const PRACA_METAS = [
   { id: 'coletar', ev: 'coletar', nome: 'Recolher dos animais',  ic: '🥚', meta: 100, moedas: 200, doce: ['pirulito', 2] },
   { id: 'minerar', ev: 'minerar', nome: 'Quebrar pedras na mina', ic: '⛏️', meta: 60,  moedas: 250, doce: ['bala', 3] },
 ];
-const praca = { rt: null, on: false, aberta: false, ping: 0, conectado: false, jog: {}, eu: null, chat: [], prog: {}, progDia: 0, pend: {}, falas: {}, refs: {}, ult: 0, toquePos: null };
+const VILA_LOCAIS = {
+  mural:   { u: 6,    v: 0.9,  nome: 'Mural',   ic: '📋' },
+  mercado: { u: 1.8,  v: 1.8,  nome: 'Mercado', ic: '🏪' },
+  lago:    { u: 10.2, v: 2.2,  nome: 'Lago',    ic: '🎣' },
+  arena:   { u: 10.2, v: 9.8,  nome: 'Arena',   ic: '🪢' },
+};
+const VILA_CASAS = [[1.3, 4.8], [1.3, 6.8], [1.3, 8.8], [1.3, 10.8], [3.3, 10.8], [5.3, 10.8], [7.3, 10.8]];
+const VILA_DECOR = ['🌻', '🎃', '🪑', '🏮', '🌳', '⛲', '🧺', '🪴', '🐕', '🎈'];
+const VILA_BOSS_HP = 500, VILA_BOSS_CICLO = 15 * 60e3, VILA_BOSS_JANELA = 5 * 60e3, CABO_CICLO = 120e3, CABO_JOGO = 60e3, MERCADO_MAX = 4;
+const praca = { rt: null, on: false, aberta: false, ping: 0, conectado: false, off: 0, jog: {}, eu: null, chat: [], prog: {}, progDia: 0, pend: {}, falas: {}, refs: {}, ult: 0,
+  painel: null, mtab: 'comprar', mercado: {}, casas: {}, cabo: {}, boss: 0, rank: {}, slotCabo: 0, slotBoss: 0, loc: { boss: 0, cabo: 0, rank: 0 }, hits: [], pesca: null, flutua: [], decorSel: null };
+const pracaAgora = () => Date.now() + praca.off;
 const pracaSt = () => { if (!state.praca) state.praca = { on: 0, res: {}, c: { d: 0 } }; if (state.praca.c.d !== localDay()) state.praca.c = { d: localDay() }; return state.praca; };
 function pracaChip() {
   const el = $('#pingChip'); if (!el) return;
@@ -13924,14 +13937,16 @@ async function pracaLigar() {
   if (praca.on || !user) return;
   try {
     const rt = praca.rt = await Cloud.rtInit(); praca.on = true; pracaSt().on = 1;
-    rt.ref('.info/connected').on('value', s => { praca.conectado = !!s.val(); if (praca.conectado && praca.aberta) pracaEntrar(); pracaChip(); });
+    rt.ref('.info/serverTimeOffset').on('value', s => { praca.off = s.val() || 0; });
+    rt.ref('.info/connected').on('value', s => { const era = praca.conectado; praca.conectado = !!s.val(); if (praca.conectado && praca.aberta) pracaEntrar(); if (!praca.conectado && era) pracaDesligouRede(); pracaChip(); });
     pracaOuvirMetas();
     setInterval(() => pracaPing(), 4000); pracaPing();
     setInterval(pracaFlush, 5000);
     setInterval(() => { if (praca.progDia !== localDay()) pracaOuvirMetas(); }, 60000);
     pracaChip();
-  } catch (e) { console.warn('praça:', e); praca.on = false; toast('Não consegui ligar a Praça da Vila agora. O Realtime Database já foi ativado no Firebase?', 'bad'); }
+  } catch (e) { console.warn('praça:', e); praca.on = false; toast('Não consegui ligar a Vila agora. O Realtime Database está ativo no Firebase?', 'bad'); }
 }
+function pracaDesligouRede() { for (const k of ['jog', 'chat', 'mercado', 'casas', 'cabo', 'boss', 'rank']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; } praca.refs.eu = null; }
 async function pracaPing() {
   if (!praca.on || document.hidden) return;
   const t0 = performance.now();
@@ -13944,8 +13959,8 @@ function pracaOuvirMetas() {
   praca.refs.metas = praca.rt.ref('praca/missao/' + praca.progDia);
   praca.refs.metas.on('value', s => {
     const antes = praca.prog; praca.prog = s.val() || {};
-    for (const m of PRACA_METAS) if ((praca.prog[m.id] || 0) >= m.meta && (antes[m.id] || 0) < m.meta && Object.keys(antes).length) { toast(`🎉 A vila completou a meta "${m.nome}"! Abra a Praça › 🎯 Metas para pegar o prêmio.`, 'good'); sfx('level'); }
-    if (praca.aberta) pracaDesenhaMetas();
+    for (const m of PRACA_METAS) if ((praca.prog[m.id] || 0) >= m.meta && (antes[m.id] || 0) < m.meta && Object.keys(antes).length) { toast(`🎉 A vila completou a meta "${m.nome}"! Abra a Vila › Mural para pegar o prêmio.`, 'good'); sfx('level'); }
+    if (praca.aberta && praca.painel === 'mural') pracaPainel();
   });
 }
 // Cada ação conta para a meta da vila (guarda e manda em lotes a cada 5s).
@@ -13953,12 +13968,13 @@ function pracaTrack(ev, n) {
   if (!state || !praca.on || !PRACA_METAS.some(m => m.ev === ev)) return;
   praca.pend[ev] = (praca.pend[ev] || 0) + n; const c = pracaSt().c; c[ev] = (c[ev] || 0) + n;
 }
+const pracaSomar = (caminho, n) => praca.rt.ref(caminho).transaction(v => (v || 0) + n);
 function pracaFlush() {
   if (!praca.on || !praca.conectado) return;
   for (const ev of Object.keys(praca.pend)) {
     let n = praca.pend[ev]; if (!n) continue;
     n = Math.min(n, 100); praca.pend[ev] -= n;
-    praca.rt.ref(`praca/missao/${praca.progDia}/${ev}`).transaction(v => (v || 0) + n).catch(() => { praca.pend[ev] = (praca.pend[ev] || 0) + n; });
+    pracaSomar(`praca/missao/${praca.progDia}/${ev}`, n).catch(() => { praca.pend[ev] = (praca.pend[ev] || 0) + n; });
   }
 }
 function pracaResgatar(id) {
@@ -13966,49 +13982,57 @@ function pracaResgatar(id) {
   if (!m || (praca.prog[id] || 0) < m.meta || !(st.c[m.ev] > 0) || (st.res[chave])) return;
   for (const k of Object.keys(st.res)) if (!k.startsWith(praca.progDia + ':')) delete st.res[k];
   st.res[chave] = 1; state.coins += m.moedas; state.barn[m.doce[0]] = (state.barn[m.doce[0]] || 0) + m.doce[1];
-  sfx('level'); toast(`🎁 Prêmio da vila: ${m.moedas} moedas e ${m.doce[1]} doces!`, 'good'); done(); pracaDesenhaMetas();
-}
-function pracaDesenhaMetas() {
-  const box = $('#pracaMetas'); if (!box) return; const st = pracaSt();
-  box.innerHTML = '<p class="hint">Metas de hoje, de TODOS os jogadores juntos. Faça as tarefas na sua roça e, quando a vila bater a meta, pegue o prêmio aqui.</p>' + PRACA_METAS.map(m => {
-    const v = Math.min(m.meta, praca.prog[m.id] || 0), ok = v >= m.meta, pego = !!st.res[praca.progDia + ':' + m.id], seu = st.c[m.ev] || 0;
-    return `<div class="pracameta"><div>${m.ic} ${m.nome}: ${v}/${m.meta} <small>(você: ${seu})</small></div><div class="barra"><i style="width:${Math.round(v / m.meta * 100)}%"></i></div>
-      <div>${pego ? '✅ Prêmio recebido' : ok ? (seu > 0 ? `<button class="btn gold" type="button" data-praca-resg="${m.id}">Pegar ${m.moedas} moedas + ${m.doce[1]} doces</button>` : 'Ajude pelo menos uma vez para pegar o prêmio') : `Prêmio: ${m.moedas} moedas + ${m.doce[1]} doces`}</div></div>`;
-  }).join('');
+  sfx('level'); toast(`🎁 Prêmio da vila: ${m.moedas} moedas e ${m.doce[1]} doces!`, 'good'); done(); pracaPainel();
 }
 // ---- Presença, movimento e chat ----
 function pracaAbrir() {
-  if (!user || !Cloud.available) return toast('Entre com o Google para ir à Praça da Vila.');
-  if (!window.FIREBASE_CONFIG.databaseURL) return toast('A praça precisa do Realtime Database no firebase-config.js.');
+  if (!user || !Cloud.available) return toast('Entre com o Google para ir à Vila.');
+  if (!window.FIREBASE_CONFIG.databaseURL) return toast('A Vila precisa do Realtime Database no firebase-config.js.');
   praca.aberta = true; $('#praca').hidden = false; pracaChip();
   $('#pracaEmotes').innerHTML = PRACA_EMOTES.map(e => `<button type="button" data-praca-emote="${e}" aria-label="Emoji ${e}">${e}</button>`).join('');
-  pracaLigar().then(() => { if (praca.on && praca.aberta) { pracaEntrar(); pracaDesenhaMetas(); } });
+  $('#pracaNav').innerHTML = Object.entries(VILA_LOCAIS).map(([id, l]) => `<button type="button" data-vila-ir="${id}">${l.ic} ${l.nome}</button>`).join('') + '<button type="button" data-vila-ir="casa">🏠 Minha casa</button>';
+  pracaPainelAbrir(null);
+  pracaLigar().then(() => { if (praca.on && praca.aberta) pracaEntrar(); });
   requestAnimationFrame(pracaFrame);
 }
+function pracaOuvir(chave, ref, cb) { if (praca.refs[chave]) praca.refs[chave].off(); praca.refs[chave] = ref; ref.on('value', cb); }
 function pracaEntrar() {
   if (!praca.on || !praca.conectado || praca.refs.eu) return;
-  const rt = praca.rt, u0 = 2 + Math.random() * (PRACA_N - 4), v0 = 2 + Math.random() * (PRACA_N - 4);
+  const rt = praca.rt, u0 = 5 + Math.random() * 2, v0 = 7 + Math.random() * 2;
   praca.eu = { fu: u0, fv: v0, tu: u0, tv: v0, t0: performance.now(), dur: 0, dir: 1 };
   const meu = praca.refs.eu = rt.ref('praca/jogadores/' + user.uid);
   meu.onDisconnect().remove();
   pracaEnviarMov();
-  praca.refs.jog = rt.ref('praca/jogadores'); praca.refs.jog.on('value', s => pracaRecebe(s.val() || {}));
-  praca.refs.chat = rt.ref('praca/chat').orderByChild('ts').limitToLast(30);
+  pracaOuvir('jog', rt.ref('praca/jogadores'), s => pracaRecebe(s.val() || {}));
   praca.chat = [];
+  if (praca.refs.chat) praca.refs.chat.off();
+  praca.refs.chat = rt.ref('praca/chat').orderByChild('ts').limitToLast(30);
   praca.refs.chat.on('child_added', s => { const m = s.val(); if (!m || typeof m.t !== 'string') return; praca.chat.push(m); praca.chat = praca.chat.slice(-30); if (Date.now() - (m.ts || 0) < 8000) praca.falas[m.u] = { t: m.t.slice(0, 60), ate: performance.now() + 5000 }; pracaLog(); });
+  pracaOuvir('mercado', rt.ref('praca/mercado').orderByChild('ts').limitToLast(80), s => { praca.mercado = s.val() || {}; if (praca.painel === 'mercado' && praca.mtab !== 'vender') pracaPainel(); });
+  pracaOuvir('casas', rt.ref('praca/casas').orderByChild('ts').limitToLast(30), s => { praca.casas = s.val() || {}; if (praca.painel === 'casa') pracaPainel(); });
+  pracaOuvir('rank', rt.ref('praca/rank/' + praca.progDia), s => { praca.rank = s.val() || {}; if (praca.painel === 'mural') pracaPainel(); });
+  pracaSlots(true);
   // limpeza: mensagens com mais de 1 dia saem do servidor
   rt.ref('praca/chat').orderByChild('ts').endAt(Date.now() - 86400000).limitToFirst(15).once('value').then(s => s.forEach(c => { c.ref.remove().catch(() => {}); })).catch(() => {});
 }
+// Rodadas do cabo de guerra e do chefe: o "slot" vem do relógio do servidor, igual para todo mundo.
+const pracaSlotCabo = () => Math.floor(pracaAgora() / CABO_CICLO), pracaSlotBoss = () => Math.floor(pracaAgora() / VILA_BOSS_CICLO);
+function pracaSlots(forca) {
+  if (!praca.on || !praca.conectado || !praca.refs.eu) return;
+  const sc = pracaSlotCabo(), sb = pracaSlotBoss();
+  if (forca || sc !== praca.slotCabo) { praca.slotCabo = sc; praca.cabo = {}; pracaOuvir('cabo', praca.rt.ref('praca/cabo/' + sc), s => { praca.cabo = s.val() || {}; if (praca.painel === 'arena') pracaPainel(); }); }
+  if (forca || sb !== praca.slotBoss) { praca.slotBoss = sb; praca.boss = 0; pracaOuvir('boss', praca.rt.ref('praca/boss/' + sb), s => { praca.boss = s.val() || 0; if (praca.painel === 'mural') pracaPainel(); }); }
+}
 function pracaSair() {
-  praca.aberta = false; $('#praca').hidden = true; pracaChip(); $('#pracaMetas').hidden = true;
-  for (const k of ['jog', 'chat']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; }
+  praca.aberta = false; $('#praca').hidden = true; pracaChip();
+  pracaTick(true);
+  for (const k of ['jog', 'chat', 'mercado', 'casas', 'cabo', 'boss', 'rank']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; }
   if (praca.refs.eu) { praca.refs.eu.onDisconnect().cancel(); praca.refs.eu.remove().catch(() => {}); praca.refs.eu = null; }
-  praca.jog = {}; praca.eu = null; pracaChip();
+  praca.jog = {}; praca.eu = null; praca.painel = null;
 }
 function pracaEnviarMov(extra) {
   const e = praca.eu; if (!e || !praca.refs.eu) return;
-  const p = pracaPos(e, performance.now());
-  praca.refs.eu.update(Object.assign({ n: meuApelido().slice(0, 24), a: state.avatar, fu: +e.fu.toFixed(2), fv: +e.fv.toFixed(2), tu: +e.tu.toFixed(2), tv: +e.tv.toFixed(2), ts: firebase.database.ServerValue.TIMESTAMP }, extra || {})).catch(e2 => console.warn('praça mov:', e2));
+  praca.refs.eu.update(Object.assign({ n: meuApelido().slice(0, 24), a: state.avatar, fu: +e.fu.toFixed(2), fv: +e.fv.toFixed(2), tu: +e.tu.toFixed(2), tv: +e.tv.toFixed(2), ts: firebase.database.ServerValue.TIMESTAMP }, extra || {})).catch(e2 => console.warn('vila mov:', e2));
 }
 function pracaPos(e, now) { const k = e.dur ? Math.min(1, (now - e.t0) / e.dur) : 1; return { u: e.fu + (e.tu - e.fu) * k, v: e.fv + (e.tv - e.fv) * k, k }; }
 function pracaRecebe(todos) {
@@ -14024,13 +14048,12 @@ function pracaRecebe(todos) {
       if (Math.abs(du - dv) > 0.01) j.dir = du - dv > 0 ? 1 : -1;
     }
     j.n = typeof d.n === 'string' ? d.n : 'Jogador'; j.a = d.a ? avatarOk(d.a) : null;
-    if (d.et && d.et !== j.et) { j.et = d.et; if (agora - (j.vistoEm || 0) > 0 && typeof d.ek === 'string') j.emote = { k: d.ek, ate: agora + 3200 }; }
-    j.vistoEm = agora;
+    if (d.et && d.et !== j.et) { j.et = d.et; if (typeof d.ek === 'string') j.emote = { k: d.ek, ate: agora + 3200 }; }
   }
 }
 function pracaLog() {
   const el = $('#pracaLog'); if (!el) return;
-  el.innerHTML = praca.chat.slice(-5).map(m => `<div><b>${esc(m.n || '?')}:</b> ${esc(m.t)}</div>`).join('');
+  el.innerHTML = praca.chat.slice(-4).map(m => `<div><b>${esc(m.n || '?')}:</b> ${esc(m.t)}</div>`).join('');
 }
 function pracaEnviarChat(txt) {
   txt = String(txt || '').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
@@ -14044,39 +14067,259 @@ function pracaEmote(k) {
   praca.eu.emote = { k, ate: performance.now() + 3200 }; sfx('click');
   pracaEnviarMov({ ek: k, et: Date.now() });
 }
+// ---- Pontos do dia (ranking), chefe e cabo de guerra: somam local e vão ao servidor em lotes ----
+function pracaPontos(n) { const c = pracaSt().c; c.rk = (c.rk || 0) + n; }
+function pracaTick(forca) {
+  if (!praca.on || !praca.conectado || !praca.refs.eu) return;
+  const L = praca.loc, st = pracaSt();
+  if (L.boss > 0) { const n = Math.min(L.boss, 40); L.boss -= n; pracaSomar('praca/boss/' + praca.slotBoss, n).catch(() => { L.boss += n; }); }
+  if (L.cabo > 0 && st.cb) { const n = Math.min(L.cabo, 40); L.cabo -= n; pracaSomar(`praca/cabo/${st.cb.s}/${st.cb.t}`, n).catch(() => { L.cabo += n; }); }
+  if ((st.c.rk || 0) > (L.rank || 0) && (forca || pracaAgora() % 10000 < 1100)) {
+    const meu = st.c.rk, dia = praca.progDia || localDay(); L.rank = meu;
+    praca.rt.ref(`praca/rank/${dia}/${user.uid}`).transaction(cur => { const p0 = (cur && cur.p) || 0; return { n: meuApelido().slice(0, 24), p: Math.min(p0 + 300, Math.max(p0, meu)) }; }).catch(() => {});
+  }
+}
+setInterval(() => { try { if (praca.aberta) { pracaTick(); pracaSlots(); } } catch (e) { /* sem vila */ } }, 1000);
+// ---- Painel: Mural, Mercado, Lago, Arena e casinhas ----
+function pracaPainelAbrir(id) { praca.painel = id; praca.mtab = 'comprar'; pracaPainel(); }
+function pracaBossAtivo() { const t = pracaAgora() % VILA_BOSS_CICLO; return t < VILA_BOSS_JANELA && praca.boss < VILA_BOSS_HP; }
+const pracaBossNome = () => halloweenAtivo() ? '🐺 Lobo Alfa' : '🐗 Javali Gigante';
+function pracaPainel() {
+  const box = $('#pracaPainel'); if (!box) return;
+  const id = praca.painel; if (!id) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  const topo = t => `<div class="vp-head"><b>${t}</b><button type="button" class="iconbtn" data-vila-fechar aria-label="Fechar painel">✕</button></div>`;
+  if (id === 'mural') box.innerHTML = topo('📋 Mural da Vila') + pracaHtmlMural();
+  else if (id === 'mercado') box.innerHTML = topo('🏪 Mercado dos jogadores') + pracaHtmlMercado();
+  else if (id === 'lago') box.innerHTML = topo('🎣 Lago da Vila') + pracaHtmlLago();
+  else if (id === 'arena') box.innerHTML = topo('🪢 Arena: cabo de guerra') + pracaHtmlArena();
+  else if (id === 'casa') box.innerHTML = topo('🏠 Minha casinha') + pracaHtmlCasa();
+  else if (id.startsWith('ver:')) box.innerHTML = topo('🏠 Casinha') + pracaHtmlVer(id.slice(4));
+}
+function pracaHtmlMural() {
+  const st = pracaSt(), n = praca.boss, ativo = pracaBossAtivo(), seg = Math.ceil((VILA_BOSS_CICLO - pracaAgora() % VILA_BOSS_CICLO) / 1000);
+  const jaPego = st.boss === praca.slotBoss, meus = st.bh && st.bh.s === praca.slotBoss ? st.bh.n : 0, venceu = n >= VILA_BOSS_HP;
+  let h = `<div class="vp-card"><b>${pracaBossNome()} da Vila</b><div class="barra"><i style="width:${Math.min(100, Math.round(n / VILA_BOSS_HP * 100))}%;background:#e0463a"></i></div>
+    <div>${venceu ? '🏆 Derrotado por todos!' : ativo ? `Ataque! Toque nele na praça ou aqui. Dano: ${n}/${VILA_BOSS_HP}` : `Aparece de novo em ${fmt(seg)}`} <small>(seus golpes: ${meus})</small></div>
+    ${ativo ? '<button class="btn gold" type="button" data-vila-bater>⚔️ Atacar!</button>' : ''}
+    ${venceu && meus >= 5 && !jaPego ? '<button class="btn gold" type="button" data-vila-boss-premio>🎁 Pegar prêmio (150 moedas + 3 doces)</button>' : venceu && jaPego ? '<div>✅ Prêmio recebido</div>' : venceu ? '<div>Dê pelo menos 5 golpes na próxima vez para ter prêmio.</div>' : ''}</div>`;
+  const rk = Object.values(praca.rank).filter(x => x && typeof x.p === 'number').sort((a, b) => b.p - a.p).slice(0, 5);
+  h += `<div class="vp-card"><b>🏅 Ranking de hoje</b>${rk.length ? rk.map((x, i) => `<div>${['🥇', '🥈', '🥉', '4º', '5º'][i]} ${esc(x.n || '?')} — ${x.p} pts</div>`).join('') : '<div>Ninguém pontuou ainda. Pesque no lago, ataque o chefe e puxe a corda!</div>'}</div>`;
+  h += `<div class="vp-card"><b>🎯 Metas de hoje (todos juntos)</b><small>Faça as tarefas na sua roça. Quando a vila bater a meta, pegue o prêmio.</small>` + PRACA_METAS.map(m => {
+    const v = Math.min(m.meta, praca.prog[m.id] || 0), ok = v >= m.meta, pego = !!st.res[praca.progDia + ':' + m.id], seu = st.c[m.ev] || 0;
+    return `<div class="pracameta"><div>${m.ic} ${m.nome}: ${v}/${m.meta} <small>(você: ${seu})</small></div><div class="barra"><i style="width:${Math.round(v / m.meta * 100)}%"></i></div>
+      <div>${pego ? '✅ Prêmio recebido' : ok ? (seu > 0 ? `<button class="btn gold" type="button" data-praca-resg="${m.id}">Pegar ${m.moedas} moedas + ${m.doce[1]} doces</button>` : 'Ajude pelo menos uma vez para pegar o prêmio') : `Prêmio: ${m.moedas} moedas + ${m.doce[1]} doces`}</div></div>`;
+  }).join('') + '</div>';
+  return h;
+}
+function pracaBater() {
+  if (!pracaBossAtivo() || !praca.eu) return;
+  if (performance.now() - (praca.ultBate || 0) < 140) return; praca.ultBate = performance.now();
+  const st = pracaSt(); if (!st.bh || st.bh.s !== praca.slotBoss) st.bh = { s: praca.slotBoss, n: 0 };
+  st.bh.n++; praca.loc.boss++; pracaPontos(1); sfx('bark');
+  praca.flutua.push({ txt: '-1', u: 6, v: 5.3, t: performance.now() }); praca.boss++; // contagem na hora, o servidor confirma
+  if (praca.painel === 'mural' && st.bh.n % 5 === 0) pracaPainel();
+}
+function pracaBossPremio() {
+  const st = pracaSt();
+  if (praca.boss < VILA_BOSS_HP || !st.bh || st.bh.s !== praca.slotBoss || st.bh.n < 5 || st.boss === praca.slotBoss) return;
+  st.boss = praca.slotBoss; state.coins += 150; state.barn.bala = (state.barn.bala || 0) + 3; pracaPontos(25);
+  sfx('level'); toast('🏆 Vocês derrotaram o chefe da Vila! +150 moedas e 3 doces.', 'good'); done(); pracaPainel();
+}
+// Lago: lança, espera a fisgada e ganha moedas
+function pracaHtmlLago() {
+  const c = pracaSt().c, n = c.lg || 0;
+  return `<div class="vp-card"><div>Lance a linha no lago da vila! Cada peixe rende moedas e pontos no ranking.</div><div class="vp-peixe" id="vilaPeixe">${praca.pesca ? '🎣 …esperando fisgar' : ''}</div>
+    <button class="btn gold" type="button" data-vila-pescar ${praca.pesca || n >= 60 ? 'disabled' : ''}>🎣 Lançar a linha</button><small>Hoje: ${n}/60 lançadas</small></div>`;
+}
+function pracaPescar() {
+  const c = pracaSt().c; if (praca.pesca || (c.lg || 0) >= 60) return;
+  c.lg = (c.lg || 0) + 1; praca.pesca = { ate: performance.now() + 2500 + Math.random() * 3000 }; sfx('water'); pracaPainel();
+  setTimeout(() => {
+    praca.pesca = null; const r = Math.random();
+    const f = r < 0.04 ? ['🐠 Peixe-dourado raro', 150] : r < 0.25 ? ['🐟 Tilápia', 35] : r < 0.55 ? ['🐟 Lambari', 20] : r < 0.85 ? ['🐡 Baiacu', 12] : ['🥾 Uma bota velha', 3];
+    state.coins += f[1]; pracaPontos(Math.max(1, Math.round(f[1] / 6))); sfx(f[1] >= 100 ? 'level' : 'coin'); toast(`${f[0]}! +${f[1]} moedas`, f[1] >= 20 ? 'good' : undefined); done();
+    if (praca.painel === 'lago') pracaPainel();
+  }, 2500 + Math.random() * 3000);
+}
+// Arena: cabo de guerra em times (vermelho x azul), rodadas de 2 minutos
+function pracaHtmlArena() {
+  const st = pracaSt(), t = pracaAgora() % CABO_CICLO, jogando = t < CABO_JOGO, r = praca.cabo.r || 0, a = praca.cabo.a || 0, tot = Math.max(1, r + a);
+  const meu = st.cb && st.cb.s === praca.slotCabo ? st.cb : null, venceu = r === a ? null : r > a ? 'r' : 'a';
+  let h = `<div class="vp-card"><div>Escolha um time e puxe a corda tocando o mais rápido que puder! Rodadas de 2 min: 1 min de jogo + 1 min de resultado.</div>
+    <div class="vp-corda"><i style="width:${Math.round(r / tot * 100)}%;background:#e0463a"></i><i style="width:${Math.round(a / tot * 100)}%;background:#3a7be0"></i></div>
+    <div>🔴 ${r} × ${a} 🔵 ${meu ? `<small>(você: time ${meu.t === 'r' ? '🔴' : '🔵'}, ${meu.n} puxões)</small>` : ''}</div>`;
+  if (jogando) {
+    h += `<div>Tempo: ${Math.ceil((CABO_JOGO - t) / 1000)}s</div>`;
+    h += meu ? `<button class="btn gold vila-puxa" type="button" data-vila-puxar>🪢 PUXAR!</button>` : `<div class="vp-times"><button class="btn" type="button" data-vila-time="r">🔴 Time vermelho</button><button class="btn" type="button" data-vila-time="a">🔵 Time azul</button></div>`;
+  } else {
+    h += `<div>${venceu ? `Time ${venceu === 'r' ? '🔴 vermelho' : '🔵 azul'} venceu!` : 'Empate!'} Próxima rodada em ${fmt(Math.ceil((CABO_CICLO - t) / 1000))}</div>`;
+    if (meu && meu.n >= 15 && meu.t === venceu && st.caboOk !== meu.s) h += `<button class="btn gold" type="button" data-vila-cabo-premio>🎁 Pegar prêmio (80 moedas)</button>`;
+    else if (meu && st.caboOk === meu.s) h += '<div>✅ Prêmio recebido</div>';
+  }
+  return h + '</div>';
+}
+function pracaTime(tm) { const st = pracaSt(); if (pracaAgora() % CABO_CICLO >= CABO_JOGO) return toast('A rodada já acabou. Espere a próxima!'); st.cb = { s: praca.slotCabo, t: tm, n: 0 }; sfx('click'); pracaPainel(); }
+function pracaPuxar() {
+  const st = pracaSt(); if (!st.cb || st.cb.s !== praca.slotCabo || pracaAgora() % CABO_CICLO >= CABO_JOGO) return;
+  st.cb.n++; praca.loc.cabo++; if (st.cb.n % 5 === 0) pracaPontos(1); sfx('click');
+  if (st.cb.t === 'r') praca.cabo.r = (praca.cabo.r || 0) + 1; else praca.cabo.a = (praca.cabo.a || 0) + 1; // contagem na hora
+  if (st.cb.n % 3 === 0) pracaPainel();
+}
+function pracaCaboPremio() {
+  const st = pracaSt(), meu = st.cb; if (!meu || meu.s !== praca.slotCabo || st.caboOk === meu.s || meu.n < 15) return;
+  st.caboOk = meu.s; state.coins += 80; pracaPontos(10); sfx('level'); toast('🏆 Seu time venceu o cabo de guerra! +80 moedas', 'good'); done(); pracaPainel();
+}
+// Mercado: anunciar, comprar, cancelar e receber
+function pracaHtmlMercado() {
+  const me = user.uid, todos = Object.entries(praca.mercado).filter(([, l]) => l && typeof l.p === 'number').sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
+  const tabs = `<div class="seg small"><button type="button" data-vila-mtab="comprar" aria-checked="${praca.mtab === 'comprar'}">Comprar</button><button type="button" data-vila-mtab="vender" aria-checked="${praca.mtab === 'vender'}">Vender</button><button type="button" data-vila-mtab="meus" aria-checked="${praca.mtab === 'meus'}">Meus anúncios</button></div>`;
+  const nomeI = id => (item(id) || {}).nome || id;
+  if (praca.mtab === 'vender') {
+    const ops = itensVendaveis().map(id => `<option value="${esc(id)}">${esc(nomeI(id))} (você tem ${estoqueDe(id)})</option>`).join('');
+    return tabs + (ops ? `<div class="vp-card"><label>Item <select id="vmItem">${ops}</select></label><label>Quantidade (1 a 10) <input id="vmQtd" type="number" min="1" max="10" value="1"></label><label>Preço total em moedas <input id="vmPreco" type="number" min="1" value="${valorDe(itensVendaveis()[0])}"></label><small id="vmFaixa"></small><button class="btn gold" type="button" data-vila-anunciar>📣 Anunciar</button></div>` : '<div class="vp-card">Você não tem produtos no celeiro para vender.</div>');
+  }
+  if (praca.mtab === 'meus') {
+    const meus = todos.filter(([, l]) => l.u === me);
+    return tabs + (meus.length ? meus.map(([k, l]) => `<div class="vp-card row"><img alt="" src="${itemIcon(l.i)}"><div><b>${esc(nomeI(l.i))} ×${l.q}</b><div>${l.p} moedas · ${l.c ? '✅ vendido!' : 'à venda'}</div></div>${l.c ? `<button class="btn gold" type="button" data-vila-receber="${k}">Receber ${l.p}</button>` : `<button class="btn ghost" type="button" data-vila-cancelar="${k}">Cancelar</button>`}</div>`).join('') : '<div class="vp-card">Você não tem anúncios.</div>');
+  }
+  const venda = todos.filter(([, l]) => l.u !== me && !l.c);
+  return tabs + (venda.length ? venda.map(([k, l]) => `<div class="vp-card row"><img alt="" src="${itemIcon(l.i)}"><div><b>${esc(nomeI(l.i))} ×${l.q}</b><div>${esc(l.n || '?')} · ${l.p} moedas</div></div><button class="btn gold" type="button" data-vila-comprar="${k}" ${state.coins < l.p ? 'disabled' : ''}>Comprar</button></div>`).join('') : '<div class="vp-card">Nenhum anúncio de outros jogadores agora. Seja o primeiro a anunciar!</div>');
+}
+function pracaAnunciar() {
+  const id = $('#vmItem') && $('#vmItem').value, q = clamp(Math.floor(Number($('#vmQtd').value)) || 1, 1, 10), p = Math.floor(Number($('#vmPreco').value)) || 0;
+  if (!id || !item(id)) return;
+  const meus = Object.values(praca.mercado).filter(l => l && l.u === user.uid).length;
+  if (meus >= MERCADO_MAX) return toast(`Você já tem ${MERCADO_MAX} anúncios. Cancele ou receba algum.`, 'bad');
+  const [min, max] = faixaPreco(id, q);
+  if (p < min || p > max) return toast(`O preço deve ficar entre ${min} e ${max} moedas.`, 'bad');
+  if (estoqueDe(id) < q) return toast('Você não tem tudo isso.', 'bad');
+  state.barn[id] -= q; done();
+  praca.rt.ref('praca/mercado').push({ u: user.uid, n: meuApelido().slice(0, 24), i: id, q, p, ts: firebase.database.ServerValue.TIMESTAMP })
+    .then(() => { sfx('buy'); toast('📣 Anúncio publicado!', 'good'); praca.mtab = 'meus'; pracaPainel(); })
+    .catch(() => { state.barn[id] = (state.barn[id] || 0) + q; done(); toast('Não consegui publicar o anúncio.', 'bad'); });
+}
+function pracaComprar(k) {
+  const l = praca.mercado[k]; if (!l || l.c || l.u === user.uid) return;
+  if (state.coins < l.p) return toast('Moedas insuficientes.', 'bad');
+  praca.rt.ref('praca/mercado/' + k).transaction(cur => cur && !cur.c && cur.u !== user.uid ? Object.assign({}, cur, { c: user.uid }) : undefined).then(r => {
+    if (!r.committed) return toast('Esse anúncio já foi vendido ou saiu.', 'bad');
+    const v = r.snapshot.val(); state.coins -= v.p; state.barn[v.i] = (state.barn[v.i] || 0) + v.q; pracaPontos(2); sfx('buy'); toast(`🛒 Comprou ${(item(v.i) || {}).nome || v.i} ×${v.q}!`, 'good'); done();
+  }).catch(() => toast('Não consegui comprar agora.', 'bad'));
+}
+function pracaCancelar(k) {
+  praca.rt.ref('praca/mercado/' + k).transaction(cur => cur && cur.u === user.uid && !cur.c ? null : undefined).then(r => {
+    if (!r.committed) return toast('Esse anúncio não pode mais ser cancelado.', 'bad');
+    const v = praca.mercado[k]; if (v) { state.barn[v.i] = (state.barn[v.i] || 0) + v.q; done(); toast('Anúncio cancelado. O produto voltou ao celeiro.'); }
+  }).catch(() => toast('Não consegui cancelar agora.', 'bad'));
+}
+function pracaReceber(k) {
+  praca.rt.ref('praca/mercado/' + k).transaction(cur => cur && cur.u === user.uid && cur.c ? null : undefined).then(r => {
+    if (!r.committed) return;
+    const v = praca.mercado[k]; if (!v) return; state.coins += v.p; pracaPontos(3); sfx('coin'); toast(`💰 Você vendeu ${(item(v.i) || {}).nome || v.i}! +${v.p} moedas`, 'good'); done();
+  }).catch(() => toast('Não consegui receber agora.', 'bad'));
+}
+// Casinhas: cada jogador publica a sua, com até 3 enfeites
+function pracaHtmlCasa() {
+  const meu = praca.casas[user.uid], sel = praca.decorSel || (meu && meu.d) || [];
+  praca.decorSel = sel.slice();
+  return `<div class="vp-card"><div>Sua casinha aparece na vila com o tema da sua casa. Escolha até 3 enfeites:</div><div class="vp-decor">${VILA_DECOR.map(e => `<button type="button" data-vila-decor="${e}" aria-pressed="${sel.includes(e)}">${e}</button>`).join('')}</div>
+    <button class="btn gold" type="button" data-vila-publicar>🏠 ${meu ? 'Atualizar' : 'Publicar'} minha casinha</button>${meu ? '<button class="btn ghost" type="button" data-vila-tirar>Tirar da vila</button>' : ''}</div>`;
+}
+function pracaPublicarCasa() {
+  praca.rt.ref('praca/casas/' + user.uid).set({ n: meuApelido().slice(0, 24), sk: String(state.skin || 'classico').slice(0, 20), d: (praca.decorSel || []).slice(0, 3), ts: firebase.database.ServerValue.TIMESTAMP })
+    .then(() => { sfx('buy'); toast('🏠 Sua casinha está na vila!', 'good'); }).catch(() => toast('Não consegui publicar agora.', 'bad'));
+}
+function pracaHtmlVer(uid) {
+  const c = praca.casas[uid]; if (!c) return '<div class="vp-card">Essa casinha saiu da vila.</div>';
+  const amigo = state.friends.includes(uid);
+  return `<div class="vp-card"><b>${esc(c.n || 'Jogador')}</b><div>${(c.d || []).join(' ') || 'Sem enfeites'}</div>${amigo ? `<button class="btn gold" type="button" data-vila-visitar="${esc(uid)}">🚪 Visitar a roça</button>` : '<div>Peça o código de amigo dele para poder visitar a roça.</div>'}</div>`;
+}
+function pracaCasaSlots() {
+  const lista = Object.entries(praca.casas).filter(([, c]) => c && typeof c.sk === 'string').sort((a, b) => (a[1].ts || 0) - (b[1].ts || 0)).slice(0, VILA_CASAS.length);
+  return lista.map(([uid, c], i) => ({ uid, c, u: VILA_CASAS[i][0], v: VILA_CASAS[i][1] }));
+}
 // ---- Desenho (canvas próprio, em "isométrico" simples) ----
 const pracaIso = (u, v, G) => ({ x: G.cx + (u - v) * G.tw, y: G.cy + (u + v) * G.tw / 2 });
-function pracaGeo(c) { const N = PRACA_N, tw = Math.min(c.width / (2 * N), c.height / (N + 3)) * 0.96; return { tw, cx: c.width / 2, cy: (c.height - N * tw) / 2 + tw * 0.9 }; }
+// A câmera segue o seu avatar de lado a lado (o mapa é maior que a tela do celular em pé).
+function pracaGeo(c) { const N = PRACA_N, tw = Math.min(c.width / (1.5 * N), c.height / (N + 3)) * 0.97, lim = Math.max(0, N * tw - c.width / 2); return { tw, cx: c.width / 2 + clamp(praca.cam || 0, -lim, lim), cy: (c.height - N * tw) / 2 + tw * 0.9 }; }
 function pracaFrame(now) {
   if (!praca.aberta) return;
   const c = $('#pracaCv'), dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(c.clientWidth * dpr), h = Math.round(c.clientHeight * dpr);
   if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
   const g = c.getContext('2d'), saved = ctx; ctx = g;
-  try { pracaDesenha(g, c, now, dpr); } catch (e) { console.warn('praça desenho:', e); }
-  ctx = saved; $('#pracaInfo').textContent = praca.conectado ? `👥 ${Object.keys(praca.jog).length + (praca.eu ? 1 : 0)} na praça · ${praca.ping || '…'} ms` : 'conectando…';
+  if (praca.eu) { const G0 = pracaGeo(c), p = pracaPos(praca.eu, now), x = pracaIso(p.u, p.v, G0).x, alvo = (praca.cam || 0) + (c.width / 2 - x); praca.cam = (praca.cam || 0) + (alvo - (praca.cam || 0)) * 0.08; }
+  try { pracaDesenha(g, c, now, dpr); } catch (e) { console.warn('vila desenho:', e); }
+  ctx = saved; $('#pracaInfo').textContent = praca.conectado ? `👥 ${Object.keys(praca.jog).length + (praca.eu ? 1 : 0)} · ${praca.ping < 120 ? '🟢' : praca.ping < 300 ? '🟡' : '🔴'} ${praca.ping || '…'} ms` : 'conectando…';
   requestAnimationFrame(pracaFrame);
 }
+function pracaCasaDesenho(g, q, G, c, dpr) {
+  const tm = temaCasa(c.sk), w = G.tw * 1.5, h = G.tw * 1.0;
+  g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, w * 0.65, w * 0.22, 0, 0, 7); g.fill();
+  g.fillStyle = tm.parede; g.fillRect(q.x - w / 2, q.y - h, w, h);
+  g.fillStyle = tm.telhado; g.beginPath(); g.moveTo(q.x - w * 0.62, q.y - h); g.lineTo(q.x, q.y - h - w * 0.5); g.lineTo(q.x + w * 0.62, q.y - h); g.closePath(); g.fill();
+  g.fillStyle = tm.porta; g.fillRect(q.x - w * 0.1, q.y - h * 0.6, w * 0.2, h * 0.6);
+  g.fillStyle = tm.moldura; g.fillRect(q.x + w * 0.2, q.y - h * 0.75, w * 0.18, w * 0.18);
+  g.font = `${Math.round(G.tw * 0.8)}px system-ui`; g.textAlign = 'center'; (c.d || []).slice(0, 3).forEach((e, i) => g.fillText(e, q.x + (i - 1) * G.tw * 0.85, q.y + G.tw * 0.45));
+}
 function pracaDesenha(g, c, now, dpr) {
-  const G = pracaGeo(c), N = PRACA_N, hal = halloweenAtivo();
+  const G = pracaGeo(c), N = PRACA_N, hal = halloweenAtivo(); praca.hits = [];
   g.fillStyle = hal ? '#2a1d3d' : '#8fd0f0'; g.fillRect(0, 0, c.width, c.height);
   const L0 = pracaIso(0, 0, G), L1 = pracaIso(N, 0, G), L2 = pracaIso(N, N, G), L3 = pracaIso(0, N, G);
   g.fillStyle = hal ? '#4a6a3a' : '#7cc653'; g.beginPath(); g.moveTo(L0.x, L0.y); g.lineTo(L1.x, L1.y); g.lineTo(L2.x, L2.y); g.lineTo(L3.x, L3.y); g.closePath(); g.fill();
   g.strokeStyle = hal ? '#2a3a22' : '#5aa03a'; g.lineWidth = 3 * dpr; g.stroke();
-  // caminhos de pedra em cruz
   g.fillStyle = hal ? '#6a6478' : '#d8cdb0';
-  for (const [a, b, c2, d] of [[N / 2 - 0.7, 0, N / 2 + 0.7, N], [0, N / 2 - 0.7, N, N / 2 + 0.7]]) { const p = [pracaIso(a, b, G), pracaIso(c2, b, G), pracaIso(c2, d, G), pracaIso(a, d, G)]; g.beginPath(); g.moveTo(p[0].x, p[0].y); p.slice(1).forEach(q => g.lineTo(q.x, q.y)); g.closePath(); g.fill(); }
-  // fonte no centro
+  for (const [a, b, c2, d] of [[N / 2 - 0.8, 0, N / 2 + 0.8, N], [0, N / 2 - 0.8, N, N / 2 + 0.8]]) { const p = [pracaIso(a, b, G), pracaIso(c2, b, G), pracaIso(c2, d, G), pracaIso(a, d, G)]; g.beginPath(); g.moveTo(p[0].x, p[0].y); p.slice(1).forEach(q => g.lineTo(q.x, q.y)); g.closePath(); g.fill(); }
+  g.font = `${Math.round(G.tw * 0.9)}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  // lago
+  const lg = pracaIso(VILA_LOCAIS.lago.u, VILA_LOCAIS.lago.v, G);
+  g.fillStyle = '#5fb8e8'; g.beginPath(); g.ellipse(lg.x, lg.y, G.tw * 2.2, G.tw * 1.1, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2 * dpr; g.stroke();
+  g.fillText('🐟', lg.x + Math.sin(now / 900) * G.tw * 1.2, lg.y + Math.cos(now / 900) * G.tw * 0.35);
+  // arena do cabo de guerra
+  const ar = pracaIso(VILA_LOCAIS.arena.u, VILA_LOCAIS.arena.v, G);
+  g.fillStyle = '#c9a86a'; g.beginPath(); g.ellipse(ar.x, ar.y, G.tw * 2.1, G.tw * 1.05, 0, 0, 7); g.fill();
+  g.strokeStyle = '#7a4a22'; g.lineWidth = 3 * dpr; g.beginPath(); g.moveTo(ar.x - G.tw * 1.8, ar.y); g.lineTo(ar.x + G.tw * 1.8, ar.y); g.stroke();
+  g.fillStyle = '#e0463a'; g.fillRect(ar.x - G.tw * 1.9, ar.y - G.tw * 0.25, G.tw * 0.3, G.tw * 0.5); g.fillStyle = '#3a7be0'; g.fillRect(ar.x + G.tw * 1.6, ar.y - G.tw * 0.25, G.tw * 0.3, G.tw * 0.5);
+  // mercado (barraca listrada) e mural
+  const mc = pracaIso(VILA_LOCAIS.mercado.u, VILA_LOCAIS.mercado.v, G);
+  for (let k = 0; k < 6; k++) { g.fillStyle = k % 2 ? '#fff' : '#e0463a'; g.fillRect(mc.x - G.tw * 1.2 + k * G.tw * 0.4, mc.y - G.tw * 1.5, G.tw * 0.4, G.tw * 0.55); }
+  g.fillStyle = '#b88350'; g.fillRect(mc.x - G.tw * 1.1, mc.y - G.tw * 0.95, G.tw * 2.2, G.tw * 0.95); g.fillText('🍎🥕', mc.x, mc.y - G.tw * 0.2);
+  const mu = pracaIso(VILA_LOCAIS.mural.u, VILA_LOCAIS.mural.v, G);
+  g.fillStyle = '#7a4a22'; g.fillRect(mu.x - G.tw * 0.9, mu.y - G.tw * 1.5, G.tw * 1.8, G.tw * 1.1); g.fillStyle = '#f4e2b0'; g.fillRect(mu.x - G.tw * 0.8, mu.y - G.tw * 1.4, G.tw * 1.6, G.tw * 0.9);
+  g.fillStyle = '#7a4a22'; g.fillRect(mu.x - G.tw * 0.9, mu.y - G.tw * 0.4, G.tw * 0.15, G.tw * 0.5); g.fillRect(mu.x + G.tw * 0.75, mu.y - G.tw * 0.4, G.tw * 0.15, G.tw * 0.5);
+  g.fillText('📋', mu.x, mu.y - G.tw * 0.6);
+  // fonte
   const f = pracaIso(N / 2, N / 2, G), r = G.tw * 0.9;
-  g.fillStyle = '#9a96a8'; g.beginPath(); g.ellipse(f.x, f.y, r, r / 2, 0, 0, 7); g.fill();
-  g.fillStyle = '#5fb8e8'; g.beginPath(); g.ellipse(f.x, f.y - 2 * dpr, r * 0.8, r * 0.4, 0, 0, 7); g.fill();
+  g.fillStyle = '#9a96a8'; g.beginPath(); g.ellipse(f.x, f.y, r, r / 2, 0, 0, 7); g.fill(); g.fillStyle = '#5fb8e8'; g.beginPath(); g.ellipse(f.x, f.y - 2 * dpr, r * 0.8, r * 0.4, 0, 0, 7); g.fill();
   g.fillStyle = '#9a96a8'; g.fillRect(f.x - r * 0.12, f.y - r * 0.9, r * 0.24, r * 0.8);
   g.strokeStyle = 'rgba(200,240,255,.8)'; g.lineWidth = 2 * dpr; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(f.x, f.y - r * 0.9); g.quadraticCurveTo(f.x + k * r * 0.5, f.y - r * 1.3, f.x + k * r * 0.8, f.y - r * 0.3 + Math.sin(now / 300 + k) * 2); g.stroke(); }
-  // postes de luz e abóboras / flores nos cantos
-  for (const [u, v] of [[1, 1], [N - 1, 1], [1, N - 1], [N - 1, N - 1], [N / 2, 0.8], [N / 2, N - 0.8]]) {
+  // postes
+  for (const [u, v] of [[1, 1], [N - 1, 1], [N - 1, N - 1], [N / 2, 3], [N / 2, N - 1.2], [3.5, N / 2], [N - 3.5, N / 2]]) {
     const q = pracaIso(u, v, G); g.fillStyle = '#3a3a44'; g.fillRect(q.x - 2 * dpr, q.y - G.tw * 1.5, 4 * dpr, G.tw * 1.5);
     const gl = g.createRadialGradient(q.x, q.y - G.tw * 1.6, 1, q.x, q.y - G.tw * 1.6, G.tw * 1.1); gl.addColorStop(0, hal ? 'rgba(255,170,40,.8)' : 'rgba(255,240,160,.7)'); gl.addColorStop(1, 'rgba(255,200,80,0)');
     g.fillStyle = gl; g.beginPath(); g.arc(q.x, q.y - G.tw * 1.6, G.tw * 1.1, 0, 7); g.fill();
-    g.font = `${Math.round(G.tw * 0.9)}px system-ui`; g.textAlign = 'center'; g.fillText(hal ? '🎃' : '🌼', q.x + G.tw * 0.45, q.y + G.tw * 0.15);
+    if (hal) { g.font = `${Math.round(G.tw * 0.8)}px system-ui`; g.fillText('🎃', q.x + G.tw * 0.5, q.y + G.tw * 0.15); }
+  }
+  // casinhas dos jogadores
+  const casas = pracaCasaSlots();
+  g.textAlign = 'center';
+  for (const k of casas) {
+    const q = pracaIso(k.u, k.v, G); pracaCasaDesenho(g, q, G, k.c, dpr);
+    g.font = `800 ${Math.round(10 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#fff'; g.strokeText(k.c.n || '', q.x, q.y + G.tw * 1.25); g.fillText(k.c.n || '', q.x, q.y + G.tw * 1.25);
+    praca.hits.push({ id: 'ver:' + k.uid, x: q.x, y: q.y - G.tw * 0.7, r: G.tw * 1.1 });
+  }
+  for (const [id, l] of Object.entries(VILA_LOCAIS)) {
+    const q = pracaIso(l.u, l.v, G);
+    g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffe08a'; g.strokeText(l.nome, q.x, q.y + G.tw * 0.95); g.fillText(l.nome, q.x, q.y + G.tw * 0.95);
+    praca.hits.push({ id, x: q.x, y: q.y - G.tw * 0.5, r: G.tw * 1.6 });
+  }
+  // chefe ao vivo
+  let bossP = null;
+  if (pracaBossAtivo()) {
+    const q = pracaIso(6, 4.6, G), tremor = Math.sin(now / 80) * 2 * dpr; bossP = q;
+    g.font = `${Math.round(G.tw * 2.2)}px system-ui`; g.textAlign = 'center'; g.fillText(halloweenAtivo() ? '🐺' : '🐗', q.x + tremor, q.y);
+    g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(q.x - G.tw * 1.2, q.y - G.tw * 2.6, G.tw * 2.4, 6 * dpr); g.fillStyle = '#e0463a'; g.fillRect(q.x - G.tw * 1.2, q.y - G.tw * 2.6, G.tw * 2.4 * (1 - Math.min(1, praca.boss / VILA_BOSS_HP)), 6 * dpr);
+    praca.hits.push({ id: 'boss', x: q.x, y: q.y - G.tw, r: G.tw * 1.6 });
   }
   // jogadores, do fundo para a frente
   const lista = [];
@@ -14084,28 +14327,33 @@ function pracaDesenha(g, c, now, dpr) {
   for (const [uid, j] of Object.entries(praca.jog)) lista.push({ me: false, e: j, n: j.n, a: j.a || state.avatar, uid });
   for (const o of lista) { const p = pracaPos(o.e, now); o.p = p; o.s = p.u + p.v; }
   lista.sort((a, b) => a.s - b.s);
-  const esc = clamp(G.tw / 22, 0.55, 1.5);
+  const es = clamp(G.tw / 20, 0.55, 1.5);
   for (const o of lista) {
-    const e = o.e, p = o.p; 
+    const e = o.e, p = o.p;
     if (o.me && e.dur && p.k >= 1) e.dur = 0;
     const q = pracaIso(p.u, p.v, G), andando = p.k < 1 && !!e.dur;
     g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, G.tw * 0.5, G.tw * 0.2, 0, 0, 7); g.fill();
-    drawAvatar(g, q.x, q.y, esc, o.a, now, andando, e.dir);
-    const top = q.y - 72 * esc;
+    drawAvatar(g, q.x, q.y, es, o.a, now, andando, e.dir);
+    const top = q.y - 72 * es;
     g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff';
     g.strokeText(o.n, q.x, top); g.fillText(o.n, q.x, top);
     const fa = praca.falas[o.uid]; let yb = top - 8 * dpr;
-    if (e.emote && e.emote.ate > now) { g.font = `${Math.round(24 * dpr)}px system-ui`; g.fillText(e.emote.k, q.x, yb - Math.min(10, (e.emote.ate - now) / 300) * 0 - 2 * dpr); yb -= 26 * dpr; }
+    if (e.emote && e.emote.ate > now) { g.font = `${Math.round(24 * dpr)}px system-ui`; g.fillText(e.emote.k, q.x, yb - 2 * dpr); yb -= 26 * dpr; }
     if (fa && fa.ate > now) {
       g.font = `700 ${Math.round(11 * dpr)}px system-ui, sans-serif`; const tw = g.measureText(fa.t).width + 12 * dpr, bx = clamp(q.x - tw / 2, 4, c.width - tw - 4), by = yb - 18 * dpr;
       g.fillStyle = '#fff'; g.beginPath(); g.roundRect(bx, by, tw, 18 * dpr, 8 * dpr); g.fill(); g.fillStyle = '#2f2a1f'; g.textAlign = 'left'; g.fillText(fa.t, bx + 6 * dpr, by + 13 * dpr); g.textAlign = 'center';
     }
   }
+  // números que sobem (golpes no chefe)
+  praca.flutua = praca.flutua.filter(f => now - f.t < 700);
+  for (const f of praca.flutua) { const q = pracaIso(f.u + (f.t % 7) / 14, f.v, G), k = (now - f.t) / 700; g.font = `900 ${Math.round(16 * dpr)}px system-ui`; g.fillStyle = `rgba(255,220,120,${1 - k})`; g.fillText(f.txt, q.x, q.y - G.tw * 2 - k * 30 * dpr); }
 }
 function pracaToque(ev) {
   if (!praca.eu) return;
   const c = $('#pracaCv'), r = c.getBoundingClientRect(), dpr = c.width / r.width, G = pracaGeo(c);
   const x = (ev.clientX - r.left) * dpr, y = (ev.clientY - r.top) * dpr;
+  const h = [...praca.hits].reverse().find(k => Math.hypot(k.x - x, k.y - y) < k.r);
+  if (h) { if (h.id === 'boss') return pracaBater(); return pracaPainelAbrir(h.id); }
   const a = (x - G.cx) / G.tw, b = (y - G.cy) / (G.tw / 2); // a = u - v ; b = u + v
   const u = clamp((a + b) / 2, 0.4, PRACA_N - 0.4), v = clamp((b - a) / 2, 0.4, PRACA_N - 0.4);
   const e = praca.eu, p = pracaPos(e, performance.now());
@@ -14116,11 +14364,32 @@ function pracaToque(ev) {
 $('#pracaCv')?.addEventListener('pointerdown', pracaToque);
 $('#pracaFechar')?.addEventListener('click', pracaSair);
 $('#pracaForm')?.addEventListener('submit', e => { e.preventDefault(); pracaEnviarChat($('#pracaTxt').value); });
-$('#pracaMetasBtn')?.addEventListener('click', () => { const m = $('#pracaMetas'); m.hidden = !m.hidden; if (!m.hidden) pracaDesenhaMetas(); });
+$('#praca')?.addEventListener('input', e => {
+  if (e.target.id === 'vmItem' || e.target.id === 'vmQtd') { const id = $('#vmItem').value, q = clamp(Math.floor(Number($('#vmQtd').value)) || 1, 1, 10), [mn, mx] = faixaPreco(id, q); if (e.target.id === 'vmItem' || e.target.id === 'vmQtd') $('#vmPreco').value = valorDe(id) * q; $('#vmFaixa').textContent = `Preço permitido: ${mn} a ${mx} moedas`; }
+});
 $('#praca')?.addEventListener('click', e => {
-  const em = e.target.closest('[data-praca-emote]'); if (em) return pracaEmote(em.dataset.pracaEmote);
-  const rs = e.target.closest('[data-praca-resg]'); if (rs) return pracaResgatar(rs.dataset.pracaResg);
-  if (e.target === $('#praca')) pracaSair();
+  const t = e.target, q = sel => t.closest(sel);
+  let b;
+  if ((b = q('[data-praca-emote]'))) return pracaEmote(b.dataset.pracaEmote);
+  if ((b = q('[data-praca-resg]'))) return pracaResgatar(b.dataset.pracaResg);
+  if ((b = q('[data-vila-ir]'))) return pracaPainelAbrir(b.dataset.vilaIr);
+  if (q('[data-vila-fechar]')) return pracaPainelAbrir(null);
+  if (q('[data-vila-bater]')) return pracaBater();
+  if (q('[data-vila-boss-premio]')) return pracaBossPremio();
+  if (q('[data-vila-pescar]')) return pracaPescar();
+  if ((b = q('[data-vila-time]'))) return pracaTime(b.dataset.vilaTime);
+  if (q('[data-vila-puxar]')) return pracaPuxar();
+  if (q('[data-vila-cabo-premio]')) return pracaCaboPremio();
+  if ((b = q('[data-vila-mtab]'))) { praca.mtab = b.dataset.vilaMtab; pracaPainel(); const it = $('#vmItem'); if (it) it.dispatchEvent(new Event('input', { bubbles: true })); return; }
+  if (q('[data-vila-anunciar]')) return pracaAnunciar();
+  if ((b = q('[data-vila-comprar]'))) return pracaComprar(b.dataset.vilaComprar);
+  if ((b = q('[data-vila-cancelar]'))) return pracaCancelar(b.dataset.vilaCancelar);
+  if ((b = q('[data-vila-receber]'))) return pracaReceber(b.dataset.vilaReceber);
+  if ((b = q('[data-vila-decor]'))) { const e2 = b.dataset.vilaDecor, s2 = praca.decorSel || (praca.decorSel = []), i = s2.indexOf(e2); if (i >= 0) s2.splice(i, 1); else if (s2.length < 3) s2.push(e2); else toast('Até 3 enfeites.'); return pracaPainel(); }
+  if (q('[data-vila-publicar]')) return pracaPublicarCasa();
+  if (q('[data-vila-tirar]')) { praca.rt.ref('praca/casas/' + user.uid).remove().catch(() => {}); praca.decorSel = []; return; }
+  if ((b = q('[data-vila-visitar]'))) { const uid = b.dataset.vilaVisitar; pracaSair(); return visitFriend(uid); }
+  if (t === $('#praca')) pracaSair();
 });
 $('#pingChip')?.addEventListener('click', pracaAbrir);
 function pracaEntrada() { try { pracaChip(); if (user && state && pracaSt().on && !praca.on) pracaLigar(); } catch (e) { console.warn(e); } }
