@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 288, txt: "🎃 Cartas de Halloween agora vão dentro do chat do amigo (e as antigas chegam assim que ele atualiza o jogo). A música \"Noite das Bruxas\" toca sozinha para todos durante o evento. Na lista de Amigos aparece a versão do jogo de cada um. As 3 cartas de hoje foram devolvidas uma vez." },
   { v: 287, txt: "🎃 Halloween! De hoje até 31/10, às 23:59: a roça fica assombrada (véu roxo, morcegos, abóboras acesas, teias e bandeirinhas de morcego), com música sombria e risadas de bruxa, e lobos passeando e uivando (os cachorros respondem!). Todo dia você ganha 3 cartas (🎃 abóbora gigante, 👻 fantasma, 💀 esqueleto) para mandar a amigos: quando abrem, cai uma maldição que passa sozinha. Tem missões, uma coleção de 8 enfeites (também na Loja do Trevo) e a Casa Assombrada de presente. Veja tudo em Missões › 🎃 Halloween." },
   { v: 286, txt: "Dois avisos novos: (1) quando a ração do cachorro acabar e você clicar nele, o jogo oferece comprar 1 ração na hora e já dar para ele. (2) Chocadeira cheia / abrigo cheio: quando um ovo está pronto mas não cabe no abrigo, o jogo pergunta o que fazer: aguardar, vender um animal do abrigo para abrir vaga, vender o filhote ou doar o filhote para um amigo à sua escolha (ele resgata em Loja › Animais). Na chocadeira, o ovo sem vaga ganhou o botão 'Sem vaga: e agora?'." },
   { v: 285, txt: "Outono: cai mais folha mesmo! No outono os montes de folhas aparecem a cada ~2h30 (nas outras estações, a cada ~4h), podem ficar até 8 no gramado e até 9 por dia. Continua um de cada vez." },
@@ -2313,6 +2314,7 @@ async function cloudSave() {
     const rev = await Cloud.saveFarmSeguro(user.uid, {
       stateJson: JSON.stringify(Object.assign({}, state, { rev: base + 1, pendente: false, nb: {} })), name: user.name || '', photo: fotoParaSalvar(),
       moldura: molduraAtual(),
+      versao: VERSION,
       level: state.level, code: state.code || '', updatedAt: Date.now(), apelido: state.apelido || '', fazenda: state.fazenda || '',
       friends: state.friends.slice(), sent: Object.keys(state.sent), session: SESSION,
     }, base);
@@ -2615,7 +2617,7 @@ function fetchFriendInfo(uid, forca) {
   if (!user || (fi !== undefined && !(fi && fi.at && !fi.buscando && (forca || Date.now() - fi.at > 120e3)))) return;
   if (fi && fi.at) fi.buscando = true; else friendInfo[uid] = 'loading';
   Cloud.loadFarm(uid).then(f => {
-    friendInfo[uid] = f ? { name: limpaNome(f.apelido) || firstName(f.name || 'Amigo'), fazenda: limpaNome(f.fazenda) || 'Roça Feliz', photo: f.photo || '', moldura: typeof f.moldura === 'string' ? f.moldura : '', level: f.level || 1, ajuda: pedidosAjuda(estadoDoAmigo(f), uid), amz: pontosAmizadeDele(estadoDoAmigo(f)), at: Date.now() } : null;
+    friendInfo[uid] = f ? { name: limpaNome(f.apelido) || firstName(f.name || 'Amigo'), fazenda: limpaNome(f.fazenda) || 'Roça Feliz', photo: f.photo || '', moldura: typeof f.moldura === 'string' ? f.moldura : '', level: f.level || 1, ajuda: pedidosAjuda(estadoDoAmigo(f), uid), versao: f.versao || '', amz: pontosAmizadeDele(estadoDoAmigo(f)), at: Date.now() } : null;
     renderTabs();
   }).catch(e => {
     // Não conseguiu ler (sem internet, login ainda carregando, ou a pessoa desfez a amizade):
@@ -6019,7 +6021,7 @@ function renderPane() {
         const name = f ? f.name : 'Amigo';
         const armed = unfriendArmed === uid;
         html += `<div class="row ${here ? 'sel' : ''}">${avatar(f && f.photo, name, '#7aa35a', f && f.moldura)}
-          <div><div class="name">${esc(name)}${owes(uid) ? '<span class="tag">ajudou você</span>' : ''}</div><div class="meta">${bolinhaStatus(uid)} · ${f && f.erro ? 'Não deu para ver a roça: toque em Reatar' : f ? `${esc(f.fazenda || 'Roça Feliz')} · nível ${f.level}` : 'Ainda não entrou no jogo'}${owes(uid) ? ` · ajude de volta: +${AJUDA_BONUS.moedas} moedas` : ''}</div>
+          <div><div class="name">${esc(name)}${owes(uid) ? '<span class="tag">ajudou você</span>' : ''}</div><div class="meta">${bolinhaStatus(uid)} · ${f && f.erro ? 'Não deu para ver a roça: toque em Reatar' : f ? `${esc(f.fazenda || 'Roça Feliz')} · nível ${f.level} · ${f.versao ? `jogo v${esc(f.versao)}${Number(f.versao) < Number(VERSION) ? ' (desatualizado)' : ''}` : 'jogo versão antiga'}` : 'Ainda não entrou no jogo'}${owes(uid) ? ` · ajude de volta: +${AJUDA_BONUS.moedas} moedas` : ''}</div>
           <div class="meta" title="Amizade: ajude ou presenteie para subir">${nivelAmizade(uid) > 5 ? `❤️ ${nivelAmizade(uid)}/${AMIZADE_NIVEL_MAX}` : '❤️'.repeat(nivelAmizade(uid)) + '🤍'.repeat(5 - nivelAmizade(uid))} · presentes ${nivelAmizade(uid) ? 'melhores' : 'melhoram com a amizade'}</div></div>
           <div class="stack">${here ? `<button class="btn ghost" data-home>Voltar</button>` : (f && f.erro ? `<button class="btn" data-reatar="${esc(uid)}">Reatar</button>` : `<button class="btn" data-visit-friend="${esc(uid)}" ${f ? '' : 'disabled'}>Visitar</button>`)}
           ${here ? '' : `<button class="btn ${pedeAjuda(uid) ? 'socorro' : 'ghost'}" data-ajudar-friend="${esc(uid)}" ${pedeAjuda(uid) ? '' : 'disabled title="Nenhuma frutífera pedindo ajuda agora"'}>🆘 Precisa de ajuda${pedeAjuda(uid) > 1 ? ` (${pedeAjuda(uid)})` : ''}</button>`}
@@ -6913,7 +6915,7 @@ $('#settings').addEventListener('click', e => {
   const at = e.target.closest('[data-av-trava]');
   if (at) { sfx('error'); return toast(at.dataset.avTrava, 'bad'); }
   const tr = e.target.closest('#tracks [data-track]');
-  if (tr) { settings.track = Number(tr.dataset.track); settings.music = true; saveSettings(); renderSettings(); }
+  if (tr) { settings.track = Number(tr.dataset.track); settings.music = true; if (typeof HAL !== 'undefined') settings.halMusica = HAL.id; saveSettings(); renderSettings(); }
   const tm = e.target.closest('#temaSeg [data-tema]');
   if (tm) { settings.tema = tm.dataset.tema; saveSettings(); renderSettings(); }
 });
@@ -7295,11 +7297,23 @@ function onChat(lista) {
       navigator.serviceWorker.ready.then(reg => reg.showNotification(`💬 ${quem}`, { body: m.txt.slice(0, 120), icon: 'icons/icon-192.png', tag: 'chat-' + m.de, renotify: true, data: { link: './' } })).catch(() => {});
   }
   chatPrimeira = false;
+  halReceberCartas();
   if (chatCom) { renderChat(); marcarLido(chatCom); }
   renderTabs(); if (tab === 'amigos') renderPane();
   // limpeza: mensagens com mais de 30 dias saem da sua caixa
   const velho = Date.now() - 30 * DAY;
   for (const m of chatMsgs) if ((m.at || 0) < velho) Cloud.apagarMsg(user.uid, m.id).catch(() => {});
+}
+// Cartas de Halloween chegam como mensagens do chat (inclusive as antigas, quando o jogo atualiza).
+function halReceberCartas() {
+  if (!state || !user || !halloweenAtivo()) return;
+  const h = halDe(), vistas = (h.vistas ||= {}); let novo = false;
+  for (const m of chatMsgs) {
+    if (m.de === user.uid || !m.carta || !HAL_CARTAS[m.carta] || typeof m.cid !== 'string' || vistas[m.cid]) continue;
+    if (!state.friends.includes(m.de) && !m.nome) continue;
+    vistas[m.cid] = 1; h.caixa.push({ tipo: m.carta, de: String(m.nome || 'um amigo').slice(0, 24), at: m.at || Date.now() }); novo = true;
+  }
+  if (novo) { const ks = Object.keys(vistas); if (ks.length > 200) for (const k of ks.slice(0, ks.length - 200)) delete vistas[k]; done(); setTimeout(halCartaTick, 800); }
 }
 function marcarLido(uid) {
   const ult = chatMsgs.filter(m => m.de === uid).reduce((t, m) => Math.max(t, m.at || 0), 0);
@@ -7341,7 +7355,8 @@ function renderChat() {
   for (const m of conversa) {
     const d = new Date(m.at || Date.now()), dd = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     if (dd !== dia) { dia = dd; html += `<div class="chatdia">${dd === new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) ? 'Hoje' : dd}</div>`; }
-    html += `<div class="bolha ${m.de === user.uid ? 'eu' : 'ele'}">${esc(m.txt)}<small>${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</small></div>`;
+    const cartaHal = typeof HAL_CARTAS !== 'undefined' && m.carta && HAL_CARTAS[m.carta];
+    html += `<div class="bolha ${m.de === user.uid ? 'eu' : 'ele'}">${cartaHal ? `<img alt="" src="${halIcone(m.carta)}" style="width:44px;height:44px;vertical-align:middle;margin-right:6px">` : ''}${esc(m.txt)}<small>${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</small></div>`;
   }
   const noFim = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
   box.innerHTML = html;
@@ -13457,12 +13472,14 @@ function halDiaReset() { const h = halDe(), hoje = localDay(); if (h.dia === hoj
 function halEntrada() {
   if (!state || !halloweenAtivo()) return;
   const h = halDe();
-  if (!settings.evHalloweenMusica && window.RFAudio && window.RFAudio.tracks.length > 8) { settings.evHalloweenMusica = 1; settings.track = 8; saveSettings(); if (settings.music) setTimeout(() => toast('🎵 Tocando "Noite das Bruxas", a música do Halloween! Troque em ⚙️ › Música.', 'good'), 4500); }
+  // música do evento vale para todos, automaticamente (quem escolher outra depois, fica com a escolha)
+  if (settings.halMusica !== HAL.id && window.RFAudio && window.RFAudio.tracks.length > 8) { settings.halMusica = HAL.id; settings.evHalloweenMusica = 1; settings.track = 8; saveSettings(); if (settings.music) setTimeout(() => toast('🎵 Tocando "Noite das Bruxas", a música do Halloween! Troque em ⚙️ › Música.', 'good'), 4500); }
   if (!h.presente) {
     h.presente = 1; state.skins.assombrada = true; state.invNovos = (state.invNovos || 0) + 1;
     const msg = '🎃 Halloween na Roça Feliz! Até 31/10, às 23:59, a roça está assombrada: lobos uivando, morcegos e uma música sombria. Seu presente: a Casa Assombrada (em Loja › Temas, ou clicando na casa). Todo dia você ganha 3 cartas (🎃 abóbora gigante, 👻 fantasma e 💀 esqueleto) para mandar a amigos: quando abrirem, cai uma maldição! Veja em Missões › 🎃 Halloween.';
     addNews(msg); setTimeout(() => toast(msg, 'good'), 2600); done();
   }
+  if (!h.envio2) { h.envio2 = 1; halDiaReset(); h.tem = { abobora: 1, fantasma: 1, esqueleto: 1 }; done(); } // as cartas de hoje que se perderam em aparelhos antigos voltam uma vez
   if (halDiaReset()) { const m = '🎃 Chegaram as 3 cartas de hoje: abóbora gigante, fantasma e esqueleto. Mande para amigos em Missões › 🎃 Halloween!'; addNews(m); setTimeout(() => toast(m, 'good'), 3600); done(); }
   if (!h.avisoFim && Date.now() >= new Date(2026, 9, 31, 0, 0, 0).getTime()) { h.avisoFim = 1; const m = '🎃 Último dia de Halloween! Termina hoje, às 23:59. Mande as cartas, pegue os prêmios das missões e passe na Loja do Trevo.'; addNews(m); setTimeout(() => toast(m, 'good'), 1500); done(); }
 }
@@ -13482,7 +13499,7 @@ async function mandarCartaHal(uid, tipo) {
   const h = halDe(), C = HAL_CARTAS[tipo], f = friendInfo[uid]; if (!h.tem[tipo] || !user) return;
   h.tem[tipo] = 0; done(); renderPane();
   try {
-    await Cloud.sendVisit(uid, { t: 'gift', gift: 'carta:' + tipo, nivel: 0, from: user.uid, fromName: meuApelido(), at: Date.now() });
+    await Cloud.enviarMsg(user.uid, uid, { txt: `${C.emoji} ${meuApelido()} te mandou uma carta assombrada (${C.nome.toLowerCase()})! Atualize o jogo para abrir… 😈`, at: Date.now(), nome: meuApelido(), carta: tipo, cid: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) });
     avisarAmigo(uid, 'presente', `${C.emoji} ${meuApelido()} te mandou uma carta assombrada! Abra se tiver coragem…`);
     sfx('buy'); addXP(2, null); track('carta'); ganharAmizade(uid);
     toast(`${C.emoji} Carta enviada para ${f && f.name ? f.name : 'seu amigo'}! Agora é esperar ele abrir… 😈`, 'good'); done();
