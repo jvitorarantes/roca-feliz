@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 305, txt: "Vila: corrigi o zoom. A pinça de dois dedos agora funciona direito e os avatares crescem e diminuem junto com o mapa (antes ficavam sempre do mesmo tamanho)." },
   { v: 304, txt: "Vila estilo Habbo, etapa 1: toque num jogador para ver o perfil dele (visual, nível, fazenda e selo). Novo botão 💃＋ com 7 danças (disco, salsa, robô, giro, pato, dormir e estrela) e 24 gestos que todos veem. Você dança até andar de novo." },
   { v: 303, txt: "Vila estilo Habbo: toque numa cadeira e seu avatar anda até ela e senta (andar de novo levanta; se estiver ocupada, avisa). Tem mais cadeiras pela praça, e dá para tocar na fonte para jogar uma moeda e fazer um pedido. O toque agora escolhe o objeto mais perto do dedo." },
   { v: 302, txt: "Vila: o botão de ação (entrar no mercado, atacar, pescar…) não pisca mais e some quando o painel abre. No Mercado, em Vender, agora você vê os ícones dos seus produtos: toque num deles, escolha a quantidade e o preço (Mínimo / Justo / Máximo)." },
@@ -14555,7 +14556,7 @@ function pracaDesenha(g, c, now, dpr) {
   if (praca.eu) lista.push({ me: true, e: praca.eu, n: meuApelido(), a: state.avatar, uid: user.uid });
   for (const [uid, j] of Object.entries(praca.jog)) lista.push({ me: false, e: j, n: j.n, a: j.a || state.avatar, uid });
   for (const o of lista) { o.p = pracaPos(o.e, now); o.sentado = o.e.ia === 'sentar' && o.p.k >= 1; o.danca = /^dc\d/.test(o.e.ia || '') && o.p.k >= 1 ? o.e.ia : null; }
-  const porUid = Object.fromEntries(lista.map(o => [o.uid, o])), duplas = [], es = clamp(tw / 24, 0.55, 1.25);
+  const porUid = Object.fromEntries(lista.map(o => [o.uid, o])), duplas = [], es = clamp(tw / 48, 0.3, 3.5);
   for (const o of lista) {
     const e = o.e, par = e.ia && porUid[e.ic]; if (vilaDanca(o.p.u, o.p.v)) o.hop = true;
     if (!par || !par.e.ia || par.e.ic !== o.uid || pracaAgora() - (e.iz || 0) > 14000 || o.uid > e.ic) continue;
@@ -14703,7 +14704,7 @@ const vilaPtr = new Map(); let vilaGesto = null;
 function vilaZoom(f) { praca.zoom = clamp((praca.zoom || 1) * f, 0.55, 2.4); }
 $('#pracaCv')?.addEventListener('pointerdown', e => {
   e.target.setPointerCapture?.(e.pointerId); vilaPtr.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  vilaGesto = { x0: e.clientX, y0: e.clientY, moveu: false, dist0: vilaPtr.size === 2 ? Math.hypot(...[...vilaPtr.values()].reduce((a, p) => [a[0] - p.x, a[1] - p.y], [0, 0])) : 0, z0: praca.zoom || 1, multi: vilaPtr.size > 1 };
+  vilaGesto = { x0: e.clientX, y0: e.clientY, moveu: false, dist0: vilaPtr.size === 2 ? (() => { const [a, b] = [...vilaPtr.values()]; return Math.hypot(a.x - b.x, a.y - b.y); })() : 0, z0: praca.zoom || 1, multi: vilaPtr.size > 1 };
 });
 $('#pracaCv')?.addEventListener('pointermove', e => {
   const q = vilaPtr.get(e.pointerId); if (!q || !vilaGesto) return;
