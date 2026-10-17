@@ -1406,6 +1406,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 321, txt: "Vila: (1) a barra de baixo ficou enxuta: Lugares, Quartos, Pessoas, Eu e Tarefas, cada uma abre um menu com ícones. (2) Novas atividades: 📜 Tarefas do dia (6 por dia, com moedas), 🗺️ Tesouro do dia (dica + área no minimapa, vá cavar) e 🎯 Tiro ao alvo (5 tiros). (3) Chega de bichos correndo: moradores agora são gente (Seu Zé, Dona Maria, Seu Bastião e Dona Véia), o chefe agora é o lobo/javali desenhado do jogo e os pets seguem com a arte do jogo." },
+  { v: 322, txt: "Vila: a barra de baixo agora tem só 3 botões — 🧭 Ir para (lugares, quartos, tarefas, tiro ao alvo), 👥 Pessoas (cartas, voz, convidar) e 🎭 Eu (emojis, danças, pet, títulos, móveis). Toque num deles para expandir as opções." },
   { v: 320, txt: "Vila › Quartos: agora o jogo avisa quando não consegue ler/publicar os quartos (por exemplo, regras do Firebase desatualizadas), mostra se o seu quarto está publicado e tem botão de recarregar." },
   { v: 319, txt: "Mina: em cada ferramenta agora dá para escolher a quantidade que quer usar de uma vez, com − e ＋ (ou Tudo), e o botão vira \"Usar N\"." },
   { v: 318, txt: "Amigos: na aba Amigos (e na lista de convidar da Vila) agora aparece a foto que o amigo escolheu no jogo (o selo). A foto do Google só aparece se ele não escolheu nenhuma no jogo." },
@@ -14075,7 +14076,7 @@ function pracaAbrir() {
   if (!user || !Cloud.available) return toast('Entre com o Google para ir à Vila.');
   if (!window.FIREBASE_CONFIG.databaseURL) return toast('A Vila precisa do Realtime Database no firebase-config.js.');
   praca.aberta = true; $('#praca').hidden = false; pracaChip();
-  $('#pracaEmotes').innerHTML = PRACA_EMOTES.slice(0, 4).map(e => `<button type="button" data-praca-emote="${e}" aria-label="Emoji ${e}">${e}</button>`).join('') + '<button type="button" data-vila-ir="danca" aria-label="Danças e gestos">💃＋</button>';
+  $('#pracaEmotes').innerHTML = '';
   pracaNav();
   pracaPainelAbrir(null); state.friends.forEach(u => fetchFriendInfo(u)); // já deixa os dados dos amigos carregando
   pracaLigar().then(() => { if (praca.on && praca.aberta) pracaEntrar(); });
@@ -14083,20 +14084,18 @@ function pracaAbrir() {
 }
 function pracaNav() {
   const nc = Object.values(praca.cartas || {}).filter(c => c && state.friends.includes(c.de)).length, B = (k, t) => `<button type="button" data-vila-ir="m:${k}">${t}</button>`;
-  $('#pracaNav').innerHTML = praca.sala
-    ? '<button type="button" data-vila-sair-sala>🚪 Voltar à Vila</button>' + B('quartos', '🛏️ Quartos') + B('pessoas', `👥 Pessoas${nc ? ' (' + nc + ')' : ''}`) + B('eu', '🎭 Eu')
-    : B('lugares', '🧭 Lugares') + B('quartos', '🛏️ Quartos') + B('pessoas', `👥 Pessoas${nc ? ' (' + nc + ')' : ''}`) + B('eu', '🎭 Eu') + '<button type="button" data-vila-ir="tarefas">📜 Tarefas</button>';
+  $('#pracaNav').innerHTML = (praca.sala ? '<button type="button" data-vila-sair-sala>🚪 Voltar</button>' : '') + B('lugares', '🧭 Ir para') + B('pessoas', `👥 Pessoas${nc ? ' (' + nc + ')' : ''}`) + B('eu', '🎭 Eu');
 }
-// Menu em grade (ícones grandes) para as opções que antes ficavam todas na barra de baixo
+// Menus agrupados: a barra de baixo tem só 3 botões e cada um expande os itens
 function pracaHtmlMenu(grupo) {
   const nc = Object.values(praca.cartas || {}).filter(c => c && state.friends.includes(c.de)).length;
-  const it = (ic, t, attr) => `<button type="button" class="vmenu-it" ${attr}><span>${ic}</span><b>${t}</b></button>`;
-  let L = [];
-  if (grupo === 'lugares') L = [...Object.entries(VILA_ZONAS).map(([id, z]) => it(z.ic, z.nome, `data-vila-ir-z="${id}"`)), it('📋', 'Mural', 'data-vila-ir="mural"'), it('🏪', 'Mercado', 'data-vila-ir="mercado"'), it('🎯', 'Tiro ao alvo', 'data-vila-ir="alvo"')];
-  else if (grupo === 'quartos') L = [it('🛏️', 'Meu quarto', 'data-vila-meuquarto'), it('🏠', 'Quartos de amigos', 'data-vila-ir="quartos"'), it('🏡', 'Minha casinha', 'data-vila-ir="casa"')];
-  else if (grupo === 'pessoas') L = [it('📍', 'Onde estão', 'data-vila-ir="onde"'), it('📣', 'Convidar amigos', 'data-vila-ir="convidar"'), it('✉️', `Cartas${nc ? ' (' + nc + ')' : ''}`, 'data-vila-ir="cartas"'), it('🎙️', 'Voz', 'data-vila-ir="voz"')];
-  else if (grupo === 'eu') L = [it('🏅', 'Títulos e selos', 'data-vila-ir="conq"'), it('🐾', 'Meu pet', 'data-vila-ir="pet"'), it('💃', 'Danças e gestos', 'data-vila-ir="danca"'), it('🎒', 'Móveis', praca.sala && praca.sala.dono === user.uid ? 'data-vila-moveis' : 'disabled'), it(settings.semInter ? '🚫' : '✨', settings.semInter ? 'Interações: off' : 'Interações: on', 'data-vila-bloq')];
-  return `<div class="vmenu">${L.join('')}</div>`;
+  const it = (ic, t, attr) => `<button type="button" class="vmenu-it" ${attr}><span>${ic}</span><b>${t}</b></button>`, sec = (t, l) => `<h4 class="vmenu-h">${t}</h4><div class="vmenu">${l.join('')}</div>`;
+  if (grupo === 'lugares') return sec('Lugares', [...Object.entries(VILA_ZONAS).map(([id, z]) => it(z.ic, z.nome, `data-vila-ir-z="${id}"`)), it('📋', 'Mural', 'data-vila-ir="mural"'), it('🏪', 'Mercado', 'data-vila-ir="mercado"')])
+    + sec('Quartos', [it('🛏️', 'Meu quarto', 'data-vila-meuquarto'), it('🏠', 'Quartos de amigos', 'data-vila-ir="quartos"'), it('🏡', 'Minha casinha', 'data-vila-ir="casa"')])
+    + sec('Atividades', [it('📜', 'Tarefas do dia', 'data-vila-ir="tarefas"'), it('🎯', 'Tiro ao alvo', 'data-vila-ir="alvo"')]);
+  if (grupo === 'pessoas') return sec('Pessoas', [it('📍', 'Onde estão', 'data-vila-ir="onde"'), it('📣', 'Convidar amigos', 'data-vila-ir="convidar"'), it('✉️', `Cartas${nc ? ' (' + nc + ')' : ''}`, 'data-vila-ir="cartas"'), it('🎙️', 'Voz', 'data-vila-ir="voz"')]);
+  return `<div class="vmenu-emo">${PRACA_EMOTES.slice(0, 6).map(e => `<button type="button" data-praca-emote="${e}" aria-label="Emoji ${e}">${e}</button>`).join('')}</div>`
+    + sec('Eu', [it('💃', 'Danças e gestos', 'data-vila-ir="danca"'), it('🏅', 'Títulos e selos', 'data-vila-ir="conq"'), it('🐾', 'Meu pet', 'data-vila-ir="pet"'), it('🎒', 'Móveis', praca.sala && praca.sala.dono === user.uid ? 'data-vila-moveis' : 'disabled'), it(settings.semInter ? '🚫' : '✨', settings.semInter ? 'Interações: off' : 'Interações: on', 'data-vila-bloq')]);
 }
 function pracaOuvir(chave, ref, cb) { if (praca.refs[chave]) praca.refs[chave].off(); praca.refs[chave] = ref; ref.on('value', cb); }
 // Presença no mundo (praca/jogadores) ou dentro de uma sala (praca/salas/<id>/jog)
@@ -14222,7 +14221,7 @@ function pracaPainel() {
   if (id === 'mural') box.innerHTML = topo('📋 Mural da Vila') + pracaHtmlMural();
   else if (id === 'mercado') box.innerHTML = topo('🏪 Mercado dos jogadores') + pracaHtmlMercado();
   else if (id === 'casa') box.innerHTML = topo('🏠 Minha casinha') + pracaHtmlCasa();
-  else if (id.startsWith('m:')) box.innerHTML = topo({ lugares: '🧭 Lugares', quartos: '🛏️ Quartos', pessoas: '👥 Pessoas', eu: '🎭 Eu' }[id.slice(2)]) + pracaHtmlMenu(id.slice(2));
+  else if (id.startsWith('m:')) box.innerHTML = topo({ lugares: '🧭 Ir para', pessoas: '👥 Pessoas', eu: '🎭 Eu' }[id.slice(2)]) + pracaHtmlMenu(id.slice(2));
   else if (id === 'tarefas') box.innerHTML = topo('📜 Tarefas do dia') + pracaHtmlTarefas();
   else if (id === 'alvo') box.innerHTML = topo('🎯 Tiro ao alvo') + pracaHtmlAlvo();
   else if (id === 'voz') { box.innerHTML = topo('🎙️ Voz da Vila') + pracaHtmlVoz(); if (!praca._pv) { praca._pv = 1; vozAtualizaPerm().finally(() => { praca._pv = 0; }); } }
