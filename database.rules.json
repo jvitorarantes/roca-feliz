@@ -51,6 +51,18 @@
           },
           "iz": {
             ".validate": "newData.isNumber()"
+          },
+          "lv": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999"
+          },
+          "ft": {
+            ".validate": "newData.isString() && newData.val().length <= 30"
+          },
+          "sl": {
+            ".validate": "newData.isString() && newData.val().length <= 24"
+          },
+          "mo": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
           }
         }
       },
