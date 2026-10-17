@@ -1405,7 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
-  { v: 318, txt: "Amigos: na aba Amigos (e na lista de convidar da Vila) agora aparece a foto do jogo: o selo que o amigo escolheu ou, se ele não escolheu, o rosto do personagem dele. A foto do Google só aparece se não houver nenhuma das duas." },
+  { v: 318, txt: "Amigos: na aba Amigos (e na lista de convidar da Vila) agora aparece a foto que o amigo escolheu no jogo (o selo). A foto do Google só aparece se ele não escolheu nenhuma no jogo." },
   { v: 317, txt: "🎃 Maldição da abóbora: enquanto você estiver com cabeça de abóbora, a sua foto de perfil também vira uma cabeça de abóbora (no seu cartão e para os amigos). Passando a maldição, a foto volta." },
   { v: 316, txt: "Quarto: os botões ganharam nome, \"↻ Girar\" e \"📦 Arquivar\" (o móvel arquivado volta para o seu inventário)." },
   { v: 315, txt: "Quarto: agora dá para ARRASTAR os móveis para mudar de lugar (aparece uma sombra verde onde cabe e vermelha onde não cabe). Os botões ↻ Girar e 📦 Arquivar ficaram no topo da tela, sempre visíveis, mesmo com o painel de móveis aberto." },
@@ -5503,13 +5503,12 @@ const rostoAvatar = av => makeIcon('rosto:' + JSON.stringify(av || {}), () => {
   const gr = g.createRadialGradient(40, 32, 4, 48, 48, 66); gr.addColorStop(0, '#d9efa8'); gr.addColorStop(1, '#8bbf5a'); g.fillStyle = gr; g.fillRect(0, 0, 96, 96);
   drawAvatar(g, 48, 46 + 52 * 2.5, 2.5, av, 0, false, 1); g.restore();
 });
-// O que mostrar de um amigo: selo do jogo > rosto do personagem > foto do Google
+// O que mostrar de um amigo: a foto escolhida no jogo (selo) > foto do Google
 function fotoDoAmigo(f) {
   if (!f || typeof f !== 'object') return '';
   const ph = f.photo || '';
   if (ph.startsWith('icone:')) return resolveFoto(ph);
   if (f.selo && FOTO_PERFIL[f.selo]) return FOTO_PERFIL[f.selo].icon();
-  if (f.av) { try { return rostoAvatar(avatarOk(f.av)); } catch (e) { /* cai para a foto do Google */ } }
   return resolveFoto(ph);
 }
 // A foto que EU mostro agora: o selo escolhido (se já liberado) ou a foto do Google.
