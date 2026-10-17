@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 318, txt: "Amigos: na aba Amigos (e na lista de convidar da Vila) agora aparece a foto do jogo: o selo que o amigo escolheu ou, se ele não escolheu, o rosto do personagem dele. A foto do Google só aparece se não houver nenhuma das duas." },
   { v: 317, txt: "🎃 Maldição da abóbora: enquanto você estiver com cabeça de abóbora, a sua foto de perfil também vira uma cabeça de abóbora (no seu cartão e para os amigos). Passando a maldição, a foto volta." },
   { v: 316, txt: "Quarto: os botões ganharam nome, \"↻ Girar\" e \"📦 Arquivar\" (o móvel arquivado volta para o seu inventário)." },
   { v: 315, txt: "Quarto: agora dá para ARRASTAR os móveis para mudar de lugar (aparece uma sombra verde onde cabe e vermelha onde não cabe). Os botões ↻ Girar e 📦 Arquivar ficaram no topo da tela, sempre visíveis, mesmo com o painel de móveis aberto." },
@@ -2663,7 +2664,7 @@ function fetchFriendInfo(uid, forca) {
   if (!user || (fi !== undefined && !(fi && fi.at && !fi.buscando && (forca || Date.now() - fi.at > 120e3)))) return;
   if (fi && fi.at) fi.buscando = true; else friendInfo[uid] = 'loading';
   Cloud.loadFarm(uid).then(f => {
-    friendInfo[uid] = f ? { name: limpaNome(f.apelido) || firstName(f.name || 'Amigo'), fazenda: limpaNome(f.fazenda) || 'Roça Feliz', photo: f.photo || '', moldura: typeof f.moldura === 'string' ? f.moldura : '', level: f.level || 1, ajuda: pedidosAjuda(estadoDoAmigo(f), uid), versao: f.versao || '', amz: pontosAmizadeDele(estadoDoAmigo(f)), at: Date.now() } : null;
+    friendInfo[uid] = f ? { name: limpaNome(f.apelido) || firstName(f.name || 'Amigo'), fazenda: limpaNome(f.fazenda) || 'Roça Feliz', photo: f.photo || '', moldura: typeof f.moldura === 'string' ? f.moldura : '', level: f.level || 1, ajuda: pedidosAjuda(estadoDoAmigo(f), uid), versao: f.versao || '', selo: (estadoDoAmigo(f) || {}).fotoPerfil || '', av: (estadoDoAmigo(f) || {}).avatar || null, amz: pontosAmizadeDele(estadoDoAmigo(f)), at: Date.now() } : null;
     renderTabs();
   }).catch(e => {
     // Não conseguiu ler (sem internet, login ainda carregando, ou a pessoa desfez a amizade):
@@ -5496,6 +5497,21 @@ function fotoIconUrl(f) {
 }
 for (const f of FOTOS_PERFIL) f.icon = () => fotoIconUrl(f);
 const fotoLiberada = f => !f.requer || f.requer();
+// Rosto do personagem (a "foto do jogo" de quem não escolheu um selo): cabeça e ombros do avatar num círculo
+const rostoAvatar = av => makeIcon('rosto:' + JSON.stringify(av || {}), () => {
+  const g = ctx; g.save(); g.beginPath(); g.arc(48, 48, 48, 0, 7); g.clip();
+  const gr = g.createRadialGradient(40, 32, 4, 48, 48, 66); gr.addColorStop(0, '#d9efa8'); gr.addColorStop(1, '#8bbf5a'); g.fillStyle = gr; g.fillRect(0, 0, 96, 96);
+  drawAvatar(g, 48, 46 + 52 * 2.5, 2.5, av, 0, false, 1); g.restore();
+});
+// O que mostrar de um amigo: selo do jogo > rosto do personagem > foto do Google
+function fotoDoAmigo(f) {
+  if (!f || typeof f !== 'object') return '';
+  const ph = f.photo || '';
+  if (ph.startsWith('icone:')) return resolveFoto(ph);
+  if (f.selo && FOTO_PERFIL[f.selo]) return FOTO_PERFIL[f.selo].icon();
+  if (f.av) { try { return rostoAvatar(avatarOk(f.av)); } catch (e) { /* cai para a foto do Google */ } }
+  return resolveFoto(ph);
+}
 // A foto que EU mostro agora: o selo escolhido (se já liberado) ou a foto do Google.
 const aboboraAtiva = () => !!(state && typeof halMald === 'function' && halloweenAtivo() && halMald('abobora'));
 const fotoAtual = () => {
@@ -6071,8 +6087,8 @@ function renderPane() {
       <div class="codebox"><div><div class="meta">Seu código de amigo</div><strong>${esc(state.code || '······')}</strong></div>
           <button class="btn ghost" data-copy-code type="button">Copiar</button></div>
         <form class="addform" id="addFriend"><input id="friendCode" maxlength="7" placeholder="Código do amigo" autocomplete="off" aria-label="Código do amigo"><button class="btn" type="submit">Adicionar</button></form>`;
-      const avatar = (photo, name, color, moldura) => {
-        const src = resolveFoto(photo), cls = 'avatar' + (moldura ? ' moldura-' + moldura : '');
+      const avatar = (photo, name, color, moldura, amigo) => {
+        const src = amigo ? fotoDoAmigo(amigo) : resolveFoto(photo), cls = 'avatar' + (moldura ? ' moldura-' + moldura : '');
         return src ? `<img class="${cls}" alt="" referrerpolicy="no-referrer" src="${esc(src)}">`
           : `<div class="${cls}" style="background:${color}">${esc((name || '?')[0])}</div>`;
       };
@@ -6097,7 +6113,7 @@ function renderPane() {
         if (f === 'loading') { html += `<div class="row"><div class="avatar" style="background:#c9c3a8"></div><div class="meta">Carregando…</div><div></div></div>`; continue; }
         const name = f ? f.name : 'Amigo';
         const armed = unfriendArmed === uid;
-        html += `<div class="row ${here ? 'sel' : ''}">${avatar(f && f.photo, name, '#7aa35a', f && f.moldura)}
+        html += `<div class="row ${here ? 'sel' : ''}">${avatar(f && f.photo, name, '#7aa35a', f && f.moldura, f)}
           <div><div class="name">${esc(name)}${owes(uid) ? '<span class="tag">ajudou você</span>' : ''}</div><div class="meta">${bolinhaStatus(uid)} · ${f && f.erro ? 'Não deu para ver a roça: toque em Reatar' : f ? `${esc(f.fazenda || 'Roça Feliz')} · nível ${f.level} · ${f.versao ? `jogo v${esc(f.versao)}${Number(f.versao) < Number(VERSION) ? ' (desatualizado)' : ''}` : 'jogo versão antiga'}` : 'Ainda não entrou no jogo'}${owes(uid) ? ` · ajude de volta: +${AJUDA_BONUS.moedas} moedas` : ''}</div>
           <div class="meta" title="Amizade: ajude ou presenteie para subir">${nivelAmizade(uid) > 5 ? `❤️ ${nivelAmizade(uid)}/${AMIZADE_NIVEL_MAX}` : '❤️'.repeat(nivelAmizade(uid)) + '🤍'.repeat(5 - nivelAmizade(uid))} · presentes ${nivelAmizade(uid) ? 'melhores' : 'melhoram com a amizade'}</div></div>
           <div class="stack">${here ? `<button class="btn ghost" data-home>Voltar</button>` : (f && f.erro ? `<button class="btn" data-reatar="${esc(uid)}">Reatar</button>` : `<button class="btn" data-visit-friend="${esc(uid)}" ${f ? '' : 'disabled'}>Visitar</button>`)}
@@ -14309,7 +14325,7 @@ function pracaHtmlConvidar() {
   const online = lista.filter(u => statusAmigo(u).on && !praca.jog[u]).length;
   return `<div class="vp-card"><small>Quem estiver online vê um balão com "Ir". Quem estiver offline recebe uma notificação.</small>${online ? `<button class="btn gold" type="button" data-vila-conv-todos>📣 Chamar todos os online (${online})</button>` : ''}</div>` + lista.map(u => {
     const st = statusAmigo(u), aqui = !!praca.jog[u], recente = Date.now() - (praca.convTs[u] || 0) < 120000;
-    return `<div class="vp-card row">${(() => { const f = friendInfo[u], src = f && typeof f === 'object' && !f.erro ? resolveFoto(f.photo) : ''; return src ? `<img class="avatar" alt="" referrerpolicy="no-referrer" src="${esc(src)}" style="width:40px;height:40px;border-radius:50%;box-shadow:0 0 0 3px ${st.on ? '#4fc03a' : '#b9b4ac'}">` : `<div class="avatar" style="background:${st.on ? '#4fc03a' : '#b9b4ac'};width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800">${esc(nome(u).slice(0, 1).toUpperCase())}</div>`; })()}<div><b>${esc(nome(u))}</b><div>${aqui ? '🏘️ Já está na Vila' : st.on ? '🟢 Online' : esc(st.txt) + ' · vai receber notificação'}</div></div><button class="btn gold" type="button" data-vila-conv="${esc(u)}" ${aqui || recente ? 'disabled' : ''}>${recente ? 'Enviado ✓' : 'Convidar'}</button></div>`;
+    return `<div class="vp-card row">${(() => { const f = friendInfo[u], src = f && typeof f === 'object' && !f.erro ? fotoDoAmigo(f) : ''; return src ? `<img class="avatar" alt="" referrerpolicy="no-referrer" src="${esc(src)}" style="width:40px;height:40px;border-radius:50%;box-shadow:0 0 0 3px ${st.on ? '#4fc03a' : '#b9b4ac'}">` : `<div class="avatar" style="background:${st.on ? '#4fc03a' : '#b9b4ac'};width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800">${esc(nome(u).slice(0, 1).toUpperCase())}</div>`; })()}<div><b>${esc(nome(u))}</b><div>${aqui ? '🏘️ Já está na Vila' : st.on ? '🟢 Online' : esc(st.txt) + ' · vai receber notificação'}</div></div><button class="btn gold" type="button" data-vila-conv="${esc(u)}" ${aqui || recente ? 'disabled' : ''}>${recente ? 'Enviado ✓' : 'Convidar'}</button></div>`;
   }).join('');
 }
 async function pracaConvidar(uid, silencioso) {
