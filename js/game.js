@@ -14029,7 +14029,7 @@ function pracaAbrir() {
   praca.aberta = true; $('#praca').hidden = false; pracaChip();
   $('#pracaEmotes').innerHTML = PRACA_EMOTES.map(e => `<button type="button" data-praca-emote="${e}" aria-label="Emoji ${e}">${e}</button>`).join('') + '<button type="button" data-vila-ir="danca" aria-label="Danças e gestos">💃＋</button>';
   pracaNav();
-  pracaPainelAbrir(null);
+  pracaPainelAbrir(null); state.friends.forEach(u => fetchFriendInfo(u)); // já deixa os dados dos amigos carregando
   pracaLigar().then(() => { if (praca.on && praca.aberta) pracaEntrar(); });
   requestAnimationFrame(pracaFrame);
 }
@@ -14255,12 +14255,15 @@ function pracaPublicarCasa() {
 function pracaHtmlConvidar() {
   if (!state.friends.length) return '<div class="vp-card">Você ainda não tem amigos. Adicione em Amigos!</div>';
   state.friends.forEach(u => fetchFriendInfo(u));
+  if (state.friends.some(u => { const f = friendInfo[u]; return !f || f === 'loading'; })) { // dados dos amigos ainda carregando: redesenha quando chegarem
+    for (const t of [700, 1600, 3200]) setTimeout(() => { if (praca.painel === 'convidar') pracaPainel(); }, t);
+  }
   const nome = u => { const f = friendInfo[u]; return f && typeof f === 'object' && !f.erro && f.name ? f.name : 'Amigo'; };
   const lista = [...state.friends].sort((a, b) => (statusAmigo(b).on ? 1 : 0) - (statusAmigo(a).on ? 1 : 0));
   const online = lista.filter(u => statusAmigo(u).on && !praca.jog[u]).length;
   return `<div class="vp-card"><small>Quem estiver online vê um balão com "Ir". Quem estiver offline recebe uma notificação.</small>${online ? `<button class="btn gold" type="button" data-vila-conv-todos>📣 Chamar todos os online (${online})</button>` : ''}</div>` + lista.map(u => {
     const st = statusAmigo(u), aqui = !!praca.jog[u], recente = Date.now() - (praca.convTs[u] || 0) < 120000;
-    return `<div class="vp-card row"><div class="avatar" style="background:${st.on ? '#4fc03a' : '#b9b4ac'};width:40px;height:40px;border-radius:50%"></div><div><b>${esc(nome(u))}</b><div>${aqui ? '🏘️ Já está na Vila' : st.on ? '🟢 Online' : esc(st.txt) + ' · vai receber notificação'}</div></div><button class="btn gold" type="button" data-vila-conv="${esc(u)}" ${aqui || recente ? 'disabled' : ''}>${recente ? 'Enviado ✓' : 'Convidar'}</button></div>`;
+    return `<div class="vp-card row">${(() => { const f = friendInfo[u], src = f && typeof f === 'object' && !f.erro ? resolveFoto(f.photo) : ''; return src ? `<img class="avatar" alt="" referrerpolicy="no-referrer" src="${esc(src)}" style="width:40px;height:40px;border-radius:50%;box-shadow:0 0 0 3px ${st.on ? '#4fc03a' : '#b9b4ac'}">` : `<div class="avatar" style="background:${st.on ? '#4fc03a' : '#b9b4ac'};width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800">${esc(nome(u).slice(0, 1).toUpperCase())}</div>`; })()}<div><b>${esc(nome(u))}</b><div>${aqui ? '🏘️ Já está na Vila' : st.on ? '🟢 Online' : esc(st.txt) + ' · vai receber notificação'}</div></div><button class="btn gold" type="button" data-vila-conv="${esc(u)}" ${aqui || recente ? 'disabled' : ''}>${recente ? 'Enviado ✓' : 'Convidar'}</button></div>`;
   }).join('');
 }
 async function pracaConvidar(uid, silencioso) {
