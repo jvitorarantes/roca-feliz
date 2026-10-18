@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 330, txt: "Inventário: ao pôr um enfeite na roça ou no rancho, ele continua na mão até acabar o estoque ou você tocar em Concluir. Não precisa voltar ao inventário a cada peça." },
   { v: 329, txt: "Correio: o texto das cartas em papel pautado, florido, junino, trevo, pergaminho e coração agora fica escuro e legível no tema escuro." },
   { v: 328, txt: "Fazenda: o botão 🌱 Plantar agora sempre diz 'Plantar' e, ao tocar nele, você escolhe a planta na lista." },
   { v: 327, txt: "Fazenda: ao tocar em 🌱 Plantar, o adubo mostra todos os tipos (básico, rápido e premium) com a quantidade de cada um, é só escolher." },
@@ -10793,8 +10794,12 @@ function salvarMove() {
     if (ENFEITE[moving.novo].fruteira) { novo.t0 = Date.now(); novo.ult = Date.now(); novo.colhidas = 0; novo.fid = newId(); } // frutífera: começa a contar ao plantar
     (state.objetos[scene] = objetosDe(state, scene)).push(novo);
     state.enfeites[moving.novo]--;
-    toast(`${ENFEITE[moving.novo].nome} colocado! +${ENFEITE[moving.novo].conforto}% de XP.`, 'good');
-    moveMode = false; renderMoveBtn(); // pôr um item do inventário termina o modo
+    if (state.enfeites[moving.novo] > 0) { // ainda tem mais: continua com o item na mão até acabar ou você sair
+      sfx('buy'); done(); renderMoveBar();
+      return toast(`${ENFEITE[moving.novo].nome} colocado! Sobram ${state.enfeites[moving.novo]}. Toque para pôr outro ou em Concluir para sair.`, 'good');
+    }
+    toast(`${ENFEITE[moving.novo].nome} colocado! +${ENFEITE[moving.novo].conforto}% de XP. Acabou o estoque.`, 'good');
+    moveMode = false; renderMoveBtn(); // acabou o estoque: termina o modo
   } else if (moving.key.startsWith('enf:')) {
     const o = objetosDe(state, scene)[Number(moving.key.slice(4))]; if (o) { o.u = u; o.v = v; if (cerca) o.rot = moving.rot || 0; else if (!agua) { if (moving.rot) o.rot = moving.rot | 0; else delete o.rot; } }
   } else if (abrigoId) {
