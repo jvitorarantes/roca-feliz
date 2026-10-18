@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 326, txt: "Fazenda: a barra de ferramentas ficou enxuta: ✋ Mão, 🔧 Cuidar (regar, inseticida, enxadão), 🌱 Plantar (planta e adubo) e 🚜 Auto (rastelar, colher e limpar). Toque num grupo para escolher." },
   { v: 325, txt: "Vila: dentro de um quarto ou sala de festa, escolher um lugar em 🧭 Ir para agora sai do local e vai direto ao destino." },
   { v: 324, txt: "Vila: letras dos menus agora são brancas e fáceis de ler no fundo escuro." },
   { v: 323, txt: "Vila: ao tocar num emoji, gesto, dança ou lugar do menu, o menu fecha para você ver o que aconteceu." },
@@ -5386,35 +5387,44 @@ function renderTools() {
     ? (isHome() ? 'Clique num animal para alimentar, recolher ou vender. Clique num abrigo para aumentar ou para construir um novo. No Modo Mover dá para arrastar os abrigos para outro canto do rancho.' : 'Dê comida aos animais com fome para ajudar. Produto pronto dá para pegar um pouquinho.')
     : (isHome() ? 'Os espaços com + são lugares para decoração. Cada peça dá conforto, e conforto aumenta o XP que você ganha. Gato, tartaruga e arara moram aqui: clique neles para fazer carinho.' : 'Esta é a casa do seu vizinho.');
   box.innerHTML = '';
-  availTools().forEach((t, k) => {
+  const av = availTools(), tem = id => av.some(t => t.id === id);
+  const iconeDe = t => t.id === 'seed' ? `<img alt="" src="${cropIcon(state.seed)}">` : t.id === 'fert' ? `<img alt="" src="${fertIcon(state.fertSel)}">` : TOOL_ICONS[t.id];
+  const rotuloDe = t => t.id === 'seed' ? CROP[state.seed].nome : t.id === 'fert' ? `${FERT[state.fertSel].curto} ×${state.fert[state.fertSel] || 0}` : t.nome;
+  const botao = (icone, rotulo, titulo, ativo, id) => {
     const b = document.createElement('button');
-    b.className = 'roundbtn tool'; b.type = 'button';
-    b.setAttribute('aria-pressed', String(state.tool === t.id));
-    const icon = t.id === 'seed' ? `<img alt="" src="${cropIcon(state.seed)}">`
-      : t.id === 'fert' ? `<img alt="" src="${fertIcon(state.fertSel)}">` : TOOL_ICONS[t.id];
-    const label = t.id === 'seed' ? CROP[state.seed].nome
-      : t.id === 'fert' ? `${FERT[state.fertSel].curto} ×${state.fert[state.fertSel] || 0}` : t.nome;
-    b.innerHTML = `<span class="ic">${icon}</span><span class="lb">${label}</span>`;
-    b.title = (t.id === 'hand' ? 'Faz a ação certa: colhe, rega, tira pragas, planta' : t.nome) + ` (tecla ${k + 1})`;
-    b.addEventListener('click', () => setTool(t.id));
-    box.appendChild(b);
-  });
-  if (scene === 'roca' && isHome() && !isGated()) {
-    const b = document.createElement('button');
-    b.className = 'roundbtn tool'; b.type = 'button'; b.id = 'rasteloBtn';
-    b.innerHTML = `<span class="ic">${TOOL_ICONS.rastelo}</span><span class="lb">Rastelar</span>`;
-    b.title = 'Manda o avatar rastelar as folhas espalhadas';
-    b.addEventListener('click', irRastelar);
-    box.appendChild(b);
-    atualizarRastelo();
-    const c = document.createElement('button');
-    c.className = 'roundbtn tool'; c.type = 'button'; c.id = 'colherBtn';
-    c.innerHTML = `<span class="ic">🚜</span><span class="lb">Colher</span>`;
-    c.title = 'Colheita e limpeza automáticas';
-    c.addEventListener('click', e => abrirMenuColher(e.currentTarget));
-    box.appendChild(c);
-    atualizarColher();
+    b.className = 'roundbtn tool'; b.type = 'button'; if (id) b.id = id;
+    b.setAttribute('aria-pressed', String(!!ativo));
+    b.innerHTML = `<span class="ic">${icone}</span><span class="lb">${rotulo}</span>`; b.title = titulo;
+    box.appendChild(b); return b;
+  };
+  // Mão fica solta; o resto vira grupos que abrem um menu (o botão do grupo mostra a ferramenta escolhida)
+  const hand = av.find(t => t.id === 'hand');
+  if (hand) botao(iconeDe(hand), hand.nome, 'Faz a ação certa: colhe, rega, tira pragas, planta (tecla 1)', state.tool === 'hand').addEventListener('click', () => setTool('hand'));
+  const grupos = [
+    { id: 'cuidar', nome: 'Cuidar', ic: 'water', ids: ['water', 'pest', 'hoe'] },
+    { id: 'plantar', nome: 'Plantar', ic: 'seed', ids: ['seed', 'fert'] },
+  ];
+  for (const g of grupos) {
+    const lista = av.filter(t => g.ids.includes(t.id)); if (!lista.length) continue;
+    const ativa = lista.find(t => t.id === state.tool), rep = ativa || lista.find(t => t.id === g.ic) || lista[0];
+    const b = botao(iconeDe(rep), ativa ? rotuloDe(ativa) : g.nome, g.nome + ': toque para escolher a ferramenta', !!ativa);
+    b.addEventListener('click', () => abrirMenuGrupo(b, g.nome, lista.map(t => `<button type="button" data-ctx="tool:${t.id}"><span class="mi-ic">${iconeDe(t)}</span> ${rotuloDe(t)}</button>`).join('')));
   }
+  if (scene === 'roca' && isHome() && !isGated()) {
+    const b = botao('<span style="font-size:26px">🚜</span>', 'Auto', 'Rastelar, colheita e limpeza automáticas', false);
+    b.addEventListener('click', () => {
+      const nF = folhasDe().filter(f => !f.alvo).length, nC = state.plots.filter(ripe).length + fruteirasProntas().length, nL = state.plots.filter(p => p.s === 'withered').length;
+      abrirMenuGrupo(b, 'Ações automáticas', `<button type="button" data-ctx="rastelar"><span class="mi-ic">${TOOL_ICONS.rastelo}</span> Rastelar folhas${nF ? ` (${nF})` : ''}</button><button type="button" data-ctx="colher">🧺 Colheita automática${nC ? ` (${nC})` : ''}</button><button type="button" data-ctx="limpar">🧹 Limpar terras secas${nL ? ` (${nL})` : ''}</button><button type="button" data-ctx="folhas">🍂 Limpeza de folhas${nF ? ` (${nF})` : ''}</button>`);
+    });
+  }
+}
+function abrirMenuGrupo(btn, titulo, html) {
+  const m = $('#ctxMenu'), r = btn.getBoundingClientRect();
+  m.innerHTML = `<b>${titulo}</b>${html}<button type="button" data-ctx="fechar">Cancelar</button>`;
+  m.dataset.key = ''; m.hidden = false;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = `${clamp(r.left + r.width / 2 - w / 2, 6, L.cw - w - 6)}px`; m.style.top = `${clamp(r.top - h - 10, 6, L.ch - h - 6)}px`;
+  sfx('click');
 }
 // Atualiza o texto do botão de rastelar folhas sem recriar o #tools inteiro (evita perder a rolagem/seleção a cada tick).
 // Fica sempre clicável: sem folha nenhuma, o clique mostra um aviso (ver irRastelar) em vez de só desabilitar o botão.
@@ -6581,6 +6591,8 @@ function fecharMenuObj() { $('#ctxMenu').hidden = true; }
 $('#ctxMenu').addEventListener('click', e => {
   const b = e.target.closest('[data-ctx]'); if (!b) return;
   const key = $('#ctxMenu').dataset.key; fecharMenuObj();
+  if (b.dataset.ctx.startsWith('tool:')) return setTool(b.dataset.ctx.slice(5));
+  if (b.dataset.ctx === 'rastelar') return irRastelar();
   if (b.dataset.ctx === 'mover' && key.startsWith('plot:')) {
     const i = Number(key.slice(5));
     moveMode = true; moving = { plot: i, uma: true, u: plotU(i) + 0.5, v: plotV(i) + 0.5 }; renderMoveBtn(); renderTools();
