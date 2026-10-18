@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 327, txt: "Fazenda: ao tocar em 🌱 Plantar, o adubo mostra todos os tipos (básico, rápido e premium) com a quantidade de cada um, é só escolher." },
   { v: 326, txt: "Fazenda: a barra de ferramentas ficou enxuta: ✋ Mão, 🔧 Cuidar (regar, inseticida, enxadão), 🌱 Plantar (planta e adubo) e 🚜 Auto (rastelar, colher e limpar). Toque num grupo para escolher." },
   { v: 325, txt: "Vila: dentro de um quarto ou sala de festa, escolher um lugar em 🧭 Ir para agora sai do local e vai direto ao destino." },
   { v: 324, txt: "Vila: letras dos menus agora são brancas e fáceis de ler no fundo escuro." },
@@ -5408,7 +5409,9 @@ function renderTools() {
     const lista = av.filter(t => g.ids.includes(t.id)); if (!lista.length) continue;
     const ativa = lista.find(t => t.id === state.tool), rep = ativa || lista.find(t => t.id === g.ic) || lista[0];
     const b = botao(iconeDe(rep), ativa ? rotuloDe(ativa) : g.nome, g.nome + ': toque para escolher a ferramenta', !!ativa);
-    b.addEventListener('click', () => abrirMenuGrupo(b, g.nome, lista.map(t => `<button type="button" data-ctx="tool:${t.id}"><span class="mi-ic">${iconeDe(t)}</span> ${rotuloDe(t)}</button>`).join('')));
+    b.addEventListener('click', () => abrirMenuGrupo(b, g.nome, lista.map(t => t.id === 'fert'
+      ? FERTS.map(f => `<button type="button" data-ctx="fert:${f.id}"${state.tool === 'fert' && state.fertSel === f.id ? ' style="outline:2px solid var(--wood)"' : ''}><span class="mi-ic"><img alt="" src="${fertIcon(f.id)}"></span> ${f.nome.replace('Fertilizante ', 'Adubo ')} ×${state.fert[f.id] || 0}${state.level < f.nivel ? ` 🔒 nv ${f.nivel}` : ''}</button>`).join('')
+      : `<button type="button" data-ctx="tool:${t.id}"><span class="mi-ic">${iconeDe(t)}</span> ${rotuloDe(t)}</button>`).join('')));
   }
   if (scene === 'roca' && isHome() && !isGated()) {
     const b = botao('<span style="font-size:26px">🚜</span>', 'Auto', 'Rastelar, colheita e limpeza automáticas', false);
@@ -6592,6 +6595,7 @@ $('#ctxMenu').addEventListener('click', e => {
   const b = e.target.closest('[data-ctx]'); if (!b) return;
   const key = $('#ctxMenu').dataset.key; fecharMenuObj();
   if (b.dataset.ctx.startsWith('tool:')) return setTool(b.dataset.ctx.slice(5));
+  if (b.dataset.ctx.startsWith('fert:')) { state.fertSel = b.dataset.ctx.slice(5); state.tool = 'fert'; renderTools(); renderPane(); return; }
   if (b.dataset.ctx === 'rastelar') return irRastelar();
   if (b.dataset.ctx === 'mover' && key.startsWith('plot:')) {
     const i = Number(key.slice(5));
