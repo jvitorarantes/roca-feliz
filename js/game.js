@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 329, txt: "Correio: o texto das cartas em papel pautado, florido, junino, trevo, pergaminho e coração agora fica escuro e legível no tema escuro." },
   { v: 328, txt: "Fazenda: o botão 🌱 Plantar agora sempre diz 'Plantar' e, ao tocar nele, você escolhe a planta na lista." },
   { v: 327, txt: "Fazenda: ao tocar em 🌱 Plantar, o adubo mostra todos os tipos (básico, rápido e premium) com a quantidade de cada um, é só escolher." },
   { v: 326, txt: "Fazenda: a barra de ferramentas ficou enxuta: ✋ Mão, 🔧 Cuidar (regar, inseticida, enxadão), 🌱 Plantar (planta e adubo) e 🚜 Auto (rastelar, colher e limpar). Toque num grupo para escolher." },

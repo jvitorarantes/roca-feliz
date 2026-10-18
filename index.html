@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="328">
+<meta name="rf-version" content="329">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -850,6 +850,7 @@
   .papelchip{border:2px solid var(--panel-2);background:var(--card);border-radius:10px;padding:4px 9px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;color:inherit}
   .papelchip[aria-pressed=true]{border-color:var(--gold);background:var(--sel)}
   .papelchip:disabled{opacity:.55;cursor:default}
+  .news[class*="papel-"] > div{color:#2f2a1f} .news[class*="papel-"] time{color:#7a6a4a}
   .news.papel-pautado > div{background-color:#fffdf4;background-image:repeating-linear-gradient(transparent,transparent 19px,rgba(74,134,199,.28) 19px,rgba(74,134,199,.28) 20px);border-color:#d8c8a0;border-left:4px double #e0a0a0}
   .news.papel-florido > div{background-color:#fff5f8;border-color:#e89ab8;background-image:radial-gradient(circle at 10px 10px,#f06292 3px,transparent 4px),radial-gradient(circle at calc(100% - 10px) calc(100% - 10px),#ffd54a 3px,transparent 4px)}
   .news.papel-junino > div{background-color:#fff6d6;border-color:#e8b030;padding-top:11px;background-image:linear-gradient(90deg,#e53b2f 0 20%,#ffd54a 20% 40%,#4aa3df 40% 60%,#4f9a2f 60% 80%,#f06292 80% 100%);background-size:100% 5px;background-repeat:no-repeat}
@@ -1210,8 +1211,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=328"></script>
+<script src="js/audio.js?v=329"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=328"></script>
+<script src="js/game.js?v=329"></script>
 </body>
 </html>
