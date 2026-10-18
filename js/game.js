@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 325, txt: "Vila: dentro de um quarto ou sala de festa, escolher um lugar em 🧭 Ir para agora sai do local e vai direto ao destino." },
   { v: 324, txt: "Vila: letras dos menus agora são brancas e fáceis de ler no fundo escuro." },
   { v: 323, txt: "Vila: ao tocar num emoji, gesto, dança ou lugar do menu, o menu fecha para você ver o que aconteceu." },
   { v: 322, txt: "Vila: a barra de baixo agora tem só 3 botões — 🧭 Ir para (lugares, quartos, tarefas, tiro ao alvo), 👥 Pessoas (cartas, voz, convidar) e 🎭 Eu (emojis, danças, pet, títulos, móveis). Toque num deles para expandir as opções." },
@@ -14575,7 +14576,7 @@ function vilaDesejo() {
   if (Math.random() < 0.08) { state.coins += 25; praca.flutua.push({ txt: '✨ +25', u: 32, v: 24, t: performance.now() + 300 }); toast('✨ Seu desejo na fonte foi atendido! +25 moedas', 'good'); sfx('level'); } else toast('🪙 Você jogou uma moeda e fez um pedido…');
   done();
 }
-function vilaIrZona(id) { const z = VILA_ZONAS[id]; if (z) { pracaPainelAbrir(null); pracaIrPara(z.u, z.v); } }
+function vilaIrZona(id) { const z = VILA_ZONAS[id]; if (!z) return; pracaPainelAbrir(null); if (praca.sala) pracaIrSala(null); /* estava num quarto/sala: sai e vai ao destino */ if (praca.eu) pracaIrPara(z.u, z.v); }
 function pracaHud(now) {
   const el = $('#pracaHud'); if (!el) return;
   if (praca.sala) { el.textContent = ''; el.dataset.t = ''; return; }
