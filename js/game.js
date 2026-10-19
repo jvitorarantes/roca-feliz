@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 333, txt: "Cartas de Halloween: a lista de amigos para enviar agora espera os nomes carregarem (antes aparecia só 'Amigo' repetido)." },
   { v: 332, txt: "Corrigido: ao tocar em 🆘 Precisa de ajuda (ou visitar um amigo) a tela de carregamento podia ficar parada para sempre se a internet falhasse. Agora ela desiste em 15 segundos e avisa para tentar de novo." },
   { v: 331, txt: "Vila: corrigido o botão ✏️ Editar (e Sair) do quarto que não respondia ao toque no iPhone. Com o celular deitado, os botões de zoom e microfone não cobrem mais o X de fechar a Vila." },
   { v: 330, txt: "Inventário: ao pôr um enfeite na roça ou no rancho, ele continua na mão até acabar o estoque ou você tocar em Concluir. Não precisa voltar ao inventário a cada peça." },
@@ -2676,9 +2677,9 @@ const estadoDoAmigo = f => { try { return f && f.stateJson ? JSON.parse(f.stateJ
 // (a cada 2 min lê de novo, para o botão "Precisa de ajuda" ficar em dia)
 function fetchFriendInfo(uid, forca) {
   const fi = friendInfo[uid];
-  if (!user || (fi !== undefined && !(fi && fi.at && !fi.buscando && (forca || Date.now() - fi.at > 120e3)))) return;
+  if (!user || (fi !== undefined && !(fi && fi.at && !fi.buscando && (forca || Date.now() - fi.at > 120e3)))) return Promise.resolve();
   if (fi && fi.at) fi.buscando = true; else friendInfo[uid] = 'loading';
-  Cloud.loadFarm(uid).then(f => {
+  return Cloud.loadFarm(uid).then(f => {
     friendInfo[uid] = f ? { name: limpaNome(f.apelido) || firstName(f.name || 'Amigo'), fazenda: limpaNome(f.fazenda) || 'Roça Feliz', photo: f.photo || '', moldura: typeof f.moldura === 'string' ? f.moldura : '', level: f.level || 1, ajuda: pedidosAjuda(estadoDoAmigo(f), uid), versao: f.versao || '', selo: (estadoDoAmigo(f) || {}).fotoPerfil || '', av: (estadoDoAmigo(f) || {}).avatar || null, amz: pontosAmizadeDele(estadoDoAmigo(f)), at: Date.now() } : null;
     renderTabs();
   }).catch(e => {
@@ -13627,13 +13628,15 @@ function halEntrada() {
 }
 // Uma carta por amigo por dia.
 function halEnviadas() { const h = halDe(), hoje = localDay(); if (!h.enviadas || h.enviadas.d !== hoje) h.enviadas = { d: hoje, u: [] }; return h.enviadas.u; }
-function enviarCartaHal(tipo) {
+async function enviarCartaHal(tipo) {
   const h = halDe(), C = HAL_CARTAS[tipo]; halDiaReset();
   if (!halloweenAtivo()) return;
   if (!h.tem[tipo]) return toast('Essa carta já foi enviada hoje. Amanhã vêm 3 novas!');
   if (!user) return toast('Entre com o Google para mandar cartas aos amigos.');
   if (!state.friends.length) return toast('Você ainda não tem amigos para mandar a carta. Adicione em Amigos!');
-  state.friends.forEach(u => fetchFriendInfo(u)); // os dados dos amigos podem ainda não ter carregado
+  // os dados dos amigos podem ainda não ter carregado: espera (até 6 s) para mostrar nome e não só "Amigo"
+  const faltam = state.friends.filter(u => !(friendInfo[u] && typeof friendInfo[u] === 'object' && !friendInfo[u].erro));
+  if (faltam.length) { toast('Carregando seus amigos…'); faltam.forEach(u => fetchFriendInfo(u)); for (let i = 0; i < 24 && faltam.some(u => friendInfo[u] === 'loading' || friendInfo[u] === undefined); i++) await espera(250); }
   const jaRecebeu = u => halEnviadas().includes(u);
   if (state.friends.every(jaRecebeu)) return toast('Você já mandou uma carta hoje para cada amigo. Amanhã tem mais!');
   const nomeDe = u => { const f = friendInfo[u]; return f && typeof f === 'object' && !f.erro && f.name ? f.name : 'Amigo'; };
