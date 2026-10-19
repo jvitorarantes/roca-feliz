@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="330">
+<meta name="rf-version" content="331">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -537,6 +537,8 @@
   #pracaCv { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
   .pracahud { position: absolute; left: 6px; top: 6px; max-width: calc(100% - 120px); font-size: 11px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; white-space: pre-line; pointer-events: none; line-height: 1.35; }
   .pracazoom { position: absolute; right: 6px; bottom: 74px; display: grid; gap: 6px; z-index: 4; }
+  .pracawrap { overflow: hidden; }
+  @media (max-height: 520px) { .pracazoom { bottom: 6px; gap: 4px; } .pracazoom button { width: 34px; height: 34px; font-size: 17px; } .quartobar { top: 28px; } }
   .pracazoom button { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--wood); background: var(--card); font: 800 20px system-ui; cursor: pointer; }
   #pracaMic { position: relative; } #pracaMic.on { background: #4fc03a; box-shadow: 0 0 0 4px rgba(79,192,58,.35); } #pracaMic:not(.on)::after { content: ''; position: absolute; left: 8px; right: 8px; top: 50%; height: 3px; background: #e0463a; transform: rotate(-35deg); border-radius: 2px; }
   .pracaacao { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 17px; padding: 12px 22px; border-radius: 20px; box-shadow: 0 5px 0 rgba(0,0,0,.3); z-index: 5; }
@@ -1211,8 +1213,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=330"></script>
+<script src="js/audio.js?v=331"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=330"></script>
+<script src="js/game.js?v=331"></script>
 </body>
 </html>

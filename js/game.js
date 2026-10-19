@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 331, txt: "Vila: corrigido o botão ✏️ Editar (e Sair) do quarto que não respondia ao toque no iPhone. Com o celular deitado, os botões de zoom e microfone não cobrem mais o X de fechar a Vila." },
   { v: 330, txt: "Inventário: ao pôr um enfeite na roça ou no rancho, ele continua na mão até acabar o estoque ou você tocar em Concluir. Não precisa voltar ao inventário a cada peça." },
   { v: 329, txt: "Correio: o texto das cartas em papel pautado, florido, junino, trevo, pergaminho e coração agora fica escuro e legível no tema escuro." },
   { v: 328, txt: "Fazenda: o botão 🌱 Plantar agora sempre diz 'Plantar' e, ao tocar nele, você escolhe a planta na lista." },
@@ -14931,7 +14932,8 @@ function quartoBarra() {
   if (!S || !praca.aberta) { el.hidden = true; return; }
   const dono = S.dono === user.uid, sel = S.sel && S.sel.idx != null ? quartoSt().q.m[S.sel.idx] : null;
   el.hidden = false;
-  el.innerHTML = `<button type="button" class="btn ghost" data-q="sair">🚪 Sair</button>` + (dono ? `<button type="button" class="btn ${S.edit ? 'gold' : ''}" data-q="editar">🛠️ ${S.edit ? 'Concluir' : 'Editar'}</button>` + (S.edit ? `<button type="button" class="btn" data-q="moveis">🎒 Móveis</button>` : '') + (sel ? `<span class="qsel">${MOVEIS[sel.i].e || '▦'} ${MOVEIS[sel.i].n}</span><button type="button" class="btn" data-q="girar">↻ Girar</button><button type="button" class="btn" data-q="guardar">📦 Arquivar</button>` : S.sel && S.sel.novo ? `<span class="qsel">Colocar: ${MOVEIS[S.sel.novo].e || '▦'} ${MOVEIS[S.sel.novo].n}</span>` : '') : '');
+  const html = `<button type="button" class="btn ghost" data-q="sair">🚪 Sair</button>` + (dono ? `<button type="button" class="btn ${S.edit ? 'gold' : ''}" data-q="editar">🛠️ ${S.edit ? 'Concluir' : 'Editar'}</button>` + (S.edit ? `<button type="button" class="btn" data-q="moveis">🎒 Móveis</button>` : '') + (sel ? `<span class="qsel">${MOVEIS[sel.i].e || '▦'} ${MOVEIS[sel.i].n}</span><button type="button" class="btn" data-q="girar">↻ Girar</button><button type="button" class="btn" data-q="guardar">📦 Arquivar</button>` : S.sel && S.sel.novo ? `<span class="qsel">Colocar: ${MOVEIS[S.sel.novo].e || '▦'} ${MOVEIS[S.sel.novo].n}</span>` : '') : '');
+  if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; } // só refaz se mudou: refazer a cada quadro apagava o botão no meio do toque e o clique nunca chegava (iPhone)
 }
 function quartoToque(x, y, G) {
   const S = praca.sala, q = quartoAtual(), a = (x - G.cx) / G.tw, b = (y - G.cy) / (G.tw / 2), u = G.ou + (a + b) / 2, v = G.ov + (b - a) / 2, dono = S.dono === user.uid, now = performance.now();
