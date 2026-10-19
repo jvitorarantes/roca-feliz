@@ -1405,6 +1405,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 332, txt: "Corrigido: ao tocar em 🆘 Precisa de ajuda (ou visitar um amigo) a tela de carregamento podia ficar parada para sempre se a internet falhasse. Agora ela desiste em 15 segundos e avisa para tentar de novo." },
   { v: 331, txt: "Vila: corrigido o botão ✏️ Editar (e Sair) do quarto que não respondia ao toque no iPhone. Com o celular deitado, os botões de zoom e microfone não cobrem mais o X de fechar a Vila." },
   { v: 330, txt: "Inventário: ao pôr um enfeite na roça ou no rancho, ele continua na mão até acabar o estoque ou você tocar em Concluir. Não precisa voltar ao inventário a cada peça." },
   { v: 329, txt: "Correio: o texto das cartas em papel pautado, florido, junino, trevo, pergaminho e coração agora fica escuro e legível no tema escuro." },
@@ -2119,7 +2120,8 @@ async function visitFriend(uid, ajudar) {
   const nomeAmigo = amigo && amigo.name && !amigo.erro ? amigo.name : 'Amigo', fazAmigo = (amigo && amigo.fazenda) || 'Roça Feliz';
   telaCarregando(`Indo até ${fazAmigo} de ${nomeAmigo}…`, 0, fazAmigo);
   try {
-    const [f] = await Promise.all([Cloud.loadFarm(uid), espera(CARREGA_MS)]);
+    // se a nuvem não responder em 15 s, desiste (antes a tela de carregamento ficava para sempre)
+    const [f] = await Promise.all([Promise.race([Cloud.loadFarm(uid), espera(15000).then(() => { throw new Error('tempo esgotado'); })]), espera(CARREGA_MS)]);
     const data = f && f.stateJson ? migrate(JSON.parse(f.stateJson)) : null;
     if (!data) return toast('Essa roça ainda não existe na nuvem.', 'bad');
     catchUp(data, (Date.now() - (f.updatedAt || Date.now())) / 1000);
@@ -2142,7 +2144,7 @@ async function visitFriend(uid, ajudar) {
   } catch (e) {
     console.warn(e);
     if (e && e.code === 'permission-denied') reatarAmizade(uid);
-    else toast('Não consegui abrir a roça do amigo agora.', 'bad');
+    else toast('Não consegui abrir a roça do amigo agora. Confira a internet e tente de novo.', 'bad');
   } finally { fecharCarregando(); }
 }
 
