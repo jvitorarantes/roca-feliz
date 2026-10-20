@@ -4,7 +4,7 @@
   'use strict';
   const AC = window.AudioContext || window.webkitAudioContext;
   let ac = null, master, musicBus, sfxBus, noiseBuf;
-  const cfg = { music: true, sfx: true, musicVol: 0.5, sfxVol: 0.7, track: 0, duck: 1 };
+  const cfg = { music: true, sfx: true, musicVol: 0.5, sfxVol: 0.7, track: 0, duck: 1, micMute: false };
 
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -38,7 +38,7 @@
   function applyVolumes() {
     if (!ac) return;
     const t = ac.currentTime;
-    musicBus.gain.setTargetAtTime(cfg.music ? cfg.musicVol * 0.55 * cfg.duck : 0, t, 0.15);
+    musicBus.gain.setTargetAtTime(cfg.music && !cfg.micMute ? cfg.musicVol * 0.55 * cfg.duck : 0, t, 0.15);
     sfxBus.gain.setTargetAtTime(cfg.sfx ? cfg.sfxVol * 0.8 * (0.35 + 0.65 * cfg.duck) : 0, t, 0.08);
   }
 
@@ -579,6 +579,8 @@
     },
     // Abafa a música (e um pouco os sons) enquanto a voz de alguém passa por cima: f = 1 normal, 0.12 abafado
     duck(f) { cfg.duck = f; applyVolumes(); },
+    // Microfone ligado: a música fica muda (no celular o microfone deixa o som alto e a música vaza no que os outros ouvem)
+    micMute(on) { cfg.micMute = !!on; applyVolumes(); },
     configure(c) {
       const trackChanged = c.track !== undefined && c.track !== cfg.track;
       Object.assign(cfg, c);

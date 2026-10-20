@@ -1577,6 +1577,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 369, txt: "🎙️ Microfone da Vila: enquanto ele está ligado a música fica muda (antes ficava muito alta no celular). E ficou mais confiável: se o microfone falhar ao ligar o jogo tenta de novo sozinho, e se o celular o derrubar (bloqueio de tela, ligação, outro app) ele é pego de novo ao voltar, sem precisar reiniciar o jogo." },
   { v: 368, txt: "🧑‍🌾 Clientes: agora podem chegar até 3 de uma vez na sua roça. Toque num cliente para ver o que ele quer, quanto você tem no celeiro e quanto ele paga, e escolha Vender, Aguardar ou Mandar embora." },
   { v: 367, txt: "🚚 O caminhão agora fica na própria roça, bem maior, com balão quando dá para entregar pedidos, e dá para mudar de lugar no modo Mover. A aba Negócios ficou só com Banca e Feira (as máquinas estão na aba Fábrica)." },
   { v: 366, txt: "🏭 Nova aba Fábrica, entre Roça e Rancho: cada máquina (Moinho & Padaria, Cozinha, Conservas, Laticínios, Suqueira, Forja e Artesanato) aparece como uma máquina de verdade, com luzinhas dos espaços e fumaça quando está produzindo. Quando algo termina, aparece um balão em cima da máquina ('Pronto: Pão'); toque nela para fazer receitas ou recolher. Novos: aviso em Amigos quando um amigo coloca itens na banca ('🏪 amigo com itens na banca'), e clientes chegam na sua roça querendo comprar do celeiro por 30% a mais — toque neles para vender. O caminhão fica na própria roça, grandão, com balão quando dá para entregar pedidos, e dá para mudar de lugar no modo Mover. Negócios agora só tem Banca e Feira." },
@@ -16838,19 +16839,52 @@ function vozSync() {
     else if (!vozPermitido(uid) || !praca.jog[uid] || (vozDist(uid) ?? 99) > VOZ_R + 3) vozFechar(uid);
   }
 }
+const VOZ_CONSTR = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false };
+// Pega o microfone; se estiver ocupado ou travado, tenta de novo (às vezes só funciona na segunda vez, principalmente no celular)
+async function vozPegaStream() {
+  let erro;
+  for (let k = 0; k < 3; k++) {
+    try { return await navigator.mediaDevices.getUserMedia(k < 2 ? VOZ_CONSTR : { audio: true, video: false }); }
+    catch (e) { erro = e; if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) break; await new Promise(r => setTimeout(r, 400)); }
+  }
+  throw erro;
+}
+function vozUsaStream(st) {
+  if (voz.stopNivelL) { voz.stopNivelL(); voz.stopNivelL = null; }
+  if (voz.stream && voz.stream !== st) voz.stream.getTracks().forEach(t => { t.onended = null; try { t.stop(); } catch (e) { /* ok */ } });
+  voz.stream = st; vozAudio();
+  const tr = st.getAudioTracks()[0];
+  if (tr) tr.onended = () => { if (voz.mic && voz.stream === st) vozRecuperaMic(); }; // o sistema tirou o microfone (ligação, outro app, bloqueio de tela)
+  voz.stopNivelL = vozNivel(st, user.uid);
+  for (const p of Object.values(voz.peers)) if (p.papel === 'tx' && tr) for (const x of p.pc.getSenders()) if (x.track && x.track.kind === 'audio' || !x.track) x.replaceTrack(tr).catch(() => {});
+}
+async function vozRecuperaMic() { // microfone ligado mas parou de captar: pega de novo sozinho
+  if (!voz.mic || voz.recuperando) return; voz.recuperando = true;
+  try { vozUsaStream(await vozPegaStream()); }
+  catch (e) { voz.recuperando = false; vozDesligarMic(); toast('O microfone parou de funcionar. Toque no 🎤 para ligar de novo.', 'bad'); return; }
+  voz.recuperando = false;
+}
 async function vozLigarMic() {
-  if (voz.mic) return;
+  if (voz.mic || voz.ligando) return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.RTCPeerConnection) return toast('Este aparelho não permite voz no navegador.', 'bad');
-  if (!voz.aviso) { voz.aviso = true; try { localStorage.setItem('rf-voz-aviso', '1'); } catch (e) { /* ok */ } toast('🎙️ A voz é ao vivo: jogadores perto de você vão te ouvir. Toque no 🎙️ de novo para silenciar. Dá para silenciar alguém no perfil.', 'good'); }
-  try { voz.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
-  catch (e) { toast('Não consegui usar o microfone. Veja como liberar a permissão.', 'bad'); vozAtualizaPerm().then(() => pracaPainelAbrir('voz')); return; }
-  voz.mic = true; vozAudio(); voz.stopNivelL = vozNivel(voz.stream, user.uid); vozPublicar(); vozMicUI(); sfx('click');
+  if (!voz.aviso) { voz.aviso = true; try { localStorage.setItem('rf-voz-aviso', '1'); } catch (e) { /* ok */ } toast('🎙️ A voz é ao vivo: jogadores perto de você vão te ouvir. Toque no 🎙️ de novo para silenciar. A música fica muda enquanto o microfone está ligado. Dá para silenciar alguém no perfil.', 'good'); }
+  voz.ligando = true;
+  try { vozUsaStream(await vozPegaStream()); }
+  catch (e) { voz.ligando = false; toast('Não consegui usar o microfone. Veja como liberar a permissão.', 'bad'); vozAtualizaPerm().then(() => pracaPainelAbrir('voz')); return; }
+  voz.ligando = false;
+  voz.mic = true; if (window.RFAudio && RFAudio.micMute) RFAudio.micMute(true); vozPublicar(); vozMicUI(); sfx('click');
 }
 function vozDesligarMic() {
   if (!voz.mic) return; voz.mic = false;
-  if (voz.stream) voz.stream.getTracks().forEach(t => t.stop()); voz.stream = null; if (voz.stopNivelL) { voz.stopNivelL(); voz.stopNivelL = null; }
+  if (window.RFAudio && RFAudio.micMute) RFAudio.micMute(false);
+  if (voz.stream) voz.stream.getTracks().forEach(t => { t.onended = null; t.stop(); }); voz.stream = null; if (voz.stopNivelL) { voz.stopNivelL(); voz.stopNivelL = null; }
   vozFecharTodos('tx'); vozDespublicar(); delete voz.falando[user.uid]; vozMicUI(); sfx('click');
 }
+// Voltou ao jogo (tela desbloqueada, outro app): reacorda o áudio e confere se o microfone ainda está vivo
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  try { if (voz.ac && voz.ac.state !== 'running') voz.ac.resume().catch(() => {}); if (voz.mic) { const tr = voz.stream && voz.stream.getAudioTracks()[0]; if (!tr || tr.readyState !== 'live') vozRecuperaMic(); } } catch (e) { /* ok */ }
+});
 function vozPublicar() { if (!voz.mic || !praca.rt || !praca.refs.eu) return; const ref = praca.rt.ref(`praca/voz/${vozKey()}/${user.uid}`); voz.refPub = ref; ref.onDisconnect().remove(); ref.set(firebase.database.ServerValue.TIMESTAMP).catch(() => {}); }
 function vozDespublicar() { if (voz.refPub) { voz.refPub.onDisconnect().cancel(); voz.refPub.remove().catch(() => {}); voz.refPub = null; } }
 function vozTrocouSala() { // mudou de lugar: derruba conexões, escuta os falantes do novo lugar e republica o microfone
