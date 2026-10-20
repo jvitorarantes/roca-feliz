@@ -1577,7 +1577,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
-  { v: 366, txt: "🏭 Nova aba Fábrica, entre Roça e Rancho: cada máquina (Moinho & Padaria, Cozinha, Conservas, Laticínios, Suqueira, Forja e Artesanato) aparece como uma máquina de verdade, com luzinhas dos espaços e fumaça quando está produzindo. Quando algo termina, aparece um balão em cima da máquina ('Pronto: Pão'); toque nela para fazer receitas ou recolher. O caminhão também aparece lá, com balão quando você já pode entregar pedidos. Novos: aviso em Amigos quando um amigo coloca itens na banca ('🏪 amigo com itens na banca'), e clientes chegam na sua roça querendo comprar do celeiro por 30% a mais — toque neles para vender." },
+  { v: 366, txt: "🏭 Nova aba Fábrica, entre Roça e Rancho: cada máquina (Moinho & Padaria, Cozinha, Conservas, Laticínios, Suqueira, Forja e Artesanato) aparece como uma máquina de verdade, com luzinhas dos espaços e fumaça quando está produzindo. Quando algo termina, aparece um balão em cima da máquina ('Pronto: Pão'); toque nela para fazer receitas ou recolher. Novos: aviso em Amigos quando um amigo coloca itens na banca ('🏪 amigo com itens na banca'), e clientes chegam na sua roça querendo comprar do celeiro por 30% a mais — toque neles para vender. O caminhão fica parado na própria roça (com balão quando dá para entregar pedidos), e Negócios agora só tem Banca e Feira." },
   { v: 365, txt: "👋 Quando algum amigo seu estiver na Vila, aparece na barra de baixo o botão 'Ir até amigo' com quantos amigos estão online. Toque para ver a lista e ir até o amigo (andando até ele ou entrando no quarto/lugar onde ele está). Também em Configurações › Voz da Vila dá para ajustar o volume da voz, que agora abafa a música e os sons quando alguém fala." },
   { v: 364, txt: "🎙️ Configurações › Voz da Vila: novo controle de volume da voz (de 0 a 150%). E a voz agora sobrepõe tudo: enquanto alguém fala perto de você, a música e os sons do jogo abaixam sozinhos e voltam quando a pessoa para de falar." },
   { v: 363, txt: "Vila: o topo da tela agora mostra quantas moedas você tem, e a aba do Dízimo também. Quando faltar moeda para comprar (dízimo, quermesse, mercado, móveis, presentes), aparece o aviso 'Moedas insuficientes' com o custo e o seu saldo. Na hora de enviar cartas, as moedas dos presentes agora são a moeda dourada." },
@@ -5037,7 +5037,7 @@ function drawRoca(s, t, home) {
   }
   if (home) drawFolhas(t);
   if (home) drawInvasor(t);
-  drawAvatares('roca', t); drawCliente(t);
+  drawAvatares('roca', t); drawCliente(t); drawCaminhaoRoca(t);
   if (home) drawLuxoMaquinas(t);
   drawObjetos(s, 'roca', t, home, 'frente', d0);
   drawPeixesRoca(s, t);
@@ -5698,50 +5698,36 @@ function maqFundoCanvas() {
 function drawMaquinas(s, t, home) {
   ctx.drawImage(maqFundoCanvas(), 0, 0, L.cw, L.ch);
   const I = insets(), aw = L.cw - I.l - I.r, ah = L.ch - I.t - I.b;
-  const itens = [...MAQUINAS, { id: 'caminhao' }];
+  const itens = MAQUINAS;
   const cols = L.cw < 700 && L.ch > L.cw ? 2 : 4, rows = Math.ceil(itens.length / cols), cwid = aw / cols, chei = ah / rows;
   const u = Math.max(0.5, Math.min(cwid / 100, chei / 118));
   const agora = Date.now();
   itens.forEach((M, i) => {
     const cx = I.l + (i % cols + 0.5) * cwid, cy = I.t + (Math.floor(i / cols) + 0.5) * chei + 8 * u;
-    const camin = M.id === 'caminhao';
-    const max = camin ? 1 : slotsMax(M.id), trava = !max;
-    const prontos = camin ? [] : prontosNomes(M.id), fila = camin ? [] : filaDe(M.id).fila;
-    const entreg = camin ? entregaveis() : 0, pronto = camin ? entreg > 0 : prontos.length > 0;
-    const trabalha = !camin && fila.length > prontos.length;
-    const cor = camin ? ['#4a86c7', '#2c5a8f'] : MAQ_COR[M.id];
-    const hov = hover && hover.id === M.id && (hover.kind === 'maquina' || hover.kind === 'caminhaocena');
+    const max = slotsMax(M.id), trava = !max;
+    const prontos = prontosNomes(M.id), fila = filaDe(M.id).fila;
+    const pronto = prontos.length > 0;
+    const trabalha = fila.length > prontos.length;
+    const cor = MAQ_COR[M.id];
+    const hov = hover && hover.id === M.id && hover.kind === 'maquina';
     const bob = pronto ? Math.abs(Math.sin(t / 320)) * -4 * u : 0, by = cy + 36 * u;
     ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(cx, by, 40 * u, 8 * u, 0, 0, 7); ctx.fill();
     ctx.save(); ctx.translate(0, bob);
     if (trava) ctx.globalAlpha = 0.55;
-    if (camin) {
-      ctx.fillStyle = '#8a8f98'; ctx.fillRect(cx - 42 * u, by - 6 * u, 84 * u, 6 * u); // plataforma
-      ctx.fillStyle = cor[0]; ctx.beginPath(); ctx.roundRect(cx - 40 * u, by - 40 * u, 52 * u, 32 * u, 4 * u); ctx.fill(); // carroceria
-      ctx.fillStyle = cor[1]; ctx.fillRect(cx - 40 * u, by - 14 * u, 52 * u, 6 * u);
-      ctx.fillStyle = '#d8402f'; ctx.beginPath(); ctx.roundRect(cx + 12 * u, by - 30 * u, 28 * u, 22 * u, [4 * u, 8 * u, 2 * u, 2 * u]); ctx.fill(); // cabine
-      ctx.fillStyle = '#bfe6ff'; ctx.fillRect(cx + 26 * u, by - 26 * u, 11 * u, 9 * u);
-      for (const dx of [-26, 4, 28]) { ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(cx + dx * u, by - 6 * u, 7 * u, 0, 7); ctx.fill(); ctx.fillStyle = '#ccc'; ctx.beginPath(); ctx.arc(cx + dx * u, by - 6 * u, 2.6 * u, 0, 7); ctx.fill(); }
-      ctx.font = `${Math.round(22 * u)}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('📦', cx - 14 * u, by - 26 * u);
-      // pedidos: bolinha por pedido (verde entregue, dourada pode entregar, cinza falta)
-      const ps = state.truck ? state.truck.pedidos : [];
-      ps.forEach((p, k) => { ctx.fillStyle = p.feito ? '#4f9a2f' : podeEntregar(p) ? '#ffc93a' : '#9a9a9a'; ctx.beginPath(); ctx.arc(cx + (k - (ps.length - 1) / 2) * 11 * u, by + 12 * u, 4 * u, 0, 7); ctx.fill(); });
-    } else {
-      const bw = 68 * u, bh = 64 * u, bx = cx - bw / 2, top = by - bh;
-      ctx.fillStyle = cor[0]; ctx.beginPath(); ctx.roundRect(bx, top, bw, bh, 8 * u); ctx.fill();
-      ctx.fillStyle = cor[1]; ctx.beginPath(); ctx.roundRect(bx - 3 * u, top - 4 * u, bw + 6 * u, 14 * u, 5 * u); ctx.fill();
-      ctx.fillRect(bx, by - 8 * u, bw, 8 * u);
-      // visor com os espaços: vazio, trabalhando (âmbar) ou pronto (verde)
-      ctx.fillStyle = '#2b2118'; ctx.beginPath(); ctx.roundRect(bx + 8 * u, top + 14 * u, bw - 16 * u, 14 * u, 4 * u); ctx.fill();
-      const n = Math.max(1, max), sw = (bw - 20 * u) / 6;
-      for (let k = 0; k < n; k++) {
-        const x = fila[k]; ctx.fillStyle = !x ? '#555' : x.fim <= agora ? '#5fd35f' : (Math.floor(t / 400 + k) % 2 ? '#ffb02e' : '#e08a10');
-        ctx.beginPath(); ctx.arc(bx + 10 * u + sw * (k + 0.5), top + 21 * u, Math.min(4.5 * u, sw * 0.38), 0, 7); ctx.fill();
-      }
-      ctx.font = `${Math.round(26 * u)}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      const wob = trabalha ? Math.sin(t / 120) * 2 * u : 0;
-      ctx.fillText(M.emoji, cx + wob, top + 44 * u);
+    const bw = 68 * u, bh = 64 * u, bx = cx - bw / 2, top = by - bh;
+    ctx.fillStyle = cor[0]; ctx.beginPath(); ctx.roundRect(bx, top, bw, bh, 8 * u); ctx.fill();
+    ctx.fillStyle = cor[1]; ctx.beginPath(); ctx.roundRect(bx - 3 * u, top - 4 * u, bw + 6 * u, 14 * u, 5 * u); ctx.fill();
+    ctx.fillRect(bx, by - 8 * u, bw, 8 * u);
+    // visor com os espaços: vazio, trabalhando (âmbar) ou pronto (verde)
+    ctx.fillStyle = '#2b2118'; ctx.beginPath(); ctx.roundRect(bx + 8 * u, top + 14 * u, bw - 16 * u, 14 * u, 4 * u); ctx.fill();
+    const n = Math.max(1, max), sw = (bw - 20 * u) / 6;
+    for (let k = 0; k < n; k++) {
+      const x = fila[k]; ctx.fillStyle = !x ? '#555' : x.fim <= agora ? '#5fd35f' : (Math.floor(t / 400 + k) % 2 ? '#ffb02e' : '#e08a10');
+      ctx.beginPath(); ctx.arc(bx + 10 * u + sw * (k + 0.5), top + 21 * u, Math.min(4.5 * u, sw * 0.38), 0, 7); ctx.fill();
     }
+    ctx.font = `${Math.round(26 * u)}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const wob = trabalha ? Math.sin(t / 120) * 2 * u : 0;
+    ctx.fillText(M.emoji, cx + wob, top + 44 * u);
     ctx.restore(); ctx.globalAlpha = 1;
     if (trabalha) { // fumaça subindo
       ctx.fillStyle = '#fff';
@@ -5749,15 +5735,14 @@ function drawMaquinas(s, t, home) {
       ctx.globalAlpha = 1;
     }
     if (hov) { ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(cx, by, 46 * u, 11 * u, 0, 0, 7); ctx.stroke(); }
-    maqTexto(camin ? 'Caminhão' : M.nome, cx, by + (camin ? 24 : 15) * u, Math.round(clamp(10.5 * u, 10, 15)));
+    maqTexto(M.nome, cx, by + 15 * u, Math.round(clamp(10.5 * u, 10, 15)));
     if (trava) maqTexto(`🔒 nível ${M.slots[0].nivel}`, cx, by - 36 * u, Math.round(clamp(11 * u, 10, 15)), '#ffe08a');
     if (pronto) {
-      if (camin) maqBalao(cx, by - 62 * u, u, `${entreg} pedido${entreg > 1 ? 's' : ''} p/ entregar!`, t, null);
-      else maqBalao(cx, by - 80 * u, u, `Pronto: ${prontos[0].nome}${prontos.length > 1 ? ` +${prontos.length - 1}` : ''}`, t, itemIcon(prontos[0].id));
-    } else if (!camin && !trava && !trabalha && slotsLivresFab(M.id) > 0 && podeFabricarAlgo(M.id)) {
+      maqBalao(cx, by - 80 * u, u, `Pronto: ${prontos[0].nome}${prontos.length > 1 ? ` +${prontos.length - 1}` : ''}`, t, itemIcon(prontos[0].id));
+    } else if (!trava && !trabalha && slotsLivresFab(M.id) > 0 && podeFabricarAlgo(M.id)) {
       maqTexto('toque p/ fazer', cx, by - 74 * u, Math.round(clamp(9.5 * u, 9, 13)), '#d8f0b0');
     }
-    if (isHome()) hits.push({ kind: camin ? 'caminhaocena' : 'maquina', id: M.id, x: cx, y: cy, r: Math.max(46 * u, 26) });
+    if (isHome()) hits.push({ kind: 'maquina', id: M.id, x: cx, y: cy, r: Math.max(46 * u, 26) });
   });
 }
 
@@ -5929,7 +5914,7 @@ function renderTools() {
   box.hidden = scene !== 'roca';
   hint.hidden = scene === 'roca';
   hint.textContent = scene === 'maquinas'
-    ? 'Toque numa máquina para fazer receitas e recolher o que ficou pronto. O balão em cima mostra o que já terminou. O caminhão mostra os pedidos que você já pode entregar.'
+    ? 'Toque numa máquina para fazer receitas e recolher o que ficou pronto. O balão em cima mostra o que já terminou.'
     : scene === 'animais'
     ? (isHome() ? 'Clique num animal para alimentar, recolher ou vender. Clique num abrigo para aumentar ou para construir um novo. No Modo Mover dá para arrastar os abrigos para outro canto do rancho.' : 'Dê comida aos animais com fome para ajudar. Produto pronto dá para pegar um pouquinho.')
     : (isHome() ? 'Os espaços com + são lugares para decoração. Cada peça dá conforto, e conforto aumenta o XP que você ganha. Gato, tartaruga e arara moram aqui: clique neles para fazer carinho.' : 'Esta é a casa do seu vizinho.');
@@ -6267,7 +6252,7 @@ function renderTabs() {
   } else if (state) {
     setBadge(document.querySelector('.tab[data-tab="celeiro"]'), avisoItens('celeiro') ? Object.values(state.barn).reduce((t, q) => t + (q > 0 ? q : 0), 0) : 0, 'itens no celeiro');
     setBadge(document.querySelector('.tab[data-tab="inventario"]'), avisoItens('inventario') ? state.invNovos || 0 : 0, 'coisas novas no inventário');
-    setBadge(document.querySelector('.tab[data-tab="fabrica"]'), prontosFab() + entregaveis(), 'coisas prontas, disponíveis pra fazer na fábrica, ou pedidos para entregar');
+    setBadge(document.querySelector('.tab[data-tab="fabrica"]'), 0, '');
   }
   const mb = document.querySelector('.tab[data-tab="missoes"]'), mn = missoesProntas();
   setBadge(mb, mn, 'prêmios');
@@ -6356,13 +6341,15 @@ function usarCasaTema(id) {
 const TAB_NAMES = { casaTemas: 'Sua casa', canil: 'Casinha do cachorro',  loja: 'Loja', celeiro: 'Celeiro', terreno: 'Terreno', amigos: 'Amigos', missoes: 'Missões', correio: 'Correio', fabrica: 'Negócios', inventario: 'Inventário', chocadeira: 'Chocadeira', mina: 'Mina' };
 // A janela abre por cima do jogo. Clicar de novo no mesmo botão fecha.
 function openPanel(t, seg, focus) {
+  if (t === 'fabrica' && !fabDaCena && (fabSeg === 'fabrica' || fabSeg === 'caminhao')) { fabSeg = 'banca'; fabFoco = null; }
+  fabDaCena = false;
   tab = t; if (seg) shopSeg = seg;
   $('#panel').hidden = false;
   renderPane(); $('#pane').scrollTop = 0;
   if (t === 'amigos') { vigiarPresenca(); checkSent(); if (Date.now() - ultimaRecup > 60000) { ultimaRecup = Date.now(); recuperarAmigos(); } }
   if (focus) focusRow('abrigo-' + focus);
 }
-function closePanel() { $('#panel').hidden = true; fabFoco = null; renderPane(); }
+function closePanel() { $('#panel').hidden = true; fabFoco = null; if (fabSeg === 'fabrica' || fabSeg === 'caminhao') fabSeg = 'banca'; renderPane(); }
 function focusRow(id) {
   const el = document.getElementById(id); if (!el) return;
   el.scrollIntoView({ block: 'center' }); el.classList.add('flash');
@@ -7223,8 +7210,8 @@ cv.addEventListener('click', e => {
   if (target.kind === 'plot') actPlot(target.i);
   else if (target.kind === 'minaentrada') abrirMinaModal();
   else if (target.kind === 'cliente') venderCliente();
-  else if (target.kind === 'maquina') { const M = MAQUINA[target.id]; if (!slotsMax(M.id)) toast(`${M.nome} libera no nível ${M.slots[0].nivel}.`); else { fabFoco = M.id; fabSeg = 'fabrica'; openPanel('fabrica'); } }
-  else if (target.kind === 'caminhaocena') { fabFoco = null; fabSeg = 'caminhao'; openPanel('fabrica'); }
+  else if (target.kind === 'maquina') { const M = MAQUINA[target.id]; if (!slotsMax(M.id)) toast(`${M.nome} libera no nível ${M.slots[0].nivel}.`); else { fabFoco = M.id; fabSeg = 'fabrica'; fabDaCena = true; openPanel('fabrica'); } }
+  else if (target.kind === 'caminhaocena') { fabFoco = null; fabSeg = 'caminhao'; fabDaCena = true; openPanel('fabrica'); }
   else if (target.kind === 'animal') actAnimal(target.id);
   else if (target.kind === 'decor') actDecor(target.id);
   else if (target.kind === 'dog') actDog(target.slot);
@@ -8952,6 +8939,27 @@ function limparFolhasAuto() {
   done();
 }
 // Na roça dos outros, o dono também passeia (desenha antes o que está mais ao fundo).
+// ---------- Caminhão: parado na roça; balão quando já dá para entregar algum pedido ----------
+function drawCaminhaoSprite(x, y, u) {
+  ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(x, y, 44 * u, 8 * u, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#4a86c7'; ctx.beginPath(); ctx.roundRect(x - 42 * u, y - 40 * u, 54 * u, 32 * u, 4 * u); ctx.fill();
+  ctx.fillStyle = '#2c5a8f'; ctx.fillRect(x - 42 * u, y - 14 * u, 54 * u, 6 * u);
+  ctx.fillStyle = '#d8402f'; ctx.beginPath(); ctx.roundRect(x + 12 * u, y - 30 * u, 28 * u, 22 * u, [4 * u, 8 * u, 2 * u, 2 * u]); ctx.fill();
+  ctx.fillStyle = '#bfe6ff'; ctx.fillRect(x + 26 * u, y - 26 * u, 11 * u, 9 * u);
+  for (const dx of [-28, 2, 28]) { ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(x + dx * u, y - 6 * u, 7 * u, 0, 7); ctx.fill(); ctx.fillStyle = '#ccc'; ctx.beginPath(); ctx.arc(x + dx * u, y - 6 * u, 2.6 * u, 0, 7); ctx.fill(); }
+  ctx.font = `${Math.round(22 * u)}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('📦', x - 16 * u, y - 26 * u);
+}
+function drawCaminhaoRoca(t) {
+  if (!isHome() || !state.truck) return;
+  const [cu, cv] = centroRoca(), q = iso(cu + 3.4, cv + 2.4), u = L.W / 100 * 0.9, n = entregaveis();
+  const hov = hover && hover.kind === 'caminhaocena';
+  drawCaminhaoSprite(q.x, q.y, u);
+  if (hov) { ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(q.x, q.y, 48 * u, 11 * u, 0, 0, 7); ctx.stroke(); }
+  const ps = state.truck.pedidos;
+  ps.forEach((p, k) => { ctx.fillStyle = p.feito ? '#4f9a2f' : podeEntregar(p) ? '#ffc93a' : '#9a9a9a'; ctx.beginPath(); ctx.arc(q.x + (k - (ps.length - 1) / 2) * 11 * u, q.y + 12 * u, 4 * u, 0, 7); ctx.fill(); });
+  if (n) maqBalao(q.x, q.y - 48 * u, Math.max(0.8, u), `${n} pedido${n > 1 ? 's' : ''} p/ entregar!`, t, null);
+  hits.push({ kind: 'caminhaocena', x: q.x, y: q.y - 20 * u, r: Math.max(46 * u, 28) });
+}
 // ---------- Cliente: de vez em quando alguém chega na fazenda querendo comprar do seu celeiro (paga 30% a mais) ----------
 let cliente = null, proxCliente = Date.now() + 90e3;
 function clienteTick() {
@@ -9088,7 +9096,7 @@ const TUTORIAL = [
   { alvo: '[data-tab="celeiro"]', cena: 'roca', txt: '🧺 <b>Colher:</b> quando aparecer o ✔ em cima da planta, clique para colher. Tudo vai para o <b>Celeiro</b>, onde dá para vender.' },
   { alvo: '[data-tab="loja"]', cena: 'roca', txt: '🏪 <b>Loja:</b> plantas, mudas, adubo, animais, abrigos, cachorros e enfeites. Coisas novas liberam a cada nível.' },
   { alvo: '[data-scene="animais"]', cena: 'animais', txt: '🐔 <b>Rancho:</b> seus animais ficam aqui. Dê ração e recolha ovos, leite e mais. Clique num abrigo para ver quem mora nele.' },
-  { alvo: '[data-tab="fabrica"]', cena: 'roca', txt: '🏭 <b>Negócios:</b> na Fábrica você transforma o que colheu em produtos que valem mais; na Banca vende para outros jogadores; o Caminhão leva pedidos grandes.' },
+  { alvo: '[data-tab="fabrica"]', cena: 'roca', txt: '🏭 <b>Negócios:</b> na Banca você vende para os amigos e na Feira compra da vizinhança. As máquinas ficam na aba Fábrica e o caminhão fica na roça.' },
   { alvo: '[data-tab="missoes"]', cena: 'roca', txt: '📋 <b>Missões:</b> todo dia tem missões novas com prêmios. A vila também faz pedidos.' },
   { alvo: '#stage', cena: 'roca', txt: '🎣 <b>Pescaria:</b> clique no pesqueiro (a plaquinha 🎣 perto da casinha do cachorro). Espere a boia afundar, puxe e brigue com o peixe!' },
   { alvo: '[data-tab="amigos"]', cena: 'roca', txt: '👥 <b>Amigos:</b> adicione amigos, visite a roça deles, mande presentes e converse no chat.' },
@@ -10849,15 +10857,14 @@ function minaHTML() {
 }
 
 // ---------- Tela da fábrica (com a banca e o caminhão) ----------
-let fabSeg = 'fabrica';
+let fabSeg = 'banca', fabDaCena = false; // fabrica/caminhao só abrem pelas cenas Fábrica e Roça
 function fabricaHTML() {
-  const segs = [['fabrica', 'Fábrica', prontosFab()], ['banca', 'Banca', 0], ['caminhao', 'Caminhão', entregaveis()], ['feira', 'Feira', 0]];
+  const segs = [['banca', 'Banca', 0], ['feira', 'Feira', 0]];
   if (!isHome()) return bancaVisitaHTML();
   rollCaminhao();
-  let html = `<div class="seg small" role="tablist">${segs.map(([id, n, c]) => `<button type="button" role="tab" data-fseg="${id}" aria-selected="${fabSeg === id}">${n}${c ? `<span class="badge ready">${c}</span>` : ''}</button>`).join('')}</div>`;
+  let html = fabSeg === 'fabrica' || fabSeg === 'caminhao' ? '' : `<div class="seg small" role="tablist">${segs.map(([id, n, c]) => `<button type="button" role="tab" data-fseg="${id}" aria-selected="${fabSeg === id}">${n}${c ? `<span class="badge ready">${c}</span>` : ''}</button>`).join('')}</div>`;
   if (fabSeg === 'fabrica') {
     html += `<p class="hint">Cada máquina transforma colheitas e produtos dos animais em coisas que valem mais, e tem seus próprios espaços: o primeiro libera sozinho no nível certo, os outros você compra. Todos os espaços de uma máquina produzem ao mesmo tempo.</p>`;
-    if (fabFoco) html += `<button type="button" class="btn ghost" data-fab-todas="1">Ver todas as máquinas</button>`;
     for (const M of MAQUINAS) {
       if (fabFoco && M.id !== fabFoco) continue;
       const m = filaDe(M.id), agora = Date.now(), max = slotsMax(M.id), nx = proxSlotFab(M.id);
