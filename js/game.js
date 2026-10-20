@@ -1577,6 +1577,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 368, txt: "🧑‍🌾 Clientes: agora podem chegar até 3 de uma vez na sua roça. Toque num cliente para ver o que ele quer, quanto você tem no celeiro e quanto ele paga, e escolha Vender, Aguardar ou Mandar embora." },
   { v: 367, txt: "🚚 O caminhão agora fica na própria roça, bem maior, com balão quando dá para entregar pedidos, e dá para mudar de lugar no modo Mover. A aba Negócios ficou só com Banca e Feira (as máquinas estão na aba Fábrica)." },
   { v: 366, txt: "🏭 Nova aba Fábrica, entre Roça e Rancho: cada máquina (Moinho & Padaria, Cozinha, Conservas, Laticínios, Suqueira, Forja e Artesanato) aparece como uma máquina de verdade, com luzinhas dos espaços e fumaça quando está produzindo. Quando algo termina, aparece um balão em cima da máquina ('Pronto: Pão'); toque nela para fazer receitas ou recolher. Novos: aviso em Amigos quando um amigo coloca itens na banca ('🏪 amigo com itens na banca'), e clientes chegam na sua roça querendo comprar do celeiro por 30% a mais — toque neles para vender. O caminhão fica na própria roça, grandão, com balão quando dá para entregar pedidos, e dá para mudar de lugar no modo Mover. Negócios agora só tem Banca e Feira." },
   { v: 365, txt: "👋 Quando algum amigo seu estiver na Vila, aparece na barra de baixo o botão 'Ir até amigo' com quantos amigos estão online. Toque para ver a lista e ir até o amigo (andando até ele ou entrando no quarto/lugar onde ele está). Também em Configurações › Voz da Vila dá para ajustar o volume da voz, que agora abafa a música e os sons quando alguém fala." },
@@ -7210,7 +7211,7 @@ cv.addEventListener('click', e => {
   if (!target) return;
   if (target.kind === 'plot') actPlot(target.i);
   else if (target.kind === 'minaentrada') abrirMinaModal();
-  else if (target.kind === 'cliente') venderCliente();
+  else if (target.kind === 'cliente') venderCliente(target.n);
   else if (target.kind === 'maquina') { const M = MAQUINA[target.id]; if (!slotsMax(M.id)) toast(`${M.nome} libera no nível ${M.slots[0].nivel}.`); else { fabFoco = M.id; fabSeg = 'fabrica'; fabDaCena = true; openPanel('fabrica'); } }
   else if (target.kind === 'caminhaocena') { fabFoco = null; fabSeg = 'caminhao'; fabDaCena = true; openPanel('fabrica'); }
   else if (target.kind === 'animal') actAnimal(target.id);
@@ -8961,47 +8962,65 @@ function drawCaminhaoRoca(x, y, t) {
   if (!moveMode) hits.push({ kind: 'caminhaocena', x, y: y - 20 * u, r: Math.max(46 * u, 28) });
 }
 // ---------- Cliente: de vez em quando alguém chega na fazenda querendo comprar do seu celeiro (paga 30% a mais) ----------
-let cliente = null, proxCliente = Date.now() + 90e3;
+const CLIENTES_MAX = 3;
+let clientes = [], proxCliente = Date.now() + 90e3;
+const clienteSai = c => { c.fase = 'sai'; c.t0 = performance.now(); c.de = c.para; c.para = c.entrada; };
 function clienteTick() {
   if (!state || kicked || document.hidden || !isHome() || scene !== 'roca' || isGated() || !$('#panel').hidden) return;
   const agora = Date.now();
-  if (cliente) { if (agora > cliente.expira && cliente.fase === 'espera') { cliente.fase = 'sai'; cliente.t0 = performance.now(); cliente.de = cliente.para; cliente.para = cliente.entrada; } return; }
-  if (agora < proxCliente) return;
-  proxCliente = agora + (4 + Math.random() * 4) * 60e3;
-  const opc = itensVendaveis().filter(id => (state.barn[id] || 0) - (PRODUCE[id] ? PLANTAS_BAIXO : 0) >= 1);
+  for (const c of clientes) if (agora > c.expira && c.fase === 'espera') clienteSai(c);
+  if (clientes.length >= CLIENTES_MAX || agora < proxCliente) return;
+  proxCliente = agora + (3 + Math.random() * 3) * 60e3;
+  const pedidos = new Set(clientes.map(c => c.id));
+  const opc = itensVendaveis().filter(id => !pedidos.has(id) && (state.barn[id] || 0) - (PRODUCE[id] ? PLANTAS_BAIXO : 0) >= 1);
   if (!opc.length) return;
   const id = opc[Math.floor(Math.random() * opc.length)], max = (state.barn[id] || 0) - (PRODUCE[id] ? PLANTAS_BAIXO : 0);
   const qtd = Math.min(max, 1 + Math.floor(Math.random() * (valorDe(id) < 40 ? 5 : 3)));
   const a = avatarArea('roca'), entrada = { u: a.u1 + 4, v: a.v0 };
+  const slot = [0, 1, 2].find(k => !clientes.some(c => c.slot === k));
   const av = { sexo: Math.random() < 0.5 ? 'm' : 'f', pele: Math.floor(Math.random() * AV_PELE.length), corCabelo: Math.floor(Math.random() * AV_CORES_CABELO.length), chapeu: ['sem', 'palha', 'bone', 'panama'][Math.floor(Math.random() * 4)], mao: Math.random() < 0.3 ? 'cesta' : 'nada', cabelo: ['curto', 'cacheado', 'comprido', 'rabo'][Math.floor(Math.random() * 4)] };
-  const para = { u: a.u0 + (a.u1 - a.u0) * 0.3, v: (a.v0 + a.v1) / 2 };
-  cliente = { id, qtd, preco: Math.max(5, Math.round(valorDe(id) * qtd * 1.3)), av, entrada, de: entrada, para, t0: performance.now(), fase: 'entra', expira: agora + 3 * 60e3, dir: -1 };
+  const para = { u: a.u0 + (a.u1 - a.u0) * (0.05 + 0.45 * slot) - 0.4, v: a.v0 + (a.v1 - a.v0) * (0.8 - 0.4 * slot) + 0.2 };
+  clientes.push({ n: newId(), slot, id, qtd, preco: Math.max(5, Math.round(valorDe(id) * qtd * 1.3)), av, entrada, de: entrada, para, t0: performance.now(), fase: 'entra', expira: agora + 3 * 60e3, dir: -1 });
   sfx('fala');
 }
 setInterval(() => { try { clienteTick(); } catch (e) { /* sem cliente */ } }, 15e3);
 function drawCliente(t) {
-  if (!cliente || !isHome()) return;
-  const c = cliente, dist = Math.hypot(c.para.u - c.de.u, c.para.v - c.de.v), dur = Math.max(600, dist / 0.9 * 1000);
-  let k = Math.min(1, (t - c.t0) / dur);
-  if (c.fase === 'entra' && k >= 1) c.fase = 'espera';
-  if (c.fase === 'sai' && k >= 1) { cliente = null; return; }
-  const sx = (c.para.u - c.de.u) - (c.para.v - c.de.v); if (Math.abs(sx) > 0.01) c.dir = sx > 0 ? 1 : -1;
-  const u = c.de.u + (c.para.u - c.de.u) * k, v = c.de.v + (c.para.v - c.de.v) * k, q = iso(u, v), W = L.W, esc = W / 95, anda = k < 1;
-  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.13, W * 0.045, 0, 0, 7); ctx.fill();
-  drawAvatar(ctx, q.x, q.y, esc, c.av, t, anda, c.dir);
-  if (c.fase === 'espera') {
-    hits.push({ kind: 'cliente', x: q.x, y: q.y - 34 * esc, r: Math.max(32 * esc, 24) });
-    const tem = (state.barn[c.id] || 0) >= c.qtd;
-    maqBalao(q.x, q.y - 66 * esc, Math.max(0.8, esc * 1.1), `Quero ${c.qtd} ${item(c.id).nome.toLowerCase()}: ${c.preco.toLocaleString('pt-BR')} moedas${tem ? '' : ' (falta)'}`, t, itemIcon(c.id));
+  if (!clientes.length || !isHome()) return;
+  for (const c of clientes.slice().sort((x, y) => x.slot - y.slot)) {
+    const dist = Math.hypot(c.para.u - c.de.u, c.para.v - c.de.v), dur = Math.max(600, dist / 0.9 * 1000);
+    const k = Math.min(1, (t - c.t0) / dur);
+    if (c.fase === 'entra' && k >= 1) c.fase = 'espera';
+    if (c.fase === 'sai' && k >= 1) { c.fim = true; continue; }
+    const sx = (c.para.u - c.de.u) - (c.para.v - c.de.v); if (Math.abs(sx) > 0.01) c.dir = sx > 0 ? 1 : -1;
+    const u = c.de.u + (c.para.u - c.de.u) * k, v = c.de.v + (c.para.v - c.de.v) * k, q = iso(u, v), W = L.W, esc = W / 95;
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.13, W * 0.045, 0, 0, 7); ctx.fill();
+    drawAvatar(ctx, q.x, q.y, esc, c.av, t, k < 1, c.dir);
+    if (c.fase === 'espera') {
+      hits.push({ kind: 'cliente', n: c.n, x: q.x, y: q.y - 34 * esc, r: Math.max(32 * esc, 24) });
+      const tem = (state.barn[c.id] || 0) >= c.qtd;
+      maqBalao(q.x, q.y - (66 + (c.slot % 2) * 22) * esc, Math.max(0.8, esc * 1.1), `Quero ${c.qtd} ${item(c.id).nome.toLowerCase()}${tem ? '' : ' (falta)'}`, t, itemIcon(c.id));
+    }
   }
+  clientes = clientes.filter(c => !c.fim);
 }
-function venderCliente() {
-  const c = cliente; if (!c || c.fase !== 'espera') return;
+// Toque no cliente: mostra quanto ele quer, quanto você tem e quanto paga; vender, aguardar ou mandar embora.
+function venderCliente(n) {
+  const c = clientes.find(x => x.n === n); if (!c || c.fase !== 'espera') return;
+  const nome = item(c.id).nome.toLowerCase(), tenho = state.barn[c.id] || 0, ok = tenho >= c.qtd;
+  escolher(`Um cliente quer comprar ${c.qtd} ${nome}.\nVocê tem ${tenho} no celeiro. Ele paga ${c.preco.toLocaleString('pt-BR')} moedas.${ok ? '' : '\nVocê ainda não tem o suficiente.'}`, [
+    { txt: `Vender (${c.preco.toLocaleString('pt-BR')} moedas)`, gold: true, off: !ok, fn: () => fecharCliente(n, true) },
+    { txt: 'Aguardar', ghost: true, fn: () => {} },
+    { txt: 'Mandar embora', ghost: true, fn: () => fecharCliente(n, false) },
+  ]);
+}
+function fecharCliente(n, vende) {
+  const c = clientes.find(x => x.n === n); if (!c || c.fase !== 'espera') return;
+  if (!vende) return clienteSai(c);
   if ((state.barn[c.id] || 0) < c.qtd) return toast(`Você não tem ${c.qtd} ${item(c.id).nome.toLowerCase()} no celeiro.`, 'bad');
   state.barn[c.id] -= c.qtd; if (!state.barn[c.id]) delete state.barn[c.id];
   state.coins += c.preco; state.stats.vendido += c.preco; track('vender', c.preco);
   sfx('coin'); toast(`Vendeu ${c.qtd} ${item(c.id).nome.toLowerCase()} para o cliente por ${c.preco.toLocaleString('pt-BR')} moedas!`, 'good');
-  c.fase = 'sai'; c.t0 = performance.now(); c.de = c.para; c.para = c.entrada;
+  clienteSai(c);
   done();
 }
 function drawAvatares(sc, t) {
