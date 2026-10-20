@@ -1552,6 +1552,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 341, txt: "🧑‍🌾 Quando o Caseiro não está trabalhando, ele vai pescar no lago da sua roça." },
   { v: 340, txt: "👑 O Ajudante Fixo agora é um Caseiro: um morador de verdade (chapéu de palha, bota e regador) em vez do robô. Ele passeia pela propriedade quando não tem serviço." },
   { v: 339, txt: "👑 Trator e Ajudante Fixo: quando não têm o que fazer (ou estão desativados), agora ficam passeando pela propriedade, na faixa de grama ao redor dos canteiros." },
   { v: 338, txt: "👑 O 🚜 Trator da Colheita e o 🤖 Ajudante Fixo agora aparecem trabalhando na sua roça: o trator vai e volta pelas fileiras soltando fumaça e o robô-espantalho anda pelos canteiros (com regador e gotinhas se tiver a melhoria). Quando não têm serviço (ou você desativa), ficam passeando pela propriedade." },
@@ -4771,8 +4772,17 @@ function luxoLimites(t) {
 }
 const luxoWalk = {};
 // Passeio pela propriedade (faixa de grama ao redor dos canteiros) quando a máquina não tem o que fazer
-function luxoPasseio(chave, t, vel) {
+function luxoPasseio(chave, t, vel, alvo) {
   const a = avatarArea('roca'); let w = luxoWalk[chave];
+  if (alvo) { // vai até um ponto fixo e fica lá (ex.: pescar no lago)
+    if (!w) w = luxoWalk[chave] = { fu: alvo.u, fv: alvo.v + 2.5, tu: alvo.u, tv: alvo.v + 2.5, t0: t, dur: 0, wait: 0, dir: 1 };
+    if (w.tu !== alvo.u || w.tv !== alvo.v) {
+      const k0 = w.dur ? Math.min(1, (t - w.t0) / w.dur) : 1, u0 = w.fu + (w.tu - w.fu) * k0, v0 = w.fv + (w.tv - w.fv) * k0, dist = Math.hypot(alvo.u - u0, alvo.v - v0), sx = (alvo.u - u0) - (alvo.v - v0);
+      w.fu = u0; w.fv = v0; w.tu = alvo.u; w.tv = alvo.v; w.t0 = t; w.dur = dist / vel * 1000; w.wait = 0; if (Math.abs(sx) > 0.01) w.dir = sx > 0 ? 1 : -1;
+    }
+    const k = w.dur ? Math.min(1, (t - w.t0) / w.dur) : 1;
+    return { u: w.fu + (w.tu - w.fu) * k, v: w.fv + (w.tv - w.fv) * k, d: 1, mov: k < 1, chegou: k >= 1 };
+  }
   if (!w) { const u = a.u0 + Math.random() * (a.u1 - a.u0), v = a.v0 + Math.random() * (a.v1 - a.v0); w = luxoWalk[chave] = { fu: u, fv: v, tu: u, tv: v, t0: t, dur: 0, wait: 600, dir: 1 }; }
   let k = w.dur ? Math.min(1, (t - w.t0) / w.dur) : 1;
   if (k >= 1 && t - w.t0 > w.dur + w.wait) {
@@ -4818,9 +4828,10 @@ function drawLuxoMaquinas(t) {
   }
   if (aA) {
     const cu = (B.u0 + B.u1) / 2, cv = (B.v0 + B.v1) / 2, ru = Math.max(1, (B.u1 - B.u0) / 2 * 0.75), rv = Math.max(1, (B.v1 - B.v0) / 2 * 0.75);
-    const u = cu + ru * Math.sin(t / 7000), v = cv + rv * Math.sin(t / 5300 + 1.3), ps = tA ? null : luxoPasseio('ajud', t, 0.7), q = ps ? iso(ps.u, ps.v) : iso(u, v), d = ps ? ps.d : Math.cos(t / 7000) >= 0 ? 1 : -1, bal = !ps || ps.mov ? Math.sin(t / 220) * 1.5 : 0;
+    const pq = posOf(state, 'roca', 'pesqueiro'), lago = temaDe(state).lago ? { u: LAGO_POS[0] + 0.2, v: LAGO_POS[1] + 1.5 } : pq ? { u: pq[0] + 1.1, v: pq[1] + 0.2 } : null; // sem serviço: vai pescar no lago (lago grande ou pesqueiro)
+    const u = cu + ru * Math.sin(t / 7000), v = cv + rv * Math.sin(t / 5300 + 1.3), ps = tA ? null : luxoPasseio('ajud', t, 0.7, lago), q = ps ? iso(ps.u, ps.v) : iso(u, v), d = ps ? ps.d : Math.cos(t / 7000) >= 0 ? 1 : -1, bal = !ps || ps.mov ? Math.sin(t / 220) * 1.5 : 0;
     // Caseiro: um morador de verdade (mesmo desenho dos vizinhos), de regador na mão quando tem a melhoria
-    const esc = L.W / 95, andando = !ps || ps.mov, av = { sexo: 'm', pele: 3, cabelo: 'curto', corCabelo: 4, chapeu: 'palha', camisa: 'regata', calca: 'jeans', sapato: 'bota', mao: X.ajud2 ? 'regador' : 'enxada' };
+    const pesca = !!(ps && ps.chegou), esc = L.W / 95, andando = !ps || ps.mov, av = { sexo: 'm', pele: 3, cabelo: 'curto', corCabelo: 4, chapeu: 'palha', camisa: 'regata', calca: 'jeans', sapato: 'bota', mao: pesca ? 'vara' : (!ps && X.ajud2) ? 'regador' : 'enxada' };
     g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(q.x, q.y, L.W * 0.13, L.W * 0.045, 0, 0, 7); g.fill();
     drawAvatar(g, q.x, q.y, esc, av, t, andando, d);
     if (X.ajud2 && tA) for (let k = 0; k < 4; k++) { const p = ((t / 500) + k / 4) % 1; g.globalAlpha = 1 - p; g.fillStyle = '#7cc8ff'; g.beginPath(); g.arc(q.x + d * (L.W * 0.2 + p * 4), q.y - L.W * 0.32 + p * L.W * 0.3, 1.8 * sc * 1.5, 0, 7); g.fill(); }
