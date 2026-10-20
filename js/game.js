@@ -1575,6 +1575,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 359, txt: "⛏️ A Mina agora é uma mina de verdade, com 3 andares! Entre pela boca da caverna (canto sudoeste da Vila): lá dentro é escuro, com lanternas, cristais brilhando e morcegos. Toque nos veios para picar (vários golpes por veio) e levar carvão, ferro, cobre, prata, ouro e gemas para o celeiro: são os mesmos minérios da Forja da fazenda. Use as escadas para descer (andares mais fundos têm minérios mais raros). Cada veio volta em 20 minutos (a metade na Terça da Mina)." },
   { v: 358, txt: "⚔️ Chefe novo! Agora ele é um evento raro: aparece 1 vez por hora, por 12 minutos, e o aviso chega 1 minuto antes (a tela escurece e treme quando ele chega). Tem nome, fala e 4 versões (Lobo Alfa no Halloween, e Javali Gigante, Jacaré do Pântano ou Onça Rei nos outros dias). Três fases: a cada 20 s fica ‘vulnerável’ por 6 s (golpe 3×, e 5× se acertar o 🎯 ponto fraco brilhante); a partir da fase 2 faz INVESTIDAS (um aviso vermelho no chão: saia da frente ou fica atordoado 3 s); na fase 3 chama filhotes (toque neles para 4 de dano). Com 2 ou mais amigos perto o dano dobra. O prêmio agora é 600 moedas, 5 doces e uma estátua exclusiva do chefe para o seu quarto." },
   { v: 357, txt: "🌳 Visual novo da Vila: árvores (pinheiros, carvalhos, macieiras, árvores de outono), palmeiras, pedras e flores agora são desenhadas e balançam ao vento (chega de emojis). O chão tem manchas de grama, as ruas têm contorno e faixas, o lago brilha e tem patinhos, o mar tem espuma. Passarinhos e borboletas de dia, vaga-lumes à noite e folhas caindo no outono." },
   { v: 356, txt: "🎶 Vila renovada, parte 2! Moradores com rotina (Seu Tonico, Zé do Rio, Dona Lúcia, Sargento Brito, Dona Teresa e Sá Maria andam pela Vila ao longo do dia e pedem coisas no Quadro de avisos; ❗ marca quem tem pedido). Calendário: segunda/terça/quinta voltam mais rápido as coletas da Praia/Mina/Floresta, sexta é Serenata (lanternas e coreto à noite) e sábado é a Feira (pedidos pagam 50% a mais). Novos lugares: 🎶 coreto (toque música), 🔥 fogueira (marshmallow), ⛵ barco até a 🏝️ ilha com baú, e 📸 foto da Vila (menu Eu). As casinhas ganharam janela acesa, fumaça e caixa de correio. O tesouro do dia agora é um enigma com quente/frio." },
@@ -15024,7 +15025,7 @@ function vilaContexto() {
   if (pracaBossAtivo()) { const b = pracaBossPos(); if (d(b.u, b.v) < 6) return { id: 'boss', txt: `⚔️ Atacar o ${pracaBossNome().slice(3)}!` }; }
   if (praca.colhendo) return { id: 'colhendo', txt: '⏳ Coletando…' };
   { const pt = vilaPontos().find(x => vilaPontoPronto(x) && d(x.u, x.v) < 1.9); if (pt) return { id: 'col:' + pt.id, txt: vilaPontoVerbo(pt) }; }
-  for (const [tipo, F] of Object.entries(FESTAS)) if (d(F.u, F.v + 1.8) < 3.2) return { id: 'f:' + tipo, txt: `${F.ic} Entrar: ${F.nome}` };
+  for (const [tipo, F] of Object.entries(FESTAS)) if (!F.oculto && d(F.u, F.v + 1.8) < 3.2) return { id: 'f:' + tipo, txt: `${F.ic} Entrar: ${F.nome}` };
   const tes = vilaTesouro(); if (!pracaSt().c.tesOk && d(tes.u, tes.v) < 2) return { id: 'tesouro', txt: '⛏️ Cavar aqui' };
   if (d(VILA_LOCAIS.mural.u, VILA_LOCAIS.mural.v) < 3.5) return { id: 'mural', txt: '📋 Ver o quadro de avisos' };
   if (d(VILA_LOCAIS.mercado.u, VILA_LOCAIS.mercado.v) < 4) return { id: 'mercado', txt: '🏪 Entrar no mercado' };
@@ -15241,7 +15242,7 @@ function pracaDesenha(g, c, now, dpr) {
   rect(39.5, 11, 46.6, 13, '#a87a46'); for (let k = 0; k < 8; k++) { const a = I(39.7 + k * 0.9, 11), b = I(39.7 + k * 0.9, 13); g.strokeStyle = 'rgba(70,40,10,.5)'; g.lineWidth = Math.max(1, dpr); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
   // rótulos das áreas
   g.textAlign = 'center'; g.font = `800 ${Math.round(12 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.6)'; g.fillStyle = 'rgba(255,255,255,.85)';
-  for (const [id, z] of Object.entries(VILA_ZONAS)) { if (id === 'plaza' || VILA_LOCAIS[id] || FESTAS[id]) continue; const q = I(z.u, z.v); if (q.x > -80 && q.x < W + 80 && q.y > -40 && q.y < H + 40) { g.strokeText(`${z.ic} ${z.nome}`, q.x, q.y); g.fillText(`${z.ic} ${z.nome}`, q.x, q.y); } }
+  for (const [id, z] of Object.entries(VILA_ZONAS)) { if (id === 'plaza' || VILA_LOCAIS[id] || (FESTAS[id] && !FESTAS[id].oculto) || id === 'mina') continue; const q = I(z.u, z.v); if (q.x > -80 && q.x < W + 80 && q.y > -40 && q.y < H + 40) { g.strokeText(`${z.ic} ${z.nome}`, q.x, q.y); g.fillText(`${z.ic} ${z.nome}`, q.x, q.y); } }
   // lista de coisas para desenhar, de trás para frente
   const lista0 = []; if (praca.eu) lista0.push({ e: praca.eu, p: pracaPos(praca.eu, now) }); for (const j of Object.values(praca.jog)) lista0.push({ e: j, p: pracaPos(j, now) });
   const D = [], vis = q => q.x > -90 && q.x < W + 90 && q.y > -120 && q.y < H + 60, push = (s, fn) => D.push({ s, fn });
@@ -15265,7 +15266,8 @@ function pracaDesenha(g, c, now, dpr) {
     if (id !== 'barco' && id !== 'ilha') praca.hits.push({ id, x: q.x, y: q.y - tw, r: tw * 2.2 });
     else praca.hits.push({ id: 'loc:' + id, x: q.x, y: q.y - tw, r: tw * 2 });
   }
-  for (const [tipo, F] of Object.entries(FESTAS)) { const q = I(F.u, F.v); if (!(q.x > -120 && q.x < W + 120 && q.y > -160 && q.y < H + 80)) continue;
+  for (const [tipo, F] of Object.entries(FESTAS)) { if (F.oculto) continue; const q = I(F.u, F.v); if (!(q.x > -120 && q.x < W + 120 && q.y > -160 && q.y < H + 80)) continue;
+    if (tipo === 'mina') { push(F.u + F.v, () => minaFachada(g, q, tw, dpr, now, noite > 0.5)); praca.hits.push({ id: 'f:mina', x: q.x, y: q.y - tw * 1.5, r: tw * 2.6 }); continue; }
     if (tipo === 'igreja') { push(F.u + F.v, () => igrejaFachada(g, q, tw, dpr, now, noite > 0.5)); praca.hits.push({ id: 'f:igreja', x: q.x, y: q.y - tw * 2, r: tw * 3 }); continue; }
     push(F.u + F.v, () => { const w = tw * 3.4, h = tw * 2.4; g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.ellipse(q.x, q.y, w * 0.7, w * 0.2, 0, 0, 7); g.fill(); g.fillStyle = F.cor; g.fillRect(q.x - w / 2, q.y - h, w, h); g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.moveTo(q.x - w * 0.6, q.y - h); g.lineTo(q.x, q.y - h - w * 0.45); g.lineTo(q.x + w * 0.6, q.y - h); g.closePath(); g.fill(); g.fillStyle = '#1a1208'; g.fillRect(q.x - w * 0.12, q.y - h * 0.55, w * 0.24, h * 0.55);
       g.font = `${Math.round(tw * 1.6)}px system-ui`; g.textAlign = 'center'; g.fillStyle = '#000'; g.fillText(F.ic, q.x, q.y - h - w * 0.12); g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffe08a'; g.strokeText(F.nome, q.x, q.y + tw * 0.8); g.fillText(F.nome, q.x, q.y + tw * 0.8);
@@ -15275,7 +15277,7 @@ function pracaDesenha(g, c, now, dpr) {
   VILA_BANCOS.forEach(([u, v], i) => { const q = I(u, v); if (!vis(q)) return;
     push(u + v - 0.002, () => { g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 0.6, tw * 0.22, 0, 0, 7); g.fill(); g.font = `${Math.round(tw * 1.7)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('🪑', q.x, q.y + tw * 0.15); });
     praca.hits.push({ id: 'banco:' + i, x: q.x, y: q.y - tw * 0.6, r: tw * 1.5 }); });
-  { const q = I(10, 41); if (vis(q)) push(41 + 10, () => { g.font = `${Math.round(tw * 3)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('⛰️', q.x, q.y); g.fillStyle = '#1a1208'; g.beginPath(); g.ellipse(q.x, q.y - tw * 0.5, tw * 0.5, tw * 0.6, 0, Math.PI, 0); g.fill(); }); }
+  if (false) { const q = I(10, 41); if (vis(q)) push(41 + 10, () => { g.font = `${Math.round(tw * 3)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('⛰️', q.x, q.y); g.fillStyle = '#1a1208'; g.beginPath(); g.ellipse(q.x, q.y - tw * 0.5, tw * 0.5, tw * 0.6, 0, Math.PI, 0); g.fill(); }); }
   if (vilaFesta()) { const q = I(32, 29); if (vis(q)) push(61, () => { g.font = `${Math.round(tw * 1.6 * (1 + Math.sin(now / 90) * 0.06))}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('🔥', q.x, q.y); for (let k = 0; k < 4; k++) { const ph = ((now / 900) + k / 4) % 1; g.fillStyle = `hsla(${(k * 80 + now / 8) % 360},90%,60%,${1 - ph})`; g.beginPath(); g.arc(q.x + Math.sin(k * 2 + now / 300) * tw * 1.4, q.y - tw * 2 - ph * tw * 3, 3 * dpr, 0, 7); g.fill(); } }); }
   // casinhas
   for (const k of pracaCasaSlots()) { const q = I(k.u, k.v); if (!vis(q)) continue; push(k.u + k.v, () => { pracaCasaDesenho(g, q, G, k.c); g.font = `800 ${Math.round(10 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#fff'; g.strokeText(k.c.n || '', q.x, q.y + tw * 1.25); g.fillText(k.c.n || '', q.x, q.y + tw * 1.25); }); praca.hits.push({ id: 'ver:' + k.uid, x: q.x, y: q.y - tw * 0.8, r: tw * 1.4 }); }
@@ -15418,6 +15420,8 @@ const MOVEIS = {
   tela: { n: 'Tela de cinema', w: 4, d: 1, publico: 1, tela: 1 }, bar: { n: 'Bar', e: '🍹', w: 2, d: 1, publico: 1 }, pipoca: { n: 'Pipoca', e: '🍿', w: 1, d: 1, publico: 1 }, agua: { n: 'Piscina', w: 8, d: 7, publico: 1, piso: 'agua' }, guardasol: { n: 'Guarda-sol', e: '⛱️', w: 1, d: 1, publico: 1 },
   caixaint: { n: 'Caixa de intenções', e: '💌', w: 1, d: 1, publico: 1, intencao: 1 },
   altar: { n: 'Altar', w: 4, d: 2, publico: 1, altar: 1 }, palco: { n: 'Palco do coral', w: 3, d: 2, publico: 1, palco: 1 }, pulpito: { n: 'Púlpito', e: '📖', w: 1, d: 1, publico: 1 },
+  veio_carvao: { n: 'Veio de carvão', w: 1, d: 1, publico: 1, veio: 'carvao' }, veio_ferro: { n: 'Veio de ferro', w: 1, d: 1, publico: 1, veio: 'ferro' }, veio_cobre: { n: 'Veio de cobre', w: 1, d: 1, publico: 1, veio: 'cobre' }, veio_prata: { n: 'Veio de prata', w: 1, d: 1, publico: 1, veio: 'prata' }, veio_ouro: { n: 'Veio de ouro', w: 1, d: 1, publico: 1, veio: 'ouro' }, veio_gema: { n: 'Veio de gemas', w: 1, d: 1, publico: 1, veio: 'gema' },
+  esc_baixo: { n: 'Escada para baixo', w: 2, d: 1, publico: 1, escada: 'baixo' }, esc_cima: { n: 'Escada para cima', w: 2, d: 1, publico: 1, escada: 'cima' },
   est_lobo: { n: 'Estátua do Lobo Alfa', e: '🐺', w: 1, d: 1, publico: 1 }, est_javali: { n: 'Estátua do Javali Gigante', e: '🐗', w: 1, d: 1, publico: 1 }, est_jacare: { n: 'Estátua do Jacaré do Pântano', e: '🐊', w: 1, d: 1, publico: 1 }, est_onca: { n: 'Estátua da Onça Rei', e: '🐆', w: 1, d: 1, publico: 1 },
   abobora: { n: 'Abóbora', e: '🎃', w: 1, d: 1, preco: 50 }, fantasma: { n: 'Fantasma', e: '👻', w: 1, d: 1, preco: 60 }, caixa: { n: 'Presente', e: '🎁', w: 1, d: 1, preco: 40 },
 };
@@ -15425,6 +15429,7 @@ const PAREDES = [{ n: 'Creme', c: '#f0e0c0' }, { n: 'Azul', c: '#9cc8e8' }, { n:
 const PISOS = [{ n: 'Madeira', a: '#c8964a', b: '#b88340' }, { n: 'Xadrez', a: '#f2f2f2', b: '#4a4a4a' }, { n: 'Grama', a: '#6cbc4a', b: '#5aa83a' }, { n: 'Pedra', a: '#9a9a9a', b: '#8a8a8a' }, { n: 'Azul', a: '#6a9ad8', b: '#5a8ac8' }, { n: 'Rosa', a: '#f0a8c0', b: '#e098b0' }];
 const FILMES = [['🦁', 'O Rei da Roça'], ['🚀', 'Viagem ao Celeiro'], ['🦖', 'Parque dos Jurássicos'], ['🧙', 'Harry Trigo'], ['👻', 'Noite Assombrada'], ['🐠', 'Procurando o Peixe'], ['🤠', 'Cowboys do Pantanal']];
 PAREDES.push({ n: 'Igreja', c: '#efe6d2' }); PISOS.push({ n: 'Pedra clara', a: '#dcd3bf', b: '#cdc3ac' });
+const PAREDE_MINA = PAREDES.length, PISO_MINA = PISOS.length; PAREDES.push({ n: 'Rocha', c: '#4a4252' }); PISOS.push({ n: 'Terra da mina', a: '#5a4c3e', b: '#4c4034' });
 const FESTAS = {
   disco:   { nome: 'Discoteca', ic: '🪩', N: 12, spawn: [5.5, 10.5], u: 10, v: 22, cor: '#6a2fa0', q: { p: 5, c: 3, a: 'todos', m: [
     { i: 'pistaD', u: 2, v: 3 }, { i: 'dj', u: 5, v: 0 }, { i: 'caixasom', u: 3, v: 0 }, { i: 'caixasom', u: 8, v: 0 }, { i: 'bolaluz', u: 5, v: 5 },
@@ -15438,6 +15443,12 @@ const FESTAS = {
     ...[3, 5, 7, 9].map(v => ({ i: 'tapete', u: 5, v })),
     ...[4, 5, 6, 7, 8, 9].flatMap(v => [1, 2, 3, 4, 7, 8, 9, 10].map(u => ({ i: 'cadeira', u, v }))) ] } },
 };
+FESTAS.mina = { nome: 'Mina (1º andar)', ic: '⛏️', N: 12, spawn: [5.5, 10.5], u: 10, v: 41.6, cor: '#6a6672', mina: 1, q: { p: PAREDE_MINA, c: PISO_MINA, a: 'todos', m: [
+  { i: 'esc_baixo', u: 5, v: 0 }, { i: 'veio_carvao', u: 2, v: 2 }, { i: 'veio_carvao', u: 9, v: 2 }, { i: 'veio_carvao', u: 10, v: 6 }, { i: 'veio_carvao', u: 1, v: 5 }, { i: 'veio_ferro', u: 4, v: 4 }, { i: 'veio_ferro', u: 7, v: 5 }, { i: 'veio_ferro', u: 10, v: 9 }, { i: 'veio_ferro', u: 2, v: 8 }] } };
+FESTAS.mina2 = { nome: 'Mina (2º andar)', ic: '⛏️', N: 12, spawn: [5.5, 10.5], oculto: 1, mina: 2, q: { p: PAREDE_MINA, c: PISO_MINA, a: 'todos', m: [
+  { i: 'esc_cima', u: 5, v: 0 }, { i: 'esc_baixo', u: 9, v: 10 }, { i: 'veio_ferro', u: 2, v: 2 }, { i: 'veio_ferro', u: 10, v: 3 }, { i: 'veio_cobre', u: 4, v: 4 }, { i: 'veio_cobre', u: 8, v: 5 }, { i: 'veio_cobre', u: 1, v: 7 }, { i: 'veio_prata', u: 10, v: 8 }, { i: 'veio_prata', u: 6, v: 8 }] } };
+FESTAS.mina3 = { nome: 'Mina (3º andar)', ic: '💎', N: 12, spawn: [5.5, 10.5], oculto: 1, mina: 3, q: { p: PAREDE_MINA, c: PISO_MINA, a: 'todos', m: [
+  { i: 'esc_cima', u: 5, v: 0 }, { i: 'veio_prata', u: 2, v: 3 }, { i: 'veio_prata', u: 9, v: 3 }, { i: 'veio_ouro', u: 4, v: 6 }, { i: 'veio_ouro', u: 8, v: 7 }, { i: 'veio_gema', u: 6, v: 4 }, { i: 'veio_cobre', u: 1, v: 9 }, { i: 'veio_cobre', u: 10, v: 9 }] } };
 const quartoSt = () => { const v = state.vilaMov || (state.vilaMov = { inv: { cadeira: 2, planta: 2, cama: 1, tv: 1, tapete: 1 }, q: { p: 0, c: 0, a: 'amigos', m: [] } }); if (!v.brinde2) { v.brinde2 = 1; v.inv.correio = (v.inv.correio || 0) + 1; v.inv.damas = (v.inv.damas || 0) + 1; } return v; };
 const quartoAtual = () => praca.sala ? (praca.sala.tipo ? FESTAS[praca.sala.tipo].q : praca.sala.dono === user.uid ? quartoSt().q : (praca.quartoVis || { p: 0, c: 0, a: 'amigos', m: [] })) : null;
 const quartoTam = (m, r) => (r % 2) ? [m.d, m.w] : [m.w, m.d];
@@ -15559,6 +15570,8 @@ function quartoToque(x, y, G) {
     if (M.sent || M.dorme) { if (Object.values(praca.jog).some(j => (j.ia === 'sentar' || j.ia === 'dc6') && Math.floor(j.tu) >= it.u && Math.floor(j.tu) < it.u + quartoTam(M, it.r || 0)[0] && Math.floor(j.tv) >= it.v && Math.floor(j.tv) < it.v + quartoTam(M, it.r || 0)[1])) return toast('Está ocupado! 🪑');
       const gu = it.u + 0.5, gv = it.v + 0.5; return vilaPedirAssento(`${M.e} ${M.n}`, M.dorme ? 'Deitar' : 'Sentar', () => { vilaConq('sentar'); praca.seguir = false; quartoIrPara(gu, gv, { ia: M.dorme ? 'dc6' : 'sentar', ic: null, iz: firebase.database.ServerValue.TIMESTAMP, ek: M.dorme ? '😴' : '😌', et: Date.now() }); praca.eu.ia = M.dorme ? 'dc6' : 'sentar'; }); }
     if (M.intencao) return pracaPainelAbrir('intencoes');
+    if (M.veio) return vilaMinerar(it, M.veio);
+    if (M.escada) return vilaEscada(M.escada);
     if (M.jogo) return pracaPainelAbrir('damas:' + damasChave(it));
     if (M.correio) { if (S.dono === user.uid) return pracaPainelAbrir('cartas'); if (state.friends.includes(S.dono)) return pracaPainelAbrir('cartaw:' + S.dono); return toast('📮 Só amigos podem deixar cartas aqui.'); }
     if (M.som) { const e = praca.eu; praca.eu.emote = { k: '🎵', ate: now + 2500 }; pracaEnviarMov({ ek: '🎵', et: Date.now() }); sfx(M.som ? 'click' : 'click'); praca.flutua.push({ txt: M.e + ' 🎵', u: it.u + 0.5, v: it.v + 0.5, t: now }); return; }
@@ -15959,6 +15972,69 @@ function pracaHtmlAlbum() {
   return h;
 }
 function vilaAlbumPremio(bid) { const C = vilaColSt(), B = VILA_BIOMAS[bid]; if (!B || C.rec[bid]) return; const ids = [...B.comum, ...B.raro, ...B.lend]; if (!ids.every(i => C.album[i] > 0)) return; C.rec[bid] = 1; state.coins += 2000; vilaConq('album'); sfx('level'); toast(`📖 Página da ${B.n} completa! +2.000 moedas`, 'good'); done(); pracaPainel(); }
+// ============ ⛏️ Mina em 3 andares ============
+const MINA_ANDAR = { mina: 1, mina2: 2, mina3: 3 };
+function minaFachada(g, q, tw, dpr, now, noite) {
+  const w = tw * 5.2, h = tw * 3.4;
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(q.x, q.y, w * 0.62, w * 0.16, 0, 0, 7); g.fill();
+  g.fillStyle = '#7a7684'; g.beginPath(); g.moveTo(q.x - w * 0.55, q.y); g.lineTo(q.x - w * 0.42, q.y - h * 0.7); g.lineTo(q.x - w * 0.15, q.y - h * 1.05); g.lineTo(q.x + w * 0.1, q.y - h * 1.2); g.lineTo(q.x + w * 0.4, q.y - h * 0.8); g.lineTo(q.x + w * 0.55, q.y); g.closePath(); g.fill();
+  g.fillStyle = '#928ea0'; g.beginPath(); g.moveTo(q.x - w * 0.15, q.y - h * 1.05); g.lineTo(q.x + w * 0.1, q.y - h * 1.2); g.lineTo(q.x + w * 0.4, q.y - h * 0.8); g.lineTo(q.x + w * 0.05, q.y - h * 0.7); g.closePath(); g.fill();
+  g.fillStyle = '#16101a'; g.beginPath(); g.moveTo(q.x - w * 0.18, q.y); g.lineTo(q.x - w * 0.18, q.y - h * 0.4); g.arc(q.x, q.y - h * 0.4, w * 0.18, Math.PI, 0); g.lineTo(q.x + w * 0.18, q.y); g.closePath(); g.fill();
+  g.strokeStyle = '#8a5a2a'; g.lineWidth = tw * 0.2; g.beginPath(); g.moveTo(q.x - w * 0.2, q.y); g.lineTo(q.x - w * 0.2, q.y - h * 0.42); g.moveTo(q.x + w * 0.2, q.y); g.lineTo(q.x + w * 0.2, q.y - h * 0.42); g.moveTo(q.x - w * 0.24, q.y - h * 0.46); g.lineTo(q.x + w * 0.24, q.y - h * 0.46); g.stroke();
+  g.strokeStyle = '#555'; g.lineWidth = 2 * dpr; for (let k = 0; k < 5; k++) { g.beginPath(); g.moveTo(q.x - w * 0.14 + k * w * 0.07, q.y + tw * 0.1 + k * tw * 0.08); g.lineTo(q.x - w * 0.18 + k * w * 0.09, q.y + tw * 0.3 + k * tw * 0.1); g.stroke(); }
+  const lx = q.x + w * 0.3, ly = q.y - h * 0.3; g.fillStyle = '#3a3a3a'; g.fillRect(lx - tw * 0.04, ly, tw * 0.08, h * 0.3); g.fillStyle = noite ? '#ffe39a' : '#f4ecc8'; g.beginPath(); g.arc(lx, ly - tw * 0.1, tw * 0.17, 0, 7); g.fill();
+  if (noite) { const gl = g.createRadialGradient(lx, ly, 1, lx, ly, tw * 2); gl.addColorStop(0, 'rgba(255,220,130,.4)'); gl.addColorStop(1, 'rgba(255,220,130,0)'); g.fillStyle = gl; g.fillRect(lx - tw * 2, ly - tw * 2, tw * 4, tw * 4); }
+  for (const [cx, col] of [[-0.38, '#7ad8ff'], [0.46, '#b88aff']]) { g.fillStyle = col; g.beginPath(); g.moveTo(q.x + cx * w - tw * 0.12, q.y - tw * 0.1); g.lineTo(q.x + cx * w, q.y - tw * 0.8); g.lineTo(q.x + cx * w + tw * 0.14, q.y - tw * 0.1); g.closePath(); g.fill(); }
+  g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffe08a'; g.strokeText('⛏️ Mina · 3 andares', q.x, q.y + tw * 0.8); g.fillText('⛏️ Mina · 3 andares', q.x, q.y + tw * 0.8);
+}
+function minaParede(g, I, tw, dpr, now, wallH) {
+  const poly = (pts, cor) => { g.fillStyle = cor; g.beginPath(); pts.forEach(([x, y], k) => k ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.fill(); };
+  const pt = (pl, a, h) => { const q = pl === 'b' ? I(a, 0) : I(0, a); return [q.x, q.y - h * wallH]; };
+  for (const pl of ['b', 'l']) { g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1.5 * dpr; for (let k = 0; k < 16; k++) { const a = (k * 0.8) % 12, h = 0.1 + ((k * 37) % 80) / 100; g.beginPath(); g.moveTo(...pt(pl, a, h)); g.lineTo(...pt(pl, a + 0.6, h + 0.05)); g.stroke(); }
+    for (const a of [1.5, 5.5, 10]) { poly([pt(pl, a - 0.12, 0), pt(pl, a + 0.12, 0), pt(pl, a + 0.12, 0.85), pt(pl, a - 0.12, 0.85)], '#6a4326'); poly([pt(pl, a - 0.12, 0.85), pt(pl, a + 0.12, 0.85), pt(pl, a + 0.6, 0.86), pt(pl, a - 0.6, 0.86)], '#7a5030'); } }
+  for (const [pl, a, c] of [['b', 3, '#7ad8ff'], ['b', 8, '#b88aff'], ['l', 4, '#ffb84a'], ['l', 10, '#7ad8ff']]) { const p = pt(pl, a, 0.45), pu = 0.5 + 0.5 * Math.sin(now / 600 + a); const gl = g.createRadialGradient(p[0], p[1], 1, p[0], p[1], tw * 1.4); gl.addColorStop(0, c + 'aa'); gl.addColorStop(1, c + '00'); g.fillStyle = gl; g.fillRect(p[0] - tw * 1.5, p[1] - tw * 1.5, tw * 3, tw * 3); g.fillStyle = c; g.beginPath(); g.moveTo(p[0] - tw * 0.14, p[1] + tw * 0.2); g.lineTo(p[0], p[1] - tw * 0.4 - pu * tw * 0.05); g.lineTo(p[0] + tw * 0.14, p[1] + tw * 0.2); g.closePath(); g.fill(); }
+  for (const [pl, a] of [['b', 4.2], ['b', 7], ['l', 2.4]]) { const p = pt(pl, a, 0.55), fl = 0.7 + 0.3 * Math.sin(now / 130 + a * 3); g.fillStyle = '#3a3a3a'; g.fillRect(p[0] - tw * 0.04, p[1], tw * 0.08, tw * 0.25); g.fillStyle = `rgba(255,${170 + fl * 60 | 0},60,.95)`; g.beginPath(); g.arc(p[0], p[1] - tw * 0.05, tw * 0.1, 0, 7); g.fill(); const gl = g.createRadialGradient(p[0], p[1], 1, p[0], p[1], tw * 1.6); gl.addColorStop(0, 'rgba(255,190,90,.35)'); gl.addColorStop(1, 'rgba(255,190,90,0)'); g.fillStyle = gl; g.fillRect(p[0] - tw * 1.6, p[1] - tw * 1.6, tw * 3.2, tw * 3.2); }
+}
+function minaAmbiente(g, W, H, dpr, now, S) {
+  for (let k = 0; k < 3; k++) { const f = ((now / (11000 + k * 3000)) + k * 0.33) % 1, x = -30 + f * (W + 60), y = H * (0.18 + 0.12 * k) + Math.sin(f * 20 + k) * 14 * dpr, w = 6 * dpr, fl = Math.sin(now / 90 + k) * 4 * dpr; g.fillStyle = 'rgba(20,10,30,.85)'; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x - w * 1.5, y - w + fl, x - w * 2.2, y + fl * 0.5); g.quadraticCurveTo(x - w, y + w * 0.3, x, y + w * 0.5); g.quadraticCurveTo(x + w, y + w * 0.3, x + w * 2.2, y + fl * 0.5); g.quadraticCurveTo(x + w * 1.5, y - w + fl, x, y); g.fill(); }
+  const a = MINA_ANDAR[S.tipo] || 1; g.font = `800 ${Math.round(13 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.fillStyle = '#ffe9a8'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(`⛏️ Mina · ${a}º andar · toque nos veios para picar`, W / 2, H - 14 * dpr); g.fillText(`⛏️ Mina · ${a}º andar · toque nos veios para picar`, W / 2, H - 14 * dpr);
+}
+const MINA_COR = { carvao: ['#3a3a44', '#8a8a96'], ferro: ['#a58a78', '#d6a58a'], cobre: ['#a8785a', '#e8883c'], prata: ['#9aa6b0', '#eef4fa'], ouro: ['#9c8a5a', '#ffd84a'], gema: ['#6a8a9a', '#7bf0e0'] };
+const minaChave = (S, it) => `${S.id}:${it.u},${it.v}`;
+function minaVeioDesenha(g, I, tw, dpr, now, it, ore, S) {
+  const c = I(it.u + 0.5, it.v + 0.6), key = minaChave(S, it), pronto = (vilaColSt().t[key] || 0) <= Date.now(), cor = MINA_COR[ore], hits = (praca.minaHits && praca.minaHits[key]) || 0, hp = MINERIO[ore].hp, rec = praca.minaRec && praca.minaRec[key] && now - praca.minaRec[key] < 220, sh = rec ? Math.sin(now / 25) * 3 * dpr : 0;
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(c.x, c.y, tw * 0.6, tw * 0.22, 0, 0, 7); g.fill();
+  g.fillStyle = '#625a6c'; g.beginPath(); g.moveTo(c.x - tw * 0.55 + sh, c.y); g.lineTo(c.x - tw * 0.4 + sh, c.y - tw * 0.7); g.lineTo(c.x + sh, c.y - tw * 0.95); g.lineTo(c.x + tw * 0.45 + sh, c.y - tw * 0.6); g.lineTo(c.x + tw * 0.55 + sh, c.y); g.closePath(); g.fill();
+  g.fillStyle = '#7a7286'; g.beginPath(); g.moveTo(c.x - tw * 0.4 + sh, c.y - tw * 0.7); g.lineTo(c.x + sh, c.y - tw * 0.95); g.lineTo(c.x + tw * 0.1 + sh, c.y - tw * 0.55); g.lineTo(c.x - tw * 0.25 + sh, c.y - tw * 0.4); g.closePath(); g.fill();
+  if (pronto) { for (const [dx, dy, r] of [[-0.18, -0.5, 0.1], [0.12, -0.62, 0.12], [0.22, -0.3, 0.09], [-0.05, -0.3, 0.08]]) { g.fillStyle = cor[1]; g.beginPath(); g.moveTo(c.x + dx * tw + sh - r * tw, c.y + dy * tw + r * tw); g.lineTo(c.x + dx * tw + sh, c.y + dy * tw - r * tw * 1.6); g.lineTo(c.x + dx * tw + sh + r * tw, c.y + dy * tw + r * tw); g.closePath(); g.fill(); g.fillStyle = cor[0]; g.fillRect(c.x + dx * tw + sh - r * tw * 0.3, c.y + dy * tw - r * tw * 0.4, r * tw * 0.6, r * tw); }
+    const t = (now / 700 + it.u) % 1; g.globalAlpha = 1 - t; g.strokeStyle = '#fff'; g.lineWidth = 1.5 * dpr; const sx = c.x + tw * 0.45, sy = c.y - tw * (0.9 + t * 0.3), r = tw * 0.11; g.beginPath(); g.moveTo(sx - r, sy); g.lineTo(sx + r, sy); g.moveTo(sx, sy - r); g.lineTo(sx, sy + r); g.stroke(); g.globalAlpha = 1;
+    if (hits > 0) { g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(c.x - tw * 0.5, c.y - tw * 1.2, tw, 5 * dpr); g.fillStyle = '#ffe08a'; g.fillRect(c.x - tw * 0.5, c.y - tw * 1.2, tw * Math.min(1, hits / hp), 5 * dpr); } }
+  else { g.fillStyle = '#4a4252'; for (let k = 0; k < 4; k++) { g.beginPath(); g.arc(c.x + (k - 1.5) * tw * 0.2, c.y - tw * 0.1, tw * 0.1, 0, 7); g.fill(); } }
+}
+function minaEscadaDesenha(g, I, tw, dpr, now, it, tipo) {
+  const a = I(it.u, it.v + 0.5), b = I(it.u + 2, it.v + 0.5), c = I(it.u + 1, it.v + 0.5);
+  g.fillStyle = '#16101a'; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineTo(b.x, b.y - tw * 1.8); g.lineTo(a.x, a.y - tw * 1.8); g.closePath(); g.fill();
+  for (let k = 0; k < 5; k++) { g.fillStyle = k % 2 ? '#8a6a46' : '#9a7a52'; const y = c.y - tw * (tipo === 'baixo' ? 0.1 + k * 0.28 : 0.1 + (4 - k) * 0.28); g.fillRect(c.x - tw * (0.9 - k * (tipo === 'baixo' ? 0.1 : -0.1)), y, tw * 1.8 * (1 - k * (tipo === 'baixo' ? 0.1 : -0.1) * 0.5), tw * 0.2); }
+  g.font = `${Math.round(tw * 0.9)}px system-ui`; g.textAlign = 'center'; g.fillStyle = '#000'; g.fillText(tipo === 'baixo' ? '⬇️' : '⬆️', c.x, c.y - tw * 1.9 + Math.sin(now / 300) * 3 * dpr);
+}
+function vilaMinerar(it, ore) {
+  const S = praca.sala; if (!S || !praca.eu) return; const key = minaChave(S, it), pp = pracaPos(praca.eu, performance.now()), cx = it.u + 0.5, cy = it.v + 0.6;
+  if ((vilaColSt().t[key] || 0) > Date.now()) return toast('Esse veio está esgotado. Volte mais tarde! ⏳');
+  if (Math.hypot(pp.u - cx, pp.v - cy) > 2.2) { quartoIrPara(cx, cy + 1.4); return toast('Chegue perto do veio e toque de novo ⛏️'); }
+  const ag = performance.now(); if (ag - (praca.ultPica || 0) < 220) return; praca.ultPica = ag;
+  (praca.minaHits || (praca.minaHits = {}))[key] = (praca.minaHits[key] || 0) + 1; (praca.minaRec || (praca.minaRec = {}))[key] = ag; sfx('hoe'); praca.eu.emote = { k: '⛏️', ate: ag + 600 }; pracaEnviarMov({ ek: '⛏️', et: Date.now() });
+  const M = MINERIO[ore]; praca.flutua.push({ txt: '⛏️', u: cx, v: cy, t: ag });
+  if (praca.minaHits[key] < M.hp) return;
+  praca.minaHits[key] = 0; const C = vilaColSt(), qtd = M.qtd[0] + Math.floor(Math.random() * (M.qtd[1] - M.qtd[0] + 1));
+  state.barn[ore] = (state.barn[ore] || 0) + qtd; C.album[ore] = (C.album[ore] || 0) + qtd; C.t[key] = Date.now() + 20 * 60e3 * (vilaEvento().bioma === 'mina' ? 0.5 : 1);
+  addXP(M.xp, null); pracaPontos(2); vilaConq('item'); if (['prata', 'ouro', 'gema'].includes(ore)) vilaConq('bau'); sfx(['ouro', 'gema', 'prata'].includes(ore) ? 'level' : 'collect');
+  praca.flutua.push({ txt: `+${qtd} ${M.nome.toLowerCase()}`, u: cx, v: cy - 0.5, t: ag }); toast(`⛏️ +${qtd} ${(qtd > 1 ? M.nomePl : M.nome).toLowerCase()} no celeiro!`, 'good'); done();
+}
+function vilaEscada(dir) {
+  const S = praca.sala; if (!S) return; const a = MINA_ANDAR[S.tipo] || 1, n = dir === 'baixo' ? a + 1 : a - 1, id = n === 1 ? 'mina' : 'mina' + n;
+  if (!FESTAS[id]) return; if (dir === 'cima' && n < 1) return;
+  pracaIrSala('f_' + id, null, id);
+}
 // ============ 🎪 Quermesse (ao lado da igreja): comidas e bebidas para o avatar ============
 const QUERMESSE = [
   { id: 'pastel',  e: '🥟', n: 'Pastel',           p: 20, k: 'comer' },
@@ -16110,6 +16186,7 @@ function quartoDesenha(g, c, now, dpr) {
   const d1 = I(0, 7.2), d2 = I(0, 9); poly([[d1.x, d1.y], [d2.x, d2.y], [d2.x, d2.y - wallH * 0.7], [d1.x, d1.y - wallH * 0.7]], '#6a4528'); g.font = `${Math.round(tw * 0.8)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText('🚪', (d1.x + d2.x) / 2, (d1.y + d2.y) / 2 - wallH * 0.3);
   praca.hits.push({ id: 'porta', x: (d1.x + d2.x) / 2, y: (d1.y + d2.y) / 2 - wallH * 0.3, r: tw * 1.4 });
   if (S.tipo === 'igreja') igrejaParede(g, I, tw, dpr, now, wallH);
+  if (S.tipo && S.tipo.startsWith('mina')) minaParede(g, I, tw, dpr, now, wallH);
   // piso
   for (let a = 0; a < N; a++) for (let b = 0; b < N; b++) { const t0 = I(a, b), t1 = I(a + 1, b), t2 = I(a + 1, b + 1), t3 = I(a, b + 1); poly([[t0.x, t0.y], [t1.x, t1.y], [t2.x, t2.y], [t3.x, t3.y]], (a + b) % 2 ? piso.a : piso.b); }
   if (S.tipo === 'igreja') igrejaChao(g, I, tw, dpr, now);
@@ -16126,6 +16203,8 @@ function quartoDesenha(g, c, now, dpr) {
       const gl = 0.5 + 0.3 * Math.sin(now / 300); g.fillStyle = `rgba(${Math.floor(60 + 40 * gl)},${Math.floor(80 + 60 * gl)},${Math.floor(140 + 80 * gl)},1)`; g.beginPath(); g.moveTo(a.x, a.y - tw * 0.3); g.lineTo(b2.x, b2.y - tw * 0.3); g.lineTo(b2.x, b2.y - hh); g.lineTo(a.x, a.y - hh); g.closePath(); g.fill();
       const mx = (a.x + b2.x) / 2, my = (a.y + b2.y) / 2 - hh * 0.55; g.font = `${Math.round(tw * 1.5)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(f[0], mx + Math.sin(now / 700) * tw * 0.6, my + Math.cos(now / 500) * tw * 0.12); g.font = `800 ${Math.round(10 * dpr)}px system-ui, sans-serif`; g.fillStyle = '#fff'; g.fillText(f[1], mx, my + tw * 0.9);
       const gl2 = g.createRadialGradient(mx, a.y + tw * 2, 1, mx, a.y + tw * 2, tw * 5); gl2.addColorStop(0, 'rgba(120,160,255,.18)'); gl2.addColorStop(1, 'rgba(120,160,255,0)'); g.fillStyle = gl2; g.fillRect(mx - tw * 5, a.y - tw, tw * 10, tw * 6); });
+    else if (M.veio) push(it.u + w / 2 + it.v + d / 2, () => minaVeioDesenha(g, I, tw, dpr, now, it, M.veio, S));
+    else if (M.escada) push(it.u + w / 2 + it.v + d / 2, () => minaEscadaDesenha(g, I, tw, dpr, now, it, M.escada));
     else if (M.altar) push(it.u + w / 2 + it.v + d / 2, () => igrejaAltar(g, I, tw, dpr, now, it));
     else if (M.palco) { /* o palco é desenhado no chão (igrejaChao) */ }
     else push(it.u + w / 2 + it.v + d / 2, () => { if (M.deco) { g.font = `${Math.round(tw * 1.6)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.save(); g.translate(ct.x, ct.y - tw * 3.4); g.rotate(Math.sin(now / 900) * 0.15); g.fillText(M.e, 0, 0); g.restore(); const cores = ['#ff4fa0', '#4fd0ff', '#ffe04f', '#8f4fff']; for (let k = 0; k < 4; k++) { g.fillStyle = `${cores[k]}55`; g.beginPath(); g.arc(ct.x + Math.sin(now / 500 + k * 1.6) * tw * 2.4, ct.y + Math.cos(now / 450 + k) * tw * 0.5, tw * 0.6, 0, 7); g.fill(); } return; }
@@ -16166,6 +16245,7 @@ function quartoDesenha(g, c, now, dpr) {
   for (const f of praca.flutua) { const qq = I(f.u, f.v), k = (now - f.t) / 900; g.font = `900 ${Math.round(16 * dpr)}px system-ui`; g.textAlign = 'center'; g.fillStyle = `rgba(255,230,130,${1 - k})`; flutTexto(g, f.txt, qq.x, qq.y - tw * 1.5 - k * 40 * dpr, dpr, false); }
   g.font = `800 ${Math.round(13 * dpr)}px system-ui, sans-serif`; g.textAlign = 'left'; g.fillStyle = '#fff'; g.fillText(S.tipo ? `${FESTAS[S.tipo].ic} ${FESTAS[S.tipo].nome} · ${Object.keys(praca.jog).length + 1} aqui` : `🏠 Quarto de ${S.dono === user.uid ? 'você' : (praca.quartoVis && praca.quartoVis.n) || 'amigo'}${S.edit ? ' · modo edição' : ''}`, 10 * dpr, 20 * dpr);
   if (S.tipo === 'igreja') igrejaBanner(g, W, H, dpr, now);
+  if (S.tipo && S.tipo.startsWith('mina')) minaAmbiente(g, W, H, dpr, now, S);
 }
 
 // ============ Extras da Vila: onde estão, títulos e selos, pets, damas e cartas ============
@@ -16195,7 +16275,7 @@ function pracaHtmlQuartos() {
   return h;
 }
 // ---- Onde estão (e juntar-se) ----
-const VILA_LUGAR = { mundo: ['🏘️', 'Vila'], f_disco: ['🪩', 'Discoteca'], f_cinema: ['🎬', 'Cinema'], f_piscina: ['🏊', 'Piscina'], f_igreja: ['⛪', 'Igreja'] };
+const VILA_LUGAR = { f_mina: ['⛏️', 'Mina (1º)'], f_mina2: ['⛏️', 'Mina (2º)'], f_mina3: ['💎', 'Mina (3º)'], mundo: ['🏘️', 'Vila'], f_disco: ['🪩', 'Discoteca'], f_cinema: ['🎬', 'Cinema'], f_piscina: ['🏊', 'Piscina'], f_igreja: ['⛪', 'Igreja'] };
 function pracaOndeSet() {
   if (!praca.rt || !user || !praca.on) return;
   const ref = praca.rt.ref('praca/presenca/' + user.uid); praca.refs.onde = ref;
