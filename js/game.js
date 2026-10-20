@@ -1575,6 +1575,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 363, txt: "Vila: o topo da tela agora mostra quantas moedas você tem, e a aba do Dízimo também. Quando faltar moeda para comprar (dízimo, quermesse, mercado, móveis, presentes), aparece o aviso 'Moedas insuficientes' com o custo e o seu saldo. Na hora de enviar cartas, as moedas dos presentes agora são a moeda dourada." },
   { v: 362, txt: "✉️ Intenções: agora cada jogador pode colocar quantas cartas de intenção quiser (uma por vez) e retirar as suas quando quiser. (É preciso colar as regras novas do Firebase.)" },
   { v: 361, txt: "🙏 Dízimo: achei o motivo de totais acima de 50.000 não entrarem no ranking (uma regra do Firebase comparava com o valor errado) e do ranking diário travar em 300 pontos. É preciso colar as regras corrigidas no Firebase. O aviso de erro agora mostra o motivo." },
   { v: 360, txt: "🙏 Dízimo: corrigido o ranking de doadores. Se o seu total ofertado não aparecia (por exemplo, ofertas grandes feitas antes do ranking gravar direito), agora o jogo sincroniza sozinho o valor investido quando você abre o dízimo e ele entra no ranking. Se der erro, aparece um aviso no próprio painel." },
@@ -14806,7 +14807,7 @@ function pracaAnunciar() {
 }
 function pracaComprar(k) {
   const l = praca.mercado[k]; if (!l || l.c || l.u === user.uid) return;
-  if (state.coins < l.p) return toast('Moedas insuficientes.', 'bad');
+  if (state.coins < l.p) return vilaSemMoedas(l.p);
   praca.rt.ref('praca/mercado/' + k).transaction(cur => cur && !cur.c && cur.u !== user.uid ? Object.assign({}, cur, { c: user.uid }) : undefined).then(r => {
     if (!r.committed) return toast('Esse anúncio já foi vendido ou saiu.', 'bad');
     const v = r.snapshot.val(); state.coins -= v.p; state.barn[v.i] = (state.barn[v.i] || 0) + v.q; pracaPontos(2); sfx('buy'); toast(`🛒 Comprou ${(item(v.i) || {}).nome || v.i} ×${v.q}!`, 'good'); done();
@@ -15129,7 +15130,8 @@ function pracaFrame(now) {
   if (praca.bossEntrada) { const k = (now - praca.bossEntrada) / 3600; if (k >= 1) praca.bossEntrada = 0; else { g.globalAlpha = 0.55 * (1 - k); g.fillStyle = '#10050a'; g.fillRect(0, 0, c.width, c.height); g.globalAlpha = 1; g.font = `900 ${Math.round(c.height * 0.045)}px system-ui`; g.textAlign = 'center'; g.fillStyle = `rgba(255,200,190,${1 - k})`; g.lineWidth = 4 * dpr; g.strokeStyle = `rgba(0,0,0,${1 - k})`; g.strokeText(`⚠️ ${pracaBossNome().slice(3)} chegou!`, c.width / 2, c.height * 0.42); g.fillText(`⚠️ ${pracaBossNome().slice(3)} chegou!`, c.width / 2, c.height * 0.42); } }
   if (!praca.sala && pracaBossAtivo()) { const f = bossFase(), bw = Math.min(c.width - 112 * dpr, 300 * dpr), bx = 8 * dpr, by = 92 * dpr; g.fillStyle = 'rgba(30,10,10,.8)'; g.fillRect(bx, by, bw, 14 * dpr); g.fillStyle = f === 3 ? '#ff3a3a' : f === 2 ? '#ff9a3a' : '#e0463a'; g.fillRect(bx, by, bw * (1 - Math.min(1, praca.boss / VILA_BOSS_HP)), 14 * dpr); g.font = `800 ${Math.round(10 * dpr)}px system-ui`; g.textAlign = 'left'; g.fillStyle = '#fff'; g.fillText(`${pracaBossNome()} · fase ${f}${bossVulneravel() ? ' · 🔥 PONTO FRACO!' : ''}`, bx + 5 * dpr, by + 11 * dpr); if (performance.now() < (praca.atordoado || 0)) { g.font = `${Math.round(22 * dpr)}px system-ui`; g.textAlign = 'center'; g.fillText('💫 Atordoado!', c.width / 2, c.height * 0.3); } }
   if (praca.fade) { const k = (now - praca.fade.t0) / praca.fade.dur; if (k >= 1) praca.fade = null; else { g.globalAlpha = Math.sin(Math.PI * k) * 0.95; g.fillStyle = '#0a1a2a'; g.fillRect(0, 0, c.width, c.height); g.globalAlpha = 1; g.font = `800 ${Math.round(c.height * 0.04)}px system-ui`; g.textAlign = 'center'; g.fillStyle = `rgba(255,255,255,${Math.sin(Math.PI * k)})`; g.fillText('⛵ …', c.width / 2, c.height / 2); } }
-  ctx = saved; $('#pracaInfo').textContent = praca.conectado ? `👥 ${Object.keys(praca.jog).length + (praca.eu ? 1 : 0)} · ${praca.ping < 120 ? '🟢' : praca.ping < 300 ? '🟡' : '🔴'} ${praca.ping || '…'} ms` : 'conectando…';
+  ctx = saved; const infoTxt = praca.conectado ? `👥 ${Object.keys(praca.jog).length + (praca.eu ? 1 : 0)} · ${praca.ping < 120 ? '🟢' : praca.ping < 300 ? '🟡' : '🔴'} ${praca.ping || '…'} ms` : 'conectando…';
+  { const el = $('#pracaInfo'), k = infoTxt + '|' + state.coins; if (el.dataset.k !== k) { el.dataset.k = k; el.innerHTML = esc(infoTxt) + ` · ${MOEDA}${fmtN(state.coins)}`; } }
   requestAnimationFrame(pracaFrame);
 }
 // Lógica por quadro: pesca, coleta automática, chegada em lugares, botão de ação
@@ -15534,6 +15536,7 @@ function flutTexto(g, txt, x, y, dpr, stroke) {
   if (stroke) g.strokeText(t, x + (tem ? 8 * dpr : 0), y); g.fillText(t, x + (tem ? 8 * dpr : 0), y);
   if (tem) { const w = g.measureText(t).width, cx = x + 8 * dpr - w / 2 - 9 * dpr, a = g.globalAlpha, c0 = g.fillStyle; g.fillStyle = '#f2b705'; g.beginPath(); g.arc(cx, y - 5.5 * dpr, 7 * dpr, 0, 7); g.fill(); g.strokeStyle = '#b77f00'; g.lineWidth = 1.5 * dpr; g.stroke(); g.fillStyle = '#fff2a8'; g.beginPath(); g.arc(cx - 2 * dpr, y - 8 * dpr, 2.4 * dpr, 0, 7); g.fill(); g.fillStyle = c0; g.globalAlpha = a; }
 }
+const vilaSemMoedas = custo => toast(`💸 Moedas insuficientes! Custa ${fmtN(custo)} e você tem ${fmtN(state.coins)}.`, 'bad');
 const fmtN = n => Number(n).toLocaleString('pt-BR');
 function quartoBarra() {
   let el = $('#quartoBar'); const S = praca.sala;
@@ -16080,7 +16083,7 @@ function pracaHtmlQuermesse() {
 }
 function vilaComer(id) {
   const it = QUERMESSE.find(x => x.id === id); if (!it || !praca.eu) return;
-  if (state.coins < it.p) return toast('Faltam moedas para isso.', 'bad');
+  if (state.coins < it.p) return vilaSemMoedas(it.p);
   state.coins -= it.p; vilaConq('comer'); sfx('coin'); done();
   pracaPainelAbrir(null);               // fecha a aba para ver o avatar comendo/bebendo
   praca.alvoAcao = null; praca.eu.ia = it.k; praca.eu.ic = null; praca.eu.ek = it.e;
@@ -16134,7 +16137,7 @@ const dizimoNivel = v => v >= 50000 ? 2 : v >= 1000 ? 1 : 0, DIZIMO_QTD = [1, 3,
 function dizimoDar(v) {
   if (!DIZIMO_VALORES.includes(v) || !state) return;
   if (!praca.rt || !praca.conectado || !user) return toast('Conecte-se à Vila (internet) para dar o dízimo e entrar no ranking.', 'bad');
-  if (state.coins < v) return toast('Você não tem moedas suficientes para esse dízimo.', 'bad');
+  if (state.coins < v) return vilaSemMoedas(v);
   state.coins -= v; state.dizimoTotal = (state.dizimoTotal || 0) + v;
   dizimoSync();
   const B = DIZIMO_BENCAOS[Math.floor(Math.random() * DIZIMO_BENCAOS.length)], n = DIZIMO_QTD[dizimoNivel(v)];
@@ -16162,8 +16165,8 @@ function dizimoCarrega() {
 }
 function pracaHtmlDizimo() {
   const tot = state.dizimoTotal || 0, rk = praca.dizimoRank;
-  let h = `<div class="vp-card"><b>🙏 Dízimo da igreja</b><small>Contribua com a Igreja da Vila. Cada oferta recebe uma bênção aleatória do padre! Seu total ofertado: ${MOEDA}${fmtN(tot)}</small>
-    <div class="vp-decor">${DIZIMO_VALORES.map(v => `<button type="button" class="btn ${state.coins >= v ? 'gold' : 'ghost'}" data-vila-dizimo="${v}" ${state.coins >= v ? '' : 'disabled'}>${MOEDA}${fmtN(v)}</button>`).join('')}</div>
+  let h = `<div class="vp-card"><b>🙏 Dízimo da igreja</b><small>Contribua com a Igreja da Vila. Cada oferta recebe uma bênção aleatória do padre! Seu total ofertado: ${MOEDA}${fmtN(tot)}</small><div>Você tem ${MOEDA}<b>${fmtN(state.coins)}</b></div>
+    <div class="vp-decor">${DIZIMO_VALORES.map(v => `<button type="button" class="btn ${state.coins >= v ? 'gold' : 'ghost'}" data-vila-dizimo="${v}" ${state.coins >= v ? '' : 'style="opacity:.6"'}>${MOEDA}${fmtN(v)}</button>`).join('')}</div>
     <small>Bênçãos maiores vêm com ofertas maiores.</small></div>`;
   const minhaLinha = tot > 0 && rk && !rk.some(x => user && x.uid === user.uid && x.v >= tot) ? `<div>⏳ Você: ${MOEDA}${fmtN(tot)}${praca.dzErro ? ` — não consegui registrar no ranking (${esc(String(praca.dzErro === true ? 'erro' : praca.dzErro).slice(0, 60))}). ${/PERMISSION/i.test(String(praca.dzErro)) ? 'Publique as regras novas do Firebase.' : 'Confira a internet.'}` : ' — atualizando no ranking…'}</div>` : '';
   h += `<div class="vp-card"><b>🏆 Ranking de doadores (de todo o jogo)</b>${minhaLinha}${rk ? (rk.length ? rk.map((x, i) => `<div>${['🥇', '🥈', '🥉'][i] || (i + 1) + 'º'} ${esc(x.n)}${x.uid === (user && user.uid) ? ' (você)' : ''} — ${MOEDA}${fmtN(x.v)}</div>`).join('') : '<div>Ninguém doou ainda. Seja o primeiro!</div>') : '<div>Carregando…</div>'}</div>`;
@@ -16433,7 +16436,7 @@ function pracaAlvoTiro() {
 // Pescaria de patinhos: escolha um patinho e veja o prêmio
 const PATINHOS = [{ p: 0.2, t: 'Nada desta vez… 🦆', m: 0 }, { p: 0.45, t: 'Prêmio pequeno!', m: 20 }, { p: 0.25, t: 'Prêmio médio!', m: 60 }, { p: 0.08, t: 'Prêmio grande!', m: 200 }, { p: 0.02, t: 'PATINHO DOURADO! 🌟', m: 600 }];
 function vilaPatinho() {
-  const c = pracaSt().c; if ((c.pat || 0) >= 12) return toast('Hoje já pescou patinhos demais! Volte amanhã.'); if (state.coins < 30) return toast('Faltam moedas (30).', 'bad');
+  const c = pracaSt().c; if ((c.pat || 0) >= 12) return toast('Hoje já pescou patinhos demais! Volte amanhã.'); if (state.coins < 30) return vilaSemMoedas(30);
   state.coins -= 30; c.pat = (c.pat || 0) + 1; let x = Math.random(), pr = PATINHOS[0]; for (const o of PATINHOS) { if (x < o.p) { pr = o; break; } x -= o.p; }
   state.coins += pr.m; vilaConq('alvo'); sfx(pr.m >= 200 ? 'level' : pr.m ? 'coin' : 'click'); praca.patRes = `${pr.t}${pr.m ? ` +${pr.m} moedas` : ''}`; done(); pracaPainel();
 }
@@ -16507,13 +16510,13 @@ function pracaHtmlCartas() {
 function pracaHtmlCartaW(dono) {
   const nome = (praca.onde && praca.onde[dono] && praca.onde[dono].n) || (friendInfo[dono] && friendInfo[dono].name) || 'seu amigo', sel = praca.cpres || '';
   return `<div class="vp-card"><b>✉️ Carta para ${esc(nome)}</b><small>Ela fica na caixa de correio dele, mesmo que ele esteja offline.</small><textarea id="cartaTxt" maxlength="140" rows="3" placeholder="Escreva sua mensagem (até 140 letras)…" style="padding:8px;border-radius:10px;border:2px solid var(--wood);font:inherit">${esc(praca.ctxt || '')}</textarea>
-    <b>Presente (opcional)</b><div class="vp-inter">${CARTA_PRESENTES.map(([id, t, c]) => `<button type="button" class="btn ${sel === id ? 'gold' : 'ghost'}" data-vila-cpres="${id}" ${state.coins < c ? 'disabled' : ''}>${t}${c ? ` · 🪙${c}` : ''}</button>`).join('')}</div>
+    <b>Presente (opcional)</b><div class="vp-inter">${CARTA_PRESENTES.map(([id, t, c]) => `<button type="button" class="btn ${sel === id ? 'gold' : 'ghost'}" data-vila-cpres="${id}" >${t}${c ? ` · ${MOEDA}${c}` : ''}</button>`).join('')}</div>
     <button class="btn gold" type="button" data-vila-cenviar="${esc(dono)}">📮 Enviar carta</button></div>`;
 }
 function pracaEnviarCarta(dono) {
   const txt = ($('#cartaTxt') || {}).value ? $('#cartaTxt').value.replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140) : '';
   if (!txt) return toast('Escreva alguma coisa na carta.'); if (!state.friends.includes(dono)) return toast('Só dá para mandar carta para amigos.');
-  const pr = CARTA_PRESENTES.find(x => x[0] === (praca.cpres || '')) || CARTA_PRESENTES[0]; if (state.coins < pr[2]) return toast('Moedas insuficientes para o presente.', 'bad');
+  const pr = CARTA_PRESENTES.find(x => x[0] === (praca.cpres || '')) || CARTA_PRESENTES[0]; if (state.coins < pr[2]) return vilaSemMoedas(pr[2]);
   if (Date.now() - (praca.ultCarta || 0) < 3000) return; praca.ultCarta = Date.now();
   state.coins -= pr[2]; const obj = { de: user.uid, n: meuApelido().slice(0, 24), t: txt, ts: firebase.database.ServerValue.TIMESTAMP }; if (pr[0]) obj.p = pr[0];
   praca.rt.ref('praca/cartas/' + dono).push(obj).then(() => { sfx('buy'); toast('📮 Carta enviada!', 'good'); avisarAmigo(dono, 'chat', `✉️ ${meuApelido()} deixou uma carta para você na Vila!`); vilaConq('carta'); praca.ctxt = ''; praca.cpres = ''; done(); pracaPainelAbrir(null); })
@@ -16810,7 +16813,7 @@ $('#praca')?.addEventListener('click', e => {
   if ((b = q('[data-vila-quarto]'))) return pracaVisitarQuarto(b.dataset.vilaQuarto);
   if (q('[data-vila-sair-sala]')) return pracaIrSala(null);
   if ((b = q('[data-vila-qtab]'))) { praca.qtab = b.dataset.vilaQtab; return pracaPainel(); }
-  if ((b = q('[data-vila-mcomprar]'))) { const id = b.dataset.vilaMcomprar, M = MOVEIS[id]; if (state.coins < M.preco) return toast('Moedas insuficientes.', 'bad'); state.coins -= M.preco; const v = quartoSt(); v.inv[id] = (v.inv[id] || 0) + 1; sfx('buy'); toast(`🛒 ${M.n} comprado! Está em 🎒 Meus.`, 'good'); done(); return pracaPainel(); }
+  if ((b = q('[data-vila-mcomprar]'))) { const id = b.dataset.vilaMcomprar, M = MOVEIS[id]; if (state.coins < M.preco) return vilaSemMoedas(M.preco); state.coins -= M.preco; const v = quartoSt(); v.inv[id] = (v.inv[id] || 0) + 1; sfx('buy'); toast(`🛒 ${M.n} comprado! Está em 🎒 Meus.`, 'good'); done(); return pracaPainel(); }
   if ((b = q('[data-vila-mpegar]'))) { praca.sala.sel = { novo: b.dataset.vilaMpegar }; sfx('click'); pracaPainelAbrir(null); return quartoBarra(); }
   if ((b = q('[data-vila-qparede]'))) { quartoSt().q.p = Number(b.dataset.vilaQparede); done(); quartoPublicar(); return pracaPainel(); }
   if ((b = q('[data-vila-qpiso]'))) { quartoSt().q.c = Number(b.dataset.vilaQpiso); done(); quartoPublicar(); return pracaPainel(); }
