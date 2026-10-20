@@ -1574,6 +1574,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 351, txt: "🚜 O Trator só anda quando a verificação (a cada 10 min) achou serviço. Sem serviço ou desativado, ele fica parado ao lado da lavoura." },
   { v: 350, txt: "🚜 O Trator da Colheita agora aceita até 5 plantas (antes eram 3), na ordem que você escolher. Quando acabam as da 1ª, passa para a 2ª, e assim até a 5ª." },
   { v: 349, txt: "🎪 Quermesse ao lado da igreja! A barraca da Dona Maria vende pastel, pamonha, açaí, caldo de mocotó, canjica, espetinho, pipoca, caldo de cana, quentão e água de coco. Ao comprar, a aba fecha e o seu avatar come ou bebe na hora (os outros jogadores também veem). Título: Boca Boa." },
   { v: 348, txt: "⛪ A Igreja agora fica aberta todos os dias! Nos dias sem missa, dá para entrar e deixar uma ✉️ carta de intenção (pedido ou agradecimento) para a próxima missa. Todos os jogadores podem ler as cartas (pela caixa 💌 ou pelo botão Intenções), o padre lê algumas na oração dos fiéis, e elas somem depois de cada missa (domingo e quarta)." },
@@ -4890,7 +4891,7 @@ function drawLuxoMaquinas(t) {
   const X = state.luxo; if (!X) return;
   const aT = !!X.trator, aA = !!X.ajud; if (!aT && !aA) return;
   const B = luxoLimites(t); if (B.vazio) return;
-  const tr = luxoTrabalhando(), tT = aT && luxoAtivo('trator') && tr.trator, tA = aA && luxoAtivo('ajud') && tr.ajud, tParado = aT && luxoAtivo('trator') && !tr.trator; // sem serviço: trator estaciona ao lado da lavoura, caseiro vai pescar; desligado passeia
+  const tr = luxoTrabalhando(), tT = aT && luxoAtivo('trator') && tr.trator, tA = aA && luxoAtivo('ajud') && tr.ajud, tParado = aT && !tT; /* trator: só anda se a verificação achou serviço; senão (ou desligado) fica parado perto da lavoura */ // sem serviço: trator estaciona ao lado da lavoura, caseiro vai pescar; desligado passeia
   const sc = L.W / 100, g = ctx;
   if (aT) {
     const linhas = Math.max(1, Math.min(6, Math.floor(B.v1 - B.v0))), volta = Math.max(4000, (B.u1 - B.u0) / 1.5 * 1000);
