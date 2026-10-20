@@ -1574,6 +1574,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 353, txt: "🏘️ A Vila foi reorganizada! Agora tem o Centro (praça de pedra no lado esquerdo, com a Igreja, a Quermesse e o Mercado) e o Bairro Residencial (gramado com calçadas e rua, onde ficam as casinhas dos jogadores). A Mina ficou menor, no canto sudoeste, e nada mais fica em cima dela. O ping agora mostra a palavra ping antes dos ms." },
   { v: 352, txt: "🪙 A moeda que aparece na igreja (dízimo e ranking), na quermesse, no aluguel do terreno e nos textos que flutuam na Vila agora é a moeda dourada do jogo (antes aparecia prateada)." },
   { v: 351, txt: "🚜 O Trator só anda quando a verificação (a cada 10 min) achou serviço. Sem serviço ou desativado, ele fica parado ao lado da lavoura." },
   { v: 350, txt: "🚜 O Trator da Colheita agora aceita até 5 plantas (antes eram 3), na ordem que você escolher. Quando acabam as da 1ª, passa para a 2ª, e assim até a 5ª." },
@@ -14430,9 +14431,9 @@ const PRACA_METAS = [
 ];
 const VILA_LOCAIS = {
   mural:   { u: 32, v: 17, nome: 'Mural',   ic: '📋' },
-  mercado: { u: 42, v: 21, nome: 'Mercado', ic: '🏪' },
+  mercado: { u: 16.8, v: 31.2, nome: 'Mercado', ic: '🏪' },
   alvo:    { u: 37, v: 18.5, nome: 'Tiro ao alvo', ic: '🎯' },
-  quermesse: { u: 26.5, v: 45, nome: 'Quermesse', ic: '🎪' },
+  quermesse: { u: 12.4, v: 33.4, nome: 'Quermesse', ic: '🎪' },
 };
 const VILA_DECOR = ['🌻', '🎃', '🪑', '🏮', '🌳', '⛲', '🧺', '🪴', '🐕', '🎈'];
 const VILA_BOSS_HP = 500, VILA_BOSS_CICLO = 15 * 60e3, VILA_BOSS_JANELA = 5 * 60e3, MERCADO_MAX = 4;
@@ -14456,7 +14457,7 @@ function pracaChip() {
   if (!user || !Cloud.available || !state || !window.FIREBASE_CONFIG.databaseURL) { el.hidden = true; return; }
   el.hidden = true; return; // o ícone/ping do topo saiu: o ping só aparece dentro da Vila
   if (!praca.on) { el.textContent = '🏘️ Vila'; return; }
-  el.textContent = praca.conectado ? `🏘️ Vila · ${praca.ping < 120 ? '🟢' : praca.ping < 300 ? '🟡' : '🔴'} ${praca.ping || '…'} ms` : '🏘️ Vila · 🔴 sem conexão';
+  el.textContent = praca.conectado ? `🏘️ Vila · ${praca.ping < 120 ? '🟢' : praca.ping < 300 ? '🟡' : '🔴'} ping ${praca.ping || '…'} ms` : '🏘️ Vila · 🔴 sem conexão';
 }
 async function pracaLigar() {
   if (praca.on || !user) return;
@@ -14883,19 +14884,19 @@ const VILA_ZONAS = {
   plaza:    { nome: 'Praça',    ic: '⛲', u: 32, v: 25 },
   lago:     { nome: 'Lago',     ic: '🎣', u: 43, v: 12 },
   floresta: { nome: 'Floresta', ic: '🌳', u: 15, v: 11 },
-  mina:     { nome: 'Mina',     ic: '⛏️', u: 13, v: 38 },
+  mina:     { nome: 'Mina',     ic: '⛏️', u: 10, v: 43.5 },
   praia:    { nome: 'Praia',    ic: '🏖️', u: 53, v: 38 },
-  bairro:   { nome: 'Bairro',   ic: '🏠', u: 33, v: 42 },
+  bairro:   { nome: 'Bairro Residencial', ic: '🏘️', u: 33, v: 39.2 },
   campo:    { nome: 'Campo',    ic: '⚔️', u: 32, v: 33 },
   disco:    { nome: 'Discoteca', ic: '🪩', u: 10, v: 24.5 },
   cinema:   { nome: 'Cinema',   ic: '🎬', u: 54, v: 24.5 },
   piscina:  { nome: 'Piscina',  ic: '🏊', u: 32, v: 9.5 },
-  igreja:   { nome: 'Igreja',   ic: '⛪', u: 21, v: 46.5 },
-  quermesse: { nome: 'Quermesse', ic: '🎪', u: 26.5, v: 46.8 },
+  igreja:   { nome: 'Igreja',   ic: '⛪', u: 6.2, v: 35.4 },
+  quermesse: { nome: 'Quermesse', ic: '🎪', u: 12.4, v: 35.2 },
 };
 const VILA_BANCOS_TODOS = [[27, 21, 1], [37, 21, -1], [27, 29.5, 1], [37, 29.5, -1], [41.5, 15, 1], [28.5, 25, 1], [35.5, 25, -1], [29.5, 17.5, 1], [34.5, 17.5, -1], [29.5, 32.5, 1], [34.5, 32.5, -1], [24, 23, 1], [40, 27, -1]];
 const VILA_BANCOS = VILA_BANCOS_TODOS.filter(([u, v]) => !vilaAgua(u, v)); // nada de cadeira na água
-const VILA_POSTES = [[28, 20], [36, 20], [28, 30], [36, 30], [32, 13], [32, 40], [20, 25], [44, 25], [43, 14], [26, 44], [40, 44]];
+const VILA_POSTES = [[4.5, 30], [9.5, 36.3], [15.5, 36.3], [18.5, 30], [28, 20], [36, 20], [28, 30], [36, 30], [32, 13], [32, 40], [20, 25], [44, 25], [43, 14], [26, 44], [40, 44]];
 // Moradores da vila: gente desenhada com os mesmos avatares do jogo (sem bichos correndo)
 const VILA_NPCS = [
   { viz: 'ze',     cu: 42, cv: 22.5, r: 1.3, per: 14, ph: 1,   fala: ['Fresquinho! Venha ver o mercado!', 'Hoje tem promoção!', 'Compro e vendo de tudo!'] },
@@ -14909,9 +14910,9 @@ const vilaNpcPos = (n, t) => { const w = t / 1000 / n.per * Math.PI * 2 + n.ph; 
 let vilaDecor = null;
 function vilaGeraDecor() {
   const r = vilaRng(20261031), out = [];
-  const livre = (u, v) => !vilaAgua(u, v) && !vilaEstrada(u, v) && !vilaPracaR(u, v) && !(u > 38 && u < 47 && v > 8 && v < 16) && Math.hypot(u - 42, v - 21) > 4 && !(u > 19 && u < 47 && v > 39 && v < 49) && !vilaDanca(u, v) && Math.hypot(u - 32, v - 17) > 3 && Math.hypot(u - 32, v - 34) > 8 && Math.hypot(u - 10, v - 22) > 4 && Math.hypot(u - 54, v - 22) > 4 && Math.hypot(u - 32, v - 7) > 4;
+  const livre = (u, v) => !vilaAgua(u, v) && !vilaEstrada(u, v) && !vilaPracaR(u, v) && !(u > 38 && u < 47 && v > 8 && v < 16) && Math.hypot(u - 42, v - 21) > 4 && !(u > 19 && u < 48 && v > 37.5) && !(u < 20 && v > 26 && v < 37.5) && !vilaDanca(u, v) && Math.hypot(u - 32, v - 17) > 3 && Math.hypot(u - 32, v - 34) > 8 && Math.hypot(u - 10, v - 22) > 4 && Math.hypot(u - 54, v - 22) > 4 && Math.hypot(u - 32, v - 7) > 4;
   const poe = (n, u0, u1, v0, v1, e, s) => { for (let k = 0, t = 0; k < n && t < n * 10; t++) { const u = u0 + r() * (u1 - u0), v = v0 + r() * (v1 - v0); if (livre(u, v)) { out.push({ e, u, v, s }); k++; } } };
-  poe(90, 3, 27, 3, 21, '🌲', 2.3); poe(36, 3, 62, 2, 48, '🌳', 2.2); poe(34, 3, 23, 29, 47, '🪨', 1.3); poe(30, 44, 62, 29, 48, '🌴', 2.2); poe(80, 2, 62, 2, 48, '🌸', 0.7); poe(26, 38, 62, 2, 21, '🌾', 1.0);
+  poe(90, 3, 27, 3, 21, '🌲', 2.3); poe(36, 3, 62, 2, 48, '🌳', 2.2); poe(30, 3, 17, 38, 47.5, '🪨', 1.3); poe(30, 44, 62, 29, 48, '🌴', 2.2); poe(80, 2, 62, 2, 48, '🌸', 0.7); poe(26, 38, 62, 2, 21, '🌾', 1.0);
   return out.sort((a, b) => (a.u + a.v) - (b.u + b.v));
 }
 // Itens que aparecem no mapa: tudo sai do relógio do servidor (igual para todos); só quem pega primeiro grava no banco.
@@ -14923,7 +14924,7 @@ function vilaSpawns(slot) {
   for (let i = 0; i < K; i++) {
     const z = r(); let tipo, u, v;
     if (z < 0.32) { tipo = 'fruta'; u = 4 + r() * 22; v = 4 + r() * 17; }
-    else if (z < 0.56) { tipo = 'minerio'; u = 4 + r() * 19; v = 30 + r() * 16; }
+    else if (z < 0.56) { tipo = 'minerio'; u = 4 + r() * 12; v = 38.5 + r() * 9; }
     else if (z < 0.80) { tipo = 'concha'; u = 44 + r() * 17; v = 30 + r() * 17; }
     else if (z < 0.93) { tipo = 'bau'; u = 6 + r() * 52; v = 5 + r() * 40; }
     else { tipo = 'gema'; u = 6 + r() * 52; v = 5 + r() * 40; }
@@ -15083,15 +15084,21 @@ function pracaDesenha(g, c, now, dpr) {
   g.fillStyle = hal ? '#1c3a5a' : '#3f8fc4'; g.fillRect(0, 0, W, H); // mar em volta
   rect(-1.5, -1.5, PRACA_W + 1.5, PRACA_H + 1.5, hal ? '#d8c890' : '#f0e0a8'); // areia da borda
   rect(0, 0, PRACA_W, PRACA_H, hal ? '#4a6a3a' : '#7cc653');
-  rect(3, 3, 27, 21, hal ? '#3a5a30' : '#5aa83a'); rect(3, 29, 23, 47, hal ? '#6a6672' : '#9a9486'); rect(43, 29, 62, 48, hal ? '#c8b880' : '#ecd9a0');
+  rect(3, 3, 27, 21, hal ? '#3a5a30' : '#5aa83a'); rect(3, 37.5, 17, 48, hal ? '#6a6672' : '#9a9486'); rect(43, 29, 62, 48, hal ? '#c8b880' : '#ecd9a0');
   rect(2, 23.3, 62, 26.7, hal ? '#6a6478' : '#d8cdb0'); rect(30.3, 2, 33.7, 48, hal ? '#6a6478' : '#d8cdb0'); rect(19, 43.3, 47, 45.2, hal ? '#6a6478' : '#d8cdb0');
+  // Centro (igreja, quermesse e comércio): praça de pedra com calçada, ligada à avenida principal
+  rect(2, 26.7, 19.4, 28.4, hal ? '#6a6478' : '#d8cdb0'); rect(2.6, 28.4, 19.4, 36.8, hal ? '#6a6070' : '#cdbf9c'); rect(3, 28.8, 19, 36.4, hal ? '#7a7084' : '#e2d6b6');
+  for (let a = 0; a < 16; a++) for (let b2 = 0; b2 < 7; b2++) if ((a + b2) % 2) rect(3 + a, 29 + b2 + 0.4, 4 + a, 30 + b2 + 0.4, hal ? 'rgba(0,0,0,.08)' : 'rgba(120,90,50,.07)');
+  // Bairro Residencial: gramado, calçadas dos dois lados da rua e faixa tracejada
+  rect(19.6, 37.6, 47.6, 49.6, hal ? '#3f5f33' : '#6fbf4a'); rect(19, 42.5, 47.5, 43.3, hal ? '#8a8498' : '#e8e2d0'); rect(19, 45.2, 47.5, 46, hal ? '#8a8498' : '#e8e2d0');
+  for (let k = 0; k < 13; k++) rect(19.6 + k * 2.2, 44.1, 20.8 + k * 2.2, 44.4, hal ? '#c8c0a0' : '#fff6c8');
   oval(32, 25, 7.2, 7.2, hal ? '#7a7488' : '#e4dbc2');
   rect(20, 27, 26, 33, 'rgba(0,0,0,.25)'); for (let a = 0; a < 6; a++) for (let b = 0; b < 6; b++) rect(20 + a, 27 + b, 21 + a, 28 + b, ((a + b + Math.floor(now / 400)) % 2) ? '#e0463a' : '#f2c230');
   oval(VILA_LAGO.u, VILA_LAGO.v, VILA_LAGO.a + 0.5, VILA_LAGO.b + 0.5, '#7a5a3a'); oval(VILA_LAGO.u, VILA_LAGO.v, VILA_LAGO.a, VILA_LAGO.b, '#4aa8e0');
   rect(39.5, 11, 46.6, 13, '#a87a46'); for (let k = 0; k < 8; k++) { const a = I(39.7 + k * 0.9, 11), b = I(39.7 + k * 0.9, 13); g.strokeStyle = 'rgba(70,40,10,.5)'; g.lineWidth = Math.max(1, dpr); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
   // rótulos das áreas
   g.textAlign = 'center'; g.font = `800 ${Math.round(12 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.6)'; g.fillStyle = 'rgba(255,255,255,.85)';
-  for (const [id, z] of Object.entries(VILA_ZONAS)) { if (id === 'plaza' || VILA_LOCAIS[id]) continue; const q = I(z.u, z.v); if (q.x > -80 && q.x < W + 80 && q.y > -40 && q.y < H + 40) { g.strokeText(`${z.ic} ${z.nome}`, q.x, q.y); g.fillText(`${z.ic} ${z.nome}`, q.x, q.y); } }
+  for (const [id, z] of Object.entries(VILA_ZONAS)) { if (id === 'plaza' || VILA_LOCAIS[id] || FESTAS[id]) continue; const q = I(z.u, z.v); if (q.x > -80 && q.x < W + 80 && q.y > -40 && q.y < H + 40) { g.strokeText(`${z.ic} ${z.nome}`, q.x, q.y); g.fillText(`${z.ic} ${z.nome}`, q.x, q.y); } }
   // lista de coisas para desenhar, de trás para frente
   const lista0 = []; if (praca.eu) lista0.push({ e: praca.eu, p: pracaPos(praca.eu, now) }); for (const j of Object.values(praca.jog)) lista0.push({ e: j, p: pracaPos(j, now) });
   const D = [], vis = q => q.x > -90 && q.x < W + 90 && q.y > -120 && q.y < H + 60, push = (s, fn) => D.push({ s, fn });
@@ -15120,7 +15127,7 @@ function pracaDesenha(g, c, now, dpr) {
   VILA_BANCOS.forEach(([u, v], i) => { const q = I(u, v); if (!vis(q)) return;
     push(u + v - 0.002, () => { g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 0.6, tw * 0.22, 0, 0, 7); g.fill(); g.font = `${Math.round(tw * 1.7)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('🪑', q.x, q.y + tw * 0.15); });
     praca.hits.push({ id: 'banco:' + i, x: q.x, y: q.y - tw * 0.6, r: tw * 1.5 }); });
-  { const q = I(13, 35.5); if (vis(q)) push(35.5 + 13, () => { g.font = `${Math.round(tw * 3)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('⛰️', q.x, q.y); g.fillStyle = '#1a1208'; g.beginPath(); g.ellipse(q.x, q.y - tw * 0.5, tw * 0.5, tw * 0.6, 0, Math.PI, 0); g.fill(); }); }
+  { const q = I(10, 41); if (vis(q)) push(41 + 10, () => { g.font = `${Math.round(tw * 3)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('⛰️', q.x, q.y); g.fillStyle = '#1a1208'; g.beginPath(); g.ellipse(q.x, q.y - tw * 0.5, tw * 0.5, tw * 0.6, 0, Math.PI, 0); g.fill(); }); }
   if (vilaFesta()) { const q = I(32, 29); if (vis(q)) push(61, () => { g.font = `${Math.round(tw * 1.6 * (1 + Math.sin(now / 90) * 0.06))}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('🔥', q.x, q.y); for (let k = 0; k < 4; k++) { const ph = ((now / 900) + k / 4) % 1; g.fillStyle = `hsla(${(k * 80 + now / 8) % 360},90%,60%,${1 - ph})`; g.beginPath(); g.arc(q.x + Math.sin(k * 2 + now / 300) * tw * 1.4, q.y - tw * 2 - ph * tw * 3, 3 * dpr, 0, 7); g.fill(); } }); }
   // casinhas
   for (const k of pracaCasaSlots()) { const q = I(k.u, k.v); if (!vis(q)) continue; push(k.u + k.v, () => { pracaCasaDesenho(g, q, G, k.c); g.font = `800 ${Math.round(10 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#fff'; g.strokeText(k.c.n || '', q.x, q.y + tw * 1.25); g.fillText(k.c.n || '', q.x, q.y + tw * 1.25); }); praca.hits.push({ id: 'ver:' + k.uid, x: q.x, y: q.y - tw * 0.8, r: tw * 1.4 }); }
@@ -15207,7 +15214,7 @@ function pracaDesenha(g, c, now, dpr) {
   const mw = 96 * dpr, mh = mw * PRACA_H / PRACA_W, mx0 = W - mw - 6 * dpr, my0 = 6 * dpr, mp = (u, v) => [mx0 + u / PRACA_W * mw, my0 + v / PRACA_H * mh];
   g.fillStyle = 'rgba(20,30,50,.65)'; g.fillRect(mx0 - 2 * dpr, my0 - 2 * dpr, mw + 4 * dpr, mh + 4 * dpr);
   g.fillStyle = '#5aa83a'; g.fillRect(mx0, my0, mw, mh);
-  for (const [cor, u0, v0, u1, v1] of [['#3a7a2a', 3, 3, 27, 21], ['#8a8678', 3, 29, 23, 47], ['#e0c88a', 43, 29, 62, 48], ['#d8cdb0', 2, 23.3, 62, 26.7], ['#d8cdb0', 30.3, 2, 33.7, 48]]) { const [a, b] = mp(u0, v0), [a2, b2] = mp(u1, v1); g.fillStyle = cor; g.fillRect(a, b, a2 - a, b2 - b); }
+  for (const [cor, u0, v0, u1, v1] of [['#3a7a2a', 3, 3, 27, 21], ['#8a8678', 3, 37.5, 17, 48], ['#d9c9a4', 2.6, 28.4, 19.4, 36.8], ['#7fc65a', 19.6, 37.6, 47.6, 49.6], ['#e0c88a', 43, 29, 62, 48], ['#d8cdb0', 2, 23.3, 62, 26.7], ['#d8cdb0', 30.3, 2, 33.7, 48]]) { const [a, b] = mp(u0, v0), [a2, b2] = mp(u1, v1); g.fillStyle = cor; g.fillRect(a, b, a2 - a, b2 - b); }
   { const [a, b] = mp(VILA_LAGO.u - VILA_LAGO.a, VILA_LAGO.v - VILA_LAGO.b), [a2, b2] = mp(VILA_LAGO.u + VILA_LAGO.a, VILA_LAGO.v + VILA_LAGO.b); g.fillStyle = '#4aa8e0'; g.beginPath(); g.ellipse((a + a2) / 2, (b + b2) / 2, (a2 - a) / 2, (b2 - b) / 2, 0, 0, 7); g.fill(); }
   for (const it of praca.spawns) if (!praca.pegos[it.i]) { const [a, b] = mp(it.u, it.v); g.fillStyle = it.tipo === 'gema' || it.tipo === 'bau' ? '#ffd54a' : '#fff'; g.fillRect(a - dpr, b - dpr, 2 * dpr, 2 * dpr); }
   { const cc = pracaSt().c; if (cc.tesv && !cc.tesOk) { const t = vilaTesouro(), [a, b] = mp(t.u, t.v), r = 7 / PRACA_W * mw; g.strokeStyle = '#ffd54a'; g.lineWidth = 2 * dpr; g.setLineDash([4 * dpr, 3 * dpr]); g.beginPath(); g.arc(a, b, r, 0, 7); g.stroke(); g.setLineDash([]); } }
@@ -15268,7 +15275,7 @@ const FESTAS = {
     .concat([3, 5, 7].flatMap(v => [2, 3, 4, 6, 7, 8, 9].map(u => ({ i: 'cadeira', u, v })))) } },
   piscina: { nome: 'Piscina', ic: '🏊', N: 14, spawn: [1.5, 6.5], u: 32, v: 7, cor: '#2f8fa0', q: { p: 1, c: 3, a: 'todos', m: [
     { i: 'agua', u: 3, v: 3 }, { i: 'sofa', u: 1, v: 11 }, { i: 'sofa', u: 5, v: 11 }, { i: 'sofa', u: 9, v: 11 }, { i: 'guardasol', u: 3, v: 0 }, { i: 'guardasol', u: 9, v: 0 }, { i: 'bar', u: 11, v: 11 }, { i: 'damas', u: 12, v: 6 }, { i: 'planta', u: 0, v: 0 }, { i: 'planta', u: 13, v: 0 }, { i: 'planta', u: 0, v: 13 }, { i: 'planta', u: 13, v: 13 }, { i: 'vaso', u: 12, v: 4 }, { i: 'vaso', u: 12, v: 8 }] } },
-  igreja:  { nome: 'Igreja', ic: '⛪', N: 12, spawn: [5.5, 10.5], u: 21, v: 44, cor: '#efe6d2', dias: [0, 3], q: { p: PAREDES.length - 1, c: PISOS.length - 1, a: 'todos', m: [
+  igreja:  { nome: 'Igreja', ic: '⛪', N: 12, spawn: [5.5, 10.5], u: 6.2, v: 33.2, cor: '#efe6d2', dias: [0, 3], q: { p: PAREDES.length - 1, c: PISOS.length - 1, a: 'todos', m: [
     { i: 'altar', u: 4, v: 0 }, { i: 'palco', u: 9, v: 0 }, { i: 'pulpito', u: 2, v: 2 }, { i: 'caixaint', u: 1, v: 10 },
     ...[3, 5, 7, 9].map(v => ({ i: 'tapete', u: 5, v })),
     ...[4, 5, 6, 7, 8, 9].flatMap(v => [1, 2, 3, 4, 7, 8, 9, 10].map(u => ({ i: 'cadeira', u, v }))) ] } },
@@ -15878,7 +15885,7 @@ const VILA_TAREFAS = [
 function vilaTarefasDoDia() { const r = vilaRng(localDay() * 7919 + 13), L = VILA_TAREFAS.slice(); for (let i = L.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [L[i], L[j]] = [L[j], L[i]]; } const t = L.slice(0, 6); if (!t.some(x => x.id === 'tesouro')) t[5] = VILA_TAREFAS.find(x => x.id === 'tesouro'); return t; }
 function vilaTesouro() { // lugar secreto do dia, o mesmo para todos
   const r = vilaRng(localDay() * 104729 + 7); let u = 32, v = 30;
-  for (let k = 0; k < 40; k++) { u = 6 + r() * 52; v = 5 + r() * 40; if (!vilaAgua(u, v) && !vilaEstrada(u, v) && !vilaPracaR(u, v) && !(u > 38 && u < 47 && v > 8 && v < 16) && !(u > 19 && u < 47 && v > 39)) break; }
+  for (let k = 0; k < 40; k++) { u = 6 + r() * 52; v = 5 + r() * 40; if (!vilaAgua(u, v) && !vilaEstrada(u, v) && !vilaPracaR(u, v) && !(u > 38 && u < 47 && v > 8 && v < 16) && !(u > 19 && u < 48 && v > 37.5) && !(u < 20 && v > 26 && v < 37.5)) break; }
   return { u, v };
 }
 function vilaDicaTesouro() {
