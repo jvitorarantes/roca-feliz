@@ -1200,7 +1200,7 @@ function clearAllWithered() {
 // ============================================================
 const LUXO = {
   trator:  { ic: '🚜', nome: 'Trator da Colheita', preco: 500000, desc: 'Colhe sozinho tudo que amadurece, limpa a terra seca e replanta a planta que você escolher (usa as plantas do celeiro). Trabalha até 8 h com o jogo fechado e cura plantas apodrecidas.' },
-  fabrica: { ic: '🏭', nome: 'Fábrica Automática', preco: 350000, desc: 'A cada 30 min vende sozinha até 60 itens do celeiro por 50% a mais que o preço normal (guarda sempre 10 de cada planta para plantar). Funciona até 8 h com o jogo fechado.' },
+  fabrica: { ic: '🏭', nome: 'Fábrica Automática', preco: 350000, desc: 'Cuida das suas máquinas (Moinho, Cozinha, Conservas, Laticínios…): recolhe o que ficou pronto e manda para o celeiro, e começa novas receitas com o que você tem, sempre guardando 10 de cada planta para plantar. Ela nunca vende: quem decide é você. Funciona até 8 h com o jogo fechado.' },
   ajud:    { ic: '🧑‍🌾', nome: 'Caseiro', preco: 200000, desc: 'Um caseiro de verdade cuida da roça: tira pragas e mato, alimenta os animais com fome e recolhe os produtos prontos. Funciona até 8 h com o jogo fechado. Melhore para ele também regar e rastelar folhas.' },
   ajud2:   { ic: '💧', nome: 'Melhoria do Caseiro', preco: 100000, req: 'ajud', desc: 'O Caseiro passa a regar a terra seca e a rastelar todos os montes de folhas (com as recompensas de sempre).' },
   mansao:  { ic: '🏰', nome: 'Mansão', preco: 500000, desc: 'A sua casa vira uma mansão: maior, de dois andares, com sala de mármore, tapete e cortinas por dentro. Dá +25% de XP em tudo que você faz, para sempre.' },
@@ -1241,32 +1241,32 @@ function luxoAjudante() {
   }
   return n;
 }
-// O que a fábrica pode vender agora: o que passa de 10 de cada planta (e não está bloqueado), até 60 itens por lote.
-function luxoFabricaLista(max = 60) {
-  const out = [];
-  for (const id of Object.keys(state.barn).filter(id => PRODUCE[id]).sort((a, b) => item(b).preco - item(a).preco)) {
-    if (max <= 0) break;
-    const q = state.barn[id], v = Math.min(max, q - bloqQtd(id, q) - PLANTAS_BAIXO);
-    if (v > 0) { out.push({ id, v }); max -= v; }
-  }
-  return out;
-}
-function luxoFabrica(lotes) {
-  let total = 0, itens = 0;
-  for (let k = 0; k < lotes; k++) {
-    for (const { id, v } of luxoFabricaLista()) {
-      state.barn[id] -= v; if (!state.barn[id]) delete state.barn[id];
-      total += Math.round(v * item(id).preco * 1.5); itens += v;
+// Fábrica Automática: recolhe o que ficou pronto nas máquinas (Moinho, Cozinha, Conservas…), manda para o celeiro
+// e começa novas receitas com o que você tem, sem deixar nenhuma planta com menos de 10. Nunca vende nada.
+const luxoIngLivres = r => Object.entries(r.in).every(([id, q]) => { const t = state.barn[id] || 0; return t - bloqQtd(id, t) >= q; });
+function luxoFabrica(agoraSim) {
+  let col = 0, ini = 0;
+  for (const M of MAQUINAS) {
+    const m = filaDe(M.id), prontos = m.fila.filter(x => x.fim <= agoraSim);
+    if (prontos.length) {
+      m.fila = m.fila.filter(x => x.fim > agoraSim);
+      for (const x of prontos) { const r = RECEITA[x.r]; state.barn[r.id] = (state.barn[r.id] || 0) + 1; addXP(Math.max(2, Math.round(r.tempo / 600)), null); track('fabricar'); col++; }
+    }
+    const max = slotsMax(M.id); if (!max) continue;
+    while (m.fila.length < max) {
+      const r = M.receitas.map(id => RECEITA[id]).filter(r => r && r.nivel <= state.level && temIngredientes(r) && luxoIngLivres(r) && !sobrasPlantas(r.in).length).sort((x, y) => valorDe(y.id) - valorDe(x.id))[0];
+      if (!r) break;
+      for (const [iid, q] of Object.entries(r.in)) { state.barn[iid] -= q; if (!state.barn[iid]) delete state.barn[iid]; }
+      m.fila.push({ r: r.id, fim: agoraSim + r.tempo * 1000 }); ini++;
     }
   }
-  if (total) { state.coins += total; state.stats.vendido += total; }
-  if (lotes > 0) luxoDe().fabUlt = { t: Date.now(), moedas: total, n: itens };
-  return total;
+  if (col || ini) luxoDe().fabUlt = { t: Date.now(), col: (luxoDe().fabUlt && Date.now() - luxoDe().fabUlt.t < 60e3 ? luxoDe().fabUlt.col : 0) + col, ini: (luxoDe().fabUlt && Date.now() - luxoDe().fabUlt.t < 60e3 ? luxoDe().fabUlt.ini : 0) + ini };
+  return col + ini;
 }
 function luxoFabAgora() {
-  const antes = luxoFabricaLista().reduce((t, x) => t + x.v, 0);
-  if (!antes) return toast('A fábrica não tem o que vender: ela só vende o que passa de 10 de cada planta no celeiro (e não está bloqueado 🔒).', 'bad');
-  const m = luxoFabrica(1); luxoDe().fabT = Date.now(); sfx('coin'); toast(`🏭 A fábrica vendeu ${antes} itens por ${m.toLocaleString('pt-BR')} moedas!`, 'good'); done();
+  luxoQuieto = true; let n = 0; try { n = luxoFabrica(Date.now()); } finally { luxoQuieto = false; }
+  if (!n) return toast('A fábrica não tem o que fazer agora: sem receita pronta para recolher e sem ingredientes (ela guarda sempre 10 de cada planta).', 'bad');
+  const u = luxoDe().fabUlt; sfx('collect'); toast(`🏭 Fábrica: recolheu ${u.col} e começou ${u.ini} receitas. Tudo vai para o celeiro!`, 'good'); done();
 }
 function luxoAluguel() { const L = luxoDe(); return L.terreno ? Math.floor(Math.min(24, Math.max(0, (Date.now() - (L.aluT || Date.now())) / 3600e3)) * 1200) : 0; }
 // Roda as máquinas. "fora" = ficou um tempo sem rodar (jogo fechado): simula em passos de 30 min.
@@ -1280,20 +1280,22 @@ function luxoRodar(fora) {
   if (!fora && agora - (L.chk || 0) < LUXO_VERIFICA) return; // só verifica serviço a cada 10 minutos
   L.chk = agora;
   const passos = fora ? Math.min(16, Math.max(1, Math.ceil(sec / 1800))) : 1, dt = fora ? sec / passos : 0;
-  let moedas = 0, trab = 0, trabT = 0, trabA = 0; luxoQuieto = true;
+  let moedas = 0, trab = 0, trabT = 0, trabA = 0; luxoQuieto = true; // (moedas: sem uso, a fábrica não vende)
   try {
     for (let k = 0; k < passos; k++) {
       if (aA) { const n = luxoAjudante(); trab += n; trabA += n; }
       if (aT) { const n = luxoTrator(); trab += n; trabT += n; }
       if (fora && dt) for (const p of state.plots) growPlot(p, dt, false, state);
     }
-    if (aF) moedas = luxoFabrica(fora ? Math.floor(sec / 1800) : (agora - (L.fabT || 0) >= 1800e3 ? 1 : 0));
-    if (aF && (fora || agora - (L.fabT || 0) >= 1800e3)) L.fabT = agora;
+    if (aF) { // fábrica: simula em passos (jogo fechado) ou uma rodada agora
+      const base = agora - sec * 1000, np = fora ? Math.max(1, passos) : 1;
+      for (let k = 1; k <= np; k++) trab += luxoFabrica(fora ? base + (sec * 1000) * k / np : agora);
+    }
   } finally { luxoQuieto = false; }
   if (aT || aA) { const ag = Date.now(); if (trabT > 0) luxoVis.trator = ag + LUXO_VIS; if (trabA > 0) luxoVis.ajud = ag + LUXO_VIS; }
   if (trab || moedas) {
     done();
-    if (fora || moedas) toast(`👑 Suas máquinas trabalharam${moedas ? ` e a fábrica vendeu por ${moedas.toLocaleString('pt-BR')} moedas` : ''}!`, 'good');
+    if (fora) toast('👑 Suas máquinas trabalharam enquanto você estava fora!', 'good');
   }
 }
 setInterval(() => { try { if (state && !isGated()) luxoRodar(false); } catch (e) { luxoQuieto = false; console.warn('luxo:', e); } }, 30e3);
@@ -1344,8 +1346,8 @@ function luxoHTML() {
     let extra = '';
     if (tem && id === 'trator') extra = `<br><b>Plantar automático (nessa ordem):</b>` + luxoLista().map((v, i) => `<br>${i + 1}º <select class="luxosel" data-luxo-slot="${i}"><option value="">${i ? '— nenhuma —' : '— a mais lucrativa —'}</option>${CROPS.filter(c => c.nivel <= state.level).map(c => `<option value="${c.id}" ${v === c.id ? 'selected' : ''}>${esc(c.nome)} (${plantaQtd(c)} no celeiro)</option>`).join('')}</select>`).join('') + '<br><small>Quando acabam as plantas da 1ª, passa para a 2ª, depois a 3ª.</small>';
     if (tem && ['trator', 'fabrica', 'ajud'].includes(id)) extra += `<br><button class="btn ${luxoAtivo(id) ? 'ghost' : 'gold'} mais" data-luxo-liga="${id}">${luxoAtivo(id) ? '⏸️ Desativar' : '▶️ Ativar'}</button>`;
-    if (tem && id === 'fabrica') { const u = L.fabUlt, pr = luxoFabricaLista(), np = pr.reduce((t, x) => t + x.v, 0), mp = pr.reduce((t, x) => t + Math.round(x.v * item(x.id).preco * 1.5), 0);
-      extra += `<br><small>${u ? `Última rodada (há ${Math.max(0, Math.round((Date.now() - u.t) / 60e3))} min): ${u.n ? `vendeu ${u.n} itens por ${u.moedas.toLocaleString('pt-BR')} moedas` : 'nada para vender'}.` : 'Ainda não rodou.'} Agora dá para vender: ${np} itens (≈ ${mp.toLocaleString('pt-BR')} moedas).</small><br><button class="btn gold mais" data-luxo-fab="1">🏭 Vender agora</button>`; }
+    if (tem && id === 'fabrica') { const u = L.fabUlt;
+      extra += `<br><small>${u ? `Última rodada (há ${Math.max(0, Math.round((Date.now() - u.t) / 60e3))} min): recolheu ${u.col} e começou ${u.ini} receitas.` : 'Ainda não rodou.'} Veja as máquinas em Negócios.</small><br><button class="btn gold mais" data-luxo-fab="1">🏭 Rodar agora</button>`; }
     if (tem && id === 'terreno') extra = `<br><button class="btn gold mais" data-luxo-coletar="1">Coletar aluguel: 🪙 ${luxoAluguel().toLocaleString('pt-BR')}</button>`;
     html += `<div class="row ${tem ? 'sel' : ''}"><div class="avatar" style="background:#6a4a8a;font-size:26px">${X.ic}</div>
       <div><div class="name">${X.nome}</div><div class="meta">${X.desc}${extra}</div></div>
@@ -1571,6 +1573,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 347, txt: "🏭 Fábrica Automática mudou: ela não vende mais nada. Agora recolhe o que ficou pronto nas suas máquinas (Moinho, Cozinha, Conservas…), manda para o celeiro e começa novas receitas com o que você tem, guardando 10 de cada planta. ⛪ Igreja: ao entrar dá para dar o dízimo (10, 1.000 ou 50.000 moedas), receber uma bênção aleatória do padre e aparecer no ranking geral dos doadores (nunca zera)." },
   { v: 346, txt: "⛪ Nova Igreja na Vila! Abre todo domingo (Missa das Crianças, litúrgica verde) e toda quarta (Missa da Família, branco e dourado). Tem padre, altar com velas, coral de 5 vozes, vitrais coloridos e fiéis nos bancos. A missa tem etapas (entrada, canto, leitura, homilia, oração, ofertório, comunhão e bênção) iguais para todos, com falas do padre e respostas dos fiéis. Fique até a bênção final para ganhar 300 moedas + 10 XP por dia e o título Fiel da Vila." },
   { v: 345, txt: "🏭 Fábrica Automática: o card em Loja › Luxo agora mostra a última rodada e quanto dá para vender agora, e tem o botão 'Vender agora'. Lembrete: ela só vende o que passa de 10 de cada planta no celeiro (e não está bloqueado)." },
   { v: 344, txt: "👑 Trator e Caseiro agora verificam se há serviço a cada 10 minutos (e quando você liga ou compra). Se acharem, trabalham um pouco; se não, o trator estaciona ao lado da lavoura e o caseiro vai pescar." },
@@ -14646,7 +14649,8 @@ function pracaPainel() {
   const id = praca.painel; if (!id) { box.hidden = true; box.innerHTML = ''; return; }
   box.hidden = false; box.classList.toggle('curto', id === 'moveis');
   const topo = t => `<div class="vp-head"><b>${t}</b><button type="button" class="iconbtn" data-vila-fechar aria-label="Fechar painel">✕</button></div>`;
-  if (id === 'mural') box.innerHTML = topo('📋 Mural da Vila') + pracaHtmlMural();
+  if (id === 'dizimo') { box.innerHTML = topo('🙏 Dízimo') + pracaHtmlDizimo(); if (!praca.dizimoRank && !praca.dizimoCarregando) dizimoCarrega(); }
+  else if (id === 'mural') box.innerHTML = topo('📋 Mural da Vila') + pracaHtmlMural();
   else if (id === 'mercado') box.innerHTML = topo('🏪 Mercado dos jogadores') + pracaHtmlMercado();
   else if (id === 'casa') box.innerHTML = topo('🏠 Minha casinha') + pracaHtmlCasa();
   else if (id.startsWith('m:')) box.innerHTML = topo({ lugares: '🧭 Ir para', pessoas: '👥 Pessoas', eu: '🎭 Eu' }[id.slice(2)]) + pracaHtmlMenu(id.slice(2));
@@ -15307,6 +15311,7 @@ function pracaIrSala(sid, dono, tipo) {
   praca.jog = {}; praca.pesca = null; praca.efeito = {}; praca.sala = sid ? { id: sid, dono, tipo, N: tipo ? FESTAS[tipo].N : ROOM_N, edit: false, sel: null } : null; praca.zoom = tipo === 'igreja' ? 0.75 : 1;
   if (sid) {
     praca.cam = tipo === 'igreja' ? { u: 7.4, v: 5 } : { u: salaN() / 2, v: salaN() / 2 }; praca.seguir = false; // a igreja é larga: a câmera foca o altar e o coral
+    if (tipo === 'igreja') setTimeout(() => { if (praca.sala && praca.sala.tipo === 'igreja' && !praca.painel) pracaPainelAbrir('dizimo'); }, 900);
     if (tipo) { const F = FESTAS[tipo]; toast(`${F.ic} ${F.nome}! Toque no chão para andar${tipo === 'disco' ? '. Quem pisa na pista dança sozinho!' : tipo === 'cinema' ? ', sente numa poltrona e curta o filme.' : tipo === 'igreja' ? `. ${igrejaMissa().nome}: sente num banco e fique até a bênção final para ganhar um prêmio!` : ' e entre na água!'}`, 'good'); if (tipo === 'disco' && window.RFAudio && window.RFAudio.tracks.length > 9) window.RFAudio.configure({ track: 9 }); }
     else if (dono !== user.uid) pracaOuvir('quarto', praca.rt.ref('praca/quartos/' + dono), s => { const q = s.val(); if (!q) { toast('O dono desmontou o quarto.'); return pracaIrSala(null); } if (q.a === 'fechado' || (q.a === 'amigos' && !state.friends.includes(dono))) { toast('🔒 O dono fechou o quarto.'); return pracaIrSala(null); } praca.quartoVis = q; });
     else if (!tipo) { const v = quartoSt(); if (!praca.intro) { praca.intro = 1; toast('🏠 Este é o seu quarto! Toque em 🛠️ Editar para colocar móveis.', 'good'); } quartoPublicar(); }
@@ -15330,6 +15335,7 @@ function quartoBarra() {
   if (!el) { el = document.createElement('div'); el.id = 'quartoBar'; el.className = 'quartobar'; el.hidden = true; $('#praca .pracawrap').appendChild(el);
     el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const a = b.dataset.q, S2 = praca.sala; if (!S2) return;
       if (a === 'sair') return pracaIrSala(null);
+      if (a === 'dizimo') return pracaPainelAbrir(praca.painel === 'dizimo' ? null : 'dizimo');
       if (a === 'editar') { S2.edit = !S2.edit; S2.sel = null; if (!S2.edit) { pracaPainelAbrir(null); quartoPublicar(); } else { praca.qtab = 'inv'; pracaPainelAbrir('moveis'); toast('🛠️ Arraste um móvel para mover. Toque nele para Girar ou Arquivar.', 'good'); } return quartoBarra(); }
       if (a === 'moveis') return pracaPainelAbrir(praca.painel === 'moveis' ? null : 'moveis');
       const q = quartoSt().q, sel = S2.sel; if (!sel || sel.idx == null) return; const it = q.m[sel.idx]; if (!it) return;
@@ -15339,7 +15345,7 @@ function quartoBarra() {
   if (!S || !praca.aberta) { el.hidden = true; return; }
   const dono = S.dono === user.uid, sel = S.sel && S.sel.idx != null ? quartoSt().q.m[S.sel.idx] : null;
   el.hidden = false;
-  const html = `<button type="button" class="btn ghost" data-q="sair">🚪 Sair</button>` + (dono ? `<button type="button" class="btn ${S.edit ? 'gold' : ''}" data-q="editar">🛠️ ${S.edit ? 'Concluir' : 'Editar'}</button>` + (S.edit ? `<button type="button" class="btn" data-q="moveis">🎒 Móveis</button>` : '') + (sel ? `<span class="qsel">${MOVEIS[sel.i].e || '▦'} ${MOVEIS[sel.i].n}</span><button type="button" class="btn" data-q="girar">↻ Girar</button><button type="button" class="btn" data-q="guardar">📦 Arquivar</button>` : S.sel && S.sel.novo ? `<span class="qsel">Colocar: ${MOVEIS[S.sel.novo].e || '▦'} ${MOVEIS[S.sel.novo].n}</span>` : '') : '');
+  const html = `<button type="button" class="btn ghost" data-q="sair">🚪 Sair</button>` + (S.tipo === 'igreja' ? `<button type="button" class="btn gold" data-q="dizimo">🙏 Dízimo</button>` : '') + (dono ? `<button type="button" class="btn ${S.edit ? 'gold' : ''}" data-q="editar">🛠️ ${S.edit ? 'Concluir' : 'Editar'}</button>` + (S.edit ? `<button type="button" class="btn" data-q="moveis">🎒 Móveis</button>` : '') + (sel ? `<span class="qsel">${MOVEIS[sel.i].e || '▦'} ${MOVEIS[sel.i].n}</span><button type="button" class="btn" data-q="girar">↻ Girar</button><button type="button" class="btn" data-q="guardar">📦 Arquivar</button>` : S.sel && S.sel.novo ? `<span class="qsel">Colocar: ${MOVEIS[S.sel.novo].e || '▦'} ${MOVEIS[S.sel.novo].n}</span>` : '') : '');
   if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; } // só refaz se mudou: refazer a cada quadro apagava o botão no meio do toque e o clique nunca chegava (iPhone)
 }
 function quartoToque(x, y, G) {
@@ -15491,13 +15497,15 @@ function igrejaPessoas(g, I, tw, dpr, now, es, push) {
     if (bracos) { g.strokeStyle = cor; g.lineWidth = 5 * s; g.lineCap = 'round'; g.beginPath(); g.moveTo(x - 11 * s, y - 40 * s); g.lineTo(x - 18 * s, y - 62 * s); g.moveTo(x + 11 * s, y - 40 * s); g.lineTo(x + 18 * s, y - 62 * s); g.stroke(); g.fillStyle = '#e8b890'; g.beginPath(); g.arc(x - 18 * s, y - 64 * s, 3 * s, 0, 7); g.arc(x + 18 * s, y - 64 * s, 3 * s, 0, 7); g.fill(); }
   };
   // padre
-  const pq = I(6, 2.5), bob = Math.sin(now / 700) * 1.2 * es, bencao = e.k === 'bencao';
+  const pq = I(6, 2.5), bob = Math.sin(now / 700) * 1.2 * es, bencao = e.k === 'bencao' || !!(praca.igBencao && now < praca.igBencao.ate);
   push(6 + 2.5 + 0.3, () => {
     g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(pq.x, pq.y - 0.3 * tw * 0.3, tw * 0.5, tw * 0.2, 0, 0, 7); g.fill();
     const y0 = pq.y - tw * 0.3 + bob;
     drawAvatar(g, pq.x, y0, es, { sexo: 'm', pele: 2, cabelo: 'curto', corCabelo: 5, chapeu: 'sem', camisa: 'camiseta', calca: 'jeans', sapato: 'bota', mao: 'nada' }, now, false, 1);
     roupao(pq.x, y0, es, '#1d1d26', pal.manto === '#f6f1e4' ? '#f6f1e4' : pal.manto, bencao);
-    if (qi < nf && fr < 0.6) igrejaBolha(g, pq.x, y0 - 78 * es, falas[qi], dpr, '#fffdf2');
+    const bz = praca.igBencao && now < praca.igBencao.ate ? praca.igBencao : null;
+    if (bz) { igrejaBolha(g, pq.x, y0 - 78 * es, bz.txt0 || bz.txt, dpr, '#fff6c8'); for (let k = 0; k < 5; k++) { const p = ((now / 900) + k / 5) % 1; g.globalAlpha = 1 - p; g.font = `${Math.round(14 * dpr)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('✨', pq.x + Math.sin(p * 7 + k * 2) * 26 * es, y0 - 20 * es - p * 60 * es); g.globalAlpha = 1; } }
+    else if (qi < nf && fr < 0.6) igrejaBolha(g, pq.x, y0 - 78 * es, falas[qi], dpr, '#fffdf2');
     else if (e.r && fr >= 0.6) igrejaBolha(g, pq.x, y0 - 78 * es, '🙏', dpr, '#fffdf2');
   });
   // coral (5 vozes) em cima do palco
@@ -15521,6 +15529,44 @@ function igrejaPessoas(g, I, tw, dpr, now, es, push) {
       if (dentroResp) igrejaBolha(g, q.x, q.y - 62 * sc, e.r[(qi + i) % e.r.length], dpr, '#f4ecd0');
     });
   });
+}
+
+// ---- ⛪ Dízimo: oferta em moedas, bênção aleatória do padre e ranking geral (nunca zera) ----
+const DIZIMO_VALORES = [10, 1000, 50000];
+const DIZIMO_BENCAOS = [
+  { id: 'terra',  frase: 'Que a sua terra dê frutos dourados!',            txt: n => `${n} ${n > 1 ? 'próximas plantas serão douradas' : 'próxima planta será dourada'} 🌟`, fn: n => { state.ouroProx = (state.ouroProx || 0) + n; } },
+  { id: 'paz',    frase: 'A paz do Senhor esteja no seu coração.',         txt: n => `+${n * 15} XP 🙏`, fn: n => { addXP(n * 15, null); } },
+  { id: 'trevo',  frase: 'Que a sorte e o trevo acompanhem você!',         txt: n => `+${n} 🍀 trevo${n > 1 ? 's' : ''}`, fn: n => { trevosDe().saldo += n; } },
+  { id: 'bichos', frase: 'Que Deus abençoe todos os seus bichinhos.',      txt: n => `+${n} ração${n > 1 ? 'ões' : ''} especia${n > 1 ? 'is' : 'l'} 🥣`, fn: n => { state.racaoEsp = (state.racaoEsp || 0) + n; } },
+  { id: 'cura',   frase: 'Que nenhuma colheita se perca na sua roça.',     txt: n => `+${n} poç${n > 1 ? 'ões' : 'ão'} 🧪`, fn: n => { state.pocao = (state.pocao || 0) + n; } },
+  { id: 'fartura', frase: 'Fartura na mesa e alegria no lar!',             txt: n => `+${n * 40} moedas de volta 🪙`, fn: n => { state.coins += n * 40; } },
+];
+const dizimoNivel = v => v >= 50000 ? 2 : v >= 1000 ? 1 : 0, DIZIMO_QTD = [1, 3, 8];
+function dizimoDar(v) {
+  if (!DIZIMO_VALORES.includes(v) || !state) return;
+  if (!praca.rt || !praca.conectado || !user) return toast('Conecte-se à Vila (internet) para dar o dízimo e entrar no ranking.', 'bad');
+  if (state.coins < v) return toast('Você não tem moedas suficientes para esse dízimo.', 'bad');
+  state.coins -= v; state.dizimoTotal = (state.dizimoTotal || 0) + v;
+  praca.rt.ref('praca/dizimo/' + user.uid).set({ n: meuApelido().slice(0, 24), v: state.dizimoTotal, ts: firebase.database.ServerValue.TIMESTAMP }).then(() => dizimoCarrega()).catch(e => console.warn('dízimo:', e));
+  const B = DIZIMO_BENCAOS[Math.floor(Math.random() * DIZIMO_BENCAOS.length)], n = DIZIMO_QTD[dizimoNivel(v)];
+  B.fn(n); sfx('level'); vilaConq('dizimo');
+  praca.igBencao = { txt: B.frase, ate: performance.now() + 9000, ganho: B.txt(n) };
+  toast(`🙏 O padre abençoou você: "${B.frase}" Ganhou ${B.txt(n)}`, 'good'); done(); pracaPainel();
+}
+function dizimoCarrega() {
+  if (!praca.rt) return; praca.dizimoCarregando = true;
+  praca.rt.ref('praca/dizimo').orderByChild('v').limitToLast(20).once('value').then(snap => {
+    const l = []; snap.forEach(c => { const x = c.val(); if (x && typeof x.v === 'number') l.push({ uid: c.key, n: x.n || '?', v: x.v }); });
+    praca.dizimoRank = l.sort((a, b) => b.v - a.v); praca.dizimoCarregando = false; if (praca.painel === 'dizimo') pracaPainel();
+  }).catch(e => { praca.dizimoCarregando = false; praca.dizimoRank = praca.dizimoRank || []; console.warn('ranking do dízimo:', e); });
+}
+function pracaHtmlDizimo() {
+  const tot = state.dizimoTotal || 0, rk = praca.dizimoRank;
+  let h = `<div class="vp-card"><b>🙏 Dízimo da igreja</b><small>Contribua com a Igreja da Vila. Cada oferta recebe uma bênção aleatória do padre! Seu total ofertado: 🪙 ${fmtN(tot)}</small>
+    <div class="vp-decor">${DIZIMO_VALORES.map(v => `<button type="button" class="btn ${state.coins >= v ? 'gold' : 'ghost'}" data-vila-dizimo="${v}" ${state.coins >= v ? '' : 'disabled'}>🪙 ${fmtN(v)}</button>`).join('')}</div>
+    <small>Bênçãos maiores vêm com ofertas maiores.</small></div>`;
+  h += `<div class="vp-card"><b>🏆 Ranking de doadores (de todo o jogo)</b>${rk ? (rk.length ? rk.map((x, i) => `<div>${['🥇', '🥈', '🥉'][i] || (i + 1) + 'º'} ${esc(x.n)}${x.uid === (user && user.uid) ? ' (você)' : ''} — 🪙 ${fmtN(x.v)}</div>`).join('') : '<div>Ninguém doou ainda. Seja o primeiro!</div>') : '<div>Carregando…</div>'}</div>`;
+  return h;
 }
 // Faixa com a missa do dia + prêmio da bênção final
 function igrejaBanner(g, W, H, dpr, now) {
@@ -15658,7 +15704,7 @@ function vilaJuntar(l, uid) {
 }
 // ---- Títulos e selos ----
 const CONQ = [
-  { id: 'missa1', ev: 'missa', alvo: 5, t: 'Fiel da Vila', e: '⛪' }, { id: 'pesca1', ev: 'pesca', alvo: 20, t: 'Pescador da Vila', e: '🎣' }, { id: 'pesca2', ev: 'pesca', alvo: 150, t: 'Mestre da Pescaria', e: '🐠' },
+  { id: 'missa1', ev: 'missa', alvo: 5, t: 'Fiel da Vila', e: '⛪' }, { id: 'dizimo1', ev: 'dizimo', alvo: 10, t: 'Dizimista', e: '🙏' }, { id: 'pesca1', ev: 'pesca', alvo: 20, t: 'Pescador da Vila', e: '🎣' }, { id: 'pesca2', ev: 'pesca', alvo: 150, t: 'Mestre da Pescaria', e: '🐠' },
   { id: 'item1', ev: 'item', alvo: 50, t: 'Coletor Esperto', e: '🍎' }, { id: 'item2', ev: 'bau', alvo: 10, t: 'Caçador de Tesouros', e: '💎' },
   { id: 'boss1', ev: 'boss', alvo: 3, t: 'Defensor da Vila', e: '⚔️' }, { id: 'danca1', ev: 'danca', alvo: 25, t: 'Pé de Valsa', e: '💃' },
   { id: 'sent1', ev: 'sentar', alvo: 20, t: 'Mestre do Descanso', e: '🛋️' }, { id: 'inter1', ev: 'inter', alvo: 15, t: 'Coração Aberto', e: '❤️' },
@@ -16119,6 +16165,7 @@ $('#praca')?.addEventListener('click', e => {
   if (q('[data-vila-bloq]')) { settings.semInter = !settings.semInter; saveSettings(); pracaNav(); return toast(settings.semInter ? '🚫 Você não recebe mais convites de interação.' : '✅ Você volta a receber convites de interação.'); }
   if (q('[data-vila-moveis]') && praca.sala) { praca.sala.edit = true; praca.qtab = 'inv'; pracaPainelAbrir('moveis'); quartoBarra(); return; }
   if ((b = q('[data-vila-tarefa]'))) return pracaTarefaPegar(b.dataset.vilaTarefa);
+  if ((b = q('[data-vila-dizimo]'))) return dizimoDar(Number(b.dataset.vilaDizimo));
   if (q('[data-vila-alvo-ini]')) return pracaAlvoIniciar();
   if (q('[data-vila-alvo-tiro]')) return pracaAlvoTiro();
   if (q('[data-vila-meuquarto]')) { pracaPainelAbrir(null); return pracaVisitarQuarto(user.uid); }
