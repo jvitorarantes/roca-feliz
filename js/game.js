@@ -1552,6 +1552,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 338, txt: "👑 O 🚜 Trator da Colheita e o 🤖 Ajudante Fixo agora aparecem trabalhando na sua roça: o trator vai e volta pelas fileiras soltando fumaça e o robô-espantalho anda pelos canteiros (com regador e gotinhas se tiver a melhoria). Sumem quando você desativa." },
   { v: 337, txt: "🚜 No botão Auto da tela inicial agora tem as opções do Luxo: escolher as 3 plantas do trator e ativar/desativar o Trator, a Fábrica e o Ajudante." },
   { v: 336, txt: "👑 Luxo: nova Melhoria do Ajudante (100 mil) para ele também regar e rastelar as folhas, e agora dá para desativar (e ativar de novo) o Trator, a Fábrica e o Ajudante quando quiser." },
   { v: 335, txt: "🚜 Trator da Colheita: agora você escolhe até 3 plantas para ele plantar sozinho, em ordem. Quando acabam as da 1ª, ele passa para a 2ª e depois para a 3ª (Loja › Luxo)." },
@@ -4757,6 +4758,60 @@ function drawLake(x, y, W, t) {
     drawAnimal('pato', px, py + W * 0.05, W / 100 * 0.9, t, Math.sin(a) > 0 ? -1 : 1, false);
   }
 }
+
+// ---- Trator e Ajudante Fixo trabalhando na roça (desenhados enquanto estão ligados) ----
+let luxoB = null;
+function luxoLimites(t) {
+  if (luxoB && t - luxoB.t < 2000) return luxoB;
+  let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
+  for (let i = 0; i < N; i++) if (state.plots[i].s !== 'locked' && !plotCeu(i)) { const u = plotU(i), v = plotV(i); if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v; }
+  return luxoB = u1 < u0 ? { t, vazio: true } : { t, u0, u1: u1 + 1, v0, v1: v1 + 1 };
+}
+function drawLuxoMaquinas(t) {
+  const X = state.luxo; if (!X) return;
+  const aT = X.trator && luxoAtivo('trator'), aA = X.ajud && luxoAtivo('ajud'); if (!aT && !aA) return;
+  const B = luxoLimites(t); if (B.vazio) return;
+  const sc = L.W / 100, g = ctx;
+  if (aT) {
+    const linhas = Math.max(1, Math.min(6, Math.floor(B.v1 - B.v0))), volta = Math.max(4000, (B.u1 - B.u0) / 1.5 * 1000);
+    const ph = t / volta, n = Math.floor(ph) % (linhas * 2), fr = ph % 1, ida = n % 2 === 0, row = Math.floor(n / 2);
+    const u = ida ? B.u0 + (B.u1 - B.u0) * fr : B.u1 - (B.u1 - B.u0) * fr, v = B.v0 + 0.5 + row * Math.max(1, (B.v1 - B.v0 - 1) / Math.max(1, linhas - 1)) * (linhas > 1 ? 1 : 0);
+    const q = iso(u, Math.min(v, B.v1 - 0.5)), d = ida ? 1 : -1, bal = Math.sin(t / 90) * 0.8;
+    g.save(); g.translate(q.x, q.y); g.scale(sc * 1.15 * d, sc * 1.15);
+    g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(0, 0, 30, 8, 0, 0, 7); g.fill();
+    g.translate(0, bal);
+    const roda = (x, y, r) => { g.fillStyle = '#2a2a2a'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.fillStyle = '#e8c23a'; g.beginPath(); g.arc(x, y, r * 0.45, 0, 7); g.fill(); g.strokeStyle = '#555'; g.lineWidth = 2; const a0 = t / 140 * d; for (let k = 0; k < 3; k++) { const a = a0 + k * Math.PI * 2 / 3; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * r * 0.9, y + Math.sin(a) * r * 0.9); g.stroke(); } };
+    g.fillStyle = '#3f9b3a'; g.fillRect(2, -26, 24, 12);          // capô
+    g.fillStyle = '#2f7a2a'; g.fillRect(-22, -42, 24, 28);        // cabine
+    g.fillStyle = '#bfe6ff'; g.fillRect(-18, -38, 16, 12);        // vidro
+    g.fillStyle = '#1f5a1c'; g.fillRect(-25, -46, 30, 5);         // teto
+    g.fillStyle = '#555'; g.fillRect(18, -38, 3, 12);             // escapamento
+    roda(-14, -14, 15); roda(17, -8, 9);
+    for (let k = 0; k < 3; k++) { const p = ((t / 700) + k / 3) % 1; g.globalAlpha = 0.5 * (1 - p); g.fillStyle = '#ddd'; g.beginPath(); g.arc(19 - p * 14, -40 - p * 22, 3 + p * 5, 0, 7); g.fill(); }
+    g.globalAlpha = 1; g.restore();
+  }
+  if (aA) {
+    const cu = (B.u0 + B.u1) / 2, cv = (B.v0 + B.v1) / 2, ru = Math.max(1, (B.u1 - B.u0) / 2 * 0.75), rv = Math.max(1, (B.v1 - B.v0) / 2 * 0.75);
+    const u = cu + ru * Math.sin(t / 7000), v = cv + rv * Math.sin(t / 5300 + 1.3), q = iso(u, v), d = Math.cos(t / 7000) >= 0 ? 1 : -1, bal = Math.sin(t / 220) * 1.5;
+    g.save(); g.translate(q.x, q.y); g.scale(sc * 1.1 * d, sc * 1.1);
+    g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(0, 0, 16, 5, 0, 0, 7); g.fill();
+    g.translate(0, bal);
+    g.fillStyle = '#5a646c'; g.beginPath(); g.arc(0, -6, 7, 0, 7); g.fill();                 // roda
+    g.fillStyle = '#9aa7b0'; g.fillRect(-9, -34, 18, 24);                                     // corpo
+    g.fillStyle = '#7d8a94'; g.fillRect(-9, -22, 18, 3);
+    g.fillStyle = '#dfe6eb'; g.fillRect(-8, -50, 16, 15);                                     // cabeça
+    g.fillStyle = '#4ad8ff'; g.beginPath(); g.arc(3, -43, 3.2, 0, 7); g.fill();               // olho
+    g.fillStyle = '#e8c23a'; g.fillRect(-12, -53, 24, 3); g.fillRect(-7, -58, 14, 6);          // chapéu de palha
+    g.strokeStyle = '#9aa7b0'; g.lineWidth = 3; g.beginPath(); g.moveTo(-9, -30); g.lineTo(-17, -22 + Math.sin(t / 300) * 3); g.stroke();
+    g.beginPath(); g.moveTo(9, -30); g.lineTo(17, -24); g.stroke();
+    if (X.ajud2) { // regador na mão: gotas caindo
+      g.fillStyle = '#3a8fd8'; g.fillRect(14, -30, 10, 7); g.fillRect(22, -33, 3, 5);
+      for (let k = 0; k < 4; k++) { const p = ((t / 500) + k / 4) % 1; g.globalAlpha = 1 - p; g.fillStyle = '#7cc8ff'; g.beginPath(); g.arc(27 + p * 4, -26 + p * 24, 1.8, 0, 7); g.fill(); }
+      g.globalAlpha = 1;
+    } else { g.fillStyle = '#d8402f'; g.fillRect(15, -30, 3, 10); } // ferramenta
+    g.restore();
+  }
+}
 function drawRoca(s, t, home) {
   const tod = timeOfDay(), W = L.W;
   drawSky(t, tod); drawGround();
@@ -4786,6 +4841,7 @@ function drawRoca(s, t, home) {
   if (home) drawFolhas(t);
   if (home) drawInvasor(t);
   drawAvatares('roca', t);
+  if (home) drawLuxoMaquinas(t);
   drawObjetos(s, 'roca', t, home, 'frente', d0);
   drawPeixesRoca(s, t);
   drawMoving('roca', t);
