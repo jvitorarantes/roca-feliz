@@ -1204,11 +1204,14 @@ const LUXO = {
 };
 const LUXO_MAX = 8 * 3600; // segundos de trabalho com o jogo fechado
 function luxoDe() { return state.luxo || (state.luxo = { trator: 0, fabrica: 0, ajud: 0, mansao: 0, terreno: 0, planta: 'auto', t: 0, aluT: 0 }); }
+function luxoLista() { const L = luxoDe(); if (!Array.isArray(L.plantas)) L.plantas = [L.planta && L.planta !== 'auto' ? L.planta : '', '', '']; return L.plantas; }
+// Usa a 1ª planta da lista que ainda tem no celeiro; acabou, passa para a próxima. Lista vazia = a mais lucrativa.
 function luxoCultura() {
-  const L = luxoDe(), ok = c => c.nivel <= state.level && plantaQtd(c) > 0;
-  if (L.planta !== 'auto' && CROP[L.planta] && ok(CROP[L.planta])) return CROP[L.planta];
+  const ok = c => c && c.nivel <= state.level && plantaQtd(c) > 0, lista = luxoLista().filter(Boolean);
+  for (const id of lista) if (ok(CROP[id])) return CROP[id];
+  if (lista.length) return null;
   const val = c => ((PRODUCE[c.prod] && PRODUCE[c.prod].preco) || 1) * c.rend / c.tempo;
-  return CROPS.filter(ok).sort((a, b) => val(b) - val(a))[0] || null;
+  return CROPS.filter(ok).sort((x, y) => val(y) - val(x))[0] || null;
 }
 function luxoTrator() {
   let col = 0, pl = 0;
@@ -1282,10 +1285,7 @@ function luxoComprar(id) {
     if (id === 'trator' || id === 'ajud' || id === 'fabrica') luxoRodar(false);
   });
 }
-function luxoPlanta() {
-  const L = luxoDe(), l = ['auto', ...CROPS.filter(c => c.nivel <= state.level).map(c => c.id)];
-  L.planta = l[(l.indexOf(L.planta) + 1) % l.length] || 'auto'; sfx('click'); save(); renderPane();
-}
+$('#pane').addEventListener('change', e => { const sl = e.target.closest && e.target.closest('[data-luxo-slot]'); if (!sl) return; luxoLista()[Number(sl.dataset.luxoSlot)] = CROP[sl.value] ? sl.value : ''; luxoDe().planta = 'lista'; sfx('click'); save(); });
 function luxoColetar() {
   const n = luxoAluguel(); if (n <= 0) return toast('Ainda não tem aluguel para coletar. Volte daqui a pouco!');
   state.coins += n; luxoDe().aluT = Date.now(); sfx('coin'); toast(`🏡 Aluguel do terreno: +${n.toLocaleString('pt-BR')} moedas!`, 'good'); done();
@@ -1296,7 +1296,7 @@ function luxoHTML() {
   for (const [id, X] of Object.entries(LUXO)) {
     const tem = !!L[id];
     let extra = '';
-    if (tem && id === 'trator') extra = `<br><button class="btn ghost mais" data-luxo-planta="1">🌱 Planta: ${L.planta === 'auto' ? 'automática' : esc(CROP[L.planta] ? CROP[L.planta].nome : 'automática')} (trocar)</button>`;
+    if (tem && id === 'trator') extra = `<br><b>Plantar automático (nessa ordem):</b>` + luxoLista().map((v, i) => `<br>${i + 1}º <select class="luxosel" data-luxo-slot="${i}"><option value="">${i ? '— nenhuma —' : '— a mais lucrativa —'}</option>${CROPS.filter(c => c.nivel <= state.level).map(c => `<option value="${c.id}" ${v === c.id ? 'selected' : ''}>${esc(c.nome)} (${plantaQtd(c)} no celeiro)</option>`).join('')}</select>`).join('') + '<br><small>Quando acabam as plantas da 1ª, passa para a 2ª, depois a 3ª.</small>';
     if (tem && id === 'terreno') extra = `<br><button class="btn gold mais" data-luxo-coletar="1">Coletar aluguel: 🪙 ${luxoAluguel().toLocaleString('pt-BR')}</button>`;
     html += `<div class="row ${tem ? 'sel' : ''}"><div class="avatar" style="background:#6a4a8a;font-size:26px">${X.ic}</div>
       <div><div class="name">${X.nome}</div><div class="meta">${X.desc}${extra}</div></div>
@@ -1522,6 +1522,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 335, txt: "🚜 Trator da Colheita: agora você escolhe até 3 plantas para ele plantar sozinho, em ordem. Quando acabam as da 1ª, ele passa para a 2ª e depois para a 3ª (Loja › Luxo)." },
   { v: 334, txt: "👑 Loja › Luxo: 5 compras caras e muito úteis. 🚜 Trator da Colheita (500 mil: colhe, limpa e replanta sozinho), 🏭 Fábrica Automática (350 mil: vende o celeiro com 50% a mais), 🤖 Ajudante Fixo (200 mil: rega, tira pragas e cuida dos animais), 🏰 Mansão (500 mil: +25% de XP) e 🏡 Terreno na Vila (300 mil: 1.200 moedas por hora de aluguel). As máquinas trabalham até 8 h com o jogo fechado." },
   { v: 333, txt: "Cartas de Halloween: a lista de amigos para enviar agora espera os nomes carregarem (antes aparecia só 'Amigo' repetido)." },
   { v: 332, txt: "Corrigido: ao tocar em 🆘 Precisa de ajuda (ou visitar um amigo) a tela de carregamento podia ficar parada para sempre se a internet falhasse. Agora ela desiste em 15 segundos e avisa para tentar de novo." },
@@ -6352,7 +6353,6 @@ $('#pane').addEventListener('click', e => {
   if (d.skinCao) { const [sl, sk] = d.skinCao.split(':'), dg = state.dogs[sl]; if (dg && (sk === 'padrao' || (SKIN_CAO[sk] && temTrevoItem('cao:' + sk)))) { dg.skin = sk === 'padrao' ? '' : sk; sfx('click'); done(); renderPane(); if (isHome()) setScene(scene); } return; }
   if (d.pracaAbrir) return pracaAbrir();
   if (d.luxoComprar) return luxoComprar(d.luxoComprar);
-  if (d.luxoPlanta) return luxoPlanta();
   if (d.luxoColetar) return luxoColetar();
   if (d.halEnviar) return enviarCartaHal(d.halEnviar);
   if (d.halAbrir) { halCartaTick(); return; }
