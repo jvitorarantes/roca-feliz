@@ -1198,8 +1198,8 @@ function clearAllWithered() {
 const LUXO = {
   trator:  { ic: '🚜', nome: 'Trator da Colheita', preco: 500000, desc: 'Colhe sozinho tudo que amadurece, limpa a terra seca e replanta a planta que você escolher (usa as plantas do celeiro). Trabalha até 8 h com o jogo fechado e cura plantas apodrecidas.' },
   fabrica: { ic: '🏭', nome: 'Fábrica Automática', preco: 350000, desc: 'A cada 30 min vende sozinha até 60 itens do celeiro por 50% a mais que o preço normal (guarda sempre 10 de cada planta para plantar). Funciona até 8 h com o jogo fechado.' },
-  ajud:    { ic: '🤖', nome: 'Ajudante Fixo', preco: 200000, desc: 'Espantalho-robô: tira pragas e mato, alimenta os animais com fome e recolhe os produtos prontos. Funciona até 8 h com o jogo fechado. Melhore para ele também regar e rastelar folhas.' },
-  ajud2:   { ic: '💧', nome: 'Melhoria do Ajudante', preco: 100000, req: 'ajud', desc: 'O Ajudante Fixo passa a regar a terra seca e a rastelar todos os montes de folhas (com as recompensas de sempre).' },
+  ajud:    { ic: '🧑‍🌾', nome: 'Caseiro', preco: 200000, desc: 'Um caseiro de verdade cuida da roça: tira pragas e mato, alimenta os animais com fome e recolhe os produtos prontos. Funciona até 8 h com o jogo fechado. Melhore para ele também regar e rastelar folhas.' },
+  ajud2:   { ic: '💧', nome: 'Melhoria do Caseiro', preco: 100000, req: 'ajud', desc: 'O Caseiro passa a regar a terra seca e a rastelar todos os montes de folhas (com as recompensas de sempre).' },
   mansao:  { ic: '🏰', nome: 'Mansão', preco: 500000, desc: 'Muda a sua casa para uma mansão: +25% de XP em tudo que você faz, para sempre.' },
   terreno: { ic: '🏡', nome: 'Terreno na Vila', preco: 300000, desc: 'Um lote seu na Vila que rende 1.200 moedas por hora de aluguel (guarda até 24 h). Você coleta aqui.' },
 };
@@ -1552,6 +1552,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 340, txt: "👑 O Ajudante Fixo agora é um Caseiro: um morador de verdade (chapéu de palha, bota e regador) em vez do robô. Ele passeia pela propriedade quando não tem serviço." },
   { v: 339, txt: "👑 Trator e Ajudante Fixo: quando não têm o que fazer (ou estão desativados), agora ficam passeando pela propriedade, na faixa de grama ao redor dos canteiros." },
   { v: 338, txt: "👑 O 🚜 Trator da Colheita e o 🤖 Ajudante Fixo agora aparecem trabalhando na sua roça: o trator vai e volta pelas fileiras soltando fumaça e o robô-espantalho anda pelos canteiros (com regador e gotinhas se tiver a melhoria). Quando não têm serviço (ou você desativa), ficam passeando pela propriedade." },
   { v: 337, txt: "🚜 No botão Auto da tela inicial agora tem as opções do Luxo: escolher as 3 plantas do trator e ativar/desativar o Trator, a Fábrica e o Ajudante." },
@@ -4818,24 +4819,12 @@ function drawLuxoMaquinas(t) {
   if (aA) {
     const cu = (B.u0 + B.u1) / 2, cv = (B.v0 + B.v1) / 2, ru = Math.max(1, (B.u1 - B.u0) / 2 * 0.75), rv = Math.max(1, (B.v1 - B.v0) / 2 * 0.75);
     const u = cu + ru * Math.sin(t / 7000), v = cv + rv * Math.sin(t / 5300 + 1.3), ps = tA ? null : luxoPasseio('ajud', t, 0.7), q = ps ? iso(ps.u, ps.v) : iso(u, v), d = ps ? ps.d : Math.cos(t / 7000) >= 0 ? 1 : -1, bal = !ps || ps.mov ? Math.sin(t / 220) * 1.5 : 0;
-    g.save(); g.translate(q.x, q.y); g.scale(sc * 1.1 * d, sc * 1.1);
-    g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(0, 0, 16, 5, 0, 0, 7); g.fill();
-    g.translate(0, bal);
-    g.fillStyle = '#5a646c'; g.beginPath(); g.arc(0, -6, 7, 0, 7); g.fill();                 // roda
-    g.fillStyle = '#9aa7b0'; g.fillRect(-9, -34, 18, 24);                                     // corpo
-    g.fillStyle = '#7d8a94'; g.fillRect(-9, -22, 18, 3);
-    g.fillStyle = '#dfe6eb'; g.fillRect(-8, -50, 16, 15);                                     // cabeça
-    g.fillStyle = '#4ad8ff'; g.beginPath(); g.arc(3, -43, 3.2, 0, 7); g.fill();               // olho
-    g.fillStyle = '#e8c23a'; g.fillRect(-12, -53, 24, 3); g.fillRect(-7, -58, 14, 6);          // chapéu de palha
-    g.strokeStyle = '#9aa7b0'; g.lineWidth = 3; g.beginPath(); g.moveTo(-9, -30); g.lineTo(-17, -22 + Math.sin(t / 300) * 3); g.stroke();
-    g.beginPath(); g.moveTo(9, -30); g.lineTo(17, -24); g.stroke();
-    if (X.ajud2 && tA) { // regador na mão: gotas caindo
-      g.fillStyle = '#3a8fd8'; g.fillRect(14, -30, 10, 7); g.fillRect(22, -33, 3, 5);
-      for (let k = 0; k < 4; k++) { const p = ((t / 500) + k / 4) % 1; g.globalAlpha = 1 - p; g.fillStyle = '#7cc8ff'; g.beginPath(); g.arc(27 + p * 4, -26 + p * 24, 1.8, 0, 7); g.fill(); }
-      g.globalAlpha = 1;
-    } else if (X.ajud2) { g.fillStyle = '#3a8fd8'; g.fillRect(14, -30, 10, 7); g.fillRect(22, -33, 3, 5);
-    } else { g.fillStyle = '#d8402f'; g.fillRect(15, -30, 3, 10); } // ferramenta
-    g.restore();
+    // Caseiro: um morador de verdade (mesmo desenho dos vizinhos), de regador na mão quando tem a melhoria
+    const esc = L.W / 95, andando = !ps || ps.mov, av = { sexo: 'm', pele: 3, cabelo: 'curto', corCabelo: 4, chapeu: 'palha', camisa: 'regata', calca: 'jeans', sapato: 'bota', mao: X.ajud2 ? 'regador' : 'enxada' };
+    g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(q.x, q.y, L.W * 0.13, L.W * 0.045, 0, 0, 7); g.fill();
+    drawAvatar(g, q.x, q.y, esc, av, t, andando, d);
+    if (X.ajud2 && tA) for (let k = 0; k < 4; k++) { const p = ((t / 500) + k / 4) % 1; g.globalAlpha = 1 - p; g.fillStyle = '#7cc8ff'; g.beginPath(); g.arc(q.x + d * (L.W * 0.2 + p * 4), q.y - L.W * 0.32 + p * L.W * 0.3, 1.8 * sc * 1.5, 0, 7); g.fill(); }
+    g.globalAlpha = 1;
   }
 }
 function drawRoca(s, t, home) {
