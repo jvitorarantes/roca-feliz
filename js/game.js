@@ -13,7 +13,10 @@ const plotU = i => i % COLS + RU0, plotV = i => Math.floor(i / COLS) + RV0;
 const plotAt = (u, v) => { const c = Math.floor(u) - RU0, r = Math.floor(v) - RV0; return c >= 0 && r >= 0 && c < COLS && r < ROWS ? r * COLS + c : -1; };
 const plotCeu = i => plotU(i) + plotV(i) < 0; // célula atrás do horizonte (céu)
 const START_LOTS = [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]].map(([u, v]) => plotAt(u, v)); // os 6 canteiros iniciais, perto do celeiro
-const ROOM = 5;
+let ROOM = 5; // vira 6,5 na Mansão (ver roomAtual)
+const roomAtual = () => (state && state.luxo && state.luxo.mansao && isHome()) ? 6.5 : 5;
+let semMansao = false; // ícones da loja de temas sempre mostram a casa normal
+const temMansao = () => !semMansao && !!(state && state.luxo && state.luxo.mansao && isHome());
 const HOUR = 3600, DAY = 86400e3; // HOUR em segundos (tempos de produção), DAY em milissegundos (idades)
 const SAVE_KEY = 'roca-feliz-v3', OLD_SAVE_KEYS = ['roca-feliz-v2', 'roca-feliz-v1'], SETTINGS_KEY = 'roca-feliz-config';
 const settings = Object.assign(
@@ -1200,7 +1203,7 @@ const LUXO = {
   fabrica: { ic: '🏭', nome: 'Fábrica Automática', preco: 350000, desc: 'A cada 30 min vende sozinha até 60 itens do celeiro por 50% a mais que o preço normal (guarda sempre 10 de cada planta para plantar). Funciona até 8 h com o jogo fechado.' },
   ajud:    { ic: '🧑‍🌾', nome: 'Caseiro', preco: 200000, desc: 'Um caseiro de verdade cuida da roça: tira pragas e mato, alimenta os animais com fome e recolhe os produtos prontos. Funciona até 8 h com o jogo fechado. Melhore para ele também regar e rastelar folhas.' },
   ajud2:   { ic: '💧', nome: 'Melhoria do Caseiro', preco: 100000, req: 'ajud', desc: 'O Caseiro passa a regar a terra seca e a rastelar todos os montes de folhas (com as recompensas de sempre).' },
-  mansao:  { ic: '🏰', nome: 'Mansão', preco: 500000, desc: 'Muda a sua casa para uma mansão: +25% de XP em tudo que você faz, para sempre.' },
+  mansao:  { ic: '🏰', nome: 'Mansão', preco: 500000, desc: 'A sua casa vira uma mansão: maior, de dois andares, com sala de mármore, tapete e cortinas por dentro. Dá +25% de XP em tudo que você faz, para sempre.' },
   terreno: { ic: '🏡', nome: 'Terreno na Vila', preco: 300000, desc: 'Um lote seu na Vila que rende 1.200 moedas por hora de aluguel (guarda até 24 h). Você coleta aqui.' },
 };
 const LUXO_MAX = 8 * 3600; // segundos de trabalho com o jogo fechado
@@ -1552,6 +1555,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 343, txt: "🏰 Mansão: ao comprar, a sua casa fica maior e muda de design por fora (dois andares, telhado de ardósia, colunas, sacada e postes de luz) e por dentro (sala maior com piso de mármore, tapete, cortinas e castiçais)." },
   { v: 342, txt: "🧑‍🌾 O Caseiro agora pesca em qualquer ponto de água da roça (lago, pesqueiro e blocos de água): joga a vara, espera a boia, puxa o peixe e depois vai pescar em outro ponto." },
   { v: 341, txt: "🧑‍🌾 Quando o Caseiro não está trabalhando, ele vai pescar no lago da sua roça." },
   { v: 340, txt: "👑 O Ajudante Fixo agora é um Caseiro: um morador de verdade (chapéu de palha, bota e regador) em vez do robô. Ele passeia pela propriedade quando não tem serviço." },
@@ -3153,6 +3157,7 @@ function insets() {
   return L.cw < 700 ? { t: 70, b: 92, l: 44, r: 52 } : { t: 76, b: 104, l: 96, r: 104 };
 }
 function layout(sc) {
+  ROOM = roomAtual();
   const { cw, ch } = L, I = insets();
   const aw = Math.max(80, cw - I.l - I.r), ah = Math.max(80, ch - I.t - I.b), cx = I.l + aw / 2, cy = I.t + ah / 2;
   let box = { w: aw, h: ah }; // tamanho do que precisa aparecer, no zoom normal
@@ -3215,7 +3220,7 @@ function layout(sc) {
     L.oy = I.t + ah / 2 - (((u0 + u1) + (v0 + v1)) / 8 - 0.55) * L.W;
     box = { w: bw * L.W, h: bh * L.W };
   } else {
-    L.W = Math.min(aw / 5.9, ah / 4.35);
+    L.W = Math.min(aw / 5.9, ah / 4.35) * 5 / ROOM;
     L.ox = cx;
     L.oy = I.t + ah - ROOM / 2 * L.W - 0.3 * L.W;
   }
@@ -3442,7 +3447,64 @@ function bandeirinhasCasa(pts, s) {
   const cores = ['#e53b2f', '#ffd54a', '#4aa3df', '#4f9a2f', '#f06292'], w = s * 0.022; let k = 0;
   for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; for (let j = 0; j < 5; j++) { const f = (j + 0.5) / 5, x = a[0] + (b[0] - a[0]) * f, y = a[1] + (b[1] - a[1]) * f + w * 0.4; ctx.fillStyle = cores[k++ % 5]; ctx.beginPath(); ctx.moveTo(x - w, y); ctx.lineTo(x + w, y); ctx.lineTo(x, y + w * 2.3); ctx.closePath(); ctx.fill(); } }
 }
+// 🏰 Mansão: casa grande de dois andares (substitui o desenho da casa quando a Mansão foi comprada)
+function drawMansao(x, y, s, costas) {
+  const fw = s * 0.8, fh = s * 0.52, rh = s * 0.16, dx = s * 0.44, dy = -s * 0.22, ov = s * 0.03;
+  const X0 = x - (fw + dx) / 2, Y = y - dy / 2, ouro = '#d9b24a', parede = '#f3ead4', lado = '#d6c8aa', telhado = '#3b4a6b';
+  const noite = timeOfDay() === 'noite';
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x, y, s * 0.72, s * 0.14, 0, 0, 7); ctx.fill();
+  const sl = (a, h) => [X0 + fw + dx * a, Y + dy * a - h];   // ponto na parede lateral (a: 0..1 ao fundo, h: altura)
+  forma([[X0 + fw, Y], [X0 + fw + dx, Y + dy], [X0 + fw + dx, Y + dy - fh], [X0 + fw, Y - fh]], lado);
+  forma([[X0, Y], [X0 + fw, Y], [X0 + fw, Y - fh], [X0, Y - fh]], parede);
+  ctx.fillStyle = '#b9ab8a'; ctx.fillRect(X0, Y - fh * 0.1, fw, fh * 0.1);                      // base de pedra
+  forma([sl(0, 0), sl(1, 0), sl(1, fh * 0.1), sl(0, fh * 0.1)], '#a29473');
+  ctx.strokeStyle = ouro; ctx.lineWidth = Math.max(1.5, s * 0.012); ctx.beginPath(); ctx.moveTo(X0, Y - fh * 0.52); ctx.lineTo(X0 + fw, Y - fh * 0.52); ctx.lineTo(...sl(1, fh * 0.52)); ctx.stroke(); // cordão dourado entre os andares
+  const janela = (ax, ay, w, h, arco) => {
+    ctx.fillStyle = '#fff'; ctx.fillRect(ax - 2, ay - 2, w + 4, h + 4);
+    ctx.fillStyle = noite ? '#ffe39a' : '#9fd8ff'; ctx.fillRect(ax, ay, w, h);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(ax + w / 2, ay); ctx.lineTo(ax + w / 2, ay + h); ctx.moveTo(ax, ay + h * 0.5); ctx.lineTo(ax + w, ay + h * 0.5); ctx.stroke();
+    ctx.fillStyle = '#8e1f2b'; ctx.fillRect(ax - 2, ay - 4, w + 4, 3);
+  };
+  const jw = fw * 0.1, jh = fh * 0.2;
+  if (!costas) {
+    for (const f of [0.08, 0.24, 0.66, 0.82]) janela(X0 + fw * f, Y - fh * 0.42, jw, jh);        // andar de baixo
+    for (const f of [0.08, 0.24, 0.66, 0.82]) janela(X0 + fw * f, Y - fh * 0.9, jw, jh);         // andar de cima
+  }
+  for (const a of [0.25, 0.6]) for (const lv of [0.42, 0.9]) { // janelas da lateral
+    const p0 = sl(a, fh * lv - jh), p1 = sl(a + 0.16, fh * lv - jh), p2 = sl(a + 0.16, fh * lv), p3 = sl(a, fh * lv);
+    forma([p0, p1, p2, p3].map(p => [p[0], p[1] + jh * 0]), noite ? '#ffe39a' : '#9fd8ff', '#fff', 2);
+  }
+  // telhado de ardósia com platibanda dourada
+  forma([[X0 - ov, Y - fh], [X0 + fw + ov, Y - fh], [X0 + fw * 0.9, Y - fh - rh], [X0 + fw * 0.1, Y - fh - rh]], telhado);
+  forma([[X0 + fw + ov, Y - fh], [X0 + fw + ov + dx, Y - fh + dy], [X0 + fw * 0.9 + dx, Y - fh - rh + dy], [X0 + fw * 0.9, Y - fh - rh]], tomCor(telhado, -0.22));
+  forma([[X0 + fw * 0.1, Y - fh - rh], [X0 + fw * 0.9, Y - fh - rh], [X0 + fw * 0.9 + dx, Y - fh - rh + dy], [X0 + fw * 0.1 + dx, Y - fh - rh + dy]], tomCor(telhado, 0.12));
+  ctx.strokeStyle = ouro; ctx.lineWidth = Math.max(1.5, s * 0.014); ctx.beginPath(); ctx.moveTo(X0 - ov, Y - fh); ctx.lineTo(X0 + fw + ov, Y - fh); ctx.lineTo(X0 + fw + ov + dx, Y - fh + dy); ctx.stroke();
+  for (const f of [0.22, 0.72]) { const cx = X0 + fw * f + dx * 0.55, cy = Y - fh - rh + dy * 0.55; ctx.fillStyle = '#8a6a50'; ctx.fillRect(cx - s * 0.03, cy - s * 0.13, s * 0.06, s * 0.13); ctx.fillStyle = '#5a4332'; ctx.fillRect(cx - s * 0.04, cy - s * 0.15, s * 0.08, s * 0.03); }
+  // frontão central com janela redonda
+  forma([[X0 + fw * 0.32, Y - fh], [X0 + fw * 0.68, Y - fh], [X0 + fw * 0.5, Y - fh - rh * 1.9]], '#fff', ouro, Math.max(1.5, s * 0.012));
+  ctx.fillStyle = ouro; ctx.beginPath(); ctx.arc(X0 + fw * 0.5, Y - fh - rh * 0.55, s * 0.035, 0, 7); ctx.fill(); ctx.fillStyle = noite ? '#ffe39a' : '#9fd8ff'; ctx.beginPath(); ctx.arc(X0 + fw * 0.5, Y - fh - rh * 0.55, s * 0.024, 0, 7); ctx.fill();
+  if (!costas) {
+    // sacada, colunas, porta dupla e escadinha
+    const bx = X0 + fw * 0.36, bw = fw * 0.28, by = Y - fh * 0.52;
+    ctx.fillStyle = '#e6dcc2'; ctx.fillRect(bx - s * 0.02, by, bw + s * 0.04, s * 0.03);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(bx, by - s * 0.05); ctx.lineTo(bx + bw, by - s * 0.05); ctx.stroke();
+    for (let k = 0; k <= 6; k++) { ctx.beginPath(); ctx.moveTo(bx + bw * k / 6, by); ctx.lineTo(bx + bw * k / 6, by - s * 0.05); ctx.stroke(); }
+    janela(X0 + fw * 0.45, Y - fh * 0.9, fw * 0.1, fh * 0.28);
+    const pw = fw * 0.2, ph = fh * 0.42, px = X0 + fw * 0.5 - pw / 2;
+    ctx.fillStyle = '#7a4a22'; ctx.beginPath(); ctx.moveTo(px, Y); ctx.lineTo(px, Y - ph + pw / 2); ctx.arc(px + pw / 2, Y - ph + pw / 2, pw / 2, Math.PI, 0); ctx.lineTo(px + pw, Y); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#4a2c14'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(px + pw / 2, Y); ctx.lineTo(px + pw / 2, Y - ph); ctx.stroke();
+    ctx.fillStyle = ouro; ctx.beginPath(); ctx.arc(px + pw * 0.42, Y - ph * 0.4, s * 0.01, 0, 7); ctx.arc(px + pw * 0.58, Y - ph * 0.4, s * 0.01, 0, 7); ctx.fill();
+    for (const cxp of [px - s * 0.045, px + pw + s * 0.015]) { ctx.fillStyle = '#fff'; ctx.fillRect(cxp, Y - fh * 0.5, s * 0.03, fh * 0.5); ctx.fillStyle = ouro; ctx.fillRect(cxp - s * 0.008, Y - fh * 0.5, s * 0.046, s * 0.02); }
+    for (let k = 0; k < 3; k++) { ctx.fillStyle = k % 2 ? '#d8d0c0' : '#e8e2d4'; ctx.fillRect(px - s * (0.05 + k * 0.02), Y + k * s * 0.014, pw + s * (0.1 + k * 0.04), s * 0.014); }
+    for (const lx of [X0 + fw * 0.04, X0 + fw * 0.96]) { // postes de luz e arbustos redondos
+      ctx.fillStyle = '#3a3a3a'; ctx.fillRect(lx - s * 0.008, Y - s * 0.2, s * 0.016, s * 0.2); ctx.fillStyle = noite ? '#ffe39a' : '#f4ecc8'; ctx.beginPath(); ctx.arc(lx, Y - s * 0.21, s * 0.026, 0, 7); ctx.fill();
+      if (noite) { ctx.fillStyle = 'rgba(255,220,120,.25)'; ctx.beginPath(); ctx.arc(lx, Y - s * 0.21, s * 0.1, 0, 7); ctx.fill(); }
+      ctx.fillStyle = '#2f7a2a'; ctx.beginPath(); ctx.arc(lx + (lx < x ? s * 0.06 : -s * 0.06), Y - s * 0.03, s * 0.055, 0, 7); ctx.fill(); ctx.fillStyle = '#3f9a3a'; ctx.beginPath(); ctx.arc(lx + (lx < x ? s * 0.055 : -s * 0.065), Y - s * 0.045, s * 0.03, 0, 7); ctx.fill();
+    }
+  }
+}
 function drawHouse(x, y, s, cor, skin, costas) {
+  if (s > 0 && temMansao()) return drawMansao(x, y, s * 1.45, costas);
   const tm = temaCasa(skin, cor), fw = s * 0.66, fh = s * 0.4, rh = s * 0.3, dx = s * 0.34, dy = -s * 0.17, ov = s * 0.05;
   const X0 = x - (fw + dx) / 2, Y = y - dy / 2;
   ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(x, y, s * 0.62, s * 0.12, 0, 0, 7); ctx.fill();
@@ -5363,21 +5425,27 @@ const paredeIcon = id => makeIcon('parede:' + id, () => {
   ctx.restore(); ctx.strokeStyle = 'rgba(60,40,20,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(8, 8, 80, 80, 8); ctx.stroke();
 });
 function drawRoom(s, t, home) {
-  const W = L.W, H = 1.3, tod = timeOfDay();
+  ROOM = roomAtual();
+  const W = L.W, H = 1.3, tod = timeOfDay(), M = temMansao();
   const g = ctx.createRadialGradient(L.cw / 2, L.ch * 0.55, W * 0.5, L.cw / 2, L.ch * 0.55, L.cw * 0.7);
   g.addColorStop(0, '#6b4a30'); g.addColorStop(1, '#2e1f14');
   ctx.fillStyle = g; ctx.fillRect(0, 0, L.cw, L.ch);
   // piso de tábuas
   quad(P(0, ROOM, -0.12), P(ROOM, ROOM, -0.12), P(ROOM, ROOM), P(0, ROOM), '#5a3a20');
   quad(P(ROOM, 0, -0.12), P(ROOM, ROOM, -0.12), P(ROOM, ROOM), P(ROOM, 0), '#4a2f18');
-  for (let k = 0; k < ROOM * 2; k++) {
+  if (M) { // Mansão: piso de mármore em xadrez e tapete vermelho
+    const n = 6, e = ROOM / n;
+    for (let a = 0; a < n; a++) for (let b2 = 0; b2 < n; b2++) quad(P(a * e, b2 * e), P((a + 1) * e, b2 * e), P((a + 1) * e, (b2 + 1) * e), P(a * e, (b2 + 1) * e), (a + b2) % 2 ? '#e9e4da' : '#b9b3a6');
+    quad(P(1, 1.2), P(ROOM - 0.8, 1.2), P(ROOM - 0.8, ROOM - 1), P(1, ROOM - 1), '#8e1f2b', '#d9b24a', 3);
+    quad(P(1.3, 1.5), P(ROOM - 1.1, 1.5), P(ROOM - 1.1, ROOM - 1.3), P(1.3, ROOM - 1.3), null, 'rgba(217,178,74,.7)', 1.5);
+  } else for (let k = 0; k < ROOM * 2; k++) {
     quad(P(k / 2, 0), P((k + 1) / 2, 0), P((k + 1) / 2, ROOM), P(k / 2, ROOM), k % 2 ? '#c48a52' : '#b98049');
     for (let j = 1; j <= 2; j++) { const r = (k * 1.7 + j * 2.1) % ROOM; line(P(k / 2, r), P((k + 1) / 2, r), 'rgba(0,0,0,.15)', 1); }
   }
   // paredes
   if (!drawPapelParede(s, H)) {
-  quad(P(0, 0), P(0, ROOM), P(0, ROOM, H), P(0, 0, H), '#e6cf9c');
-  quad(P(0, 0), P(ROOM, 0), P(ROOM, 0, H), P(0, 0, H), '#f1dcae');
+  quad(P(0, 0), P(0, ROOM), P(0, ROOM, H), P(0, 0, H), M ? '#e4d8bd' : '#e6cf9c');
+  quad(P(0, 0), P(ROOM, 0), P(ROOM, 0, H), P(0, 0, H), M ? '#f3ead4' : '#f1dcae');
   for (let k = 0.25; k < ROOM; k += 0.5) {
     line(P(0, k, 0.08), P(0, k, H), 'rgba(160,110,60,.13)', 2);
     line(P(k, 0, 0.08), P(k, 0, H), 'rgba(160,110,60,.13)', 2);
@@ -5394,6 +5462,13 @@ function drawRoom(s, t, home) {
   if (tod === 'noite') { const m = P(1.9, 0, 0.88); ctx.fillStyle = '#f4f1d0'; ctx.beginPath(); ctx.arc(m.x, m.y, W * 0.05, 0, 7); ctx.fill(); }
   else quad(P(1.08, 0, 0.52), P(2.22, 0, 0.52), P(2.22, 0, 0.66), P(1.08, 0, 0.72), '#7cbf4f');
   line(P(1.65, 0, 0.52), P(1.65, 0, 1.0), '#fffaf0', 3); line(P(1.08, 0, 0.76), P(2.22, 0, 0.76), '#fffaf0', 3);
+  if (M) { // pilastras douradas, cortinas e castiçais
+    for (const k of [0.5, 3.4, ROOM - 0.5]) { quad(P(k, 0, 0.08), P(k + 0.18, 0, 0.08), P(k + 0.18, 0, H), P(k, 0, H), '#d9b24a'); }
+    for (const k of [0.5, 3.0, ROOM - 0.5]) { quad(P(0, k, 0.08), P(0, k + 0.18, 0.08), P(0, k + 0.18, H), P(0, k, H), '#c9a23c'); }
+    quad(P(0.7, 0, 0.3), P(1.0, 0, 0.3), P(1.0, 0, 1.2), P(0.7, 0, 1.2), '#8e1f2b'); quad(P(2.3, 0, 0.3), P(2.6, 0, 0.3), P(2.6, 0, 1.2), P(2.3, 0, 1.2), '#8e1f2b');
+    quad(P(0.65, 0, 1.12), P(2.65, 0, 1.12), P(2.65, 0, 1.22), P(0.65, 0, 1.22), '#d9b24a');
+    for (const [a, b2] of [[0, 2.2], [1.6, 0], [ROOM - 1.4, 0]]) { const c0 = a === 0 ? P(0, b2, 0.75) : P(a, 0, 0.75), fl = 0.6 + 0.4 * Math.sin(t / 180 + a + b2); ctx.fillStyle = '#d9b24a'; ctx.fillRect(c0.x - W * 0.015, c0.y, W * 0.03, W * 0.1); ctx.fillStyle = `rgba(255,${170 + fl * 60 | 0},60,${0.5 + fl * 0.4})`; ctx.beginPath(); ctx.ellipse(c0.x, c0.y - W * 0.02, W * 0.022, W * 0.045, 0, 0, 7); ctx.fill(); }
+  }
   // porta
   quad(P(0, 3.4), P(0, 4.5), P(0, 4.5, 0.9), P(0, 3.4, 0.9), '#7a4a22', '#4a2c14', 2);
   quad(P(0, 3.55, 0.5), P(0, 4.35, 0.5), P(0, 4.35, 0.8), P(0, 3.55, 0.8), null, 'rgba(0,0,0,.25)', 1.5);
@@ -6077,7 +6152,7 @@ function caesHTML(naLoja) {
   return html;
 }
 // Temas da casa e do celeiro: os que você tem (Usar) e os da loja (Comprar). Aparece ao clicar na casa e na Loja › Temas.
-const casaTemaIcon = id => makeIcon('casatema:' + id, () => { ctx.save(); drawBarn(62, 86, 50, id); drawHouse(34, 90, 52, null, id); ctx.restore(); });
+const casaTemaIcon = id => makeIcon('casatema:' + id, () => { semMansao = true; try { ctx.save(); drawBarn(62, 86, 50, id); drawHouse(34, 90, 52, null, id); ctx.restore(); } finally { semMansao = false; } });
 function casaTemasHTML() {
   const atual = TEMA_CASA[state.skin] ? state.skin : 'classico';
   return TEMAS_CASA.filter(t => !t.especial || state.skins[t.id]).map(t => {
@@ -11208,7 +11283,7 @@ function drawObjetos(s, sc, t, home, stage, d0 = -Infinity, d1 = Infinity) {
       comGiro(q.x, o.rot, () => drawHouse(q.x, q.y, W * 0.95, home ? '#f1dcae' : view.casa, s.skin, o.rot >= 2));
       if (!moveMode) {
         if (hover && hover.kind === 'casa') { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(q.x, q.y, W * 0.6, W * 0.16, 0, 0, 7); ctx.stroke(); }
-        hits.push({ kind: 'casa', x: q.x, y: q.y - W * 0.35, r: W * 0.45 });
+        hits.push({ kind: 'casa', x: q.x, y: q.y - W * (temMansao() ? 0.55 : 0.35), r: W * (temMansao() ? 0.65 : 0.45) });
       }
     } else if (o.key === 'celeiro') {
       comGiro(q.x, o.rot, () => drawBarn(q.x, q.y, W * 1.15, s.skin, o.rot >= 2));
