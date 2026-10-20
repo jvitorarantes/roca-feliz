@@ -1266,17 +1266,20 @@ function luxoRodar(fora) {
   const aT = L.trator && luxoAtivo('trator'), aF = L.fabrica && luxoAtivo('fabrica'), aA = L.ajud && luxoAtivo('ajud');
   if (!(aT || aF || aA)) return;
   fora = fora || sec > 120; sec = Math.min(sec, LUXO_MAX);
+  if (!fora && agora - (L.chk || 0) < LUXO_VERIFICA) return; // só verifica serviço a cada 10 minutos
+  L.chk = agora;
   const passos = fora ? Math.min(16, Math.max(1, Math.ceil(sec / 1800))) : 1, dt = fora ? sec / passos : 0;
-  let moedas = 0, trab = 0; luxoQuieto = true;
+  let moedas = 0, trab = 0, trabT = 0, trabA = 0; luxoQuieto = true;
   try {
     for (let k = 0; k < passos; k++) {
-      if (aA) trab += luxoAjudante();
-      if (aT) trab += luxoTrator();
+      if (aA) { const n = luxoAjudante(); trab += n; trabA += n; }
+      if (aT) { const n = luxoTrator(); trab += n; trabT += n; }
       if (fora && dt) for (const p of state.plots) growPlot(p, dt, false, state);
     }
     if (aF) moedas = luxoFabrica(fora ? Math.floor(sec / 1800) : (agora - (L.fabT || 0) >= 1800e3 ? 1 : 0));
     if (aF && (fora || agora - (L.fabT || 0) >= 1800e3)) L.fabT = agora;
   } finally { luxoQuieto = false; }
+  if (aT || aA) { const ag = Date.now(); if (trabT > 0) luxoVis.trator = ag + LUXO_VIS; if (trabA > 0) luxoVis.ajud = ag + LUXO_VIS; }
   if (trab || moedas) {
     done();
     if (fora || moedas) toast(`👑 Suas máquinas trabalharam${moedas ? ` e a fábrica vendeu por ${moedas.toLocaleString('pt-BR')} moedas` : ''}!`, 'good');
@@ -1290,7 +1293,7 @@ function luxoComprar(id) {
     if (state.coins < X.preco || L[id]) return;
     state.coins -= X.preco; L[id] = 1; L.t = Date.now(); if (id === 'terreno') L.aluT = Date.now();
     sfx('level'); addNews(`👑 Você comprou ${X.nome}!`); toast(`👑 ${X.nome} comprado!`, 'good'); done(); renderPane();
-    if (id === 'trator' || id === 'ajud' || id === 'fabrica' || id === 'ajud2') luxoRodar(false);
+    if (id === 'trator' || id === 'ajud' || id === 'fabrica' || id === 'ajud2') { L.chk = 0; luxoRodar(false); }
   });
 }
 $('#pane').addEventListener('change', e => { const sl = e.target.closest && e.target.closest('[data-luxo-slot]'); if (!sl) return; luxoLista()[Number(sl.dataset.luxoSlot)] = CROP[sl.value] ? sl.value : ''; luxoDe().planta = 'lista'; sfx('click'); save(); });
@@ -1316,7 +1319,7 @@ function luxoEscolherSlot(i) {
     { txt: '⬅️ Voltar', ghost: true, fn: luxoEscolherPlantas },
   ]);
 }
-function luxoLiga(id) { const L = luxoDe(); L.off = L.off || {}; L.off[id] = luxoAtivo(id) ? 1 : 0; if (!L.off[id]) { L.t = Date.now(); } sfx('click'); toast(`${LUXO[id].ic} ${LUXO[id].nome}: ${luxoAtivo(id) ? 'ligado' : 'desligado'}.`); done(); renderPane(); }
+function luxoLiga(id) { const L = luxoDe(); L.off = L.off || {}; L.off[id] = luxoAtivo(id) ? 1 : 0; if (!L.off[id]) { L.t = Date.now(); L.chk = 0; luxoRodar(false); } sfx('click'); toast(`${LUXO[id].ic} ${LUXO[id].nome}: ${luxoAtivo(id) ? 'ligado' : 'desligado'}.`); done(); renderPane(); }
 function luxoColetar() {
   const n = luxoAluguel(); if (n <= 0) return toast('Ainda não tem aluguel para coletar. Volte daqui a pouco!');
   state.coins += n; luxoDe().aluT = Date.now(); sfx('coin'); toast(`🏡 Aluguel do terreno: +${n.toLocaleString('pt-BR')} moedas!`, 'good'); done();
@@ -1555,6 +1558,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 344, txt: "👑 Trator e Caseiro agora verificam se há serviço a cada 10 minutos (e quando você liga ou compra). Se acharem, trabalham um pouco; se não, o trator estaciona ao lado da lavoura e o caseiro vai pescar." },
   { v: 343, txt: "🏰 Mansão: ao comprar, a sua casa fica maior e muda de design por fora (dois andares, telhado de ardósia, colunas, sacada e postes de luz) e por dentro (sala maior com piso de mármore, tapete, cortinas e castiçais)." },
   { v: 342, txt: "🧑‍🌾 O Caseiro agora pesca em qualquer ponto de água da roça (lago, pesqueiro e blocos de água): joga a vara, espera a boia, puxa o peixe e depois vai pescar em outro ponto." },
   { v: 341, txt: "🧑‍🌾 Quando o Caseiro não está trabalhando, ele vai pescar no lago da sua roça." },
@@ -4856,26 +4860,23 @@ function luxoPasseio(chave, t, vel, alvo) {
   }
   return { u: w.fu + (w.tu - w.fu) * k, v: w.fv + (w.tv - w.fv) * k, d: w.dir, mov: !!w.dur && k < 1 };
 }
-// Tem o que fazer? Trator: plantas crescendo/prontas/secas, ou terra arada com planta para semear. Ajudante: plantas ou animais para cuidar.
-let luxoTrabCache = { t: -1e9, trator: false, ajud: false };
-function luxoTrabalhando(t) {
-  if (t - luxoTrabCache.t < 1000) return luxoTrabCache;
-  const pl = state.plots.filter(p => p.s !== 'locked');
-  luxoTrabCache = { t, trator: pl.some(p => p.s === 'growing' || p.s === 'withered') || (pl.some(p => p.s === 'plowed') && !!luxoCultura()), ajud: pl.some(p => p.s === 'growing') || state.animals.length > 0 };
-  return luxoTrabCache;
-}
+// As máquinas só verificam serviço a cada 10 min. Se acharam o que fazer, aparecem trabalhando por 90 s; depois ficam de folga.
+const luxoVis = { trator: 0, ajud: 0 };
+const LUXO_VERIFICA = 10 * 60e3, LUXO_VIS = 90e3;
+function luxoTrabalhando() { const n = Date.now(); return { trator: n < luxoVis.trator, ajud: n < luxoVis.ajud }; }
 function drawLuxoMaquinas(t) {
   const X = state.luxo; if (!X) return;
   const aT = !!X.trator, aA = !!X.ajud; if (!aT && !aA) return;
   const B = luxoLimites(t); if (B.vazio) return;
-  const tr = luxoTrabalhando(t), tT = aT && luxoAtivo('trator') && tr.trator, tA = aA && luxoAtivo('ajud') && tr.ajud; // desligado ou sem serviço: passeia pela propriedade
+  const tr = luxoTrabalhando(), tT = aT && luxoAtivo('trator') && tr.trator, tA = aA && luxoAtivo('ajud') && tr.ajud, tParado = aT && luxoAtivo('trator') && !tr.trator; // sem serviço: trator estaciona ao lado da lavoura, caseiro vai pescar; desligado passeia
   const sc = L.W / 100, g = ctx;
   if (aT) {
     const linhas = Math.max(1, Math.min(6, Math.floor(B.v1 - B.v0))), volta = Math.max(4000, (B.u1 - B.u0) / 1.5 * 1000);
     const ph = t / volta, n = Math.floor(ph) % (linhas * 2), fr = ph % 1, ida = n % 2 === 0, row = Math.floor(n / 2);
     const u = ida ? B.u0 + (B.u1 - B.u0) * fr : B.u1 - (B.u1 - B.u0) * fr, v = B.v0 + 0.5 + row * Math.max(1, (B.v1 - B.v0 - 1) / Math.max(1, linhas - 1)) * (linhas > 1 ? 1 : 0);
-    const ps = tT ? null : luxoPasseio('trator', t, 0.9), mov = tT || ps.mov;
-    const q = ps ? iso(ps.u, ps.v) : iso(u, Math.min(v, B.v1 - 0.5)), d = ps ? ps.d : ida ? 1 : -1, bal = mov ? Math.sin(t / 90) * 0.8 : 0;
+    const av0 = avatarArea('roca'), vaga = { u: av0.u0 + (av0.u1 - av0.u0) * 0.15, v: av0.v0 + (av0.v1 - av0.v0) * 0.5 };
+    const ps = tT ? null : luxoPasseio('trator', t, 0.9, tParado ? vaga : undefined), mov = tT || ps.mov;
+    const q = ps ? iso(ps.u, ps.v) : iso(u, Math.min(v, B.v1 - 0.5)), d = ps ? (tParado ? 1 : ps.d) : ida ? 1 : -1, bal = mov ? Math.sin(t / 90) * 0.8 : 0;
     g.save(); g.translate(q.x, q.y); g.scale(sc * 1.15 * d, sc * 1.15);
     g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(0, 0, 30, 8, 0, 0, 7); g.fill();
     g.translate(0, bal);
