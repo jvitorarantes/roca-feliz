@@ -126,7 +126,7 @@
               ".validate": "newData.isString() && newData.val().length <= 24"
             },
             "p": {
-              ".validate": "newData.isNumber() && newData.val() >= (data.child('p').exists() ? data.child('p').val() : 0) && newData.val() <= (data.child('p').exists() ? data.child('p').val() : 0) + 300"
+              ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 300"
             },
             "$outro": {
               ".validate": false
@@ -482,7 +482,7 @@
             ".validate": "newData.isString() && newData.val().length <= 24"
           },
           "v": {
-            ".validate": "newData.isNumber() && newData.val() >= (data.child('v').exists() ? data.child('v').val() : 0) && newData.val() <= (data.child('v').exists() ? data.child('v').val() : 0) + 50000"
+            ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 50000"
           },
           "ts": {
             ".validate": "newData.isNumber()"
