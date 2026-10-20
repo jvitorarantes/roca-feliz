@@ -1291,6 +1291,28 @@ function luxoComprar(id) {
   });
 }
 $('#pane').addEventListener('change', e => { const sl = e.target.closest && e.target.closest('[data-luxo-slot]'); if (!sl) return; luxoLista()[Number(sl.dataset.luxoSlot)] = CROP[sl.value] ? sl.value : ''; luxoDe().planta = 'lista'; sfx('click'); save(); });
+// Atalhos do luxo no botão 🚜 Auto da tela inicial
+function luxoMenuHTML() {
+  const L = luxoDe(); let h = '';
+  if (L.trator) h += `<button type="button" data-ctx="luxo-plantas">🌱 Plantas do trator…</button>`;
+  for (const id of ['trator', 'fabrica', 'ajud']) if (L[id]) h += `<button type="button" data-ctx="luxo-liga:${id}">${luxoAtivo(id) ? '⏸️ Desativar' : '▶️ Ativar'} ${LUXO[id].ic} ${LUXO[id].nome}</button>`;
+  return h ? `<b>👑 Luxo</b>${h}` : '';
+}
+function luxoEscolherPlantas() {
+  const nomeDe = v => CROP[v] ? `${CROP[v].nome} (${plantaQtd(CROP[v])} no celeiro)` : '—';
+  escolher('🚜 Plantas do trator, em ordem: ele usa a 1ª e, quando acabam, passa para a próxima.', [
+    ...luxoLista().map((v, i) => ({ txt: `${i + 1}º: ${v ? esc(nomeDe(v)) : i ? 'nenhuma' : 'a mais lucrativa'}`, fn: () => luxoEscolherSlot(i) })),
+    { txt: 'Fechar', ghost: true },
+  ]);
+}
+function luxoEscolherSlot(i) {
+  const set = v => { luxoLista()[i] = v; luxoDe().planta = 'lista'; sfx('click'); save(); renderPane(); luxoEscolherPlantas(); };
+  escolher(`Qual planta no ${i + 1}º lugar?`, [
+    { txt: i ? 'nenhuma' : 'a mais lucrativa', ghost: true, fn: () => set('') },
+    ...CROPS.filter(c => c.nivel <= state.level).map(c => ({ txt: `${esc(c.nome)} (${plantaQtd(c)} no celeiro)`, fn: () => set(c.id) })),
+    { txt: '⬅️ Voltar', ghost: true, fn: luxoEscolherPlantas },
+  ]);
+}
 function luxoLiga(id) { const L = luxoDe(); L.off = L.off || {}; L.off[id] = luxoAtivo(id) ? 1 : 0; if (!L.off[id]) { L.t = Date.now(); } sfx('click'); toast(`${LUXO[id].ic} ${LUXO[id].nome}: ${luxoAtivo(id) ? 'ligado' : 'desligado'}.`); done(); renderPane(); }
 function luxoColetar() {
   const n = luxoAluguel(); if (n <= 0) return toast('Ainda não tem aluguel para coletar. Volte daqui a pouco!');
@@ -1530,6 +1552,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 337, txt: "🚜 No botão Auto da tela inicial agora tem as opções do Luxo: escolher as 3 plantas do trator e ativar/desativar o Trator, a Fábrica e o Ajudante." },
   { v: 336, txt: "👑 Luxo: nova Melhoria do Ajudante (100 mil) para ele também regar e rastelar as folhas, e agora dá para desativar (e ativar de novo) o Trator, a Fábrica e o Ajudante quando quiser." },
   { v: 335, txt: "🚜 Trator da Colheita: agora você escolhe até 3 plantas para ele plantar sozinho, em ordem. Quando acabam as da 1ª, ele passa para a 2ª e depois para a 3ª (Loja › Luxo)." },
   { v: 334, txt: "👑 Loja › Luxo: 5 compras caras e muito úteis. 🚜 Trator da Colheita (500 mil: colhe, limpa e replanta sozinho), 🏭 Fábrica Automática (350 mil: vende o celeiro com 50% a mais), 🤖 Ajudante Fixo (200 mil: rega, tira pragas e cuida dos animais), 🏰 Mansão (500 mil: +25% de XP) e 🏡 Terreno na Vila (300 mil: 1.200 moedas por hora de aluguel). As máquinas trabalham até 8 h com o jogo fechado." },
@@ -5553,7 +5576,7 @@ function renderTools() {
     const b = botao('<span style="font-size:26px">🚜</span>', 'Auto', 'Rastelar, colheita e limpeza automáticas', false);
     b.addEventListener('click', () => {
       const nF = folhasDe().filter(f => !f.alvo).length, nC = state.plots.filter(ripe).length + fruteirasProntas().length, nL = state.plots.filter(p => p.s === 'withered').length;
-      abrirMenuGrupo(b, 'Ações automáticas', `<button type="button" data-ctx="rastelar"><span class="mi-ic">${TOOL_ICONS.rastelo}</span> Rastelar folhas${nF ? ` (${nF})` : ''}</button><button type="button" data-ctx="colher">🧺 Colheita automática${nC ? ` (${nC})` : ''}</button><button type="button" data-ctx="limpar">🧹 Limpar terras secas${nL ? ` (${nL})` : ''}</button><button type="button" data-ctx="folhas">🍂 Limpeza de folhas${nF ? ` (${nF})` : ''}</button>`);
+      abrirMenuGrupo(b, 'Ações automáticas', `<button type="button" data-ctx="rastelar"><span class="mi-ic">${TOOL_ICONS.rastelo}</span> Rastelar folhas${nF ? ` (${nF})` : ''}</button><button type="button" data-ctx="colher">🧺 Colheita automática${nC ? ` (${nC})` : ''}</button><button type="button" data-ctx="limpar">🧹 Limpar terras secas${nL ? ` (${nL})` : ''}</button><button type="button" data-ctx="folhas">🍂 Limpeza de folhas${nF ? ` (${nF})` : ''}</button>` + luxoMenuHTML());
     });
   }
 }
@@ -6736,6 +6759,8 @@ $('#ctxMenu').addEventListener('click', e => {
   const b = e.target.closest('[data-ctx]'); if (!b) return;
   const key = $('#ctxMenu').dataset.key; fecharMenuObj();
   if (b.dataset.ctx.startsWith('tool:')) return setTool(b.dataset.ctx.slice(5));
+  if (b.dataset.ctx === 'luxo-plantas') return luxoEscolherPlantas();
+  if (b.dataset.ctx.startsWith('luxo-liga:')) return luxoLiga(b.dataset.ctx.slice(10));
   if (b.dataset.ctx.startsWith('fert:')) { state.fertSel = b.dataset.ctx.slice(5); state.tool = 'fert'; renderTools(); renderPane(); return; }
   if (b.dataset.ctx === 'rastelar') return irRastelar();
   if (b.dataset.ctx === 'picker') return abrirPlantPicker();
