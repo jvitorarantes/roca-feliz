@@ -1577,7 +1577,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
-  { v: 366, txt: "🏭 Nova aba Fábrica, entre Roça e Rancho: cada máquina (Moinho & Padaria, Cozinha, Conservas, Laticínios, Suqueira, Forja e Artesanato) aparece como uma máquina de verdade, com luzinhas dos espaços e fumaça quando está produzindo. Quando algo termina, aparece um balão em cima da máquina ('Pronto: Pão'); toque nela para fazer receitas ou recolher. Novos: aviso em Amigos quando um amigo coloca itens na banca ('🏪 amigo com itens na banca'), e clientes chegam na sua roça querendo comprar do celeiro por 30% a mais — toque neles para vender. O caminhão fica parado na própria roça (com balão quando dá para entregar pedidos), e Negócios agora só tem Banca e Feira." },
+  { v: 366, txt: "🏭 Nova aba Fábrica, entre Roça e Rancho: cada máquina (Moinho & Padaria, Cozinha, Conservas, Laticínios, Suqueira, Forja e Artesanato) aparece como uma máquina de verdade, com luzinhas dos espaços e fumaça quando está produzindo. Quando algo termina, aparece um balão em cima da máquina ('Pronto: Pão'); toque nela para fazer receitas ou recolher. Novos: aviso em Amigos quando um amigo coloca itens na banca ('🏪 amigo com itens na banca'), e clientes chegam na sua roça querendo comprar do celeiro por 30% a mais — toque neles para vender. O caminhão fica na própria roça, grandão, com balão quando dá para entregar pedidos, e dá para mudar de lugar no modo Mover. Negócios agora só tem Banca e Feira." },
   { v: 365, txt: "👋 Quando algum amigo seu estiver na Vila, aparece na barra de baixo o botão 'Ir até amigo' com quantos amigos estão online. Toque para ver a lista e ir até o amigo (andando até ele ou entrando no quarto/lugar onde ele está). Também em Configurações › Voz da Vila dá para ajustar o volume da voz, que agora abafa a música e os sons quando alguém fala." },
   { v: 364, txt: "🎙️ Configurações › Voz da Vila: novo controle de volume da voz (de 0 a 150%). E a voz agora sobrepõe tudo: enquanto alguém fala perto de você, a música e os sons do jogo abaixam sozinhos e voltam quando a pessoa para de falar." },
   { v: 363, txt: "Vila: o topo da tela agora mostra quantas moedas você tem, e a aba do Dízimo também. Quando faltar moeda para comprar (dízimo, quermesse, mercado, móveis, presentes), aparece o aviso 'Moedas insuficientes' com o custo e o seu saldo. Na hora de enviar cartas, as moedas dos presentes agora são a moeda dourada." },
@@ -5037,7 +5037,7 @@ function drawRoca(s, t, home) {
   }
   if (home) drawFolhas(t);
   if (home) drawInvasor(t);
-  drawAvatares('roca', t); drawCliente(t); drawCaminhaoRoca(t);
+  drawAvatares('roca', t); drawCliente(t);
   if (home) drawLuxoMaquinas(t);
   drawObjetos(s, 'roca', t, home, 'frente', d0);
   drawPeixesRoca(s, t);
@@ -7103,7 +7103,7 @@ let holdTimer = null, holdFired = false;
 function objAt(x, y) {
   if (!isHome() || scene === 'casa' || scene === 'maquinas') return null;
   // a área de clique cobre o desenho inteiro (largura para cada lado e altura, em casas da grade)
-  const CAIXA = { armadilha: [0.25, 0.35], mata: [0.6, 0.8], placa: [0.5, 0.95], casa: [0.55, 1.0], celeiro: [0.62, 1.15], canil: [0.4, 0.65], arv1: [0.4, 1.05], arv2: [0.4, 1.05], pesqueiro: [0.5, 0.3], mina: [0.85, 1.0] };
+  const CAIXA = { armadilha: [0.25, 0.35], mata: [0.6, 0.8], placa: [0.5, 0.95], casa: [0.55, 1.0], celeiro: [0.62, 1.15], canil: [0.4, 0.65], arv1: [0.4, 1.05], arv2: [0.4, 1.05], pesqueiro: [0.5, 0.3], mina: [0.85, 1.0], caminhao: [1.0, 0.7] };
   let best = null, bd = Infinity;
   for (const o of objList(state, scene)) {
     if (o.key === 'placa' && !landSignText()) continue;
@@ -8949,16 +8949,15 @@ function drawCaminhaoSprite(x, y, u) {
   for (const dx of [-28, 2, 28]) { ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(x + dx * u, y - 6 * u, 7 * u, 0, 7); ctx.fill(); ctx.fillStyle = '#ccc'; ctx.beginPath(); ctx.arc(x + dx * u, y - 6 * u, 2.6 * u, 0, 7); ctx.fill(); }
   ctx.font = `${Math.round(22 * u)}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('📦', x - 16 * u, y - 26 * u);
 }
-function drawCaminhaoRoca(t) {
-  if (!isHome() || !state.truck) return;
-  const [cu, cv] = centroRoca(), q = iso(cu + 3.4, cv + 2.4), u = L.W / 100 * 0.9, n = entregaveis();
-  const hov = hover && hover.kind === 'caminhaocena';
-  drawCaminhaoSprite(q.x, q.y, u);
-  if (hov) { ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(q.x, q.y, 48 * u, 11 * u, 0, 0, 7); ctx.stroke(); }
+function drawCaminhaoRoca(x, y, t) {
+  if (!state.truck) return;
+  const u = L.W / 100 * 1.35, n = entregaveis(), hov = hover && hover.kind === 'caminhaocena';
+  drawCaminhaoSprite(x, y, u);
+  if (hov) { ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y, 48 * u, 11 * u, 0, 0, 7); ctx.stroke(); }
   const ps = state.truck.pedidos;
-  ps.forEach((p, k) => { ctx.fillStyle = p.feito ? '#4f9a2f' : podeEntregar(p) ? '#ffc93a' : '#9a9a9a'; ctx.beginPath(); ctx.arc(q.x + (k - (ps.length - 1) / 2) * 11 * u, q.y + 12 * u, 4 * u, 0, 7); ctx.fill(); });
-  if (n) maqBalao(q.x, q.y - 48 * u, Math.max(0.8, u), `${n} pedido${n > 1 ? 's' : ''} p/ entregar!`, t, null);
-  hits.push({ kind: 'caminhaocena', x: q.x, y: q.y - 20 * u, r: Math.max(46 * u, 28) });
+  ps.forEach((p, k) => { ctx.fillStyle = p.feito ? '#4f9a2f' : podeEntregar(p) ? '#ffc93a' : '#9a9a9a'; ctx.beginPath(); ctx.arc(x + (k - (ps.length - 1) / 2) * 11 * u, y + 12 * u, 4 * u, 0, 7); ctx.fill(); });
+  if (n) maqBalao(x, y - 48 * u, Math.max(0.8, u), `${n} pedido${n > 1 ? 's' : ''} p/ entregar!`, t, null);
+  if (!moveMode) hits.push({ kind: 'caminhaocena', x, y: y - 20 * u, r: Math.max(46 * u, 28) });
 }
 // ---------- Cliente: de vez em quando alguém chega na fazenda querendo comprar do seu celeiro (paga 30% a mais) ----------
 let cliente = null, proxCliente = Date.now() + 90e3;
@@ -11096,11 +11095,11 @@ const LUGARES = {
 // Posição padrão de cada coisa, em coordenadas da grade da cena.
 const POS_PADRAO = {
   // (as árvores de enfeite saíram: agora as árvores são as frutíferas do Pomar, compradas na Loja)
-  roca: { casa: [1.25, -1.45], celeiro: [-0.95, 2.15], canil: [-1.65, 3.65], pesqueiro: [-1.05, 4.85], placa: [-0.1, 1.1], mata: [1.6, 6.9], armadilha: [3.3, -0.6], mina: [4.7, -2.8] },
+  roca: { casa: [1.25, -1.45], celeiro: [-0.95, 2.15], canil: [-1.65, 3.65], pesqueiro: [-1.05, 4.85], placa: [-0.1, 1.1], mata: [1.6, 6.9], armadilha: [3.3, -0.6], mina: [4.7, -2.8], caminhao: [5.2, 5.6] },
   animais: { canil: [-1.65, 3.65] },
 };
 const LAGO_POS = [3.55, -1.95];
-const OBJ_INFO = { casa: { nome: 'Casa', r: 1.1 }, celeiro: { nome: 'Celeiro', r: 1.2 }, canil: { nome: 'Casinha do cachorro', r: 0.8 }, arv1: { nome: 'Árvore', r: 0.7 }, arv2: { nome: 'Árvore', r: 0.7 }, pesqueiro: { nome: 'Pesqueiro', r: 0.9 }, placa: { nome: 'Placa de terras', r: 0.45 }, mata: { nome: 'Trilha da caçada', r: 1.0 }, armadilha: { nome: 'Armadilha de pragas', r: 0.45 }, mina: { nome: 'Mina', r: 1.0 } };
+const OBJ_INFO = { casa: { nome: 'Casa', r: 1.1 }, celeiro: { nome: 'Celeiro', r: 1.2 }, canil: { nome: 'Casinha do cachorro', r: 0.8 }, arv1: { nome: 'Árvore', r: 0.7 }, arv2: { nome: 'Árvore', r: 0.7 }, pesqueiro: { nome: 'Pesqueiro', r: 0.9 }, placa: { nome: 'Placa de terras', r: 0.45 }, mata: { nome: 'Trilha da caçada', r: 1.0 }, armadilha: { nome: 'Armadilha de pragas', r: 0.45 }, mina: { nome: 'Mina', r: 1.0 }, caminhao: { nome: 'Caminhão', r: 1.3 } };
 // Giro de 90° em 90° (rot 0..3, sentido contrário ao relógio visto de cima): os desenhos são 2,5D, vistos
 // de um ângulo só. Nos giros ímpares a imagem fica espelhada (as faces trocam de lado); nos giros 2 e 3
 // as construções (casa, celeiro, casinha) mostram os fundos, sem porta nem janelas da frente. Itens sem
@@ -11110,7 +11109,7 @@ const comGiro = (x, rot, fn) => {
   ctx.save(); ctx.translate(x, 0); ctx.scale(-1, 1); ctx.translate(-x, 0);
   try { fn(); } finally { ctx.restore(); }
 };
-const giravel = key => !!key && !['placa', 'mata', 'armadilha', 'mina'].includes(key);
+const giravel = key => !!key && !['placa', 'mata', 'armadilha', 'mina', 'caminhao'].includes(key);
 function posOf(s, sc, key) {
   const p = s.pos && s.pos[sc] && s.pos[sc][key];
   if (Array.isArray(p)) return p;
@@ -11502,6 +11501,7 @@ function drawObjetos(s, sc, t, home, stage, d0 = -Infinity, d1 = Infinity) {
       continue;
     }
     if (o.key === 'mina') { drawMinaRoca(q.x, q.y, W, s, t, home); continue; }
+    if (o.key === 'caminhao') { if (home) drawCaminhaoRoca(q.x, q.y, t); continue; }
     if (o.key === 'mata') {
       drawMataCaca(q.x, q.y, W);
       if (home && cacaPronta()) drawBubbleAt(q.x, q.y - W * 0.75, 'caca', null, t, 99);
@@ -11625,6 +11625,7 @@ function drawMoving(sc, t) {
   else if (k === 'mata') drawMataCaca(q.x, q.y, W);
   else if (k === 'mina') drawMinaRoca(q.x, q.y, W, s, t, false, true);
   else if (k === 'armadilha') drawArmadilha(q.x, q.y, W, true, t);
+  else if (k === 'caminhao') drawCaminhaoSprite(q.x, q.y, W / 100 * 1.35);
   else comGiro(q.x, gr, () => drawTree(q.x, q.y, W * 0.9, t, sc === 'roca' && temaDe(s).coqueiro));
   ctx.globalAlpha = 1;
 }
