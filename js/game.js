@@ -1571,6 +1571,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 346, txt: "⛪ Nova Igreja na Vila! Abre todo domingo (Missa das Crianças, litúrgica verde) e toda quarta (Missa da Família, branco e dourado). Tem padre, altar com velas, coral de 5 vozes, vitrais coloridos e fiéis nos bancos. A missa tem etapas (entrada, canto, leitura, homilia, oração, ofertório, comunhão e bênção) iguais para todos, com falas do padre e respostas dos fiéis. Fique até a bênção final para ganhar 300 moedas + 10 XP por dia e o título Fiel da Vila." },
   { v: 345, txt: "🏭 Fábrica Automática: o card em Loja › Luxo agora mostra a última rodada e quanto dá para vender agora, e tem o botão 'Vender agora'. Lembrete: ela só vende o que passa de 10 de cada planta no celeiro (e não está bloqueado)." },
   { v: 344, txt: "👑 Trator e Caseiro agora verificam se há serviço a cada 10 minutos (e quando você liga ou compra). Se acharem, trabalham um pouco; se não, o trator estaciona ao lado da lavoura e o caseiro vai pescar." },
   { v: 343, txt: "🏰 Mansão: ao comprar, a sua casa fica maior e muda de design por fora (dois andares, telhado de ardósia, colunas, sacada e postes de luz) e por dentro (sala maior com piso de mármore, tapete, cortinas e castiçais)." },
@@ -14517,7 +14518,7 @@ function pracaNav() {
 function pracaHtmlMenu(grupo) {
   const nc = Object.values(praca.cartas || {}).filter(c => c && state.friends.includes(c.de)).length;
   const it = (ic, t, attr) => `<button type="button" class="vmenu-it" ${attr}><span>${ic}</span><b>${t}</b></button>`, sec = (t, l) => `<h4 class="vmenu-h">${t}</h4><div class="vmenu">${l.join('')}</div>`;
-  if (grupo === 'lugares') return sec('Lugares', [...Object.entries(VILA_ZONAS).map(([id, z]) => it(z.ic, z.nome, `data-vila-ir-z="${id}"`)), it('📋', 'Mural', 'data-vila-ir="mural"'), it('🏪', 'Mercado', 'data-vila-ir="mercado"')])
+  if (grupo === 'lugares') return sec('Lugares', [...Object.entries(VILA_ZONAS).map(([id, z]) => id === 'igreja' && !igrejaAberta() ? it('🔒', 'Igreja (dom e qua)', 'disabled') : it(z.ic, z.nome, `data-vila-ir-z="${id}"`)), it('📋', 'Mural', 'data-vila-ir="mural"'), it('🏪', 'Mercado', 'data-vila-ir="mercado"')])
     + sec('Quartos', [it('🛏️', 'Meu quarto', 'data-vila-meuquarto'), it('🏠', 'Quartos de amigos', 'data-vila-ir="quartos"'), it('🏡', 'Minha casinha', 'data-vila-ir="casa"')])
     + sec('Atividades', [it('📜', 'Tarefas do dia', 'data-vila-ir="tarefas"'), it('🎯', 'Tiro ao alvo', 'data-vila-ir="alvo"')]);
   if (grupo === 'pessoas') return sec('Pessoas', [it('📍', 'Onde estão', 'data-vila-ir="onde"'), it('📣', 'Convidar amigos', 'data-vila-ir="convidar"'), it('✉️', `Cartas${nc ? ' (' + nc + ')' : ''}`, 'data-vila-ir="cartas"'), it('🎙️', 'Voz', 'data-vila-ir="voz"')]);
@@ -14876,6 +14877,7 @@ const VILA_ZONAS = {
   disco:    { nome: 'Discoteca', ic: '🪩', u: 10, v: 24.5 },
   cinema:   { nome: 'Cinema',   ic: '🎬', u: 54, v: 24.5 },
   piscina:  { nome: 'Piscina',  ic: '🏊', u: 32, v: 9.5 },
+  igreja:   { nome: 'Igreja',   ic: '⛪', u: 21, v: 46.5 },
 };
 const VILA_BANCOS_TODOS = [[27, 21, 1], [37, 21, -1], [27, 29.5, 1], [37, 29.5, -1], [41.5, 15, 1], [28.5, 25, 1], [35.5, 25, -1], [29.5, 17.5, 1], [34.5, 17.5, -1], [29.5, 32.5, 1], [34.5, 32.5, -1], [24, 23, 1], [40, 27, -1]];
 const VILA_BANCOS = VILA_BANCOS_TODOS.filter(([u, v]) => !vilaAgua(u, v)); // nada de cadeira na água
@@ -14952,7 +14954,7 @@ function vilaContexto() {
   if (praca.pesca || vilaPertoAgua(p)) return { id: 'pesca', txt: !praca.pesca ? '🎣 Pescar' : praca.pesca.fase === 'espera' ? '🎣 Esperando… (não puxe!)' : '❗ PUXAR!', fisgou: !!praca.pesca && praca.pesca.fase === 'fisgou' };
   if (pracaBossAtivo()) { const b = pracaBossPos(); if (d(b.u, b.v) < 6) return { id: 'boss', txt: `⚔️ Atacar o ${pracaBossNome().slice(3)}!` }; }
   const bau = praca.spawns.find(it => it.tipo === 'bau' && !praca.pegos[it.i] && d(it.u, it.v) < 2.6); if (bau) return { id: 'bau:' + bau.i, txt: '🎁 Abrir baú' };
-  for (const [tipo, F] of Object.entries(FESTAS)) if (d(F.u, F.v + 1.8) < 3.2) return { id: 'f:' + tipo, txt: `${F.ic} Entrar: ${F.nome}` };
+  for (const [tipo, F] of Object.entries(FESTAS)) if ((!F.dias || F.dias.includes(igrejaDia())) && d(F.u, F.v + 1.8) < 3.2) return { id: 'f:' + tipo, txt: `${F.ic} Entrar: ${F.nome}` };
   const tes = vilaTesouro(); if (!pracaSt().c.tesOk && d(tes.u, tes.v) < 2) return { id: 'tesouro', txt: '⛏️ Cavar aqui' };
   if (d(VILA_LOCAIS.alvo.u, VILA_LOCAIS.alvo.v) < 3.5) return { id: 'alvo', txt: '🎯 Jogar tiro ao alvo' };
   if (d(VILA_LOCAIS.mural.u, VILA_LOCAIS.mural.v) < 3.5) return { id: 'mural', txt: '📋 Abrir o mural' };
@@ -15000,7 +15002,7 @@ function vilaDesejo() {
   if (Math.random() < 0.08) { state.coins += 25; praca.flutua.push({ txt: '✨ +25', u: 32, v: 24, t: performance.now() + 300 }); toast('✨ Seu desejo na fonte foi atendido! +25 moedas', 'good'); sfx('level'); } else toast('🪙 Você jogou uma moeda e fez um pedido…');
   done();
 }
-function vilaIrZona(id) { const z = VILA_ZONAS[id]; if (!z) return; pracaPainelAbrir(null); if (praca.sala) pracaIrSala(null); /* estava num quarto/sala: sai e vai ao destino */ if (praca.eu) pracaIrPara(z.u, z.v); }
+function vilaIrZona(id) { const z = VILA_ZONAS[id]; if (!z) return; if (id === 'igreja' && !igrejaAberta()) return toast('⛪ A igreja abre aos domingos (missa das crianças) e às quartas (missa da família).'); pracaPainelAbrir(null); if (praca.sala) pracaIrSala(null); /* estava num quarto/sala: sai e vai ao destino */ if (praca.eu) pracaIrPara(z.u, z.v); }
 function pracaHud(now) {
   const el = $('#pracaHud'); if (!el) return;
   if (praca.sala) { el.textContent = ''; el.dataset.t = ''; return; }
@@ -15074,7 +15076,7 @@ function pracaDesenha(g, c, now, dpr) {
   rect(39.5, 11, 46.6, 13, '#a87a46'); for (let k = 0; k < 8; k++) { const a = I(39.7 + k * 0.9, 11), b = I(39.7 + k * 0.9, 13); g.strokeStyle = 'rgba(70,40,10,.5)'; g.lineWidth = Math.max(1, dpr); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
   // rótulos das áreas
   g.textAlign = 'center'; g.font = `800 ${Math.round(12 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.6)'; g.fillStyle = 'rgba(255,255,255,.85)';
-  for (const [id, z] of Object.entries(VILA_ZONAS)) { if (id === 'plaza') continue; const q = I(z.u, z.v); if (q.x > -80 && q.x < W + 80 && q.y > -40 && q.y < H + 40) { g.strokeText(`${z.ic} ${z.nome}`, q.x, q.y); g.fillText(`${z.ic} ${z.nome}`, q.x, q.y); } }
+  for (const [id, z] of Object.entries(VILA_ZONAS)) { if (id === 'plaza' || (id === 'igreja' && !igrejaAberta())) continue; const q = I(z.u, z.v); if (q.x > -80 && q.x < W + 80 && q.y > -40 && q.y < H + 40) { g.strokeText(`${z.ic} ${z.nome}`, q.x, q.y); g.fillText(`${z.ic} ${z.nome}`, q.x, q.y); } }
   // lista de coisas para desenhar, de trás para frente
   const lista0 = []; if (praca.eu) lista0.push({ e: praca.eu, p: pracaPos(praca.eu, now) }); for (const j of Object.values(praca.jog)) lista0.push({ e: j, p: pracaPos(j, now) });
   const D = [], vis = q => q.x > -90 && q.x < W + 90 && q.y > -120 && q.y < H + 60, push = (s, fn) => D.push({ s, fn });
@@ -15092,7 +15094,8 @@ function pracaDesenha(g, c, now, dpr) {
     });
     praca.hits.push({ id, x: q.x, y: q.y - tw, r: tw * 2.2 });
   }
-  for (const [tipo, F] of Object.entries(FESTAS)) { const q = I(F.u, F.v); if (!(q.x > -120 && q.x < W + 120 && q.y > -160 && q.y < H + 80)) continue;
+  for (const [tipo, F] of Object.entries(FESTAS)) { if (F.dias && !F.dias.includes(igrejaDia())) continue; const q = I(F.u, F.v); if (!(q.x > -120 && q.x < W + 120 && q.y > -160 && q.y < H + 80)) continue;
+    if (tipo === 'igreja') { push(F.u + F.v, () => igrejaFachada(g, q, tw, dpr, now, noite > 0.5)); praca.hits.push({ id: 'f:igreja', x: q.x, y: q.y - tw * 2, r: tw * 3 }); continue; }
     push(F.u + F.v, () => { const w = tw * 3.4, h = tw * 2.4; g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.ellipse(q.x, q.y, w * 0.7, w * 0.2, 0, 0, 7); g.fill(); g.fillStyle = F.cor; g.fillRect(q.x - w / 2, q.y - h, w, h); g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.moveTo(q.x - w * 0.6, q.y - h); g.lineTo(q.x, q.y - h - w * 0.45); g.lineTo(q.x + w * 0.6, q.y - h); g.closePath(); g.fill(); g.fillStyle = '#1a1208'; g.fillRect(q.x - w * 0.12, q.y - h * 0.55, w * 0.24, h * 0.55);
       g.font = `${Math.round(tw * 1.6)}px system-ui`; g.textAlign = 'center'; g.fillStyle = '#000'; g.fillText(F.ic, q.x, q.y - h - w * 0.12); g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffe08a'; g.strokeText(F.nome, q.x, q.y + tw * 0.8); g.fillText(F.nome, q.x, q.y + tw * 0.8);
       if (tipo === 'disco') for (let k = 0; k < 4; k++) { g.fillStyle = `hsla(${(now / 8 + k * 90) % 360},90%,60%,.8)`; g.beginPath(); g.arc(q.x - w * 0.35 + k * w * 0.23, q.y - h * 0.82, 3 * dpr, 0, 7); g.fill(); } });
@@ -15227,11 +15230,13 @@ const MOVEIS = {
   damas: { n: 'Mesa de damas', e: '♟️', w: 1, d: 1, preco: 120, jogo: 'damas' }, correio: { n: 'Caixa de correio', e: '📮', w: 1, d: 1, preco: 50, correio: 1 },
   dj: { n: 'Mesa de DJ', e: '🎧', w: 2, d: 1, publico: 1, som: 1 }, caixasom: { n: 'Caixa de som', e: '🔊', w: 1, d: 1, publico: 1 }, bolaluz: { n: 'Globo de luz', e: '🪩', w: 1, d: 1, publico: 1, deco: 1 }, pistaD: { n: 'Pista de dança', w: 8, d: 6, publico: 1, piso: 'disco' },
   tela: { n: 'Tela de cinema', w: 4, d: 1, publico: 1, tela: 1 }, bar: { n: 'Bar', e: '🍹', w: 2, d: 1, publico: 1 }, pipoca: { n: 'Pipoca', e: '🍿', w: 1, d: 1, publico: 1 }, agua: { n: 'Piscina', w: 8, d: 7, publico: 1, piso: 'agua' }, guardasol: { n: 'Guarda-sol', e: '⛱️', w: 1, d: 1, publico: 1 },
+  altar: { n: 'Altar', w: 4, d: 2, publico: 1, altar: 1 }, palco: { n: 'Palco do coral', w: 3, d: 2, publico: 1, palco: 1 }, pulpito: { n: 'Púlpito', e: '📖', w: 1, d: 1, publico: 1 },
   abobora: { n: 'Abóbora', e: '🎃', w: 1, d: 1, preco: 50 }, fantasma: { n: 'Fantasma', e: '👻', w: 1, d: 1, preco: 60 }, caixa: { n: 'Presente', e: '🎁', w: 1, d: 1, preco: 40 },
 };
 const PAREDES = [{ n: 'Creme', c: '#f0e0c0' }, { n: 'Azul', c: '#9cc8e8' }, { n: 'Rosa', c: '#f0b8c8' }, { n: 'Verde', c: '#b8e0a8' }, { n: 'Madeira', c: '#b88350' }, { n: 'Noite', c: '#3a2a5a' }];
 const PISOS = [{ n: 'Madeira', a: '#c8964a', b: '#b88340' }, { n: 'Xadrez', a: '#f2f2f2', b: '#4a4a4a' }, { n: 'Grama', a: '#6cbc4a', b: '#5aa83a' }, { n: 'Pedra', a: '#9a9a9a', b: '#8a8a8a' }, { n: 'Azul', a: '#6a9ad8', b: '#5a8ac8' }, { n: 'Rosa', a: '#f0a8c0', b: '#e098b0' }];
 const FILMES = [['🦁', 'O Rei da Roça'], ['🚀', 'Viagem ao Celeiro'], ['🦖', 'Parque dos Jurássicos'], ['🧙', 'Harry Trigo'], ['👻', 'Noite Assombrada'], ['🐠', 'Procurando o Peixe'], ['🤠', 'Cowboys do Pantanal']];
+PAREDES.push({ n: 'Igreja', c: '#efe6d2' }); PISOS.push({ n: 'Pedra clara', a: '#dcd3bf', b: '#cdc3ac' });
 const FESTAS = {
   disco:   { nome: 'Discoteca', ic: '🪩', N: 12, spawn: [5.5, 10.5], u: 10, v: 22, cor: '#6a2fa0', q: { p: 5, c: 3, a: 'todos', m: [
     { i: 'pistaD', u: 2, v: 3 }, { i: 'dj', u: 5, v: 0 }, { i: 'caixasom', u: 3, v: 0 }, { i: 'caixasom', u: 8, v: 0 }, { i: 'bolaluz', u: 5, v: 5 },
@@ -15240,6 +15245,10 @@ const FESTAS = {
     .concat([3, 5, 7].flatMap(v => [2, 3, 4, 6, 7, 8, 9].map(u => ({ i: 'cadeira', u, v })))) } },
   piscina: { nome: 'Piscina', ic: '🏊', N: 14, spawn: [1.5, 6.5], u: 32, v: 7, cor: '#2f8fa0', q: { p: 1, c: 3, a: 'todos', m: [
     { i: 'agua', u: 3, v: 3 }, { i: 'sofa', u: 1, v: 11 }, { i: 'sofa', u: 5, v: 11 }, { i: 'sofa', u: 9, v: 11 }, { i: 'guardasol', u: 3, v: 0 }, { i: 'guardasol', u: 9, v: 0 }, { i: 'bar', u: 11, v: 11 }, { i: 'damas', u: 12, v: 6 }, { i: 'planta', u: 0, v: 0 }, { i: 'planta', u: 13, v: 0 }, { i: 'planta', u: 0, v: 13 }, { i: 'planta', u: 13, v: 13 }, { i: 'vaso', u: 12, v: 4 }, { i: 'vaso', u: 12, v: 8 }] } },
+  igreja:  { nome: 'Igreja', ic: '⛪', N: 12, spawn: [5.5, 10.5], u: 21, v: 44, cor: '#efe6d2', dias: [0, 3], q: { p: PAREDES.length - 1, c: PISOS.length - 1, a: 'todos', m: [
+    { i: 'altar', u: 4, v: 0 }, { i: 'palco', u: 9, v: 0 }, { i: 'pulpito', u: 2, v: 2 },
+    ...[3, 5, 7, 9].map(v => ({ i: 'tapete', u: 5, v })),
+    ...[4, 5, 6, 7, 8, 9].flatMap(v => [1, 2, 3, 4, 7, 8, 9, 10].map(u => ({ i: 'cadeira', u, v }))) ] } },
 };
 const quartoSt = () => { const v = state.vilaMov || (state.vilaMov = { inv: { cadeira: 2, planta: 2, cama: 1, tv: 1, tapete: 1 }, q: { p: 0, c: 0, a: 'amigos', m: [] } }); if (!v.brinde2) { v.brinde2 = 1; v.inv.correio = (v.inv.correio || 0) + 1; v.inv.damas = (v.inv.damas || 0) + 1; } return v; };
 const quartoAtual = () => praca.sala ? (praca.sala.tipo ? FESTAS[praca.sala.tipo].q : praca.sala.dono === user.uid ? quartoSt().q : (praca.quartoVis || { p: 0, c: 0, a: 'amigos', m: [] })) : null;
@@ -15295,10 +15304,10 @@ function pracaIrSala(sid, dono, tipo) {
   if (praca.sala && praca.sala.tipo === 'disco' && window.RFAudio) applySettings(); // sai da discoteca: volta a música de antes
   for (const k of ['jog', 'quarto']) if (praca.refs[k]) { praca.refs[k].off(); praca.refs[k] = null; }
   if (praca.refs.eu) { praca.refs.eu.onDisconnect().cancel(); praca.refs.eu.remove().catch(() => {}); praca.refs.eu = null; }
-  praca.jog = {}; praca.pesca = null; praca.efeito = {}; praca.sala = sid ? { id: sid, dono, tipo, N: tipo ? FESTAS[tipo].N : ROOM_N, edit: false, sel: null } : null; praca.zoom = 1;
+  praca.jog = {}; praca.pesca = null; praca.efeito = {}; praca.sala = sid ? { id: sid, dono, tipo, N: tipo ? FESTAS[tipo].N : ROOM_N, edit: false, sel: null } : null; praca.zoom = tipo === 'igreja' ? 0.75 : 1;
   if (sid) {
-    praca.cam = { u: salaN() / 2, v: salaN() / 2 }; praca.seguir = false;
-    if (tipo) { const F = FESTAS[tipo]; toast(`${F.ic} ${F.nome}! Toque no chão para andar${tipo === 'disco' ? '. Quem pisa na pista dança sozinho!' : tipo === 'cinema' ? ', sente numa poltrona e curta o filme.' : ' e entre na água!'}`, 'good'); if (tipo === 'disco' && window.RFAudio && window.RFAudio.tracks.length > 9) window.RFAudio.configure({ track: 9 }); }
+    praca.cam = tipo === 'igreja' ? { u: 7.4, v: 5 } : { u: salaN() / 2, v: salaN() / 2 }; praca.seguir = false; // a igreja é larga: a câmera foca o altar e o coral
+    if (tipo) { const F = FESTAS[tipo]; toast(`${F.ic} ${F.nome}! Toque no chão para andar${tipo === 'disco' ? '. Quem pisa na pista dança sozinho!' : tipo === 'cinema' ? ', sente numa poltrona e curta o filme.' : tipo === 'igreja' ? `. ${igrejaMissa().nome}: sente num banco e fique até a bênção final para ganhar um prêmio!` : ' e entre na água!'}`, 'good'); if (tipo === 'disco' && window.RFAudio && window.RFAudio.tracks.length > 9) window.RFAudio.configure({ track: 9 }); }
     else if (dono !== user.uid) pracaOuvir('quarto', praca.rt.ref('praca/quartos/' + dono), s => { const q = s.val(); if (!q) { toast('O dono desmontou o quarto.'); return pracaIrSala(null); } if (q.a === 'fechado' || (q.a === 'amigos' && !state.friends.includes(dono))) { toast('🔒 O dono fechou o quarto.'); return pracaIrSala(null); } praca.quartoVis = q; });
     else if (!tipo) { const v = quartoSt(); if (!praca.intro) { praca.intro = 1; toast('🏠 Este é o seu quarto! Toque em 🛠️ Editar para colocar móveis.', 'good'); } quartoPublicar(); }
     const sp = tipo ? FESTAS[tipo].spawn : [4.5, 8.5]; pracaPresenca(sp[0] + Math.random() * 0.8, sp[1] + Math.random() * 0.4);
@@ -15368,6 +15377,164 @@ function quartoDefinePath(e, pts) {
   let len = 0; for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].u - pts[i - 1].u, pts[i].v - pts[i - 1].v);
   e.pts = pts; e.len = len; e.fu = pts[0].u; e.fv = pts[0].v; e.tu = pts[pts.length - 1].u; e.tv = pts[pts.length - 1].v; e.t0 = performance.now(); e.dur = len / PRACA_VEL * 1000;
 }
+// ============ ⛪ Igreja da Vila: aberta aos domingos (missa das crianças) e às quartas (missa da família) ============
+const igrejaDia = () => (typeof praca.diaTeste === 'number') ? praca.diaTeste : new Date(pracaAgora()).getDay();
+const igrejaAberta = () => [0, 3].includes(igrejaDia());
+const IGREJA_PAL = {
+  0: { nome: 'Missa das Crianças', cor: 'verde', manto: '#2f8a3a', pano: '#f6f1e4', ouro: '#f2c14e', vit: ['#e0463a', '#f2c14e', '#3a8fd8', '#4aa84a', '#a05ac8'] },
+  3: { nome: 'Missa da Família',   cor: 'branco e dourado', manto: '#f6f1e4', pano: '#fffaf0', ouro: '#d9b24a', vit: ['#3a8fd8', '#e0463a', '#f2c14e', '#a05ac8', '#4aa84a'] },
+};
+const igrejaMissa = () => IGREJA_PAL[igrejaDia()] || IGREJA_PAL[3];
+// Etapas da missa (iguais para todos, pelo relógio do servidor). "f": falas do padre; "r": resposta dos fiéis.
+const IGREJA_ETAPAS = [
+  { k: 'entrada', n: 'Entrada', d: 40, coral: 1, f: ['Em nome do Pai, do Filho e do Espírito Santo.', 'A paz esteja convosco!', 'Irmãos, sejam bem-vindos à casa do Senhor.'], r: ['Amém!', 'O amor de Cristo nos uniu.', 'Ele está no meio de nós.'] },
+  { k: 'hino', n: 'Canto de abertura', d: 50, coral: 1, f: ['Vamos cantar juntos, de coração!', 'Louvai ao Senhor, todos os povos!'], r: ['♪ Aleluia, aleluia! ♪'] },
+  { k: 'leitura', n: 'Leitura da Palavra', d: 50, f: { 0: ['Leitura do Evangelho: "Deixai vir a mim as criancinhas."', 'Jesus abraçou as crianças e as abençoou.', 'Palavra da Salvação!'], 3: ['Leitura: "Onde dois ou três estiverem reunidos em meu nome…"', 'A família é o primeiro lugar onde se aprende a amar.', 'Palavra da Salvação!'] }, r: ['Glória a vós, Senhor!', 'Glória a vós, Senhor!'] },
+  { k: 'homilia', n: 'Homilia', d: 80, f: { 0: ['Crianças, Deus tem um coração do tamanho do céu!', 'Quem divide o doce com o amigo já faz a vontade de Deus.', 'Obedecer aos pais é plantar uma sementinha de paz.', 'E quem rega a roça com carinho colhe alegria!', 'Sejam sempre pequenos de coração e grandes de bondade.', 'Deus ama cada uma das crianças desta Vila!'], 3: ['Família é onde o amor mora e a mesa é sempre cheia.', 'Perdoar em casa é plantar paz para a colheita de amanhã.', 'Pais, ouçam os filhos; filhos, abracem os pais.', 'Quem cuida do vizinho cuida da própria família.', 'Uma família unida é como uma boa lavoura: cuidada todo dia.', 'Que cada lar da Vila seja um pedacinho do céu!'] }, r: ['Amém!', 'É isso mesmo!'] },
+  { k: 'oracao', n: 'Oração dos fiéis', d: 50, f: ['Rezemos pelas nossas colheitas.', 'Rezemos pelas famílias e pelos nossos amigos da Vila.', 'Rezemos por quem está longe de casa.'], r: ['Senhor, escutai a nossa prece.'] },
+  { k: 'ofertorio', n: 'Ofertório', d: 40, coral: 1, f: ['Bendito seja Deus para sempre!', 'Recebei, Senhor, o pão e o vinho.'], r: ['Bendito seja Deus para sempre!'] },
+  { k: 'comunhao', n: 'Comunhão', d: 40, coral: 1, f: ['Felizes os convidados para a ceia do Senhor.', 'O Senhor esteja convosco!'], r: ['Ele está no meio de nós.'] },
+  { k: 'bencao', n: 'Bênção final', d: 40, coral: 1, f: ['Ide em paz, e que o Senhor vos acompanhe!', 'A bênção de Deus todo-poderoso desça sobre vós.'], r: ['Graças a Deus!', 'Amém!'] },
+];
+const IGREJA_TOTAL = IGREJA_ETAPAS.reduce((t, e) => t + e.d, 0);
+function igrejaEtapa() {
+  let x = (pracaAgora() / 1000) % IGREJA_TOTAL;
+  for (let i = 0; i < IGREJA_ETAPAS.length; i++) { const e = IGREJA_ETAPAS[i]; if (x < e.d) return { i, e, dentro: x, f: x / e.d }; x -= e.d; }
+  return { i: 0, e: IGREJA_ETAPAS[0], dentro: 0, f: 0 };
+}
+const igrejaFalas = e => Array.isArray(e.f) ? e.f : (e.f[igrejaDia()] || e.f[3]);
+function igrejaAvatar(i, crianca) {
+  const f = i % 2 === 1;
+  return f ? { sexo: 'f', pele: i % 4, cabelo: ['comprido', 'rabo', 'cacheado'][i % 3], corCabelo: (i * 3) % 6, chapeu: 'sem', camisa: 'florida', calca: 'saia', sapato: 'sapatilha', mao: 'nada' }
+    : { sexo: 'm', pele: (i + 1) % 4, cabelo: ['curto', 'cacheado'][i % 2], corCabelo: (i * 5) % 6, chapeu: 'sem', camisa: ['camiseta', 'xadrez', 'regata'][i % 3], calca: 'jeans', sapato: 'tenis', mao: 'nada' };
+}
+// balãozinho de fala de personagem do cenário
+function igrejaBolha(g, x, y, txt, dpr, cor) {
+  g.font = `700 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center';
+  const w = Math.min(g.measureText(txt).width + 14 * dpr, 230 * dpr), bx = x - w / 2, by = y - 20 * dpr;
+  g.fillStyle = cor || '#fffdf2'; g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 1.5 * dpr; g.beginPath(); g.roundRect(bx, by, w, 18 * dpr, 8 * dpr); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(x - 4 * dpr, by + 18 * dpr); g.lineTo(x, by + 24 * dpr); g.lineTo(x + 4 * dpr, by + 18 * dpr); g.closePath(); g.fillStyle = cor || '#fffdf2'; g.fill();
+  g.fillStyle = '#2f2a1f'; g.fillText(txt.length > 38 ? txt.slice(0, 37) + '…' : txt, x, by + 13 * dpr);
+}
+function igrejaFachada(g, q, tw, dpr, now, noite) {
+  const w = tw * 4.4, h = tw * 3.2, pal = igrejaMissa();
+  g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.ellipse(q.x, q.y, w * 0.7, w * 0.17, 0, 0, 7); g.fill();
+  g.fillStyle = '#efe6d2'; g.fillRect(q.x - w / 2, q.y - h, w, h);                                   // nave
+  g.fillStyle = '#9a4a3a'; g.beginPath(); g.moveTo(q.x - w * 0.56, q.y - h); g.lineTo(q.x, q.y - h - w * 0.32); g.lineTo(q.x + w * 0.56, q.y - h); g.closePath(); g.fill();
+  const tx = q.x - w * 0.34, tw2 = tw * 1.5, th = tw * 5.6;
+  g.fillStyle = '#f6efe0'; g.fillRect(tx - tw2 / 2, q.y - th, tw2, th - tw * 0.2);                    // torre
+  g.fillStyle = '#7a3a2f'; g.beginPath(); g.moveTo(tx - tw2 * 0.62, q.y - th); g.lineTo(tx, q.y - th - tw * 1.9); g.lineTo(tx + tw2 * 0.62, q.y - th); g.closePath(); g.fill();
+  g.strokeStyle = pal.ouro; g.lineWidth = Math.max(2, tw * 0.1); g.beginPath(); g.moveTo(tx, q.y - th - tw * 1.9); g.lineTo(tx, q.y - th - tw * 2.9); g.moveTo(tx - tw * 0.4, q.y - th - tw * 2.4); g.lineTo(tx + tw * 0.4, q.y - th - tw * 2.4); g.stroke(); // cruz
+  g.fillStyle = '#1f1a14'; g.beginPath(); g.ellipse(tx, q.y - th * 0.78, tw * 0.42, tw * 0.55, 0, Math.PI, 0); g.fillRect(tx - tw * 0.42, q.y - th * 0.78, tw * 0.84, tw * 0.5); g.fill();  // abertura do sino
+  g.font = `${Math.round(tw * 0.8)}px system-ui`; g.textAlign = 'center'; g.fillStyle = '#000'; g.save(); g.translate(tx, q.y - th * 0.78 - tw * 0.1); g.rotate(Math.sin(now / 400) * 0.25); g.fillText('🔔', 0, tw * 0.4); g.restore();
+  g.fillStyle = '#6a3a22'; g.beginPath(); g.moveTo(q.x + w * 0.04, q.y); g.lineTo(q.x + w * 0.04, q.y - h * 0.5); g.arc(q.x + w * 0.16, q.y - h * 0.5, w * 0.12, Math.PI, 0); g.lineTo(q.x + w * 0.28, q.y); g.closePath(); g.fill();   // porta em arco
+  const r = tw * 0.62, rx = q.x + w * 0.16, ry = q.y - h * 0.86;                                       // rosácea colorida
+  for (let k = 0; k < 8; k++) { g.fillStyle = pal.vit[k % pal.vit.length]; g.beginPath(); g.moveTo(rx, ry); g.arc(rx, ry, r, k * Math.PI / 4, (k + 1) * Math.PI / 4); g.closePath(); g.fill(); }
+  g.strokeStyle = '#4a3a2a'; g.lineWidth = 1.5 * dpr; g.beginPath(); g.arc(rx, ry, r, 0, 7); g.stroke();
+  if (noite) { const gl = g.createRadialGradient(rx, ry, 1, rx, ry, tw * 2); gl.addColorStop(0, 'rgba(255,220,140,.4)'); gl.addColorStop(1, 'rgba(255,220,140,0)'); g.fillStyle = gl; g.fillRect(rx - tw * 2, ry - tw * 2, tw * 4, tw * 4); }
+  g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffe08a';
+  g.strokeText(`⛪ Igreja · ${pal.nome}`, q.x, q.y + tw * 0.8); g.fillText(`⛪ Igreja · ${pal.nome}`, q.x, q.y + tw * 0.8);
+}
+// Paredes: vitrais coloridos, cruz grande atrás do altar e luzes coloridas no chão
+function igrejaParede(g, I, tw, dpr, now, wallH) {
+  const pal = igrejaMissa(), poly = (pts, cor) => { g.fillStyle = cor; g.beginPath(); pts.forEach(([x, y], k) => k ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.fill(); };
+  const pt = (pl, a, h) => { const q = pl === 'b' ? I(a, 0) : I(0, a); return [q.x, q.y - h * wallH]; };
+  const vitral = (pl, a0, a1, h0, h1, seed) => {
+    const nc = 3, nr = 5;
+    for (let c = 0; c < nc; c++) for (let r = 0; r < nr; r++) { const k = (c * 7 + r * 3 + seed) % pal.vit.length; poly([pt(pl, a0 + (a1 - a0) * c / nc, h0 + (h1 - h0) * r / nr), pt(pl, a0 + (a1 - a0) * (c + 1) / nc, h0 + (h1 - h0) * r / nr), pt(pl, a0 + (a1 - a0) * (c + 1) / nc, h0 + (h1 - h0) * (r + 1) / nr), pt(pl, a0 + (a1 - a0) * c / nc, h0 + (h1 - h0) * (r + 1) / nr)], pal.vit[k]); }
+    g.strokeStyle = '#3a2a1a'; g.lineWidth = 2 * dpr; g.beginPath(); const p0 = pt(pl, a0, h0), p1 = pt(pl, a1, h0), p2 = pt(pl, a1, h1), p3 = pt(pl, a0, h1); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.lineTo(p3[0], p3[1]); g.closePath(); g.stroke();
+    g.fillStyle = '#efe6d2'; g.beginPath(); g.moveTo(...pt(pl, a0, h1)); g.lineTo(...pt(pl, (a0 + a1) / 2, h1 + 0.08)); g.lineTo(...pt(pl, a1, h1)); g.closePath(); g.fill();
+  };
+  vitral('b', 0.7, 2.4, 0.3, 0.8, 0); vitral('b', 9.6, 11.3, 0.3, 0.8, 2); vitral('l', 1.4, 2.8, 0.3, 0.8, 1); vitral('l', 3.8, 5.2, 0.3, 0.8, 3);
+  // cruz dourada grande com brilho, atrás do altar
+  const c0 = pt('b', 6, 0.55), cw = tw * 0.22, ch = tw * 1.5, pulso = 0.5 + 0.5 * Math.sin(now / 900);
+  const gl = g.createRadialGradient(c0[0], c0[1], 1, c0[0], c0[1], tw * 3); gl.addColorStop(0, `rgba(255,230,150,${0.35 + pulso * 0.15})`); gl.addColorStop(1, 'rgba(255,230,150,0)'); g.fillStyle = gl; g.fillRect(c0[0] - tw * 3, c0[1] - tw * 3, tw * 6, tw * 6);
+  g.fillStyle = pal.ouro; g.fillRect(c0[0] - cw / 2, c0[1] - ch / 2, cw, ch); g.fillRect(c0[0] - ch * 0.32, c0[1] - ch * 0.26, ch * 0.64, cw);
+  // luzes coloridas dos vitrais no chão
+  g.globalAlpha = 0.1 + 0.04 * Math.sin(now / 1500);
+  for (const [a, c] of [[1.2, 0], [10.2, 2]]) { const b0 = I(a - 0.8, 0.2), b1 = I(a + 0.8, 0.2), f0 = I(a + 0.8, 4.2), f1 = I(a + 2.4, 4.2); poly([[b0.x, b0.y], [b1.x, b1.y], [f1.x, f1.y], [f0.x, f0.y]], pal.vit[c]); }
+  g.globalAlpha = 1;
+}
+// Chão: altar elevado com degraus e palco do coral
+function igrejaChao(g, I, tw, dpr, now) {
+  const pal = igrejaMissa(), poly = (pts, cor) => { g.fillStyle = cor; g.beginPath(); pts.forEach(([x, y], k) => k ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.fill(); };
+  const caixa = (u0, v0, u1, v1, h, topo, lado) => {
+    const a = I(u0, v0), b = I(u1, v0), c = I(u1, v1), d = I(u0, v1), e = h * tw;
+    poly([[d.x, d.y], [c.x, c.y], [c.x, c.y - e], [d.x, d.y - e]], lado); poly([[c.x, c.y], [b.x, b.y], [b.x, b.y - e], [c.x, c.y - e]], tomCor(lado, -0.15));
+    poly([[a.x, a.y - e], [b.x, b.y - e], [c.x, c.y - e], [d.x, d.y - e]], topo); g.strokeStyle = pal.ouro; g.lineWidth = 1.5 * dpr; g.beginPath(); g.moveTo(d.x, d.y - e); g.lineTo(c.x, c.y - e); g.lineTo(b.x, b.y - e); g.stroke();
+  };
+  caixa(2.6, 0, 9.4, 3.2, 0.16, '#e8dcc0', '#b8a98a'); caixa(3, 0, 9, 2.8, 0.3, '#f1e6cc', '#c4b494');   // degraus do altar
+  caixa(9.4, 0, 12, 2.4, 0.3, '#e0d3b4', '#b8a98a');                                                       // palco do coral
+}
+function igrejaAltar(g, I, tw, dpr, now, it) {
+  const pal = igrejaMissa(), e = tw * 0.3, u0 = 4.1, u1 = 7.9, v0 = 0.4, v1 = 1.6, h = tw * 1.1;
+  const a = I(u0, v0), b = I(u1, v0), c = I(u1, v1), d = I(u0, v1), lift = e;
+  const poly = (pts, cor) => { g.fillStyle = cor; g.beginPath(); pts.forEach(([x, y], k) => k ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.fill(); };
+  poly([[d.x, d.y - lift], [c.x, c.y - lift], [c.x, c.y - lift - h], [d.x, d.y - lift - h]], pal.pano);                 // frente com toalha
+  poly([[c.x, c.y - lift], [b.x, b.y - lift], [b.x, b.y - lift - h], [c.x, c.y - lift - h]], tomCor(pal.pano, -0.12));
+  poly([[d.x, d.y - lift - h * 0.55], [c.x, c.y - lift - h * 0.55], [c.x, c.y - lift - h * 0.8], [d.x, d.y - lift - h * 0.8]], pal.manto);   // faixa da cor litúrgica
+  g.strokeStyle = pal.ouro; g.lineWidth = 2 * dpr; g.beginPath(); g.moveTo(d.x, d.y - lift - h * 0.55); g.lineTo(c.x, c.y - lift - h * 0.55); g.moveTo(d.x, d.y - lift - h * 0.8); g.lineTo(c.x, c.y - lift - h * 0.8); g.stroke();
+  poly([[a.x, a.y - lift - h], [b.x, b.y - lift - h], [c.x, c.y - lift - h], [d.x, d.y - lift - h]], tomCor(pal.pano, 0.05));  // tampo
+  const m = I((u0 + u1) / 2, (v0 + v1) / 2), ty = m.y - lift - h;
+  g.font = `${Math.round(tw * 0.9)}px system-ui`; g.textAlign = 'center'; g.fillStyle = '#000'; g.fillText('📖', m.x, ty + tw * 0.1);
+  for (const [uu, vv] of [[4.5, 1.0], [7.5, 1.0]]) { const k = I(uu, vv), fl = 0.7 + 0.3 * Math.sin(now / 130 + uu * 3);        // velas
+    g.fillStyle = '#f6f1e4'; g.fillRect(k.x - tw * 0.07, k.y - lift - h - tw * 0.5, tw * 0.14, tw * 0.5); g.fillStyle = `rgba(255,${170 + fl * 60 | 0},60,.95)`; g.beginPath(); g.ellipse(k.x, k.y - lift - h - tw * 0.62, tw * 0.07, tw * 0.15 * fl, 0, 0, 7); g.fill(); g.fillStyle = 'rgba(255,200,90,.18)'; g.beginPath(); g.arc(k.x, k.y - lift - h - tw * 0.6, tw * 0.45, 0, 7); g.fill(); }
+  for (const uu of [5.2, 6.8]) { const k = I(uu, 1.1); g.font = `${Math.round(tw * 0.75)}px system-ui`; g.fillStyle = '#000'; g.fillText('💐', k.x, k.y - lift - h - tw * 0.05); }
+}
+// Padre, coral e fiéis (dinâmicos, seguem a etapa da missa)
+function igrejaPessoas(g, I, tw, dpr, now, es, push) {
+  const pal = igrejaMissa(), et = igrejaEtapa(), e = et.e, falas = igrejaFalas(e), nf = falas.length, slot = e.d / nf, qi = Math.floor(et.dentro / slot), fr = (et.dentro % slot) / slot;
+  const crianca = igrejaDia() === 0;
+  const roupao = (x, y, s, cor, estola, bracos) => {   // batina/túnica por cima do avatar
+    g.fillStyle = cor; g.beginPath(); g.moveTo(x - 11 * s, y - 42 * s); g.lineTo(x + 11 * s, y - 42 * s); g.lineTo(x + 16 * s, y - 2 * s); g.lineTo(x - 16 * s, y - 2 * s); g.closePath(); g.fill();
+    if (estola) { g.fillStyle = estola; g.fillRect(x - 3 * s, y - 42 * s, 6 * s, 40 * s); g.fillStyle = pal.ouro; g.fillRect(x - 3 * s, y - 8 * s, 6 * s, 2 * s); g.fillStyle = '#fff'; g.fillRect(x - 5 * s, y - 45 * s, 10 * s, 4 * s); }
+    if (bracos) { g.strokeStyle = cor; g.lineWidth = 5 * s; g.lineCap = 'round'; g.beginPath(); g.moveTo(x - 11 * s, y - 40 * s); g.lineTo(x - 18 * s, y - 62 * s); g.moveTo(x + 11 * s, y - 40 * s); g.lineTo(x + 18 * s, y - 62 * s); g.stroke(); g.fillStyle = '#e8b890'; g.beginPath(); g.arc(x - 18 * s, y - 64 * s, 3 * s, 0, 7); g.arc(x + 18 * s, y - 64 * s, 3 * s, 0, 7); g.fill(); }
+  };
+  // padre
+  const pq = I(6, 2.5), bob = Math.sin(now / 700) * 1.2 * es, bencao = e.k === 'bencao';
+  push(6 + 2.5 + 0.3, () => {
+    g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(pq.x, pq.y - 0.3 * tw * 0.3, tw * 0.5, tw * 0.2, 0, 0, 7); g.fill();
+    const y0 = pq.y - tw * 0.3 + bob;
+    drawAvatar(g, pq.x, y0, es, { sexo: 'm', pele: 2, cabelo: 'curto', corCabelo: 5, chapeu: 'sem', camisa: 'camiseta', calca: 'jeans', sapato: 'bota', mao: 'nada' }, now, false, 1);
+    roupao(pq.x, y0, es, '#1d1d26', pal.manto === '#f6f1e4' ? '#f6f1e4' : pal.manto, bencao);
+    if (qi < nf && fr < 0.6) igrejaBolha(g, pq.x, y0 - 78 * es, falas[qi], dpr, '#fffdf2');
+    else if (e.r && fr >= 0.6) igrejaBolha(g, pq.x, y0 - 78 * es, '🙏', dpr, '#fffdf2');
+  });
+  // coral (5 vozes) em cima do palco
+  const cantando = !!e.coral;
+  [[9.9, 0.9], [10.7, 0.9], [11.5, 0.9], [10.3, 1.7], [11.1, 1.7]].forEach(([u, v], i) => {
+    const q = I(u, v), cy = q.y - tw * 0.3 - tw * 0.3, sb = cantando ? Math.sin(now / 260 + i * 1.3) * 2 * es : 0;
+    push(u + v + 0.2, () => {
+      g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(q.x, cy + tw * 0.05, tw * 0.4, tw * 0.15, 0, 0, 7); g.fill();
+      drawAvatar(g, q.x, cy + sb, es * 0.95, igrejaAvatar(i + 20), now, false, -1);
+      roupao(q.x, cy + sb, es * 0.95, i % 2 ? '#2a4a8a' : '#f6f1e4', pal.ouro, false);
+      if (cantando) for (let k = 0; k < 2; k++) { const p = ((now / 1400) + i * 0.31 + k * 0.5) % 1; g.globalAlpha = 1 - p; g.font = `${Math.round(13 * dpr)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(['♪', '♫', '♬'][(i + k) % 3], q.x + (k ? 12 : -12) * es + Math.sin(p * 6 + i) * 4 * es, cy - 66 * es - p * 36 * es); g.globalAlpha = 1; }
+    });
+  });
+  // fiéis sentados nos bancos (na missa das crianças, mais gente pequena)
+  const bancos = [[1, 4], [2, 4], [3, 5], [4, 6], [1, 7], [8, 4], [9, 5], [10, 6], [7, 7], [9, 8], [3, 8], [2, 9]];
+  bancos.forEach(([u, v], i) => {
+    const q = I(u + 0.5, v + 0.5), peq = crianca ? (i % 3 !== 0) : (i % 4 === 0), sc = es * (peq ? 0.72 : 1);
+    push(u + v + 1.05, () => {
+      drawAvatar(g, q.x, q.y + tw * 0.12, sc, igrejaAvatar(i, peq), now, false, v < 6 ? 1 : -1, true);
+      const dentroResp = e.r && qi < nf && fr >= 0.6 && ((qi * 5 + i * 3) % 6 === 0);
+      if (dentroResp) igrejaBolha(g, q.x, q.y - 62 * sc, e.r[(qi + i) % e.r.length], dpr, '#f4ecd0');
+    });
+  });
+}
+// Faixa com a missa do dia + prêmio da bênção final
+function igrejaBanner(g, W, H, dpr, now) {
+  const pal = igrejaMissa(), et = igrejaEtapa(), w = Math.min(W - 16 * dpr, 340 * dpr), x = (W - w) / 2, y = H - 52 * dpr;
+  g.fillStyle = 'rgba(40,26,16,.82)'; g.beginPath(); g.roundRect(x, y, w, 36 * dpr, 12 * dpr); g.fill(); g.strokeStyle = pal.ouro; g.lineWidth = 2 * dpr; g.stroke();
+  g.fillStyle = pal.manto === '#f6f1e4' ? '#f6f1e4' : '#9be39b'; g.beginPath(); g.arc(x + 14 * dpr, y + 13 * dpr, 5 * dpr, 0, 7); g.fill();
+  g.font = `800 ${Math.round(12 * dpr)}px system-ui, sans-serif`; g.textAlign = 'left'; g.fillStyle = '#ffe9a8'; g.fillText(`${pal.nome} · ${et.e.n}`, x + 26 * dpr, y + 17 * dpr);
+  g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(x + 12 * dpr, y + 25 * dpr, w - 24 * dpr, 4 * dpr); g.fillStyle = pal.ouro; g.fillRect(x + 12 * dpr, y + 25 * dpr, (w - 24 * dpr) * et.f, 4 * dpr);
+  if (praca.igLast !== et.i) { if (praca.igLast !== undefined) { sfx('collect'); } praca.igLast = et.i; }
+  if (et.e.k === 'bencao' && state.igrejaDia !== localDay()) {
+    state.igrejaDia = localDay(); state.coins += 300; addXP(10); vilaConq('missa'); sfx('level');
+    toast('🙏 Você recebeu a bênção final! +300 moedas e +10 XP. Volte na próxima missa!', 'good'); done();
+  }
+}
 function quartoDesenha(g, c, now, dpr) {
   const G = pracaGeo(c, dpr), tw = G.tw, W = c.width, H = c.height, I = (u, v) => pracaIso(u, v, G), q = quartoAtual(), S = praca.sala, N = salaN(); praca.hits = [];
   const par = PAREDES[q.p] || PAREDES[0], piso = PISOS[q.c] || PISOS[0], wallH = tw * 3.6;
@@ -15383,8 +15550,10 @@ function quartoDesenha(g, c, now, dpr) {
   { const w1 = I(5.5, 0), w2 = I(8, 0); poly([[w1.x, w1.y - wallH * 0.35], [w2.x, w2.y - wallH * 0.35], [w2.x, w2.y - wallH * 0.85], [w1.x, w1.y - wallH * 0.85]], '#9fd8ff'); g.strokeStyle = '#fff'; g.lineWidth = 3 * dpr; g.beginPath(); g.moveTo((w1.x + w2.x) / 2, w1.y - wallH * 0.35); g.lineTo((w1.x + w2.x) / 2, (w1.y + w2.y) / 2 - wallH * 0.85 + (w2.y - w1.y) / 2 - (w2.y - w1.y) / 2); g.stroke(); }
   const d1 = I(0, 7.2), d2 = I(0, 9); poly([[d1.x, d1.y], [d2.x, d2.y], [d2.x, d2.y - wallH * 0.7], [d1.x, d1.y - wallH * 0.7]], '#6a4528'); g.font = `${Math.round(tw * 0.8)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText('🚪', (d1.x + d2.x) / 2, (d1.y + d2.y) / 2 - wallH * 0.3);
   praca.hits.push({ id: 'porta', x: (d1.x + d2.x) / 2, y: (d1.y + d2.y) / 2 - wallH * 0.3, r: tw * 1.4 });
+  if (S.tipo === 'igreja') igrejaParede(g, I, tw, dpr, now, wallH);
   // piso
   for (let a = 0; a < N; a++) for (let b = 0; b < N; b++) { const t0 = I(a, b), t1 = I(a + 1, b), t2 = I(a + 1, b + 1), t3 = I(a, b + 1); poly([[t0.x, t0.y], [t1.x, t1.y], [t2.x, t2.y], [t3.x, t3.y]], (a + b) % 2 ? piso.a : piso.b); }
+  if (S.tipo === 'igreja') igrejaChao(g, I, tw, dpr, now);
   if (S.edit) { g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = Math.max(1, dpr); for (let a = 0; a <= N; a++) { const p1 = I(a, 0), p2 = I(a, N), p3 = I(0, a), p4 = I(N, a); g.beginPath(); g.moveTo(p1.x, p1.y); g.lineTo(p2.x, p2.y); g.moveTo(p3.x, p3.y); g.lineTo(p4.x, p4.y); g.stroke(); } }
   // tapetes no chão
   (q.m || []).forEach((it, i) => { const M = MOVEIS[it.i]; if (!M || !M.piso) return; const [w, d] = quartoTam(M, it.r || 0), t0 = I(it.u, it.v), t1 = I(it.u + w, it.v), t2 = I(it.u + w, it.v + d), t3 = I(it.u, it.v + d);
@@ -15398,6 +15567,8 @@ function quartoDesenha(g, c, now, dpr) {
       const gl = 0.5 + 0.3 * Math.sin(now / 300); g.fillStyle = `rgba(${Math.floor(60 + 40 * gl)},${Math.floor(80 + 60 * gl)},${Math.floor(140 + 80 * gl)},1)`; g.beginPath(); g.moveTo(a.x, a.y - tw * 0.3); g.lineTo(b2.x, b2.y - tw * 0.3); g.lineTo(b2.x, b2.y - hh); g.lineTo(a.x, a.y - hh); g.closePath(); g.fill();
       const mx = (a.x + b2.x) / 2, my = (a.y + b2.y) / 2 - hh * 0.55; g.font = `${Math.round(tw * 1.5)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(f[0], mx + Math.sin(now / 700) * tw * 0.6, my + Math.cos(now / 500) * tw * 0.12); g.font = `800 ${Math.round(10 * dpr)}px system-ui, sans-serif`; g.fillStyle = '#fff'; g.fillText(f[1], mx, my + tw * 0.9);
       const gl2 = g.createRadialGradient(mx, a.y + tw * 2, 1, mx, a.y + tw * 2, tw * 5); gl2.addColorStop(0, 'rgba(120,160,255,.18)'); gl2.addColorStop(1, 'rgba(120,160,255,0)'); g.fillStyle = gl2; g.fillRect(mx - tw * 5, a.y - tw, tw * 10, tw * 6); });
+    else if (M.altar) push(it.u + w / 2 + it.v + d / 2, () => igrejaAltar(g, I, tw, dpr, now, it));
+    else if (M.palco) { /* o palco é desenhado no chão (igrejaChao) */ }
     else push(it.u + w / 2 + it.v + d / 2, () => { if (M.deco) { g.font = `${Math.round(tw * 1.6)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.save(); g.translate(ct.x, ct.y - tw * 3.4); g.rotate(Math.sin(now / 900) * 0.15); g.fillText(M.e, 0, 0); g.restore(); const cores = ['#ff4fa0', '#4fd0ff', '#ffe04f', '#8f4fff']; for (let k = 0; k < 4; k++) { g.fillStyle = `${cores[k]}55`; g.beginPath(); g.arc(ct.x + Math.sin(now / 500 + k * 1.6) * tw * 2.4, ct.y + Math.cos(now / 450 + k) * tw * 0.5, tw * 0.6, 0, 7); g.fill(); } return; }
       g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(ct.x, ct.y, tw * 0.55 * Math.max(w, d), tw * 0.22 * Math.max(w, d), 0, 0, 7); g.fill(); g.save(); g.translate(ct.x, ct.y + tw * 0.15); if ((it.r || 0) % 2) g.scale(-1, 1); g.font = `${Math.round(sz * 1.1)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(M.e, 0, 0); g.restore();
       if (M.fogo) { g.font = `${Math.round(tw * 1.1 * (1 + Math.sin(now / 110) * 0.08))}px system-ui`; g.fillStyle = '#000'; g.fillText('🔥', ct.x, ct.y - tw * 0.2); }
@@ -15407,6 +15578,7 @@ function quartoDesenha(g, c, now, dpr) {
   const lista = []; if (praca.eu) lista.push({ me: true, e: praca.eu, n: meuApelido(), a: state.avatar, uid: user.uid });
   for (const [uid, j] of Object.entries(praca.jog)) lista.push({ me: false, e: j, n: j.n, a: j.a || state.avatar, uid });
   const es = clamp(tw / 40, 0.3, 3.5);
+  if (S.tipo === 'igreja') igrejaPessoas(g, I, tw, dpr, now, es, push);
   for (const o of lista) { const e = o.e, p = o.p = pracaPos(e, now), qq = I(p.u, p.v); const cobre = (tp) => (q.m || []).some(it => { const M = MOVEIS[it.i], [w, d] = M ? quartoTam(M, it.r || 0) : [0, 0]; return M && M.piso === tp && p.u >= it.u && p.u < it.u + w && p.v >= it.v && p.v < it.v + d; });
     const naAgua = cobre('agua'), naPista = cobre('disco'), sentado = e.ia === 'sentar' && p.k >= 1, dorme = e.ia === 'dc6' && p.k >= 1, danca = /^dc[1-57]$/.test(e.ia || '') && p.k >= 1 ? e.ia : (naPista && !e.ia && p.k >= 1 ? ['dc1', 'dc2', 'dc5', 'dc7'][(o.uid.charCodeAt(0) + o.uid.length) % 4] : null);
     if (o.me) { if (naAgua && !praca.naAgua) sfx('water'); praca.naAgua = naAgua; }
@@ -15434,6 +15606,7 @@ function quartoDesenha(g, c, now, dpr) {
   praca.flutua = praca.flutua.filter(f => now - f.t < 900);
   for (const f of praca.flutua) { const qq = I(f.u, f.v), k = (now - f.t) / 900; g.font = `900 ${Math.round(16 * dpr)}px system-ui`; g.textAlign = 'center'; g.fillStyle = `rgba(255,230,130,${1 - k})`; g.fillText(f.txt, qq.x, qq.y - tw * 1.5 - k * 40 * dpr); }
   g.font = `800 ${Math.round(13 * dpr)}px system-ui, sans-serif`; g.textAlign = 'left'; g.fillStyle = '#fff'; g.fillText(S.tipo ? `${FESTAS[S.tipo].ic} ${FESTAS[S.tipo].nome} · ${Object.keys(praca.jog).length + 1} aqui` : `🏠 Quarto de ${S.dono === user.uid ? 'você' : (praca.quartoVis && praca.quartoVis.n) || 'amigo'}${S.edit ? ' · modo edição' : ''}`, 10 * dpr, 20 * dpr);
+  if (S.tipo === 'igreja') igrejaBanner(g, W, H, dpr, now);
 }
 
 // ============ Extras da Vila: onde estão, títulos e selos, pets, damas e cartas ============
@@ -15463,7 +15636,7 @@ function pracaHtmlQuartos() {
   return h;
 }
 // ---- Onde estão (e juntar-se) ----
-const VILA_LUGAR = { mundo: ['🏘️', 'Vila'], f_disco: ['🪩', 'Discoteca'], f_cinema: ['🎬', 'Cinema'], f_piscina: ['🏊', 'Piscina'] };
+const VILA_LUGAR = { mundo: ['🏘️', 'Vila'], f_disco: ['🪩', 'Discoteca'], f_cinema: ['🎬', 'Cinema'], f_piscina: ['🏊', 'Piscina'], f_igreja: ['⛪', 'Igreja'] };
 function pracaOndeSet() {
   if (!praca.rt || !user || !praca.on) return;
   const ref = praca.rt.ref('praca/presenca/' + user.uid); praca.refs.onde = ref;
@@ -15485,7 +15658,7 @@ function vilaJuntar(l, uid) {
 }
 // ---- Títulos e selos ----
 const CONQ = [
-  { id: 'pesca1', ev: 'pesca', alvo: 20, t: 'Pescador da Vila', e: '🎣' }, { id: 'pesca2', ev: 'pesca', alvo: 150, t: 'Mestre da Pescaria', e: '🐠' },
+  { id: 'missa1', ev: 'missa', alvo: 5, t: 'Fiel da Vila', e: '⛪' }, { id: 'pesca1', ev: 'pesca', alvo: 20, t: 'Pescador da Vila', e: '🎣' }, { id: 'pesca2', ev: 'pesca', alvo: 150, t: 'Mestre da Pescaria', e: '🐠' },
   { id: 'item1', ev: 'item', alvo: 50, t: 'Coletor Esperto', e: '🍎' }, { id: 'item2', ev: 'bau', alvo: 10, t: 'Caçador de Tesouros', e: '💎' },
   { id: 'boss1', ev: 'boss', alvo: 3, t: 'Defensor da Vila', e: '⚔️' }, { id: 'danca1', ev: 'danca', alvo: 25, t: 'Pé de Valsa', e: '💃' },
   { id: 'sent1', ev: 'sentar', alvo: 20, t: 'Mestre do Descanso', e: '🛋️' }, { id: 'inter1', ev: 'inter', alvo: 15, t: 'Coração Aberto', e: '❤️' },
