@@ -1208,7 +1208,8 @@ const LUXO = {
 };
 const LUXO_MAX = 8 * 3600; // segundos de trabalho com o jogo fechado
 function luxoDe() { return state.luxo || (state.luxo = { trator: 0, fabrica: 0, ajud: 0, mansao: 0, terreno: 0, planta: 'auto', t: 0, aluT: 0 }); }
-function luxoLista() { const L = luxoDe(); if (!Array.isArray(L.plantas)) L.plantas = [L.planta && L.planta !== 'auto' ? L.planta : '', '', '']; return L.plantas; }
+const LUXO_SLOTS = 5; // plantas que o trator pode usar, em ordem
+function luxoLista() { const L = luxoDe(); if (!Array.isArray(L.plantas)) L.plantas = [L.planta && L.planta !== 'auto' ? L.planta : '']; while (L.plantas.length < LUXO_SLOTS) L.plantas.push(''); return L.plantas; }
 // Usa a 1ª planta da lista que ainda tem no celeiro; acabou, passa para a próxima. Lista vazia = a mais lucrativa.
 function luxoCultura() {
   const ok = c => c && c.nivel <= state.level && plantaQtd(c) > 0, lista = luxoLista().filter(Boolean);
@@ -1344,7 +1345,7 @@ function luxoHTML() {
     if (X.req && !L[X.req]) continue; // a melhoria só aparece depois de comprar o item
     const tem = !!L[id];
     let extra = '';
-    if (tem && id === 'trator') extra = `<br><b>Plantar automático (nessa ordem):</b>` + luxoLista().map((v, i) => `<br>${i + 1}º <select class="luxosel" data-luxo-slot="${i}"><option value="">${i ? '— nenhuma —' : '— a mais lucrativa —'}</option>${CROPS.filter(c => c.nivel <= state.level).map(c => `<option value="${c.id}" ${v === c.id ? 'selected' : ''}>${esc(c.nome)} (${plantaQtd(c)} no celeiro)</option>`).join('')}</select>`).join('') + '<br><small>Quando acabam as plantas da 1ª, passa para a 2ª, depois a 3ª.</small>';
+    if (tem && id === 'trator') extra = `<br><b>Plantar automático (nessa ordem):</b>` + luxoLista().map((v, i) => `<br>${i + 1}º <select class="luxosel" data-luxo-slot="${i}"><option value="">${i ? '— nenhuma —' : '— a mais lucrativa —'}</option>${CROPS.filter(c => c.nivel <= state.level).map(c => `<option value="${c.id}" ${v === c.id ? 'selected' : ''}>${esc(c.nome)} (${plantaQtd(c)} no celeiro)</option>`).join('')}</select>`).join('') + '<br><small>Quando acabam as plantas da 1ª, passa para a 2ª e assim por diante, até a 5ª.</small>';
     if (tem && ['trator', 'fabrica', 'ajud'].includes(id)) extra += `<br><button class="btn ${luxoAtivo(id) ? 'ghost' : 'gold'} mais" data-luxo-liga="${id}">${luxoAtivo(id) ? '⏸️ Desativar' : '▶️ Ativar'}</button>`;
     if (tem && id === 'fabrica') { const u = L.fabUlt;
       extra += `<br><small>${u ? `Última rodada (há ${Math.max(0, Math.round((Date.now() - u.t) / 60e3))} min): recolheu ${u.col} e começou ${u.ini} receitas.` : 'Ainda não rodou.'} Veja as máquinas em Negócios.</small><br><button class="btn gold mais" data-luxo-fab="1">🏭 Rodar agora</button>`; }
@@ -1573,6 +1574,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 350, txt: "🚜 O Trator da Colheita agora aceita até 5 plantas (antes eram 3), na ordem que você escolher. Quando acabam as da 1ª, passa para a 2ª, e assim até a 5ª." },
   { v: 349, txt: "🎪 Quermesse ao lado da igreja! A barraca da Dona Maria vende pastel, pamonha, açaí, caldo de mocotó, canjica, espetinho, pipoca, caldo de cana, quentão e água de coco. Ao comprar, a aba fecha e o seu avatar come ou bebe na hora (os outros jogadores também veem). Título: Boca Boa." },
   { v: 348, txt: "⛪ A Igreja agora fica aberta todos os dias! Nos dias sem missa, dá para entrar e deixar uma ✉️ carta de intenção (pedido ou agradecimento) para a próxima missa. Todos os jogadores podem ler as cartas (pela caixa 💌 ou pelo botão Intenções), o padre lê algumas na oração dos fiéis, e elas somem depois de cada missa (domingo e quarta)." },
   { v: 347, txt: "🏭 Fábrica Automática mudou: ela não vende mais nada. Agora recolhe o que ficou pronto nas suas máquinas (Moinho, Cozinha, Conservas…), manda para o celeiro e começa novas receitas com o que você tem, guardando 10 de cada planta. ⛪ Igreja: ao entrar dá para dar o dízimo (10, 1.000 ou 50.000 moedas), receber uma bênção aleatória do padre e aparecer no ranking geral dos doadores (nunca zera)." },
