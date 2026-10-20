@@ -1575,6 +1575,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 358, txt: "⚔️ Chefe novo! Agora ele é um evento raro: aparece 1 vez por hora, por 12 minutos, e o aviso chega 1 minuto antes (a tela escurece e treme quando ele chega). Tem nome, fala e 4 versões (Lobo Alfa no Halloween, e Javali Gigante, Jacaré do Pântano ou Onça Rei nos outros dias). Três fases: a cada 20 s fica ‘vulnerável’ por 6 s (golpe 3×, e 5× se acertar o 🎯 ponto fraco brilhante); a partir da fase 2 faz INVESTIDAS (um aviso vermelho no chão: saia da frente ou fica atordoado 3 s); na fase 3 chama filhotes (toque neles para 4 de dano). Com 2 ou mais amigos perto o dano dobra. O prêmio agora é 600 moedas, 5 doces e uma estátua exclusiva do chefe para o seu quarto." },
   { v: 357, txt: "🌳 Visual novo da Vila: árvores (pinheiros, carvalhos, macieiras, árvores de outono), palmeiras, pedras e flores agora são desenhadas e balançam ao vento (chega de emojis). O chão tem manchas de grama, as ruas têm contorno e faixas, o lago brilha e tem patinhos, o mar tem espuma. Passarinhos e borboletas de dia, vaga-lumes à noite e folhas caindo no outono." },
   { v: 356, txt: "🎶 Vila renovada, parte 2! Moradores com rotina (Seu Tonico, Zé do Rio, Dona Lúcia, Sargento Brito, Dona Teresa e Sá Maria andam pela Vila ao longo do dia e pedem coisas no Quadro de avisos; ❗ marca quem tem pedido). Calendário: segunda/terça/quinta voltam mais rápido as coletas da Praia/Mina/Floresta, sexta é Serenata (lanternas e coreto à noite) e sábado é a Feira (pedidos pagam 50% a mais). Novos lugares: 🎶 coreto (toque música), 🔥 fogueira (marshmallow), ⛵ barco até a 🏝️ ilha com baú, e 📸 foto da Vila (menu Eu). As casinhas ganharam janela acesa, fumaça e caixa de correio. O tesouro do dia agora é um enigma com quente/frio." },
   { v: 355, txt: "🌿 Vila renovada, parte 1! (1) Os itens que flutuavam pelo mapa acabaram: agora há pontos de coleta fixos (arbustos de frutinhas, cogumelos e ervas na Floresta, conchas na Praia e cristais na Mina). Toque no botão perto do ponto e o avatar coleta; cada ponto volta em 8 a 12 min, com raros ✨ e lendários 🌈. Tudo vai pro celeiro e preenche o 📖 Álbum de coleção (menu Eu). (2) O Mural virou Quadro de avisos, que junta Pedidos dos moradores (entregue o que coletou por moedas e amizade), Metas e chefe, e Tarefas do dia. (3) O tiro ao alvo foi para a Quermesse, junto com o jogo da argola e a pescaria de patinhos." },
@@ -14449,7 +14450,7 @@ const VILA_LOCAIS = {
   ilha:    { u: 56, v: 12, nome: 'Ilha', ic: '🏝️' },
 };
 const VILA_DECOR = ['🌻', '🎃', '🪑', '🏮', '🌳', '⛲', '🧺', '🪴', '🐕', '🎈'];
-const VILA_BOSS_HP = 500, VILA_BOSS_CICLO = 15 * 60e3, VILA_BOSS_JANELA = 5 * 60e3, MERCADO_MAX = 4;
+const VILA_BOSS_HP = 900, VILA_BOSS_CICLO = 60 * 60e3, VILA_BOSS_JANELA = 12 * 60e3, MERCADO_MAX = 4; // chefe raro: 1 vez por hora, 12 min
 const praca = { rt: null, on: false, aberta: false, ping: 0, conectado: false, off: 0, jog: {}, eu: null, chat: [], prog: {}, progDia: 0, pend: {}, falas: {}, refs: {}, ult: 0,
   painel: null, mtab: 'comprar', mercado: {}, casas: {}, cabo: {}, boss: 0, rank: {}, onde: {}, petSeg: {}, cartas: {}, cartasOk: false, cpres: '', ctxt: '', jogo: null, djogo: '', dsel: null, slotMundo: 0, slotBoss: 0, spawns: [], pegos: {}, tentando: {}, npcFala: {}, alvoAcao: null, cam: null, loc: { boss: 0, cabo: 0, rank: 0 }, hits: [], pesca: null, flutua: [], decorSel: null };
 const DANCAS = { dc1: { n: 'Disco', e: '🕺' }, dc2: { n: 'Salsa', e: '💃' }, dc3: { n: 'Robô', e: '🤖' }, dc4: { n: 'Giro', e: '🌀' }, dc5: { n: 'Pato', e: '🦆' }, dc6: { n: 'Dormir', e: '😴' }, dc7: { n: 'Estrela', e: '🤸' } };
@@ -14664,7 +14665,28 @@ setInterval(() => { try { if (praca.aberta) { pracaTick(); pracaSlots(); pracaLo
 // ---- Painel: Mural, Mercado, Lago, Arena e casinhas ----
 function pracaPainelAbrir(id) { vilaFechaAssento(); if (id === 'quartos') praca._qAtual = 0; if (id && id.startsWith('damas:') && praca.painel !== id) pracaPainelDamas(id.slice(6)); else if (!id && praca.refs.jogo) { praca.refs.jogo.off(); praca.refs.jogo = null; } praca.painel = id; praca.mtab = 'comprar'; pracaPainel(); }
 function pracaBossAtivo() { const t = pracaAgora() % VILA_BOSS_CICLO; return t < VILA_BOSS_JANELA && praca.boss < VILA_BOSS_HP; }
-const pracaBossNome = () => halloweenAtivo() ? '🐺 Lobo Alfa' : '🐗 Javali Gigante';
+const BOSSES = [
+  { id: 'lobo',   e: '🐺', nome: 'Lobo Alfa',        b: { forma: 'canido', pernasLongas: true, cor: '#6a6f7a', tam: 1.5, nome: 'Lobo' },   estatua: 'est_lobo',   fala: 'AUUUUU! Quem ousa entrar no meu campo?' },
+  { id: 'javali', e: '🐗', nome: 'Javali Gigante',   b: { forma: 'porco', cor: '#5a4a3a', tam: 1.6, nome: 'Javali' },                      estatua: 'est_javali', fala: 'GRUNF! Ninguém pisa na minha lavoura!' },
+  { id: 'jacare', e: '🐊', nome: 'Jacaré do Pântano', b: { forma: 'jacare', cor: '#3a7a4a', tam: 1.5, nome: 'Jacaré' },                     estatua: 'est_jacare', fala: 'SNAP! O pântano é meu!' },
+  { id: 'onca',   e: '🐆', nome: 'Onça Rei',         b: { forma: 'felino', cor: '#c8903a', tam: 1.5, nome: 'Onça' },                        estatua: 'est_onca',   fala: 'RAAAWR! Eu mando nessa Vila!' },
+];
+const pracaBossDef = () => halloweenAtivo() ? BOSSES[0] : BOSSES[1 + Math.floor(pracaAgora() / 86400e3) % 3];
+const pracaBossNome = () => `${pracaBossDef().e} ${pracaBossDef().nome}`;
+// Fases pelo dano já dado; janelas de ponto fraco, investidas e filhotes seguem o relógio do servidor (iguais para todos)
+const bossFase = () => { const f = praca.boss / VILA_BOSS_HP; return f < 0.34 ? 1 : f < 0.67 ? 2 : 3; };
+const bossTT = () => pracaAgora() % VILA_BOSS_CICLO;
+const bossVulneravel = () => pracaBossAtivo() && (bossTT() % 20000) > 14000;       // últimos 6 s de cada 20 s
+function bossCarga() { // investida (fase 2 em diante): aviso de 3 s e corrida de 1,5 s, a cada 25 s
+  if (!pracaBossAtivo() || bossFase() < 2) return null; const tt = bossTT(), k = Math.floor(tt / 25000), m = tt % 25000;
+  if (m < 19000 || m >= 23500) return null;
+  const r = vilaRng(k * 7919 + 17), a = r() * 6.2832, i0 = bossBase(k * 25000 + 19000), fim = { u: clamp(i0.u + Math.cos(a) * 10, 22, 44), v: clamp(i0.v + Math.sin(a) * 6, 28, 40) };
+  return m < 22000 ? { aviso: true, de: i0, ate: fim, f: (m - 19000) / 3000 } : { aviso: false, de: i0, ate: fim, f: (m - 22000) / 1500 };
+}
+function bossFilhotes() { // fase 3: a cada 40 s, durante 10 s aparecem 4 filhotes em volta do chefe
+  if (!pracaBossAtivo() || bossFase() < 3) return []; const tt = bossTT(), k = Math.floor(tt / 40000); if ((tt % 40000) < 30000) return [];
+  const b = bossBase(k * 40000 + 30000); return [0, 1, 2, 3].map(i => ({ id: k * 4 + i, u: b.u + Math.cos(i * 1.57 + 0.7) * 3.2, v: b.v + Math.sin(i * 1.57 + 0.7) * 2.2 })).filter(x => !(praca.filhotesMortos && praca.filhotesMortos[x.id]));
+}
 function pracaPainel() {
   const box = $('#pracaPainel'); if (!box) return;
   const id = praca.painel; if (!id) { box.hidden = true; box.innerHTML = ''; return; }
@@ -14698,9 +14720,9 @@ function pracaHtmlMural() {
   const st = pracaSt(), n = praca.boss, ativo = pracaBossAtivo(), seg = Math.ceil((VILA_BOSS_CICLO - pracaAgora() % VILA_BOSS_CICLO) / 1000);
   const jaPego = st.boss === praca.slotBoss, meus = st.bh && st.bh.s === praca.slotBoss ? st.bh.n : 0, venceu = n >= VILA_BOSS_HP;
   let h = `<div class="vp-card"><b>${pracaBossNome()} da Vila</b><div class="barra"><i style="width:${Math.min(100, Math.round(n / VILA_BOSS_HP * 100))}%;background:#e0463a"></i></div>
-    <div>${venceu ? '🏆 Derrotado por todos!' : ativo ? `Ele anda pelo Campo, ao sul da praça! Chegue perto e toque nele. Dano: ${n}/${VILA_BOSS_HP}` : `Aparece de novo em ${fmt(seg)}`} <small>(seus golpes: ${meus})</small></div>
+    <div>${venceu ? '🏆 Derrotado por todos!' : ativo ? `Ele está no Campo, ao sul da praça! Toque nele (golpe fraco 1; no ponto fraco brilhante e quando ele fica ‘vulnerável’ o golpe é 3 a 5; com 2+ amigos juntos o dano dobra). Cuidado com as investidas! Dano: ${n}/${VILA_BOSS_HP}` : `Chefe raro: aparece de novo em ${fmt(seg)}`} <small>(seus golpes: ${meus})</small></div>
     ${ativo ? '<button class="btn gold" type="button" data-vila-ir-z="campo">🧭 Ir ao Campo</button>' : ''}
-    ${venceu && meus >= 5 && !jaPego ? '<button class="btn gold" type="button" data-vila-boss-premio>🎁 Pegar prêmio (150 moedas + 3 doces)</button>' : venceu && jaPego ? '<div>✅ Prêmio recebido</div>' : venceu ? '<div>Dê pelo menos 5 golpes na próxima vez para ter prêmio.</div>' : ''}</div>`;
+    ${venceu && meus >= 5 && !jaPego ? '<button class="btn gold" type="button" data-vila-boss-premio>🎁 Pegar prêmio (600 moedas, 5 doces e uma estátua)</button>' : venceu && jaPego ? '<div>✅ Prêmio recebido</div>' : venceu ? '<div>Dê pelo menos 5 golpes na próxima vez para ter prêmio.</div>' : ''}</div>`;
   const rk = Object.values(praca.rank).filter(x => x && typeof x.p === 'number').sort((a, b) => b.p - a.p).slice(0, 5);
   h += `<div class="vp-card"><b>🏅 Ranking de hoje</b>${rk.length ? rk.map((x, i) => `<div>${['🥇', '🥈', '🥉', '4º', '5º'][i]} ${esc(x.n || '?')} — ${x.p} pts</div>`).join('') : '<div>Ninguém pontuou ainda. Pesque no lago, ataque o chefe e puxe a corda!</div>'}</div>`;
   h += `<div class="vp-card"><b>🎯 Metas de hoje (todos juntos)</b><small>Faça as tarefas na sua roça. Quando a vila bater a meta, pegue o prêmio.</small>` + PRACA_METAS.map(m => {
@@ -14710,21 +14732,36 @@ function pracaHtmlMural() {
   }).join('') + '</div>';
   return h;
 }
-function pracaBater() {
+function pracaBater(fraco) {
   if (!pracaBossAtivo() || !praca.eu) return;
-  const pb = pracaBossPos(), pp = pracaPos(praca.eu, performance.now());
+  const ag = performance.now(); if (ag < (praca.atordoado || 0)) return toast('💫 Você está atordoado! Espere um pouco…');
+  const pb = pracaBossPos(), pp = pracaPos(praca.eu, ag);
   if (Math.hypot(pp.u - pb.u, pp.v - pb.v) > 6.5) return toast('Chegue mais perto do chefe para atacar!');
-  if (performance.now() - (praca.ultBate || 0) < 140) return; praca.ultBate = performance.now();
-  const st = pracaSt(); if (!st.bh || st.bh.s !== praca.slotBoss) st.bh = { s: praca.slotBoss, n: 0 };
-  st.bh.n++; praca.loc.boss++; pracaPontos(1); sfx('bark');
-  praca.flutua.push({ txt: '-1', u: pb.u + (Math.random() - 0.5), v: pb.v, t: performance.now() }); praca.boss++; // contagem na hora, o servidor confirma
+  if (ag - (praca.ultBate || 0) < 140) return; praca.ultBate = ag;
+  const perto = Object.values(praca.jog).filter(j => Math.hypot(pracaPos(j, ag).u - pb.u, pracaPos(j, ag).v - pb.v) < 7).length, combo = perto >= 2 ? 2 : 1, vul = bossVulneravel();
+  const dano = (vul ? (fraco ? 5 : 3) : 1) * combo, st = pracaSt(); if (!st.bh || st.bh.s !== praca.slotBoss) st.bh = { s: praca.slotBoss, n: 0 };
+  st.bh.n++; praca.loc.boss += dano; pracaPontos(dano >= 3 ? 2 : 1); sfx(vul ? 'level' : 'bark');
+  praca.flutua.push({ txt: `${vul ? '🔥' : ''}-${dano}${combo > 1 ? ' 🤝' : ''}`, u: pb.u + (Math.random() - 0.5), v: pb.v, t: ag }); praca.boss += dano; // contagem na hora, o servidor confirma
   if (praca.painel === 'mural' && st.bh.n % 5 === 0) pracaPainel();
+}
+function bossFilhote(id) {
+  const ag = performance.now(); if (ag < (praca.atordoado || 0)) return; (praca.filhotesMortos || (praca.filhotesMortos = {}))[id] = 1;
+  praca.loc.boss += 4; praca.boss += 4; pracaPontos(2); sfx('coin'); const f = bossFilhotes(), pb = pracaBossPos(); praca.flutua.push({ txt: '🐾 -4', u: pb.u, v: pb.v, t: ag });
+}
+// Entrada dramática, aviso e atordoamento da investida
+function vilaBossEventos(now) {
+  const at = pracaBossAtivo(), tt = bossTT(), pb = pracaBossDef();
+  if (at && !praca.bossVisto) { praca.bossVisto = true; praca.bossEntrada = now; sfx('level'); if (navigator.vibrate) navigator.vibrate([80, 60, 120]); toast(`⚠️ ${pb.e} ${pb.nome} chegou ao Campo! ${pb.fala}`, 'bad'); }
+  if (!at && praca.bossVisto) praca.bossVisto = false;
+  if (!at && !praca.sala && tt > VILA_BOSS_CICLO - 60e3 && praca.avisoSlot !== praca.slotBoss) { praca.avisoSlot = praca.slotBoss; toast(`⚠️ Em 1 minuto: ${pb.e} ${pb.nome} aparece no Campo! Chame os amigos!`, 'bad'); }
+  const c = bossCarga(); if (c && !c.aviso && praca.eu && now > (praca.atordoado || 0)) { const b = pracaBossPos(), pp = pracaPos(praca.eu, now); if (Math.hypot(pp.u - b.u, pp.v - b.v) < 1.9) { praca.atordoado = now + 3200; praca.eu.emote = { k: '💫', ate: now + 3200 }; pracaEnviarMov({ ek: '💫', et: Date.now() }); sfx('error'); toast('💫 A investida te atingiu! Atordoado por 3 s.', 'bad'); } }
 }
 function pracaBossPremio() {
   const st = pracaSt();
   if (praca.boss < VILA_BOSS_HP || !st.bh || st.bh.s !== praca.slotBoss || st.bh.n < 5 || st.boss === praca.slotBoss) return;
-  vilaConq('boss'); st.boss = praca.slotBoss; state.coins += 150; state.barn.bala = (state.barn.bala || 0) + 3; pracaPontos(25);
-  sfx('level'); toast('🏆 Vocês derrotaram o chefe da Vila! +150 moedas e 3 doces.', 'good'); done(); pracaPainel();
+  const d = pracaBossDef(); vilaConq('boss'); st.boss = praca.slotBoss; state.coins += 600; state.barn.bala = (state.barn.bala || 0) + 5; pracaPontos(40);
+  const inv = quartoSt().inv; inv[d.estatua] = (inv[d.estatua] || 0) + 1; // estátua exclusiva para o seu quarto
+  sfx('level'); toast(`🏆 Vocês derrotaram ${d.e} ${d.nome}! +600 moedas, 5 doces e a ${MOVEIS[d.estatua].n} para o seu quarto.`, 'good'); done(); pracaPainel();
 }
 // Mercado: anunciar, comprar, cancelar e receber
 function pracaHtmlMercado() {
@@ -14961,7 +14998,8 @@ function vilaPegar(it) {
   }).catch(() => { delete praca.tentando[chave]; if (praca.pegos[it.i] === user.uid) delete praca.pegos[it.i]; });
 }
 // Chefe: anda por um trajeto igual em todos os aparelhos
-const pracaBossPos = (off = 0) => { const w = ((pracaAgora() + off) % VILA_BOSS_CICLO) / 1800; return { u: 32 + Math.cos(w) * 8, v: 33 + Math.sin(w * 1.3) * 4.5 }; };
+const bossBase = tt => { const w = tt / 1800; return { u: 32 + Math.cos(w) * 8, v: 33 + Math.sin(w * 1.3) * 4.5 }; };
+const pracaBossPos = (off = 0) => { const c = bossCarga(); if (c && !c.aviso && !off) { const f = c.f * c.f * (3 - 2 * c.f); return { u: c.de.u + (c.ate.u - c.de.u) * f, v: c.de.v + (c.ate.v - c.de.v) * f }; } if (c && c.aviso) return c.de; return bossBase((pracaAgora() + off) % VILA_BOSS_CICLO); };
 // Pesca de verdade, no cais: lança, espera a fisgada (❗) e puxa na hora certa
 function vilaPertoAgua(p, r = 2.6) { for (let k = 0; k < 16; k++) { const a = k / 16 * 6.2832; if (vilaAgua(p.u + Math.cos(a) * r, p.v + Math.sin(a) * r)) return true; } return vilaAgua(p.u, p.v); }
 function vilaIsca(p) { const dx = VILA_LAGO.u - p.u, dy = VILA_LAGO.v - p.v, L = Math.hypot(dx, dy) || 1; for (let t = 1; t < 10; t += 0.4) { const u = p.u + dx / L * t, v = p.v + dy / L * t; if (vilaAgua(u, v)) return { u: u + dx / L * 0.8, v: v + dy / L * 0.8 }; } return { u: VILA_LAGO.u, v: VILA_LAGO.v }; }
@@ -15083,6 +15121,9 @@ function pracaFrame(now) {
     pracaDesenha(g, c, now, dpr);
     }
   } catch (e) { console.warn('vila desenho:', e); }
+  vilaBossEventos(now);
+  if (praca.bossEntrada) { const k = (now - praca.bossEntrada) / 3600; if (k >= 1) praca.bossEntrada = 0; else { g.globalAlpha = 0.55 * (1 - k); g.fillStyle = '#10050a'; g.fillRect(0, 0, c.width, c.height); g.globalAlpha = 1; g.font = `900 ${Math.round(c.height * 0.045)}px system-ui`; g.textAlign = 'center'; g.fillStyle = `rgba(255,200,190,${1 - k})`; g.lineWidth = 4 * dpr; g.strokeStyle = `rgba(0,0,0,${1 - k})`; g.strokeText(`⚠️ ${pracaBossNome().slice(3)} chegou!`, c.width / 2, c.height * 0.42); g.fillText(`⚠️ ${pracaBossNome().slice(3)} chegou!`, c.width / 2, c.height * 0.42); } }
+  if (!praca.sala && pracaBossAtivo()) { const f = bossFase(), bw = Math.min(c.width - 112 * dpr, 300 * dpr), bx = 8 * dpr, by = 92 * dpr; g.fillStyle = 'rgba(30,10,10,.8)'; g.fillRect(bx, by, bw, 14 * dpr); g.fillStyle = f === 3 ? '#ff3a3a' : f === 2 ? '#ff9a3a' : '#e0463a'; g.fillRect(bx, by, bw * (1 - Math.min(1, praca.boss / VILA_BOSS_HP)), 14 * dpr); g.font = `800 ${Math.round(10 * dpr)}px system-ui`; g.textAlign = 'left'; g.fillStyle = '#fff'; g.fillText(`${pracaBossNome()} · fase ${f}${bossVulneravel() ? ' · 🔥 PONTO FRACO!' : ''}`, bx + 5 * dpr, by + 11 * dpr); if (performance.now() < (praca.atordoado || 0)) { g.font = `${Math.round(22 * dpr)}px system-ui`; g.textAlign = 'center'; g.fillText('💫 Atordoado!', c.width / 2, c.height * 0.3); } }
   if (praca.fade) { const k = (now - praca.fade.t0) / praca.fade.dur; if (k >= 1) praca.fade = null; else { g.globalAlpha = Math.sin(Math.PI * k) * 0.95; g.fillStyle = '#0a1a2a'; g.fillRect(0, 0, c.width, c.height); g.globalAlpha = 1; g.font = `800 ${Math.round(c.height * 0.04)}px system-ui`; g.textAlign = 'center'; g.fillStyle = `rgba(255,255,255,${Math.sin(Math.PI * k)})`; g.fillText('⛵ …', c.width / 2, c.height / 2); } }
   ctx = saved; $('#pracaInfo').textContent = praca.conectado ? `👥 ${Object.keys(praca.jog).length + (praca.eu ? 1 : 0)} · ${praca.ping < 120 ? '🟢' : praca.ping < 300 ? '🟡' : '🔴'} ${praca.ping || '…'} ms` : 'conectando…';
   requestAnimationFrame(pracaFrame);
@@ -15247,11 +15288,18 @@ function pracaDesenha(g, c, now, dpr) {
   vilaMoradoresDesenha(g, I, tw, dpr, now, push, vis, W);
   vilaCalendarioDesenha(g, I, tw, dpr, now, noite, push);
   // chefe
-  if (pracaBossAtivo()) { const b = pracaBossPos(), q = I(b.u, b.v);
-    push(b.u + b.v, () => { const b2 = pracaBossPos(250), dirB = (b2.u - b2.v) - (b.u - b.v) >= 0 ? 1 : -1; g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 1.6, tw * 0.55, 0, 0, 7); g.fill();
-      g.save(); g.translate(q.x, 0); g.scale(dirB, 1); drawBicho(g, 0, q.y, tw / 5, hal ? LOBO_BICHO : BOSS_JAVALI, now, true); g.restore();
-      g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(q.x - tw * 1.6, q.y - tw * 3.4, tw * 3.2, 7 * dpr); g.fillStyle = '#e0463a'; g.fillRect(q.x - tw * 1.6, q.y - tw * 3.4, tw * 3.2 * (1 - Math.min(1, praca.boss / VILA_BOSS_HP)), 7 * dpr); });
-    praca.hits.push({ id: 'boss', x: q.x, y: q.y - tw * 1.3, r: tw * 2.2 }); }
+  if (pracaBossAtivo()) { const b = pracaBossPos(), q = I(b.u, b.v), def = pracaBossDef(), fase = bossFase(), vul = bossVulneravel(), car = bossCarga();
+    if (car) push(1, () => { const a1 = I(car.de.u, car.de.v), a2 = I(car.ate.u, car.ate.v); g.strokeStyle = `rgba(255,50,40,${car.aviso ? 0.35 + 0.35 * Math.sin(now / 90) : 0.2})`; g.lineWidth = tw * 1.6; g.lineCap = 'round'; g.beginPath(); g.moveTo(a1.x, a1.y); g.lineTo(a2.x, a2.y); g.stroke(); g.setLineDash([tw * 0.4, tw * 0.3]); g.strokeStyle = 'rgba(255,230,200,.8)'; g.lineWidth = 2 * dpr; g.stroke(); g.setLineDash([]); if (car.aviso) { g.font = `900 ${Math.round(18 * dpr)}px system-ui`; g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText('⚠️ INVESTIDA!', (a1.x + a2.x) / 2, (a1.y + a2.y) / 2 - tw); } });
+    push(b.u + b.v, () => { const b2 = pracaBossPos(250), dirB = (b2.u - b2.v) - (b.u - b.v) >= 0 ? 1 : -1, pulso = 0.5 + 0.5 * Math.sin(now / 300), corAura = fase === 3 ? '255,40,40' : fase === 2 ? '255,150,40' : '255,210,80';
+      g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 2.1, tw * 0.7, 0, 0, 7); g.fill();
+      const au = g.createRadialGradient(q.x, q.y - tw * 1.3, tw * 0.4, q.x, q.y - tw * 1.3, tw * (3 + pulso * 0.6)); au.addColorStop(0, `rgba(${corAura},${0.28 + 0.12 * pulso})`); au.addColorStop(1, `rgba(${corAura},0)`); g.fillStyle = au; g.fillRect(q.x - tw * 4, q.y - tw * 5, tw * 8, tw * 7);
+      g.save(); g.translate(q.x, 0); g.scale(dirB, 1); drawBicho(g, 0, q.y, tw / 4.2, def.b, now, true); g.restore();
+      g.font = `900 ${Math.round(tw * 0.9)}px system-ui`; g.textAlign = 'center'; g.fillStyle = '#000';
+      if (vul) { const wy = q.y - tw * 2.35 + Math.sin(now / 150) * tw * 0.15, gl = g.createRadialGradient(q.x, wy, 1, q.x, wy, tw * 0.9); gl.addColorStop(0, 'rgba(255,240,120,.95)'); gl.addColorStop(1, 'rgba(255,200,40,0)'); g.fillStyle = gl; g.fillRect(q.x - tw, wy - tw, tw * 2, tw * 2); g.fillStyle = '#fff'; g.fillText('🎯', q.x, wy + tw * 0.3); }
+      g.font = `800 ${Math.round(12 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.8)'; g.fillStyle = '#ffd7d0'; g.strokeText(`${def.e} ${def.nome} · fase ${fase}`, q.x, q.y - tw * 3.9); g.fillText(`${def.e} ${def.nome} · fase ${fase}`, q.x, q.y - tw * 3.9);
+      g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(q.x - tw * 1.8, q.y - tw * 3.6, tw * 3.6, 8 * dpr); g.fillStyle = fase === 3 ? '#ff3a3a' : fase === 2 ? '#ff9a3a' : '#e0463a'; g.fillRect(q.x - tw * 1.8, q.y - tw * 3.6, tw * 3.6 * (1 - Math.min(1, praca.boss / VILA_BOSS_HP)), 8 * dpr); });
+    praca.hits.push({ id: 'boss', x: q.x, y: q.y - tw * 1.3, r: tw * 2.2 }); if (vul) praca.hits.push({ id: 'fraco', x: q.x, y: q.y - tw * 2.35, r: tw * 0.8 });
+    for (const fl of bossFilhotes()) { const fq = I(fl.u, fl.v); push(fl.u + fl.v, () => { g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(fq.x, fq.y, tw * 0.5, tw * 0.18, 0, 0, 7); g.fill(); g.save(); g.translate(fq.x, 0); drawBicho(g, 0, fq.y + Math.abs(Math.sin(now / 160 + fl.id)) * -3 * dpr, tw / 7, Object.assign({}, def.b, { tam: 1 }), now, true); g.restore(); g.font = `${Math.round(13 * dpr)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('⚔️', fq.x, fq.y - tw * 1.3); }); praca.hits.push({ id: 'filhote:' + fl.id, x: fq.x, y: fq.y - tw * 0.5, r: tw * 0.9 }); } }
   // jogadores
   const lista = [];
   if (praca.eu) lista.push({ me: true, e: praca.eu, n: meuApelido(), a: state.avatar, uid: user.uid });
@@ -15335,6 +15383,8 @@ function pracaToque(ev) {
   const h = praca.hits.map(k => ({ k, d: Math.hypot(k.x - x, k.y - y) / k.r })).filter(z => z.d < 1).sort((a, b) => a.d - b.d).map(z => z.k)[0], p = pracaPos(praca.eu, now);
   if (h) {
     const id = h.id;
+    if (id === 'fraco') return pracaBater(true);
+    if (id.startsWith('filhote:')) return bossFilhote(Number(id.slice(8)));
     if (id === 'boss') { const b = pracaBossPos(); if (Math.hypot(p.u - b.u, p.v - b.v) > 6) { toast('Chegue mais perto do chefe para atacar!'); return pracaIrPara(b.u - 2, b.v + 2); } return pracaBater(); }
     if (id.startsWith('f:')) { const F = FESTAS[id.slice(2)]; if (Math.hypot(p.u - F.u, p.v - (F.v + 1.5)) < 4.5) return vilaEntrarFesta(id.slice(2)); praca.alvoAcao = id; return pracaIrPara(F.u, F.v + 2); }
     if (id === 'coreto' || id === 'fogueira' || id.startsWith('loc:')) { const l = VILA_LOCAIS[id.replace('loc:', '')]; if (Math.hypot(p.u - l.u, p.v - l.v) < 2.2) { const c = vilaContexto(); if (c) { praca.ctx = null; return vilaAcao(); } return; } return pracaIrPara(l.u, l.v + (id === 'loc:ilha' ? 0 : 1.4)); }
@@ -15368,6 +15418,7 @@ const MOVEIS = {
   tela: { n: 'Tela de cinema', w: 4, d: 1, publico: 1, tela: 1 }, bar: { n: 'Bar', e: '🍹', w: 2, d: 1, publico: 1 }, pipoca: { n: 'Pipoca', e: '🍿', w: 1, d: 1, publico: 1 }, agua: { n: 'Piscina', w: 8, d: 7, publico: 1, piso: 'agua' }, guardasol: { n: 'Guarda-sol', e: '⛱️', w: 1, d: 1, publico: 1 },
   caixaint: { n: 'Caixa de intenções', e: '💌', w: 1, d: 1, publico: 1, intencao: 1 },
   altar: { n: 'Altar', w: 4, d: 2, publico: 1, altar: 1 }, palco: { n: 'Palco do coral', w: 3, d: 2, publico: 1, palco: 1 }, pulpito: { n: 'Púlpito', e: '📖', w: 1, d: 1, publico: 1 },
+  est_lobo: { n: 'Estátua do Lobo Alfa', e: '🐺', w: 1, d: 1, publico: 1 }, est_javali: { n: 'Estátua do Javali Gigante', e: '🐗', w: 1, d: 1, publico: 1 }, est_jacare: { n: 'Estátua do Jacaré do Pântano', e: '🐊', w: 1, d: 1, publico: 1 }, est_onca: { n: 'Estátua da Onça Rei', e: '🐆', w: 1, d: 1, publico: 1 },
   abobora: { n: 'Abóbora', e: '🎃', w: 1, d: 1, preco: 50 }, fantasma: { n: 'Fantasma', e: '👻', w: 1, d: 1, preco: 60 }, caixa: { n: 'Presente', e: '🎁', w: 1, d: 1, preco: 40 },
 };
 const PAREDES = [{ n: 'Creme', c: '#f0e0c0' }, { n: 'Azul', c: '#9cc8e8' }, { n: 'Rosa', c: '#f0b8c8' }, { n: 'Verde', c: '#b8e0a8' }, { n: 'Madeira', c: '#b88350' }, { n: 'Noite', c: '#3a2a5a' }];
