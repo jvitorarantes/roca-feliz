@@ -20,7 +20,7 @@ const temMansao = () => !semMansao && !!(state && state.luxo && state.luxo.mansa
 const HOUR = 3600, DAY = 86400e3; // HOUR em segundos (tempos de produção), DAY em milissegundos (idades)
 const SAVE_KEY = 'roca-feliz-v3', OLD_SAVE_KEYS = ['roca-feliz-v2', 'roca-feliz-v1'], SETTINGS_KEY = 'roca-feliz-config';
 const settings = Object.assign(
-  { music: true, sfx: true, musicVol: 0.5, sfxVol: 0.7, track: 0, tema: 'auto' },
+  { music: true, sfx: true, musicVol: 0.5, sfxVol: 0.7, volVoz: 1, track: 0, tema: 'auto' },
   (() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch (e) { return {}; } })(),
 );
 const Cloud = window.RFCloud || { available: false };
@@ -1575,6 +1575,8 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 365, txt: "👋 Quando algum amigo seu estiver na Vila, aparece na barra de baixo o botão 'Ir até amigo' com quantos amigos estão online. Toque para ver a lista e ir até o amigo (andando até ele ou entrando no quarto/lugar onde ele está). Também em Configurações › Voz da Vila dá para ajustar o volume da voz, que agora abafa a música e os sons quando alguém fala." },
+  { v: 364, txt: "🎙️ Configurações › Voz da Vila: novo controle de volume da voz (de 0 a 150%). E a voz agora sobrepõe tudo: enquanto alguém fala perto de você, a música e os sons do jogo abaixam sozinhos e voltam quando a pessoa para de falar." },
   { v: 363, txt: "Vila: o topo da tela agora mostra quantas moedas você tem, e a aba do Dízimo também. Quando faltar moeda para comprar (dízimo, quermesse, mercado, móveis, presentes), aparece o aviso 'Moedas insuficientes' com o custo e o seu saldo. Na hora de enviar cartas, as moedas dos presentes agora são a moeda dourada." },
   { v: 362, txt: "✉️ Intenções: agora cada jogador pode colocar quantas cartas de intenção quiser (uma por vez) e retirar as suas quando quiser. (É preciso colar as regras novas do Firebase.)" },
   { v: 361, txt: "🙏 Dízimo: achei o motivo de totais acima de 50.000 não entrarem no ranking (uma regra do Firebase comparava com o valor errado) e do ranking diário travar em 300 pontos. É preciso colar as regras corrigidas no Firebase. O aviso de erro agora mostra o motivo." },
@@ -7177,6 +7179,7 @@ function renderSettings() {
   $('#optMusic').checked = settings.music;
   $('#optSfx').checked = settings.sfx;
   $('#volMusic').value = Math.round(settings.musicVol * 100); $('#volMusicOut').textContent = $('#volMusic').value;
+  $('#volVoz').value = Math.round((typeof settings.volVoz === 'number' ? settings.volVoz : 1) * 100); $('#volVozOut').textContent = $('#volVoz').value;
   $('#volSfx').value = Math.round(settings.sfxVol * 100); $('#volSfxOut').textContent = $('#volSfx').value;
   const names = window.RFAudio ? window.RFAudio.tracks : ['Música 1', 'Música 2', 'Música 3'];
   $('#tracks').innerHTML = names.map((n, k) => musicaLiberada(k) ? `<button type="button" class="track" role="radio" aria-checked="${settings.track === k}" data-track="${k}">
@@ -7471,6 +7474,7 @@ $('#settings').addEventListener('change', e => {
 });
 $('#optSfx').addEventListener('change', e => { settings.sfx = e.target.checked; saveSettings(); });
 $('#volMusic').addEventListener('input', e => { settings.musicVol = e.target.value / 100; $('#volMusicOut').textContent = e.target.value; saveSettings(); });
+$('#volVoz').addEventListener('input', e => { settings.volVoz = e.target.value / 100; $('#volVozOut').textContent = e.target.value; saveSettings(); try { vozSync(); } catch (er) { /* sem voz */ } });
 $('#volSfx').addEventListener('input', e => { settings.sfxVol = e.target.value / 100; $('#volSfxOut').textContent = e.target.value; saveSettings(); });
 $('#volSfx').addEventListener('change', () => sfx('coin'));
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#settings').hidden) closeSettings(); });
@@ -14540,9 +14544,20 @@ function pracaAbrir() {
   pracaLigar().then(() => { if (praca.on && praca.aberta) pracaEntrar(); });
   requestAnimationFrame(pracaFrame);
 }
+// Amigos que estão na Vila agora (pela lista de presença)
+function vilaAmigosOnline() {
+  if (!user || !state) return [];
+  return Object.entries(praca.onde || {}).filter(([uid, d]) => uid !== user.uid && d && typeof d.l === 'string' && state.friends.includes(uid)).map(([uid, d]) => ({ uid, n: (friendInfo[uid] && friendInfo[uid].name && !friendInfo[uid].erro ? friendInfo[uid].name : d.n) || 'Amigo', l: d.l }));
+}
+function pracaHtmlAmigoIr() {
+  const l = vilaAmigosOnline(), aqui = praca.sala ? praca.sala.id : 'mundo';
+  const nomeL = id => VILA_LUGAR[id] ? `${VILA_LUGAR[id][0]} ${VILA_LUGAR[id][1]}` : id.startsWith('q_') ? '🛏️ num quarto' : id;
+  if (!l.length) return '<div class="vp-card">Nenhum amigo está na Vila agora. 😴</div>';
+  return '<div class="vp-card"><small>👋 Amigos que estão na Vila agora. Toque para ir até eles (você anda até o amigo, ou entra no lugar onde ele está).</small></div>' + l.map(a => `<div class="vp-card"><div class="vp-linha"><b>${esc(a.n)}</b><small>${nomeL(a.l)}${a.l === aqui ? ' · aqui com você' : ''}</small></div><button type="button" class="btn gold" data-vila-juntar="${esc(a.l)}" data-uid="${esc(a.uid)}">👋 Ir até ${esc(a.n)}</button></div>`).join('');
+}
 function pracaNav() {
   const nc = Object.values(praca.cartas || {}).filter(c => c && state.friends.includes(c.de)).length, B = (k, t) => `<button type="button" data-vila-ir="m:${k}">${t}</button>`;
-  $('#pracaNav').innerHTML = (praca.sala ? '<button type="button" data-vila-sair-sala>🚪 Voltar</button>' : '') + B('lugares', '🧭 Ir para') + B('pessoas', `👥 Pessoas${nc ? ' (' + nc + ')' : ''}`) + B('eu', '🎭 Eu');
+  $('#pracaNav').innerHTML = (praca.sala ? '<button type="button" data-vila-sair-sala>🚪 Voltar</button>' : '') + (vilaAmigosOnline().length ? `<button type="button" class="navamigo" data-vila-ir="amigo">👋 Ir até amigo (${vilaAmigosOnline().length})</button>` : '') + B('lugares', '🧭 Ir para') + B('pessoas', `👥 Pessoas${nc ? ' (' + nc + ')' : ''}`) + B('eu', '🎭 Eu');
 }
 // Menus agrupados: a barra de baixo tem só 3 botões e cada um expande os itens
 function pracaHtmlMenu(grupo) {
@@ -14577,7 +14592,7 @@ function pracaEntrar() {
   pracaOuvir('casas', rt.ref('praca/casas').orderByChild('ts').limitToLast(30), s => { praca.casas = s.val() || {}; if (praca.painel === 'casa') pracaPainel(); });
   pracaOuvir('rank', rt.ref('praca/rank/' + praca.progDia), s => { praca.rank = s.val() || {}; if (praca.painel === 'mural') pracaPainel(); });
   pracaOuvir('inter', rt.ref('praca/inter/' + user.uid), s => pracaInterRecebe(s.val() || {}));
-  pracaOuvir('onde', rt.ref('praca/presenca'), s => { praca.onde = s.val() || {}; if (praca.painel === 'onde') pracaPainel(); });
+  pracaOuvir('onde', rt.ref('praca/presenca'), s => { praca.onde = s.val() || {}; pracaNav(); if (praca.painel === 'onde' || praca.painel === 'amigo') pracaPainel(); });
   praca.cartasOk = false;
   pracaOuvir('cartas', rt.ref('praca/cartas/' + user.uid).orderByChild('ts').limitToLast(30), s => {
     const novo = s.val() || {}, antes = praca.cartas;
@@ -14706,6 +14721,7 @@ function pracaPainel() {
   else if (id === 'tarefas') { praca.avTab = 'tarefas'; box.innerHTML = topo('📋 Quadro de avisos') + pracaHtmlQuadro(); }
   else if (id === 'alvo') box.innerHTML = topo(`${(JOGOS_QM[alvo.jogo] || JOGOS_QM.tiro).ic} ${(JOGOS_QM[alvo.jogo] || JOGOS_QM.tiro).n}`) + pracaHtmlAlvo() + '<button class="btn ghost" type="button" data-vila-ir="quermesse">⬅️ Voltar à quermesse</button>';
   else if (id === 'quermesse') box.innerHTML = topo('🎪 Quermesse') + pracaHtmlQuermesse();
+  else if (id === 'amigo') box.innerHTML = topo('👋 Ir até um amigo') + pracaHtmlAmigoIr();
   else if (id === 'album') box.innerHTML = topo('📖 Álbum de coleção') + pracaHtmlAlbum();
   else if (id === 'voz') { box.innerHTML = topo('🎙️ Voz da Vila') + pracaHtmlVoz(); if (!praca._pv) { praca._pv = 1; vozAtualizaPerm().finally(() => { praca._pv = 0; }); } }
   else if (id === 'quartos') { box.innerHTML = topo('🏠 Quartos de amigos') + pracaHtmlQuartos(); if (!praca.listaQ || praca._qAtual !== 1) { praca._qAtual = 1; pracaCarregaQuartos(); } }
@@ -16544,7 +16560,7 @@ function vozPosDe(uid) { // posição (mundo ou sala) de alguém; null se não c
   const j = praca.jog[uid]; return j ? pracaPos(j, now) : null;
 }
 const vozDist = uid => { const a = vozPosDe(user.uid), b = vozPosDe(uid); return a && b ? Math.hypot(a.u - b.u, a.v - b.v) : null; };
-const vozVolume = d => d == null ? 0 : Math.pow(clamp(1 - d / VOZ_R, 0, 1), 1.4); // 1 perto → 0 no alcance
+const vozVolume = d => d == null ? 0 : Math.pow(clamp(1 - d / VOZ_R, 0, 1), 1.4) * (typeof settings.volVoz === 'number' ? settings.volVoz : 1); // 1 perto → 0 no alcance
 function vozEnviarSinal(para, obj) { // bilhete de conexão
   if (!praca.rt) return;
   praca.rt.ref('praca/vozsinal/' + para).push(Object.assign({ de: user.uid, ts: firebase.database.ServerValue.TIMESTAMP }, obj, { d: String(obj.d).slice(0, 6000) })).catch(e => console.warn('voz sinal:', e));
@@ -16592,7 +16608,14 @@ async function vozSinal(m) {
 }
 const vozNovoPcFila = uid => (voz.fila[uid] ||= { pend: [] });
 // Sincroniza: liga/desliga conexões conforme a distância; ajusta o volume
-function vozSync() { // fala só com os mais perto: no máximo VOZ_RX_MAX ouvidos, escolhidos por distância
+// A voz passa por cima de tudo: enquanto alguém fala perto, a música e os sons baixam
+function vozAbafa() {
+  if (!window.RFAudio || !window.RFAudio.duck) return; const agora = performance.now();
+  const fala = Object.entries(voz.peers).some(([uid, p]) => p.papel === 'rx' && voz.falando[uid] && agora - voz.falando[uid] < 700 && (settings.volVoz === undefined || settings.volVoz > 0));
+  if (fala !== !!voz._abafa) { voz._abafa = fala; window.RFAudio.duck(fala ? 0.12 : 1); }
+}
+function vozSync() {
+  vozAbafa(); // fala só com os mais perto: no máximo VOZ_RX_MAX ouvidos, escolhidos por distância
   if (!praca.on || !user || !praca.eu) return;
   const cand = Object.keys(voz.falantes).filter(u => u !== user.uid && vozPermitido(u)).map(u => ({ u, d: vozDist(u) })).filter(x => x.d != null && x.d < VOZ_R).sort((a, b) => a.d - b.d);
   const quer = new Set(voz.ouvir ? cand.slice(0, VOZ_RX_MAX).map(x => x.u) : []);

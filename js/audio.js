@@ -4,7 +4,7 @@
   'use strict';
   const AC = window.AudioContext || window.webkitAudioContext;
   let ac = null, master, musicBus, sfxBus, noiseBuf;
-  const cfg = { music: true, sfx: true, musicVol: 0.5, sfxVol: 0.7, track: 0 };
+  const cfg = { music: true, sfx: true, musicVol: 0.5, sfxVol: 0.7, track: 0, duck: 1 };
 
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -38,8 +38,8 @@
   function applyVolumes() {
     if (!ac) return;
     const t = ac.currentTime;
-    musicBus.gain.setTargetAtTime(cfg.music ? cfg.musicVol * 0.55 : 0, t, 0.15);
-    sfxBus.gain.setTargetAtTime(cfg.sfx ? cfg.sfxVol * 0.8 : 0, t, 0.03);
+    musicBus.gain.setTargetAtTime(cfg.music ? cfg.musicVol * 0.55 * cfg.duck : 0, t, 0.15);
+    sfxBus.gain.setTargetAtTime(cfg.sfx ? cfg.sfxVol * 0.8 * (0.35 + 0.65 * cfg.duck) : 0, t, 0.08);
   }
 
   // ---------- Instrumentos ----------
@@ -577,6 +577,8 @@
       unlocked = true;
       if (cfg.music) startMusic();
     },
+    // Abafa a música (e um pouco os sons) enquanto a voz de alguém passa por cima: f = 1 normal, 0.12 abafado
+    duck(f) { cfg.duck = f; applyVolumes(); },
     configure(c) {
       const trackChanged = c.track !== undefined && c.track !== cfg.track;
       Object.assign(cfg, c);

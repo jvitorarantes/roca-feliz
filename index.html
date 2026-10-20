@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="363">
+<meta name="rf-version" content="365">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -557,6 +557,7 @@
   .vila-puxa { font-size: 22px; padding: 14px; }
   .vp-decor { display: flex; flex-wrap: wrap; gap: 6px; } .vp-decor button { font-size: 22px; padding: 4px 8px; border-radius: 12px; border: 2px solid var(--wood); background: #fff; } .vp-decor button[aria-pressed="true"] { background: #b9f0a0; }
   .pracanav { display: flex; gap: 6px; padding: 6px 8px 0; overflow-x: auto; } .pracanav button { flex: none; padding: 6px 10px; border-radius: 12px; border: 2px solid var(--wood); background: var(--card); font: 800 13px system-ui; cursor: pointer; }
+  .pracanav .navamigo { background: linear-gradient(#ffe08a,#f2b705); color: #4a3212; border-color: #b77f00; }
   .pracaemotes { display: flex; gap: 6px; padding: 6px 8px 0; justify-content: center; flex-wrap: wrap; }
   .pracaemotes button { font-size: 20px; padding: 2px 8px; border-radius: 12px; border: 2px solid var(--wood); background: var(--card); cursor: pointer; }
   .pracaform { display: flex; gap: 6px; padding: 8px; }
@@ -1192,6 +1193,11 @@
       <div class="setrow"><label for="volSfx">Volume</label><input type="range" id="volSfx" min="0" max="100" step="5"><output id="volSfxOut" for="volSfx"></output></div>
     </section>
     <section>
+      <h3>Voz da Vila</h3>
+      <div class="setrow"><label for="volVoz">Volume da voz</label><input type="range" id="volVoz" min="0" max="150" step="5"><output id="volVozOut" for="volVoz"></output></div>
+      <p class="hint">Quando alguém fala perto de você, a música e os sons baixam sozinhos para a voz passar por cima.</p>
+    </section>
+    <section>
       <h3>Tema</h3>
       <div class="seg tema" id="temaSeg" role="radiogroup" aria-label="Tema">
         <button type="button" data-tema="auto">Automático</button>
@@ -1215,8 +1221,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=363"></script>
+<script src="js/audio.js?v=365"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=363"></script>
+<script src="js/game.js?v=365"></script>
 </body>
 </html>
