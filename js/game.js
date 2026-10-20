@@ -1575,6 +1575,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 357, txt: "🌳 Visual novo da Vila: árvores (pinheiros, carvalhos, macieiras, árvores de outono), palmeiras, pedras e flores agora são desenhadas e balançam ao vento (chega de emojis). O chão tem manchas de grama, as ruas têm contorno e faixas, o lago brilha e tem patinhos, o mar tem espuma. Passarinhos e borboletas de dia, vaga-lumes à noite e folhas caindo no outono." },
   { v: 356, txt: "🎶 Vila renovada, parte 2! Moradores com rotina (Seu Tonico, Zé do Rio, Dona Lúcia, Sargento Brito, Dona Teresa e Sá Maria andam pela Vila ao longo do dia e pedem coisas no Quadro de avisos; ❗ marca quem tem pedido). Calendário: segunda/terça/quinta voltam mais rápido as coletas da Praia/Mina/Floresta, sexta é Serenata (lanternas e coreto à noite) e sábado é a Feira (pedidos pagam 50% a mais). Novos lugares: 🎶 coreto (toque música), 🔥 fogueira (marshmallow), ⛵ barco até a 🏝️ ilha com baú, e 📸 foto da Vila (menu Eu). As casinhas ganharam janela acesa, fumaça e caixa de correio. O tesouro do dia agora é um enigma com quente/frio." },
   { v: 355, txt: "🌿 Vila renovada, parte 1! (1) Os itens que flutuavam pelo mapa acabaram: agora há pontos de coleta fixos (arbustos de frutinhas, cogumelos e ervas na Floresta, conchas na Praia e cristais na Mina). Toque no botão perto do ponto e o avatar coleta; cada ponto volta em 8 a 12 min, com raros ✨ e lendários 🌈. Tudo vai pro celeiro e preenche o 📖 Álbum de coleção (menu Eu). (2) O Mural virou Quadro de avisos, que junta Pedidos dos moradores (entregue o que coletou por moedas e amizade), Metas e chefe, e Tarefas do dia. (3) O tiro ao alvo foi para a Quermesse, junto com o jogo da argola e a pescaria de patinhos." },
   { v: 353, txt: "🏘️ A Vila foi reorganizada! Agora tem o Centro (praça de pedra no lado esquerdo, com a Igreja, a Quermesse e o Mercado) e o Bairro Residencial (gramado com calçadas e rua, onde ficam as casinhas dos jogadores). A Mina ficou menor, no canto sudoeste, e nada mais fica em cima dela. O ping agora mostra a palavra ping antes dos ms." },
@@ -15104,6 +15105,75 @@ function vilaLogica(now, p) {
   if (btn && btn.dataset.k !== chave) { btn.dataset.k = chave; btn.hidden = !cx; if (cx) { btn.textContent = cx.txt; btn.classList.toggle('fisgou', !!cx.fisgou); } }
   if ((now | 0) % 500 < 20) pracaHud(now);
 }
+// ============ 🌳 Visual da Vila: árvores, pedras e flores desenhadas; terreno com textura; vida ambiente ============
+const hash2 = (u, v) => { const x = Math.sin(u * 12.9898 + v * 78.233) * 43758.5453; return x - Math.floor(x); };
+function vilaArvore(g, d, q, tw, now, hal) {
+  const h = hash2(d.u, d.v), H = tw * d.s * 1.25, x = q.x, y = q.y, sway = Math.sin(now / 1500 + h * 6.28) * H * 0.012;
+  g.fillStyle = 'rgba(0,0,0,.16)'; g.beginPath(); g.ellipse(x, y, H * 0.28, H * 0.08, 0, 0, 7); g.fill();
+  if (d.e === '🌲') {
+    g.fillStyle = hal ? '#3a2a22' : '#6a4a2a'; g.fillRect(x - H * 0.035, y - H * 0.2, H * 0.07, H * 0.2);
+    const verdes = hal ? ['#27402f', '#2f5038', '#37603f'] : ['#2f7a3a', '#3a8e44', '#49a352'];
+    for (let k = 0; k < 3; k++) { const by = y - H * (0.14 + k * 0.24), w = H * (0.36 - k * 0.08), ht = H * 0.34; g.fillStyle = verdes[k]; g.beginPath(); g.moveTo(x - w + sway * (k + 1), by); g.lineTo(x + sway * (k + 1.6), by - ht); g.lineTo(x + w + sway * (k + 1), by); g.closePath(); g.fill(); g.fillStyle = 'rgba(255,255,255,.07)'; g.beginPath(); g.moveTo(x + sway * (k + 1.6), by - ht); g.lineTo(x + w + sway * (k + 1), by); g.lineTo(x + w * 0.1, by); g.closePath(); g.fill(); }
+  } else if (d.e === '🌳') {
+    g.fillStyle = hal ? '#3a2a22' : '#7a5230'; g.fillRect(x - H * 0.045, y - H * 0.34, H * 0.09, H * 0.34);
+    const tipo = h < 0.15 ? 'maca' : h < 0.28 ? 'outono' : 'verde', base = hal ? ['#2f4a32', '#3a5c3c', '#466f45'] : tipo === 'outono' ? ['#c8742a', '#e08a30', '#f0a640'] : ['#3a8a3e', '#4ea34c', '#66b85a'];
+    for (const [dx, dy, r, c] of [[-0.2, -0.46, 0.22, 0], [0.2, -0.46, 0.22, 0], [0, -0.6, 0.26, 1], [-0.12, -0.7, 0.18, 2], [0.14, -0.66, 0.16, 2]]) { g.fillStyle = base[c]; g.beginPath(); g.arc(x + dx * H + sway * (1 + c), y + dy * H, r * H, 0, 7); g.fill(); }
+    if (tipo === 'maca') for (let k = 0; k < 5; k++) { g.fillStyle = '#d8302a'; g.beginPath(); g.arc(x + Math.cos(k * 2.4 + h * 9) * H * 0.22, y - H * 0.55 + Math.sin(k * 1.9 + h * 7) * H * 0.14, H * 0.025, 0, 7); g.fill(); }
+  } else if (d.e === '🌴') {
+    g.strokeStyle = '#8a6238'; g.lineWidth = H * 0.07; g.lineCap = 'round'; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + H * 0.12, y - H * 0.4, x + H * 0.06 + sway * 2, y - H * 0.78); g.stroke();
+    const tx = x + H * 0.06 + sway * 2, ty = y - H * 0.78; g.fillStyle = '#3f9a3a';
+    for (let k = 0; k < 7; k++) { const a = k / 7 * 6.28 + sway * 0.3; g.beginPath(); g.ellipse(tx + Math.cos(a) * H * 0.2, ty + Math.sin(a) * H * 0.07 + H * 0.03, H * 0.22, H * 0.05, a * 0.35, 0, 7); g.fill(); }
+    g.fillStyle = '#7a4a22'; g.beginPath(); g.arc(tx - H * 0.04, ty + H * 0.05, H * 0.03, 0, 7); g.arc(tx + H * 0.04, ty + H * 0.06, H * 0.03, 0, 7); g.fill();
+  } else if (d.e === '🪨') {
+    const cl = hal ? ['#5a5864', '#6e6c7a'] : ['#8a8678', '#a8a494'], r = H * 0.2;
+    g.fillStyle = cl[0]; g.beginPath(); g.moveTo(x - r, y); g.lineTo(x - r * 0.8, y - r * 0.8); g.lineTo(x - r * 0.1, y - r * 1.25); g.lineTo(x + r * 0.7, y - r * 0.9); g.lineTo(x + r, y); g.closePath(); g.fill();
+    g.fillStyle = cl[1]; g.beginPath(); g.moveTo(x - r * 0.8, y - r * 0.8); g.lineTo(x - r * 0.1, y - r * 1.25); g.lineTo(x + r * 0.2, y - r * 0.7); g.lineTo(x - r * 0.4, y - r * 0.4); g.closePath(); g.fill();
+  } else if (d.e === '🌸') {
+    const cor = ['#ff8aa8', '#ffd54a', '#c08aff', '#ffffff', '#ff9a5a'][Math.floor(h * 5) % 5], r = Math.max(tw * 0.06, 2);
+    g.strokeStyle = '#4a9a3a'; g.lineWidth = Math.max(1, r * 0.5); g.beginPath(); g.moveTo(x, y); g.lineTo(x + sway * 0.5, y - r * 4); g.stroke();
+    g.fillStyle = cor; for (let k = 0; k < 5; k++) { const a = k / 5 * 6.28; g.beginPath(); g.arc(x + sway * 0.5 + Math.cos(a) * r * 1.2, y - r * 4 + Math.sin(a) * r * 1.2, r, 0, 7); g.fill(); } g.fillStyle = '#ffe27a'; g.beginPath(); g.arc(x + sway * 0.5, y - r * 4, r * 0.8, 0, 7); g.fill();
+  } else { // 🌾 capim alto
+    g.strokeStyle = hal ? '#7a8a4a' : '#c8b45a'; g.lineWidth = Math.max(1.5, tw * 0.05); g.lineCap = 'round';
+    for (let k = 0; k < 6; k++) { const dx = (k - 2.5) * tw * 0.09; g.beginPath(); g.moveTo(x + dx, y); g.quadraticCurveTo(x + dx * 1.5, y - tw * 0.4, x + dx * 2 + sway * 2, y - tw * (0.65 + (k % 3) * 0.1)); g.stroke(); }
+  }
+}
+// manchas de grama e detalhes das ruas
+let vilaManchas = null;
+function vilaTerrenoDesenha(g, I, tw, dpr, hal, W, H) {
+  if (!vilaManchas) { const r = vilaRng(424242); vilaManchas = Array.from({ length: 170 }, () => ({ u: 2 + r() * 60, v: 2 + r() * 46, ru: 1.2 + r() * 3, rv: 0.8 + r() * 2, t: r() })); }
+  for (const m of vilaManchas) { const q = I(m.u, m.v); if (q.x < -120 || q.x > W + 120 || q.y < -80 || q.y > H + 80) continue; if (vilaEstrada(m.u, m.v) || vilaAgua(m.u, m.v) || vilaPracaR(m.u, m.v) || (m.u < 20 && m.v > 26) || (m.u > 43 && m.v > 28) || (m.v < 21 && m.u < 28)) continue;
+    g.fillStyle = m.t < 0.5 ? (hal ? 'rgba(20,40,20,.18)' : 'rgba(40,110,30,.13)') : (hal ? 'rgba(90,120,70,.14)' : 'rgba(170,230,110,.14)'); g.beginPath(); for (let k = 0; k < 14; k++) { const a = k / 14 * 6.2832, p = I(m.u + Math.cos(a) * m.ru, m.v + Math.sin(a) * m.rv); k ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); } g.closePath(); g.fill(); }
+}
+function vilaRuasDetalhe(g, I, tw, dpr, hal) {
+  const borda = (u0, v0, u1, v1) => { const a = I(u0, v0), b = I(u1, v0), c = I(u1, v1), d = I(u0, v1); g.strokeStyle = hal ? 'rgba(20,20,30,.4)' : 'rgba(120,100,70,.45)'; g.lineWidth = Math.max(1.5, dpr * 1.5); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineTo(c.x, c.y); g.lineTo(d.x, d.y); g.closePath(); g.stroke(); };
+  borda(2, 23.3, 62, 26.7); borda(30.3, 2, 33.7, 48); borda(19, 43.3, 47, 45.2);
+  g.fillStyle = hal ? 'rgba(200,190,160,.22)' : 'rgba(255,248,215,.55)'; for (let u = 4; u < 62; u += 3) { if (Math.abs(u - 32) < 8) continue; const a = I(u, 24.85), b = I(u + 1.2, 25.15), c = I(u + 1.2, 24.85), d = I(u, 25.15); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(c.x, c.y); g.lineTo(b.x, b.y); g.lineTo(d.x, d.y); g.closePath(); g.fill(); }
+  for (let v = 4; v < 48; v += 3) { if (Math.abs(v - 25) < 8) continue; const a = I(31.85, v), b = I(32.15, v + 1.2), c = I(32.15, v), d = I(31.85, v + 1.2); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(c.x, c.y); g.lineTo(b.x, b.y); g.lineTo(d.x, d.y); g.closePath(); g.fill(); }
+}
+// lago e mar: brilho, patinhos, espuma
+function vilaAguaDesenha(g, I, tw, dpr, now, hal) {
+  const L0 = VILA_LAGO; g.strokeStyle = 'rgba(255,255,255,.28)'; g.lineWidth = Math.max(1, dpr);
+  for (let k = 0; k < 14; k++) { const a = k * 1.7 + now / 3500 * (k % 2 ? 1 : -1), r = 0.25 + (k % 5) * 0.13, u = L0.u + Math.cos(a) * L0.a * r, v = L0.v + Math.sin(a * 1.3) * L0.b * r, q = I(u, v); g.beginPath(); g.ellipse(q.x, q.y, tw * 0.45, tw * 0.13, 0, 0, Math.PI); g.stroke(); }
+  for (let k = 0; k < 3; k++) { const a = now / 9000 * (k % 2 ? 1 : -1) + k * 2.2, u = L0.u + Math.cos(a) * L0.a * 0.55 - 2, v = L0.v + Math.sin(a) * L0.b * 0.55, q = I(u, v), d = Math.cos(a) * (k % 2 ? 1 : -1) >= 0 ? 1 : -1, bob = Math.sin(now / 400 + k) * tw * 0.03;
+    g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.ellipse(q.x, q.y + tw * 0.05, tw * 0.4, tw * 0.12, 0, 0, 7); g.fill();
+    g.fillStyle = '#fff6d8'; g.beginPath(); g.ellipse(q.x, q.y - tw * 0.1 + bob, tw * 0.26, tw * 0.17, 0, 0, 7); g.fill(); g.beginPath(); g.arc(q.x + d * tw * 0.22, q.y - tw * 0.3 + bob, tw * 0.12, 0, 7); g.fill(); g.fillStyle = '#f2a23a'; g.beginPath(); g.moveTo(q.x + d * tw * 0.32, q.y - tw * 0.3 + bob); g.lineTo(q.x + d * tw * 0.46, q.y - tw * 0.27 + bob); g.lineTo(q.x + d * tw * 0.32, q.y - tw * 0.25 + bob); g.closePath(); g.fill(); }
+  // espuma do mar
+  g.strokeStyle = hal ? 'rgba(200,220,255,.3)' : 'rgba(255,255,255,.55)'; g.lineWidth = Math.max(1.5, dpr * 1.6);
+  for (const [u0, v0, u1, v1] of [[-1.5, PRACA_H + 1.5, PRACA_W + 1.5, PRACA_H + 1.5], [PRACA_W + 1.5, -1.5, PRACA_W + 1.5, PRACA_H + 1.5], [-1.5, -1.5, PRACA_W + 1.5, -1.5], [-1.5, -1.5, -1.5, PRACA_H + 1.5]]) {
+    g.beginPath(); for (let k = 0; k <= 40; k++) { const f = k / 40, off = Math.sin(now / 900 + f * 30) * 0.25 + 0.3, u = u0 + (u1 - u0) * f + (u0 === u1 ? (u0 > 0 ? off : -off) : 0), v = v0 + (v1 - v0) * f + (v0 === v1 ? (v0 > 0 ? off : -off) : 0), q = I(u, v); k ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y); } g.stroke(); }
+}
+// vida ambiente em cima de tudo: passarinhos, borboletas, vaga-lumes (noite) e folhas (outono)
+function vilaAmbienteDesenha(g, c, I, tw, dpr, now, noite, hal) {
+  const W = c.width, H = c.height, mes = new Date().getMonth() + 1;
+  if (noite < 0.45) { // passarinhos (dia)
+    g.strokeStyle = hal ? 'rgba(20,20,30,.8)' : 'rgba(40,40,50,.7)'; g.lineWidth = Math.max(1.2, dpr * 1.3);
+    for (let k = 0; k < 4; k++) { const f = ((now / (22000 + k * 4000)) + k * 0.27) % 1, x = -40 + f * (W + 80), y = H * (0.12 + 0.1 * k) + Math.sin(f * 14 + k) * 8 * dpr, w = 5 * dpr + Math.sin(now / 120 + k * 2) * 3 * dpr; g.beginPath(); g.moveTo(x - w * 1.4, y - w * 0.2 + Math.sin(now / 120 + k) * 3 * dpr); g.quadraticCurveTo(x - w * 0.5, y + w * 0.1, x, y); g.quadraticCurveTo(x + w * 0.5, y + w * 0.1, x + w * 1.4, y - w * 0.2 + Math.sin(now / 120 + k) * 3 * dpr); g.stroke(); }
+    for (let k = 0; k < 6; k++) { const bu = 8 + (k * 37 % 40), bv = 6 + (k * 53 % 36), q = I(bu + Math.sin(now / 2000 + k) * 1.5, bv + Math.cos(now / 2300 + k * 2) * 1.2); if (q.x < -20 || q.x > W + 20 || q.y < -20 || q.y > H + 20) continue; const fl = Math.abs(Math.sin(now / 140 + k)) ; g.fillStyle = ['#ffb84a', '#7ad8ff', '#ff8aa8'][k % 3]; g.beginPath(); g.ellipse(q.x - fl * 3 * dpr, q.y, 3 * dpr * (0.4 + fl), 2.5 * dpr, 0, 0, 7); g.ellipse(q.x + fl * 3 * dpr, q.y, 3 * dpr * (0.4 + fl), 2.5 * dpr, 0, 0, 7); g.fill(); }
+  } else { // vaga-lumes
+    for (let k = 0; k < 40; k++) { const bu = 4 + (k * 17.3 % 58), bv = 3 + (k * 29.7 % 44), q = I(bu + Math.sin(now / 1800 + k) * 1.2, bv + Math.cos(now / 2100 + k * 1.3) * 1.2); if (q.x < -20 || q.x > W + 20 || q.y < -20 || q.y > H + 20) continue; const a = 0.5 + 0.5 * Math.sin(now / 500 + k * 2); g.fillStyle = `rgba(230,255,130,${a * 0.9})`; g.beginPath(); g.arc(q.x, q.y - tw * 0.8 - Math.sin(now / 900 + k) * tw * 0.3, 1.8 * dpr, 0, 7); g.fill(); g.fillStyle = `rgba(230,255,130,${a * 0.18})`; g.beginPath(); g.arc(q.x, q.y - tw * 0.8 - Math.sin(now / 900 + k) * tw * 0.3, 6 * dpr, 0, 7); g.fill(); }
+  }
+  if (mes >= 3 && mes <= 6 && !hal) for (let k = 0; k < 14; k++) { const f = ((now / (9000 + (k % 4) * 1500)) + k * 0.13) % 1, x = (k * 0.071 + f * 0.25) % 1 * W, y = f * H; g.save(); g.translate(x, y); g.rotate(now / 500 + k); g.fillStyle = ['#e08a30', '#c8742a', '#f0a640'][k % 3]; g.beginPath(); g.ellipse(0, 0, 4 * dpr, 2 * dpr, 0, 0, 7); g.fill(); g.restore(); }
+}
 function pracaDesenha(g, c, now, dpr) {
   const G = pracaGeo(c, dpr), tw = G.tw, hal = halloweenAtivo(), W = c.width, H = c.height; praca.hits = [];
   const I = (u, v) => pracaIso(u, v, G), noite = vilaNoite();
@@ -15113,8 +15183,10 @@ function pracaDesenha(g, c, now, dpr) {
   g.fillStyle = hal ? '#1c3a5a' : '#3f8fc4'; g.fillRect(0, 0, W, H); // mar em volta
   rect(-1.5, -1.5, PRACA_W + 1.5, PRACA_H + 1.5, hal ? '#d8c890' : '#f0e0a8'); // areia da borda
   rect(0, 0, PRACA_W, PRACA_H, hal ? '#4a6a3a' : '#7cc653');
+  vilaTerrenoDesenha(g, I, tw, dpr, hal, W, H);
   rect(3, 3, 27, 21, hal ? '#3a5a30' : '#5aa83a'); rect(3, 37.5, 17, 48, hal ? '#6a6672' : '#9a9486'); rect(43, 29, 62, 48, hal ? '#c8b880' : '#ecd9a0');
   rect(2, 23.3, 62, 26.7, hal ? '#6a6478' : '#d8cdb0'); rect(30.3, 2, 33.7, 48, hal ? '#6a6478' : '#d8cdb0'); rect(19, 43.3, 47, 45.2, hal ? '#6a6478' : '#d8cdb0');
+  vilaRuasDetalhe(g, I, tw, dpr, hal);
   // Centro (igreja, quermesse e comércio): praça de pedra com calçada, ligada à avenida principal
   rect(2, 26.7, 19.4, 28.4, hal ? '#6a6478' : '#d8cdb0'); rect(2.6, 28.4, 19.4, 36.8, hal ? '#6a6070' : '#cdbf9c'); rect(3, 28.8, 19, 36.4, hal ? '#7a7084' : '#e2d6b6');
   for (let a = 0; a < 16; a++) for (let b2 = 0; b2 < 7; b2++) if ((a + b2) % 2) rect(3 + a, 29 + b2 + 0.4, 4 + a, 30 + b2 + 0.4, hal ? 'rgba(0,0,0,.08)' : 'rgba(120,90,50,.07)');
@@ -15124,6 +15196,7 @@ function pracaDesenha(g, c, now, dpr) {
   oval(32, 25, 7.2, 7.2, hal ? '#7a7488' : '#e4dbc2');
   rect(20, 27, 26, 33, 'rgba(0,0,0,.25)'); for (let a = 0; a < 6; a++) for (let b = 0; b < 6; b++) rect(20 + a, 27 + b, 21 + a, 28 + b, ((a + b + Math.floor(now / 400)) % 2) ? '#e0463a' : '#f2c230');
   oval(VILA_LAGO.u, VILA_LAGO.v, VILA_LAGO.a + 0.5, VILA_LAGO.b + 0.5, '#7a5a3a'); oval(VILA_LAGO.u, VILA_LAGO.v, VILA_LAGO.a, VILA_LAGO.b, '#4aa8e0');
+  vilaAguaDesenha(g, I, tw, dpr, now, hal);
   rect(39.5, 11, 46.6, 13, '#a87a46'); for (let k = 0; k < 8; k++) { const a = I(39.7 + k * 0.9, 11), b = I(39.7 + k * 0.9, 13); g.strokeStyle = 'rgba(70,40,10,.5)'; g.lineWidth = Math.max(1, dpr); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
   // rótulos das áreas
   g.textAlign = 'center'; g.font = `800 ${Math.round(12 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.6)'; g.fillStyle = 'rgba(255,255,255,.85)';
@@ -15132,7 +15205,7 @@ function pracaDesenha(g, c, now, dpr) {
   const lista0 = []; if (praca.eu) lista0.push({ e: praca.eu, p: pracaPos(praca.eu, now) }); for (const j of Object.values(praca.jog)) lista0.push({ e: j, p: pracaPos(j, now) });
   const D = [], vis = q => q.x > -90 && q.x < W + 90 && q.y > -120 && q.y < H + 60, push = (s, fn) => D.push({ s, fn });
   if (!vilaDecor) vilaDecor = vilaGeraDecor();
-  for (const d of vilaDecor) { const q = I(d.u, d.v); if (vis(q)) push(d.u + d.v, () => { g.font = `${Math.round(tw * d.s)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(d.e, q.x, q.y); }); }
+  for (const d of vilaDecor) { const q = I(d.u, d.v); if (vis(q)) push(d.u + d.v, () => vilaArvore(g, d, q, tw, now, hal)); }
   praca.hits.push({ id: 'fonte', x: I(32, 25).x, y: I(32, 25).y - tw * 0.6, r: tw * 2 });
   { const q = I(32, 25); push(50, () => { const r = tw * 1.7; g.fillStyle = '#9a96a8'; g.beginPath(); g.ellipse(q.x, q.y, r, r / 2, 0, 0, 7); g.fill(); g.fillStyle = '#5fb8e8'; g.beginPath(); g.ellipse(q.x, q.y - 3 * dpr, r * 0.8, r * 0.4, 0, 0, 7); g.fill(); g.fillStyle = '#9a96a8'; g.fillRect(q.x - r * 0.12, q.y - r * 1.1, r * 0.24, r); g.strokeStyle = 'rgba(200,240,255,.85)'; g.lineWidth = 2 * dpr; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(q.x, q.y - r * 1.1); g.quadraticCurveTo(q.x + k * r * 0.5, q.y - r * 1.6, q.x + k * r * 0.8, q.y - r * 0.3 + Math.sin(now / 300 + k) * 2); g.stroke(); } }); }
   for (const [id, l] of Object.entries(VILA_LOCAIS)) {
@@ -15229,6 +15302,7 @@ function pracaDesenha(g, c, now, dpr) {
   }
   vilaPetsDesenha(g, lista, I, tw, now, dpr, push);
   D.sort((a, b) => a.s - b.s); for (const d of D) d.fn();
+  vilaAmbienteDesenha(g, c, I, tw, dpr, now, noite, hal);
   // efeitos das interações entre dois jogadores
   for (const d of duplas) {
     const I2 = INTER[d.k], qa = I(d.a.p.u, d.a.p.v), qb = I(d.b.p.u, d.b.p.v), mx = (qa.x + qb.x) / 2, my = Math.min(qa.y, qb.y) - 62 * es, t = (now - d.ef.t0) / 5000;
