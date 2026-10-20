@@ -1573,6 +1573,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 349, txt: "🎪 Quermesse ao lado da igreja! A barraca da Dona Maria vende pastel, pamonha, açaí, caldo de mocotó, canjica, espetinho, pipoca, caldo de cana, quentão e água de coco. Ao comprar, a aba fecha e o seu avatar come ou bebe na hora (os outros jogadores também veem). Título: Boca Boa." },
   { v: 348, txt: "⛪ A Igreja agora fica aberta todos os dias! Nos dias sem missa, dá para entrar e deixar uma ✉️ carta de intenção (pedido ou agradecimento) para a próxima missa. Todos os jogadores podem ler as cartas (pela caixa 💌 ou pelo botão Intenções), o padre lê algumas na oração dos fiéis, e elas somem depois de cada missa (domingo e quarta)." },
   { v: 347, txt: "🏭 Fábrica Automática mudou: ela não vende mais nada. Agora recolhe o que ficou pronto nas suas máquinas (Moinho, Cozinha, Conservas…), manda para o celeiro e começa novas receitas com o que você tem, guardando 10 de cada planta. ⛪ Igreja: ao entrar dá para dar o dízimo (10, 1.000 ou 50.000 moedas), receber uma bênção aleatória do padre e aparecer no ranking geral dos doadores (nunca zera)." },
   { v: 346, txt: "⛪ Nova Igreja na Vila! Abre todo domingo (Missa das Crianças, litúrgica verde) e toda quarta (Missa da Família, branco e dourado). Tem padre, altar com velas, coral de 5 vozes, vitrais coloridos e fiéis nos bancos. A missa tem etapas (entrada, canto, leitura, homilia, oração, ofertório, comunhão e bênção) iguais para todos, com falas do padre e respostas dos fiéis. Fique até a bênção final para ganhar 300 moedas + 10 XP por dia e o título Fiel da Vila." },
@@ -14427,6 +14428,7 @@ const VILA_LOCAIS = {
   mural:   { u: 32, v: 17, nome: 'Mural',   ic: '📋' },
   mercado: { u: 42, v: 21, nome: 'Mercado', ic: '🏪' },
   alvo:    { u: 37, v: 18.5, nome: 'Tiro ao alvo', ic: '🎯' },
+  quermesse: { u: 26.5, v: 45, nome: 'Quermesse', ic: '🎪' },
 };
 const VILA_DECOR = ['🌻', '🎃', '🪑', '🏮', '🌳', '⛲', '🧺', '🪴', '🐕', '🎈'];
 const VILA_BOSS_HP = 500, VILA_BOSS_CICLO = 15 * 60e3, VILA_BOSS_JANELA = 5 * 60e3, MERCADO_MAX = 4;
@@ -14524,7 +14526,7 @@ function pracaHtmlMenu(grupo) {
   const it = (ic, t, attr) => `<button type="button" class="vmenu-it" ${attr}><span>${ic}</span><b>${t}</b></button>`, sec = (t, l) => `<h4 class="vmenu-h">${t}</h4><div class="vmenu">${l.join('')}</div>`;
   if (grupo === 'lugares') return sec('Lugares', [...Object.entries(VILA_ZONAS).map(([id, z]) => it(z.ic, z.nome, `data-vila-ir-z="${id}"`)), it('📋', 'Mural', 'data-vila-ir="mural"'), it('🏪', 'Mercado', 'data-vila-ir="mercado"')])
     + sec('Quartos', [it('🛏️', 'Meu quarto', 'data-vila-meuquarto'), it('🏠', 'Quartos de amigos', 'data-vila-ir="quartos"'), it('🏡', 'Minha casinha', 'data-vila-ir="casa"')])
-    + sec('Atividades', [it('📜', 'Tarefas do dia', 'data-vila-ir="tarefas"'), it('🎯', 'Tiro ao alvo', 'data-vila-ir="alvo"')]);
+    + sec('Atividades', [it('📜', 'Tarefas do dia', 'data-vila-ir="tarefas"'), it('🎯', 'Tiro ao alvo', 'data-vila-ir="alvo"'), it('🎪', 'Quermesse', 'data-vila-ir="quermesse"')]);
   if (grupo === 'pessoas') return sec('Pessoas', [it('📍', 'Onde estão', 'data-vila-ir="onde"'), it('📣', 'Convidar amigos', 'data-vila-ir="convidar"'), it('✉️', `Cartas${nc ? ' (' + nc + ')' : ''}`, 'data-vila-ir="cartas"'), it('🎙️', 'Voz', 'data-vila-ir="voz"')]);
   return `<div class="vmenu-emo">${PRACA_EMOTES.slice(0, 6).map(e => `<button type="button" data-praca-emote="${e}" aria-label="Emoji ${e}">${e}</button>`).join('')}</div>`
     + sec('Eu', [it('💃', 'Danças e gestos', 'data-vila-ir="danca"'), it('🏅', 'Títulos e selos', 'data-vila-ir="conq"'), it('🐾', 'Meu pet', 'data-vila-ir="pet"'), it('🎒', 'Móveis', praca.sala && praca.sala.dono === user.uid ? 'data-vila-moveis' : 'disabled'), it(settings.semInter ? '🚫' : '✨', settings.semInter ? 'Interações: off' : 'Interações: on', 'data-vila-bloq')]);
@@ -14608,7 +14610,7 @@ function pracaRecebe(todos) {
       if (Math.abs(du - dv) > 0.01) j.dir = du - dv > 0 ? 1 : -1;
       j.pts = null; if (praca.sala) { const pts = quartoCaminho(quartoAtual(), p, d.tu, d.tv); if (pts) quartoDefinePath(j, pts); }
     }
-    j.n = typeof d.n === 'string' ? d.n : 'Jogador'; j.a = d.a ? avatarOk(d.a) : null; j.ia = d.ia || null; j.ic = d.ic || null; j.iz = d.iz || 0; j.tt = typeof d.tt === 'string' ? d.tt : ''; j.sb = typeof d.sb === 'string' ? d.sb : ''; j.pt = typeof d.pt === 'string' ? d.pt : ''; j.lv = d.lv || 0; j.ft = typeof d.ft === 'string' ? d.ft : ''; j.sl = typeof d.sl === 'string' ? d.sl : ''; j.mo = typeof d.mo === 'string' ? d.mo : '';
+    j.n = typeof d.n === 'string' ? d.n : 'Jogador'; j.a = d.a ? avatarOk(d.a) : null; j.ia = d.ia || null; j.ek = typeof d.ek === 'string' ? d.ek : ''; j.ic = d.ic || null; j.iz = d.iz || 0; j.tt = typeof d.tt === 'string' ? d.tt : ''; j.sb = typeof d.sb === 'string' ? d.sb : ''; j.pt = typeof d.pt === 'string' ? d.pt : ''; j.lv = d.lv || 0; j.ft = typeof d.ft === 'string' ? d.ft : ''; j.sl = typeof d.sl === 'string' ? d.sl : ''; j.mo = typeof d.mo === 'string' ? d.mo : '';
     if (d.et && d.et !== j.et) { j.et = d.et; if (typeof d.ek === 'string') j.emote = { k: d.ek, ate: agora + 3200 }; }
   }
 }
@@ -14658,6 +14660,7 @@ function pracaPainel() {
   else if (id.startsWith('m:')) box.innerHTML = topo({ lugares: '🧭 Ir para', pessoas: '👥 Pessoas', eu: '🎭 Eu' }[id.slice(2)]) + pracaHtmlMenu(id.slice(2));
   else if (id === 'tarefas') box.innerHTML = topo('📜 Tarefas do dia') + pracaHtmlTarefas();
   else if (id === 'alvo') box.innerHTML = topo('🎯 Tiro ao alvo') + pracaHtmlAlvo();
+  else if (id === 'quermesse') box.innerHTML = topo('🎪 Quermesse') + pracaHtmlQuermesse();
   else if (id === 'voz') { box.innerHTML = topo('🎙️ Voz da Vila') + pracaHtmlVoz(); if (!praca._pv) { praca._pv = 1; vozAtualizaPerm().finally(() => { praca._pv = 0; }); } }
   else if (id === 'quartos') { box.innerHTML = topo('🏠 Quartos de amigos') + pracaHtmlQuartos(); if (!praca.listaQ || praca._qAtual !== 1) { praca._qAtual = 1; pracaCarregaQuartos(); } }
   else if (id === 'onde') box.innerHTML = topo('📍 Quem está onde') + pracaHtmlOnde();
@@ -14884,6 +14887,7 @@ const VILA_ZONAS = {
   cinema:   { nome: 'Cinema',   ic: '🎬', u: 54, v: 24.5 },
   piscina:  { nome: 'Piscina',  ic: '🏊', u: 32, v: 9.5 },
   igreja:   { nome: 'Igreja',   ic: '⛪', u: 21, v: 46.5 },
+  quermesse: { nome: 'Quermesse', ic: '🎪', u: 26.5, v: 46.8 },
 };
 const VILA_BANCOS_TODOS = [[27, 21, 1], [37, 21, -1], [27, 29.5, 1], [37, 29.5, -1], [41.5, 15, 1], [28.5, 25, 1], [35.5, 25, -1], [29.5, 17.5, 1], [34.5, 17.5, -1], [29.5, 32.5, 1], [34.5, 32.5, -1], [24, 23, 1], [40, 27, -1]];
 const VILA_BANCOS = VILA_BANCOS_TODOS.filter(([u, v]) => !vilaAgua(u, v)); // nada de cadeira na água
@@ -14965,6 +14969,7 @@ function vilaContexto() {
   if (d(VILA_LOCAIS.alvo.u, VILA_LOCAIS.alvo.v) < 3.5) return { id: 'alvo', txt: '🎯 Jogar tiro ao alvo' };
   if (d(VILA_LOCAIS.mural.u, VILA_LOCAIS.mural.v) < 3.5) return { id: 'mural', txt: '📋 Abrir o mural' };
   if (d(VILA_LOCAIS.mercado.u, VILA_LOCAIS.mercado.v) < 4) return { id: 'mercado', txt: '🏪 Entrar no mercado' };
+  if (d(VILA_LOCAIS.quermesse.u, VILA_LOCAIS.quermesse.v) < 3.6) return { id: 'quermesse', txt: '🎪 Ir à quermesse' };
   return null;
 }
 function vilaEntrarFesta(tipo) { const F = FESTAS[tipo]; if (!F) return; vilaConq('festa'); praca.volta = { u: F.u, v: F.v + 2.6 }; pracaIrSala('f_' + tipo, null, tipo); }
@@ -15056,7 +15061,7 @@ function vilaLogica(now, p) {
     else if (P.fase === 'fisgou' && now > P.ate) { praca.pesca = null; toast('O peixe escapou… 😅'); }
   }
   for (const it of praca.spawns) if (it.tipo !== 'bau' && !praca.pegos[it.i] && Math.hypot(p.u - it.u, p.v - it.v) < 1.2) vilaPegar(it);
-  if (praca.alvoAcao && p.k >= 1) { const a = praca.alvoAcao; praca.alvoAcao = null; if (a === 'mural' || a === 'mercado' || a === 'alvo') pracaPainelAbrir(a); else if (a.startsWith('f:')) vilaEntrarFesta(a.slice(2)); }
+  if (praca.alvoAcao && p.k >= 1) { const a = praca.alvoAcao; praca.alvoAcao = null; if (a === 'mural' || a === 'mercado' || a === 'alvo' || a === 'quermesse') pracaPainelAbrir(a); else if (a.startsWith('f:')) vilaEntrarFesta(a.slice(2)); }
   const e = praca.eu; if (e && e.dur && p.k >= 1) e.dur = 0;
   let cx = vilaContexto();
   if (cx) praca.ctx = { cx, t: now }; else if (praca.ctx && now - praca.ctx.t < 1500 && !praca.pesca) cx = praca.ctx.cx; else praca.ctx = null; // não pisca quando o chefe/NPC sai e entra do alcance
@@ -15082,7 +15087,7 @@ function pracaDesenha(g, c, now, dpr) {
   rect(39.5, 11, 46.6, 13, '#a87a46'); for (let k = 0; k < 8; k++) { const a = I(39.7 + k * 0.9, 11), b = I(39.7 + k * 0.9, 13); g.strokeStyle = 'rgba(70,40,10,.5)'; g.lineWidth = Math.max(1, dpr); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
   // rótulos das áreas
   g.textAlign = 'center'; g.font = `800 ${Math.round(12 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.6)'; g.fillStyle = 'rgba(255,255,255,.85)';
-  for (const [id, z] of Object.entries(VILA_ZONAS)) { if (id === 'plaza') continue; const q = I(z.u, z.v); if (q.x > -80 && q.x < W + 80 && q.y > -40 && q.y < H + 40) { g.strokeText(`${z.ic} ${z.nome}`, q.x, q.y); g.fillText(`${z.ic} ${z.nome}`, q.x, q.y); } }
+  for (const [id, z] of Object.entries(VILA_ZONAS)) { if (id === 'plaza' || VILA_LOCAIS[id]) continue; const q = I(z.u, z.v); if (q.x > -80 && q.x < W + 80 && q.y > -40 && q.y < H + 40) { g.strokeText(`${z.ic} ${z.nome}`, q.x, q.y); g.fillText(`${z.ic} ${z.nome}`, q.x, q.y); } }
   // lista de coisas para desenhar, de trás para frente
   const lista0 = []; if (praca.eu) lista0.push({ e: praca.eu, p: pracaPos(praca.eu, now) }); for (const j of Object.values(praca.jog)) lista0.push({ e: j, p: pracaPos(j, now) });
   const D = [], vis = q => q.x > -90 && q.x < W + 90 && q.y > -120 && q.y < H + 60, push = (s, fn) => D.push({ s, fn });
@@ -15095,6 +15100,7 @@ function pracaDesenha(g, c, now, dpr) {
     push(l.u + l.v, () => {
       if (id === 'mural') { g.fillStyle = '#7a4a22'; g.fillRect(q.x - tw * 1.3, q.y - tw * 2.1, tw * 2.6, tw * 1.6); g.fillStyle = '#f4e2b0'; g.fillRect(q.x - tw * 1.15, q.y - tw * 1.95, tw * 2.3, tw * 1.3); g.fillRect(q.x - tw * 1.3, q.y - tw * 0.5, tw * 0.2, tw * 0.6); g.fillRect(q.x + tw * 1.1, q.y - tw * 0.5, tw * 0.2, tw * 0.6); g.font = `${Math.round(tw * 1.1)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('📋', q.x, q.y - tw * 0.95); }
       else if (id === 'alvo') { g.fillStyle = '#7a4a22'; g.fillRect(q.x - tw * 0.12, q.y - tw * 1.6, tw * 0.24, tw * 1.6); for (let k = 0; k < 4; k++) { g.fillStyle = k % 2 ? '#fff' : '#e0463a'; g.beginPath(); g.arc(q.x, q.y - tw * 2.1, tw * (1.1 - k * 0.27), 0, 7); g.fill(); } g.fillStyle = '#ffd54a'; g.beginPath(); g.arc(q.x, q.y - tw * 2.1, tw * 0.12, 0, 7); g.fill(); }
+      else if (id === 'quermesse') quermesseDesenha(g, q, tw, dpr, now);
       else { for (let k = 0; k < 8; k++) { g.fillStyle = k % 2 ? '#fff' : '#e0463a'; g.fillRect(q.x - tw * 2 + k * tw * 0.5, q.y - tw * 2.2, tw * 0.5, tw * 0.7); } g.fillStyle = '#b88350'; g.fillRect(q.x - tw * 1.8, q.y - tw * 1.5, tw * 3.6, tw * 1.5); g.font = `${Math.round(tw * 1.0)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('🍎🥕🥚', q.x, q.y - tw * 0.4); }
       g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffe08a'; g.strokeText(l.nome, q.x, q.y + tw * 0.7); g.fillText(l.nome, q.x, q.y + tw * 0.7);
     });
@@ -15134,7 +15140,7 @@ function pracaDesenha(g, c, now, dpr) {
   const lista = [];
   if (praca.eu) lista.push({ me: true, e: praca.eu, n: meuApelido(), a: state.avatar, uid: user.uid });
   for (const [uid, j] of Object.entries(praca.jog)) lista.push({ me: false, e: j, n: j.n, a: j.a || state.avatar, uid });
-  for (const o of lista) { o.p = pracaPos(o.e, now); o.sentado = o.e.ia === 'sentar' && o.p.k >= 1; o.danca = /^dc\d/.test(o.e.ia || '') && o.p.k >= 1 ? o.e.ia : null; }
+  for (const o of lista) { o.p = pracaPos(o.e, now); o.sentado = o.e.ia === 'sentar' && o.p.k >= 1; o.danca = /^dc\d/.test(o.e.ia || '') && o.p.k >= 1 ? o.e.ia : null; o.come = (o.e.ia === 'comer' || o.e.ia === 'beber') && o.p.k >= 1 ? o.e.ia : null; }
   const porUid = Object.fromEntries(lista.map(o => [o.uid, o])), duplas = [], es = clamp(tw / 48, 0.3, 3.5);
   for (const o of lista) {
     const e = o.e, par = e.ia && porUid[e.ic]; if (vilaDanca(o.p.u, o.p.v)) o.hop = true;
@@ -15160,6 +15166,12 @@ function pracaDesenha(g, c, now, dpr) {
         else if (k === 'dc7') { rot = (t / 220) % (Math.PI * 2); dy = -14 * es; }
         g.save(); g.translate(q.x + dx, cy + dy); g.rotate(rot); g.scale(sx, sy); drawAvatar(g, 0, 34 * es, es, o.a, now, and, dirD); g.restore();
         g.font = `${Math.round(15 * dpr)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(k === 'dc6' ? '💤' : k === 'dc7' ? '✨' : '🎵', q.x + Math.sin(t / 250) * 14 * dpr, q.y - 78 * es - ((t / 40) % 14) * dpr); }
+      else if (o.come) { // comendo ou bebendo o que comprou na quermesse
+        const ciclo = (now / 900) % 1, boca = Math.sin(ciclo * Math.PI), dx = e.dir || 1, beber = o.come === 'beber', fx = q.x + dx * (16 - boca * 11) * es, fy = q.y - (30 + boca * 26) * es;
+        drawAvatar(g, q.x, q.y - Math.abs(Math.sin(now / 300)) * 1.6 * es, es, o.a, now, false, dx);
+        g.save(); g.translate(fx, fy); g.rotate(beber ? -boca * 0.9 * dx : 0); g.font = `${Math.round(22 * es)}px system-ui`; g.textAlign = 'center'; g.fillStyle = '#000'; g.fillText(e.ek || '🍴', 0, 0); g.restore();
+        for (let k = 0; k < 3; k++) { const pp = ((now / 700) + k / 3) % 1; g.globalAlpha = (1 - pp) * (boca > 0.5 ? 1 : 0.3); g.fillStyle = beber ? '#7cc8ff' : '#d9a35a'; g.beginPath(); g.arc(q.x + dx * (8 + k * 3) * es, q.y - (52 - pp * 24) * es, (1.6 + k * 0.3) * es, 0, 7); g.fill(); }
+        g.globalAlpha = 1; if (boca > 0.85) { g.font = `${Math.round(16 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('😋', q.x - dx * 18 * es, q.y - 60 * es); } }
       else drawAvatar(g, q.x, q.y - hop, es, o.a, now, andando, e.dir);
       const top = q.y - 72 * es;
       g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff'; g.strokeText(o.n, q.x, top); g.fillText(o.n, q.x, top); if (vozFalando(o.uid, now)) { const nw = g.measureText(o.n).width; g.font = `${Math.round(13 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('🔊', q.x + nw / 2 + 11 * dpr, top); g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; } { const tt = o.me ? vilaTituloTxt() : o.e.tt; if (tt) { g.font = `700 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffd9a0'; g.strokeText(tt, q.x, top + 10 * dpr); g.fillText(tt, q.x, top + 10 * dpr); } }
@@ -15208,7 +15220,7 @@ function pracaToque(ev) {
     const id = h.id;
     if (id === 'boss') { const b = pracaBossPos(); if (Math.hypot(p.u - b.u, p.v - b.v) > 6) { toast('Chegue mais perto do chefe para atacar!'); return pracaIrPara(b.u - 2, b.v + 2); } return pracaBater(); }
     if (id.startsWith('f:')) { const F = FESTAS[id.slice(2)]; if (Math.hypot(p.u - F.u, p.v - (F.v + 1.5)) < 4.5) return vilaEntrarFesta(id.slice(2)); praca.alvoAcao = id; return pracaIrPara(F.u, F.v + 2); }
-    if (id === 'mural' || id === 'mercado' || id === 'alvo') { const l = VILA_LOCAIS[id]; if (Math.hypot(p.u - l.u, p.v - l.v) < 4) return pracaPainelAbrir(id); praca.alvoAcao = id; return pracaIrPara(l.u, l.v + 1.8); }
+    if (id === 'mural' || id === 'mercado' || id === 'alvo' || id === 'quermesse') { const l = VILA_LOCAIS[id]; if (Math.hypot(p.u - l.u, p.v - l.v) < 4) return pracaPainelAbrir(id); praca.alvoAcao = id; return pracaIrPara(l.u, l.v + 1.8); }
     if (id.startsWith('item:')) { const it = praca.spawns.find(z => z.i === Number(id.slice(5))); if (!it) return; if (Math.hypot(p.u - it.u, p.v - it.v) < 2.6) return vilaPegar(it); return pracaIrPara(it.u, it.v + 1.2); }
     if (id.startsWith('npc:')) { const i = Number(id.slice(4)), n = VILA_NPCS[i]; praca.npcFala[i] = { t: n.fala[Math.floor(Math.random() * n.fala.length)], ate: now + 3000 }; sfx('click'); return; }
     if (id.startsWith('banco:')) { const i = Number(id.slice(6)), b = VILA_BANCOS[i]; if (Object.values(praca.jog).some(j => j.ia === 'sentar' && Math.hypot(j.tu - b[0], j.tv - b[1]) < 0.6)) return toast('Essa cadeira já está ocupada! 🪑'); return vilaPedirAssento('🪑 Cadeira', 'Sentar', () => vilaSentar(i)); }
@@ -15380,7 +15392,7 @@ function quartoToque(x, y, G) {
 }
 function quartoIrPara(u, v, extra) {
   const e = praca.eu, q = quartoAtual(), now = performance.now(), p = pracaPos(e, now);
-  if ((e.ia === 'sentar' || /^dc\d/.test(e.ia || '')) && !(extra && extra.ia)) { e.ia = null; extra = Object.assign({ ia: null, ic: null, iz: null }, extra); }
+  if ((e.ia === 'sentar' || e.ia === 'comer' || e.ia === 'beber' || /^dc\d/.test(e.ia || '')) && !(extra && extra.ia)) { e.ia = null; extra = Object.assign({ ia: null, ic: null, iz: null }, extra); }
   const pts = quartoCaminho(q, p, u, v); if (!pts) return toast('Não dá para chegar lá.');
   quartoDefinePath(e, pts); pracaEnviarMov(extra);
 }
@@ -15544,6 +15556,49 @@ function igrejaPessoas(g, I, tw, dpr, now, es, push) {
   });
 }
 
+// ============ 🎪 Quermesse (ao lado da igreja): comidas e bebidas para o avatar ============
+const QUERMESSE = [
+  { id: 'pastel',  e: '🥟', n: 'Pastel',           p: 20, k: 'comer' },
+  { id: 'pamonha', e: '🌽', n: 'Pamonha',          p: 15, k: 'comer' },
+  { id: 'acai',    e: '🍇', n: 'Açaí',             p: 30, k: 'comer' },
+  { id: 'mocoto',  e: '🍲', n: 'Caldo de mocotó',  p: 40, k: 'comer' },
+  { id: 'canjica', e: '🥣', n: 'Canjica',          p: 18, k: 'comer' },
+  { id: 'espeto',  e: '🍢', n: 'Espetinho',        p: 25, k: 'comer' },
+  { id: 'pipoca',  e: '🍿', n: 'Pipoca',           p: 8,  k: 'comer' },
+  { id: 'cana',    e: '🥤', n: 'Caldo de cana',    p: 12, k: 'beber' },
+  { id: 'quentao', e: '🍵', n: 'Quentão sem álcool', p: 14, k: 'beber' },
+  { id: 'coco',    e: '🥥', n: 'Água de coco',     p: 10, k: 'beber' },
+];
+function quermesseDesenha(g, q, tw, dpr, now) {
+  const W = tw * 4.6, noite = vilaNoite() > 0.5;
+  g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, W * 0.6, W * 0.16, 0, 0, 7); g.fill();
+  g.fillStyle = '#7a4a22'; g.fillRect(q.x - W / 2, q.y - tw * 3, tw * 0.2, tw * 3); g.fillRect(q.x + W / 2 - tw * 0.2, q.y - tw * 3, tw * 0.2, tw * 3);       // postes
+  const nv = drawAvatar && NEIGHBORS.find(n => n.id === 'maria');                                                                                                 // Dona Maria atrás do balcão
+  if (nv) drawAvatar(g, q.x, q.y - tw * 0.55, tw / 48, nv.avatar, now, false, 1);
+  g.fillStyle = '#b88350'; g.fillRect(q.x - W / 2, q.y - tw * 1.1, W, tw * 1.1); g.fillStyle = '#9a6a3e'; g.fillRect(q.x - W / 2, q.y - tw * 1.1, W, tw * 0.18);   // balcão
+  const cores = ['#e0463a', '#f2c14e', '#3a8fd8', '#4aa84a', '#a05ac8'];
+  for (let k = 0; k < 10; k++) { g.fillStyle = k % 2 ? '#fff6d8' : '#e0463a'; g.beginPath(); g.moveTo(q.x - W / 2 - tw * 0.3 + k * (W + tw * 0.6) / 10, q.y - tw * 3.1); g.lineTo(q.x - W / 2 - tw * 0.3 + (k + 1) * (W + tw * 0.6) / 10, q.y - tw * 3.1); g.lineTo(q.x - W / 2 + (k + 0.5) * W / 10 * 1.0, q.y - tw * 2.4); g.closePath(); g.fill(); }  // toldo listrado
+  for (let k = 0; k < 12; k++) { const x = q.x - W * 0.75 + k * W * 1.5 / 11, y = q.y - tw * 3.4 + Math.sin(k * 0.9) * tw * 0.12 + (Math.abs(k - 5.5) * 0.04) * tw * 3; g.fillStyle = cores[k % 5]; g.beginPath(); g.moveTo(x - tw * 0.16, y); g.lineTo(x + tw * 0.16, y); g.lineTo(x, y + tw * 0.4); g.closePath(); g.fill(); } // bandeirinhas juninas
+  g.strokeStyle = 'rgba(80,50,20,.7)'; g.lineWidth = 1.2 * dpr; g.beginPath(); g.moveTo(q.x - W * 0.75, q.y - tw * 3.4); g.quadraticCurveTo(q.x, q.y - tw * 2.8, q.x + W * 0.75, q.y - tw * 3.4); g.stroke();
+  g.font = `${Math.round(tw * 0.8)}px system-ui`; g.textAlign = 'center'; g.fillStyle = '#000'; g.fillText('🥟🌽🍇🥤', q.x, q.y - tw * 1.2);
+  g.fillText('🍲', q.x - W * 0.42, q.y - tw * 0.1); g.fillText('🪣', q.x + W * 0.46, q.y - tw * 0.1);
+  if (noite) { g.fillStyle = 'rgba(255,210,120,.22)'; g.beginPath(); g.arc(q.x, q.y - tw * 2, tw * 3, 0, 7); g.fill(); }
+  const fum = ((now / 1200) % 1); g.globalAlpha = 0.5 * (1 - fum); g.fillStyle = '#fff'; g.beginPath(); g.arc(q.x - W * 0.42 + Math.sin(fum * 6) * 4, q.y - tw * 1.1 - fum * tw * 1.4, tw * (0.12 + fum * 0.2), 0, 7); g.fill(); g.globalAlpha = 1;
+}
+function pracaHtmlQuermesse() {
+  const lista = QUERMESSE.map(it => `<button type="button" class="vm-item" data-vila-comer="${it.id}" ${state.coins >= it.p ? '' : 'style="opacity:.55"'}><span class="mv-e">${it.e}</span><span>${it.n}</span><small>🪙 ${it.p}</small></button>`).join('');
+  return `<div class="vp-card"><small>🎪 Barraca da Dona Maria, ao lado da igreja. Compre algo gostoso: o seu avatar come ou bebe na hora! Você tem 🪙 ${fmtN(state.coins)}.</small><div class="vm-grid">${lista}</div></div>`;
+}
+function vilaComer(id) {
+  const it = QUERMESSE.find(x => x.id === id); if (!it || !praca.eu) return;
+  if (state.coins < it.p) return toast('Faltam moedas para isso.', 'bad');
+  state.coins -= it.p; vilaConq('comer'); sfx('coin'); done();
+  pracaPainelAbrir(null);               // fecha a aba para ver o avatar comendo/bebendo
+  praca.alvoAcao = null; praca.eu.ia = it.k; praca.eu.ic = null; praca.eu.ek = it.e;
+  pracaEnviarMov({ ia: it.k, ek: it.e, ic: null, iz: null });
+  clearTimeout(praca._comeT); praca._comeT = setTimeout(() => { if (praca.eu && (praca.eu.ia === 'comer' || praca.eu.ia === 'beber')) { praca.eu.ia = null; pracaEnviarMov({ ia: null, ek: '', ic: null, iz: null }); } }, 6000);
+  toast(`${it.e} ${it.k === 'comer' ? 'Comendo' : 'Bebendo'} ${it.n.toLowerCase()}… que delícia! 😋`, 'good');
+}
 // ---- ✉️ Cartas de intenção: qualquer jogador deixa a sua para a próxima missa; todos leem; somem depois da missa ----
 function igrejaIntCarrega() {
   if (!praca.rt) return; praca.intCarregando = true; const key = igrejaProx().key;
@@ -15752,7 +15807,7 @@ function vilaJuntar(l, uid) {
 }
 // ---- Títulos e selos ----
 const CONQ = [
-  { id: 'missa1', ev: 'missa', alvo: 5, t: 'Fiel da Vila', e: '⛪' }, { id: 'dizimo1', ev: 'dizimo', alvo: 10, t: 'Dizimista', e: '🙏' }, { id: 'pesca1', ev: 'pesca', alvo: 20, t: 'Pescador da Vila', e: '🎣' }, { id: 'pesca2', ev: 'pesca', alvo: 150, t: 'Mestre da Pescaria', e: '🐠' },
+  { id: 'missa1', ev: 'missa', alvo: 5, t: 'Fiel da Vila', e: '⛪' }, { id: 'dizimo1', ev: 'dizimo', alvo: 10, t: 'Dizimista', e: '🙏' }, { id: 'comer1', ev: 'comer', alvo: 25, t: 'Boca Boa', e: '😋' }, { id: 'pesca1', ev: 'pesca', alvo: 20, t: 'Pescador da Vila', e: '🎣' }, { id: 'pesca2', ev: 'pesca', alvo: 150, t: 'Mestre da Pescaria', e: '🐠' },
   { id: 'item1', ev: 'item', alvo: 50, t: 'Coletor Esperto', e: '🍎' }, { id: 'item2', ev: 'bau', alvo: 10, t: 'Caçador de Tesouros', e: '💎' },
   { id: 'boss1', ev: 'boss', alvo: 3, t: 'Defensor da Vila', e: '⚔️' }, { id: 'danca1', ev: 'danca', alvo: 25, t: 'Pé de Valsa', e: '💃' },
   { id: 'sent1', ev: 'sentar', alvo: 20, t: 'Mestre do Descanso', e: '🛋️' }, { id: 'inter1', ev: 'inter', alvo: 15, t: 'Coração Aberto', e: '❤️' },
@@ -16090,7 +16145,7 @@ setInterval(() => { try { if (praca.aberta) vozSync(); } catch (e) { /* sem voz 
 function pracaIrPara(u, v, extra) {
   if (praca.sala) return quartoIrPara(u, v, extra);
   const e = praca.eu, p = pracaPos(e, performance.now());
-  if ((e.ia === 'sentar' || /^dc\d/.test(e.ia || '')) && !(extra && extra.ia)) { e.ia = null; extra = Object.assign({ ia: null, ic: null, iz: null }, extra); } // levantou
+  if ((e.ia === 'sentar' || e.ia === 'comer' || e.ia === 'beber' || /^dc\d/.test(e.ia || '')) && !(extra && extra.ia)) { e.ia = null; extra = Object.assign({ ia: null, ic: null, iz: null }, extra); } // levantou
   ({ u, v } = vilaAlcance(p, clamp(u, 0.5, PRACA_W - 0.5), clamp(v, 0.5, PRACA_H - 0.5)));
   e.fu = p.u; e.fv = p.v; e.tu = u; e.tv = v; e.t0 = performance.now(); e.dur = Math.hypot(u - p.u, v - p.v) / PRACA_VEL * 1000;
   if (Math.abs((u - p.u) - (v - p.v)) > 0.01) e.dir = (u - p.u) - (v - p.v) > 0 ? 1 : -1;
@@ -16214,6 +16269,7 @@ $('#praca')?.addEventListener('click', e => {
   if (q('[data-vila-moveis]') && praca.sala) { praca.sala.edit = true; praca.qtab = 'inv'; pracaPainelAbrir('moveis'); quartoBarra(); return; }
   if ((b = q('[data-vila-tarefa]'))) return pracaTarefaPegar(b.dataset.vilaTarefa);
   if ((b = q('[data-vila-dizimo]'))) return dizimoDar(Number(b.dataset.vilaDizimo));
+  if ((b = q('[data-vila-comer]'))) return vilaComer(b.dataset.vilaComer);
   if (q('[data-vila-int-enviar]')) return igrejaIntEnviar();
   if (q('[data-vila-int-tirar]')) return igrejaIntTirar();
   if (q('[data-vila-alvo-ini]')) return pracaAlvoIniciar();
