@@ -1574,6 +1574,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
   { v: 353, txt: "🏘️ A Vila foi reorganizada! Agora tem o Centro (praça de pedra no lado esquerdo, com a Igreja, a Quermesse e o Mercado) e o Bairro Residencial (gramado com calçadas e rua, onde ficam as casinhas dos jogadores). A Mina ficou menor, no canto sudoeste, e nada mais fica em cima dela. O ping agora mostra a palavra ping antes dos ms." },
   { v: 352, txt: "🪙 A moeda que aparece na igreja (dízimo e ranking), na quermesse, no aluguel do terreno e nos textos que flutuam na Vila agora é a moeda dourada do jogo (antes aparecia prateada)." },
   { v: 351, txt: "🚜 O Trator só anda quando a verificação (a cada 10 min) achou serviço. Sem serviço ou desativado, ele fica parado ao lado da lavoura." },
@@ -5783,6 +5784,11 @@ function fitHud() {
   } else if (vis(topo) && R(menu).top < R(topo).bottom + M) menu.style.top = `${R(topo).bottom + M}px`;
 }
 addEventListener('resize', pedirFitHud);
+// Os botões laterais mudam de tamanho quando um ícone termina de carregar ou o texto muda: refaz o encaixe sempre que isso acontece
+// (sem isso, às vezes Casa e Presente ficavam um em cima do outro).
+try { const ro = new ResizeObserver(() => pedirFitHud()); for (const sel of ['#scenes', '.giftwrap', '.player', '.menu', '#tools']) { const el = document.querySelector(sel); if (el) ro.observe(el); } } catch (e) { /* sem ResizeObserver */ }
+addEventListener('load', () => { pedirFitHud(); setTimeout(pedirFitHud, 1500); });
+setInterval(() => { if (!document.hidden) pedirFitHud(); }, 4000);
 function renderTools() {
   const box = $('#tools'), hint = $('#sceneHint');
   box.hidden = scene !== 'roca';
