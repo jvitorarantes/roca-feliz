@@ -1575,6 +1575,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 362, txt: "✉️ Intenções: agora cada jogador pode colocar quantas cartas de intenção quiser (uma por vez) e retirar as suas quando quiser. (É preciso colar as regras novas do Firebase.)" },
   { v: 361, txt: "🙏 Dízimo: achei o motivo de totais acima de 50.000 não entrarem no ranking (uma regra do Firebase comparava com o valor errado) e do ranking diário travar em 300 pontos. É preciso colar as regras corrigidas no Firebase. O aviso de erro agora mostra o motivo." },
   { v: 360, txt: "🙏 Dízimo: corrigido o ranking de doadores. Se o seu total ofertado não aparecia (por exemplo, ofertas grandes feitas antes do ranking gravar direito), agora o jogo sincroniza sozinho o valor investido quando você abre o dízimo e ele entra no ranking. Se der erro, aparece um aviso no próprio painel." },
   { v: 359, txt: "⛏️ A Mina agora é uma mina de verdade, com 3 andares! Entre pela boca da caverna (canto sudoeste da Vila): lá dentro é escuro, com lanternas, cristais brilhando e morcegos. Toque nos veios para picar (vários golpes por veio) e levar carvão, ferro, cobre, prata, ouro e gemas para o celeiro: são os mesmos minérios da Forja da fazenda. Use as escadas para descer (andares mais fundos têm minérios mais raros). Cada veio volta em 20 minutos (a metade na Terça da Mina)." },
@@ -16090,8 +16091,8 @@ function vilaComer(id) {
 // ---- ✉️ Cartas de intenção: qualquer jogador deixa a sua para a próxima missa; todos leem; somem depois da missa ----
 function igrejaIntCarrega() {
   if (!praca.rt) return; praca.intCarregando = true; const key = igrejaProx().key;
-  praca.rt.ref('praca/intencoes/' + key).limitToLast(60).once('value').then(snap => {
-    const l = []; snap.forEach(c => { const x = c.val(); if (x && typeof x.t === 'string') l.push({ uid: c.key, n: String(x.n || '?').slice(0, 24), t: x.t.slice(0, 140), ts: x.ts || 0 }); });
+  praca.rt.ref('praca/intencoes/' + key).limitToLast(100).once('value').then(snap => {
+    const l = []; snap.forEach(c => { const x = c.val(); if (x && typeof x.t === 'string') l.push({ id: c.key, uid: typeof x.u === 'string' ? x.u : c.key, n: String(x.n || '?').slice(0, 24), t: x.t.slice(0, 140), ts: x.ts || 0 }); });
     praca.intencoes = l.sort((a, b) => a.ts - b.ts); praca.intencoesOk = true; praca.intCarregando = false; if (praca.painel === 'intencoes') pracaPainel();
   }).catch(e => { praca.intCarregando = false; praca.intencoesOk = true; praca.intencoes = praca.intencoes || []; console.warn('intenções:', e); });
 }
@@ -16100,24 +16101,23 @@ function igrejaIntEnviar() {
   if (!praca.rt || !praca.conectado || !user) return toast('Conecte-se à Vila (internet) para deixar a sua intenção.', 'bad');
   const t = String(praca.intDraft || '').trim().replace(/\s+/g, ' ').slice(0, 140);
   if (t.length < 3) return toast('Escreva a sua intenção (pelo menos 3 letras).', 'bad');
-  const prox = igrejaProx(), ant = new Date(); // some a carta do ciclo anterior (do próprio jogador)
-  praca.rt.ref('praca/intencoes/' + prox.key + '/' + user.uid).set({ n: meuApelido().slice(0, 24), t, ts: firebase.database.ServerValue.TIMESTAMP })
-    .then(() => { praca.intDraft = ''; sfx('collect'); toast(`✉️ Intenção colocada para a missa de ${igrejaDiaNome(prox.dia)}!`, 'good'); igrejaIntCarrega(); })
+  if (performance.now() - (praca.intUlt || 0) < 3000) return toast('Calma, uma carta de cada vez 🙂');
+  praca.intUlt = performance.now(); const prox = igrejaProx();
+  praca.rt.ref('praca/intencoes/' + prox.key).push({ u: user.uid, n: meuApelido().slice(0, 24), t, ts: firebase.database.ServerValue.TIMESTAMP })
+    .then(() => { praca.intDraft = ''; sfx('collect'); toast(`✉️ Intenção colocada para a missa de ${igrejaDiaNome(prox.dia)}! Pode escrever outra.`, 'good'); igrejaIntCarrega(); })
     .catch(e => { console.warn('intenção:', e); toast('Não consegui salvar a intenção agora.', 'bad'); });
-  if (state.igrejaIntKey && state.igrejaIntKey !== prox.key) praca.rt.ref('praca/intencoes/' + state.igrejaIntKey + '/' + user.uid).remove().catch(() => {});
-  state.igrejaIntKey = prox.key; save();
 }
-function igrejaIntTirar() {
-  if (!praca.rt || !user) return; const prox = igrejaProx();
-  praca.rt.ref('praca/intencoes/' + prox.key + '/' + user.uid).remove().then(() => { toast('Sua intenção foi retirada.'); igrejaIntCarrega(); }).catch(() => toast('Não consegui retirar agora.', 'bad'));
+function igrejaIntTirar(id) {
+  if (!praca.rt || !user || !id) return; const prox = igrejaProx();
+  praca.rt.ref('praca/intencoes/' + prox.key + '/' + id).remove().then(() => { toast('Sua intenção foi retirada.'); igrejaIntCarrega(); }).catch(() => toast('Não consegui retirar agora.', 'bad'));
 }
 function pracaHtmlIntencoes() {
-  const prox = igrejaProx(), l = praca.intencoes, minha = l && l.find(x => user && x.uid === user.uid);
+  const prox = igrejaProx(), l = praca.intencoes, minhas = l ? l.filter(x => user && x.uid === user.uid).length : 0;
   let h = `<div class="vp-card"><b>✉️ Intenções para a missa de ${igrejaDiaNome(prox.dia)} (${igrejaMissa().nome.replace('Missa ', '')})</b>
-    <small>Escreva um pedido, agradecimento ou oração. Todos os jogadores podem ler e o padre lê algumas na oração dos fiéis. As cartas somem depois da missa. Cada jogador tem uma carta; escrever de novo troca a anterior.</small>
+    <small>Escreva quantos pedidos, agradecimentos ou orações quiser, uma carta de cada vez. Todos os jogadores podem ler e o padre lê algumas na oração dos fiéis. As cartas somem depois da missa.${minhas ? ` Você já colocou ${minhas}.` : ''}</small>
     <textarea class="intxt" data-vila-int-txt maxlength="140" rows="3" placeholder="Escreva a sua intenção…">${esc(praca.intDraft || '')}</textarea>
-    <div class="vp-decor"><button type="button" class="btn gold" data-vila-int-enviar>✉️ ${minha ? 'Trocar a minha carta' : 'Colocar a minha carta'}</button>${minha ? '<button type="button" class="btn ghost" data-vila-int-tirar>Retirar</button>' : ''}</div></div>`;
-  h += `<div class="vp-card"><b>📜 Cartas desta missa (${l ? l.length : '…'})</b>${l ? (l.length ? l.slice().reverse().map(x => `<div class="vp-int"><b>${esc(x.n)}${user && x.uid === user.uid ? ' (você)' : ''}:</b> ${esc(x.t)}</div>`).join('') : '<div>Ainda não há cartas. Seja o primeiro!</div>') : '<div>Carregando…</div>'}</div>`;
+    <div class="vp-decor"><button type="button" class="btn gold" data-vila-int-enviar>✉️ Colocar a carta</button></div></div>`;
+  h += `<div class="vp-card"><b>📜 Cartas desta missa (${l ? l.length : '…'})</b>${l ? (l.length ? l.slice().reverse().map(x => `<div class="vp-int"><b>${esc(x.n)}${user && x.uid === user.uid ? ' (você)' : ''}:</b> ${esc(x.t)}${user && x.uid === user.uid ? ` <button type="button" class="btn ghost mais" data-vila-int-tirar="${esc(x.id)}">Retirar</button>` : ''}</div>`).join('') : '<div>Ainda não há cartas. Seja o primeiro!</div>') : '<div>Carregando…</div>'}</div>`;
   return h;
 }
 // ---- ⛪ Dízimo: oferta em moedas, bênção aleatória do padre e ranking geral (nunca zera) ----
@@ -16803,7 +16803,7 @@ $('#praca')?.addEventListener('click', e => {
   if (q('[data-vila-patinho]')) return vilaPatinho();
   if ((b = q('[data-vila-album]'))) return vilaAlbumPremio(b.dataset.vilaAlbum);
   if (q('[data-vila-int-enviar]')) return igrejaIntEnviar();
-  if (q('[data-vila-int-tirar]')) return igrejaIntTirar();
+  if ((b = q('[data-vila-int-tirar]'))) return igrejaIntTirar(b.dataset.vilaIntTirar);
   if (q('[data-vila-alvo-ini]')) return pracaAlvoIniciar(alvo.jogo);
   if (q('[data-vila-alvo-tiro]')) return pracaAlvoTiro();
   if (q('[data-vila-meuquarto]')) { pracaPainelAbrir(null); return pracaVisitarQuarto(user.uid); }
