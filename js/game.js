@@ -899,7 +899,8 @@ function objetoNaCelula(i) {
   return objList(state, 'roca').some(o => !o.cerca && Math.abs(o.u - c) < o.r + 0.35 && Math.abs(o.v - r) < o.r + 0.35);
 }
 let buyPending = null; // lote clicado uma vez, esperando o segundo clique para confirmar
-const sfx = name => { if (window.RFAudio) window.RFAudio.play(name); };
+let luxoQuieto = false; // as máquinas do luxo trabalham sem som nem avisos
+const sfx = name => { if (!luxoQuieto && window.RFAudio) window.RFAudio.play(name); };
 const comfort = s => DECOR.reduce((t, d) => t + (emUso(s, d.id) ? emUso(s, d.id).conforto : 0), 0) + confortoEnfeites(s);
 const firstName = n => (n || '').split(' ')[0] || 'Você';
 
@@ -907,6 +908,7 @@ $('#trevosHud').addEventListener('click', () => { if (trevosPendentes()) { missS
 // A caixa de avisos fica no topo da página (por cima das janelas abertas, como a pescaria).
 (() => { const t = document.getElementById('toasts'); if (t && t.parentElement !== document.body) document.body.appendChild(t); })();
 function toast(msg, kind = '') {
+  if (luxoQuieto) return;
   const el = document.createElement('div');
   el.className = 'toast ' + kind; el.textContent = msg;
   if (kind === 'bad') sfx('error');
@@ -915,7 +917,7 @@ function toast(msg, kind = '') {
   const all = $('#toasts').children; if (all.length > (L.cw < 500 ? 2 : 3)) all[0].remove();
 }
 function popupAt(pos, text, color, delay = 0) {
-  if (!pos) return;
+  if (!pos || luxoQuieto) return;
   popups.push({ x: pos.x, y: pos.y - L.W * 0.2, text, color, t0: performance.now() + delay });
 }
 function lvlUpFX() {
@@ -952,6 +954,7 @@ function lvlupCard(bonus, trevos, premio) {
 }
 function addXP(n, pos) {
   n = Math.max(n, Math.round(n * (1 + comfort(state) / 100)));
+  if (state.luxo && state.luxo.mansao) n = Math.round(n * 1.25); // 🏰 Mansão: +25% de XP
   state.xp += n;
   popupAt(pos, `+${n} XP`, '#4aa3df', 180);
   while (state.xp >= need(state.level)) {
@@ -1189,6 +1192,120 @@ function clearAllWithered() {
 }
 
 
+// ============================================================
+// 👑 Luxo (Loja › Luxo): compras caras que trabalham por você, inclusive com o jogo fechado (até 8 h)
+// ============================================================
+const LUXO = {
+  trator:  { ic: '🚜', nome: 'Trator da Colheita', preco: 500000, desc: 'Colhe sozinho tudo que amadurece, limpa a terra seca e replanta a planta que você escolher (usa as plantas do celeiro). Trabalha até 8 h com o jogo fechado e cura plantas apodrecidas.' },
+  fabrica: { ic: '🏭', nome: 'Fábrica Automática', preco: 350000, desc: 'A cada 30 min vende sozinha até 60 itens do celeiro por 50% a mais que o preço normal (guarda sempre 10 de cada planta para plantar). Funciona até 8 h com o jogo fechado.' },
+  ajud:    { ic: '🤖', nome: 'Ajudante Fixo', preco: 200000, desc: 'Espantalho-robô: rega a terra seca, tira pragas e mato, alimenta os animais com fome e recolhe os produtos prontos. Funciona até 8 h com o jogo fechado.' },
+  mansao:  { ic: '🏰', nome: 'Mansão', preco: 500000, desc: 'Muda a sua casa para uma mansão: +25% de XP em tudo que você faz, para sempre.' },
+  terreno: { ic: '🏡', nome: 'Terreno na Vila', preco: 300000, desc: 'Um lote seu na Vila que rende 1.200 moedas por hora de aluguel (guarda até 24 h). Você coleta aqui.' },
+};
+const LUXO_MAX = 8 * 3600; // segundos de trabalho com o jogo fechado
+function luxoDe() { return state.luxo || (state.luxo = { trator: 0, fabrica: 0, ajud: 0, mansao: 0, terreno: 0, planta: 'auto', t: 0, aluT: 0 }); }
+function luxoCultura() {
+  const L = luxoDe(), ok = c => c.nivel <= state.level && plantaQtd(c) > 0;
+  if (L.planta !== 'auto' && CROP[L.planta] && ok(CROP[L.planta])) return CROP[L.planta];
+  const val = c => ((PRODUCE[c.prod] && PRODUCE[c.prod].preco) || 1) * c.rend / c.tempo;
+  return CROPS.filter(ok).sort((a, b) => val(b) - val(a))[0] || null;
+}
+function luxoTrator() {
+  let col = 0, pl = 0;
+  state.plots.forEach((p, i) => {
+    if (p.s === 'growing' && p.podre) curar(p);
+    if (ripe(p)) { harvestPlot(p, null); col++; }
+    if (p.s === 'withered') Object.assign(p, emptyPlot('plowed'));
+    if (p.s === 'plowed') {
+      const c = luxoCultura(); if (!c) return;
+      gastaPlanta(c); Object.assign(p, emptyPlot('growing'), { c: c.id, id: newId(), ouro: Math.random() < OURO_CHANCE }); pl++;
+    }
+  });
+  return col + pl;
+}
+function luxoAjudante() {
+  let n = 0;
+  for (const p of state.plots) if (p.s === 'growing') { if (p.dry) { p.dry = false; n++; } if (p.b > 0) { p.b = 0; n++; } if (p.w > 0) { p.w = 0; n++; } }
+  for (const a of state.animals) {
+    if (isHungry(a) && feedAnimal(a, null, false)) n++;
+    if (ANIMAL[a.k].tipo === 'prod' && a.ready) { collectAnimal(a, null); n++; }
+  }
+  return n;
+}
+function luxoFabrica(lotes) {
+  let total = 0;
+  for (let k = 0; k < lotes; k++) {
+    let sobra = 60;
+    const ids = Object.keys(state.barn).filter(id => PRODUCE[id]).sort((a, b) => item(b).preco - item(a).preco);
+    for (const id of ids) {
+      if (sobra <= 0) break;
+      const q = state.barn[id], guarda = PRODUCE[id].planta ? PLANTAS_BAIXO : 0, v = Math.min(sobra, q - bloqQtd(id, q) - guarda);
+      if (v <= 0) continue;
+      state.barn[id] = q - v; if (!state.barn[id]) delete state.barn[id];
+      total += Math.round(v * item(id).preco * 1.5); sobra -= v;
+    }
+  }
+  if (total) { state.coins += total; state.stats.vendido += total; }
+  return total;
+}
+function luxoAluguel() { const L = luxoDe(); return L.terreno ? Math.floor(Math.min(24, Math.max(0, (Date.now() - (L.aluT || Date.now())) / 3600e3)) * 1200) : 0; }
+// Roda as máquinas. "fora" = ficou um tempo sem rodar (jogo fechado): simula em passos de 30 min.
+function luxoRodar(fora) {
+  if (!state) return;
+  const L = luxoDe(), agora = Date.now(); let sec = L.t ? (agora - L.t) / 1000 : 0; L.t = agora;
+  if (!(L.trator || L.fabrica || L.ajud)) return;
+  fora = fora || sec > 120; sec = Math.min(sec, LUXO_MAX);
+  const passos = fora ? Math.min(16, Math.max(1, Math.ceil(sec / 1800))) : 1, dt = fora ? sec / passos : 0;
+  let moedas = 0, trab = 0; luxoQuieto = true;
+  try {
+    for (let k = 0; k < passos; k++) {
+      if (L.ajud) trab += luxoAjudante();
+      if (L.trator) trab += luxoTrator();
+      if (fora && dt) for (const p of state.plots) growPlot(p, dt, false, state);
+    }
+    if (L.fabrica) moedas = luxoFabrica(fora ? Math.floor(sec / 1800) : (agora - (L.fabT || 0) >= 1800e3 ? 1 : 0));
+    if (L.fabrica && (fora || agora - (L.fabT || 0) >= 1800e3)) L.fabT = agora;
+  } finally { luxoQuieto = false; }
+  if (trab || moedas) {
+    done();
+    if (fora || moedas) toast(`👑 Suas máquinas trabalharam${moedas ? ` e a fábrica vendeu por ${moedas.toLocaleString('pt-BR')} moedas` : ''}!`, 'good');
+  }
+}
+setInterval(() => { try { if (state && !isGated()) luxoRodar(false); } catch (e) { luxoQuieto = false; console.warn('luxo:', e); } }, 30e3);
+function luxoComprar(id) {
+  const X = LUXO[id], L = luxoDe(); if (!X || L[id]) return;
+  if (state.coins < X.preco) return toast(`Faltam ${(X.preco - state.coins).toLocaleString('pt-BR')} moedas para ${X.nome}.`, 'bad');
+  perguntar(`Comprar ${X.ic} ${X.nome} por ${X.preco.toLocaleString('pt-BR')} moedas?`, () => {
+    if (state.coins < X.preco || L[id]) return;
+    state.coins -= X.preco; L[id] = 1; L.t = Date.now(); if (id === 'terreno') L.aluT = Date.now();
+    sfx('level'); addNews(`👑 Você comprou ${X.nome}!`); toast(`👑 ${X.nome} comprado!`, 'good'); done(); renderPane();
+    if (id === 'trator' || id === 'ajud' || id === 'fabrica') luxoRodar(false);
+  });
+}
+function luxoPlanta() {
+  const L = luxoDe(), l = ['auto', ...CROPS.filter(c => c.nivel <= state.level).map(c => c.id)];
+  L.planta = l[(l.indexOf(L.planta) + 1) % l.length] || 'auto'; sfx('click'); save(); renderPane();
+}
+function luxoColetar() {
+  const n = luxoAluguel(); if (n <= 0) return toast('Ainda não tem aluguel para coletar. Volte daqui a pouco!');
+  state.coins += n; luxoDe().aluT = Date.now(); sfx('coin'); toast(`🏡 Aluguel do terreno: +${n.toLocaleString('pt-BR')} moedas!`, 'good'); done();
+}
+function luxoHTML() {
+  const L = luxoDe();
+  let html = `<p class="hint">👑 Compras caras e muito úteis. Você tem ${moeda(state.coins)}. As máquinas trabalham sozinhas, até 8 h com o jogo fechado.</p>`;
+  for (const [id, X] of Object.entries(LUXO)) {
+    const tem = !!L[id];
+    let extra = '';
+    if (tem && id === 'trator') extra = `<br><button class="btn ghost mais" data-luxo-planta="1">🌱 Planta: ${L.planta === 'auto' ? 'automática' : esc(CROP[L.planta] ? CROP[L.planta].nome : 'automática')} (trocar)</button>`;
+    if (tem && id === 'terreno') extra = `<br><button class="btn gold mais" data-luxo-coletar="1">Coletar aluguel: 🪙 ${luxoAluguel().toLocaleString('pt-BR')}</button>`;
+    html += `<div class="row ${tem ? 'sel' : ''}"><div class="avatar" style="background:#6a4a8a;font-size:26px">${X.ic}</div>
+      <div><div class="name">${X.nome}</div><div class="meta">${X.desc}${extra}</div></div>
+      ${tem ? '<button class="btn ghost" disabled>Ativo ✔</button>' : `<button class="btn ${state.coins >= X.preco ? 'gold' : ''}" data-luxo-comprar="${id}">${moeda(X.preco)}</button>`}</div>`;
+  }
+  return html;
+}
+
+
 // Clique num bicho: ele solta uma frase (balãozinho) e o seu barulho.
 const FALAS_BICHO = {
   galinha: ['Có có có!', 'Botei um ovo! 🥚', 'Cadê o milho?', 'Achei uma minhoca!'],
@@ -1405,6 +1522,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 334, txt: "👑 Loja › Luxo: 5 compras caras e muito úteis. 🚜 Trator da Colheita (500 mil: colhe, limpa e replanta sozinho), 🏭 Fábrica Automática (350 mil: vende o celeiro com 50% a mais), 🤖 Ajudante Fixo (200 mil: rega, tira pragas e cuida dos animais), 🏰 Mansão (500 mil: +25% de XP) e 🏡 Terreno na Vila (300 mil: 1.200 moedas por hora de aluguel). As máquinas trabalham até 8 h com o jogo fechado." },
   { v: 333, txt: "Cartas de Halloween: a lista de amigos para enviar agora espera os nomes carregarem (antes aparecia só 'Amigo' repetido)." },
   { v: 332, txt: "Corrigido: ao tocar em 🆘 Precisa de ajuda (ou visitar um amigo) a tela de carregamento podia ficar parada para sempre se a internet falhasse. Agora ela desiste em 15 segundos e avisa para tentar de novo." },
   { v: 331, txt: "Vila: corrigido o botão ✏️ Editar (e Sair) do quarto que não respondia ao toque no iPhone. Com o celular deitado, os botões de zoom e microfone não cobrem mais o X de fechar a Vila." },
@@ -5871,7 +5989,7 @@ function renderPane() {
   else if (tab === 'missoes') html = missoesHTML();
   else if (tab === 'fabrica') html = fabricaHTML();
   else if (tab === 'loja') {
-    const segs = [['sementes', 'Plantas'], ['pomar', 'Pomar'], ['adubo', 'Itens'], ['animais', 'Animais'], ['abrigos', 'Abrigos'], ['caes', 'Cães'], ['decor', 'Casa'], ['enfeites', 'Enfeites'], ['temas', 'Temas'], ['trevo', '🍀 Trevo']];
+    const segs = [['sementes', 'Plantas'], ['pomar', 'Pomar'], ['adubo', 'Itens'], ['animais', 'Animais'], ['abrigos', 'Abrigos'], ['caes', 'Cães'], ['decor', 'Casa'], ['enfeites', 'Enfeites'], ['temas', 'Temas'], ['trevo', '🍀 Trevo'], ['luxo', '👑 Luxo']];
     if (eventoAtivo()) segs.unshift(['evento', '🎈 Evento']);
     else if (shopSeg === 'evento') shopSeg = 'sementes';
     html += `<div class="seg small" role="tablist">${segs.map(([id, n]) => `<button type="button" role="tab" data-seg="${id}" aria-selected="${shopSeg === id}">${n}</button>`).join('')}</div>`;
@@ -6001,6 +6119,8 @@ function renderPane() {
       html += pomarLojaHTML();
     } else if (shopSeg === 'evento') {
       html += eventoLojaHTML();
+    } else if (shopSeg === 'luxo') {
+      html += luxoHTML();
     } else if (shopSeg === 'trevo') {
       html += trevoLojaHTML();
     } else if (shopSeg === 'temas') {
@@ -6231,6 +6351,9 @@ $('#pane').addEventListener('click', e => {
   if (d.papelParede) { if (!paredeLiberada(d.papelParede)) return; state.papelParede = d.papelParede === 'padrao' ? '' : d.papelParede; sfx('click'); done(); return renderPane(); }
   if (d.skinCao) { const [sl, sk] = d.skinCao.split(':'), dg = state.dogs[sl]; if (dg && (sk === 'padrao' || (SKIN_CAO[sk] && temTrevoItem('cao:' + sk)))) { dg.skin = sk === 'padrao' ? '' : sk; sfx('click'); done(); renderPane(); if (isHome()) setScene(scene); } return; }
   if (d.pracaAbrir) return pracaAbrir();
+  if (d.luxoComprar) return luxoComprar(d.luxoComprar);
+  if (d.luxoPlanta) return luxoPlanta();
+  if (d.luxoColetar) return luxoColetar();
   if (d.halEnviar) return enviarCartaHal(d.halEnviar);
   if (d.halAbrir) { halCartaTick(); return; }
   if (d.halResgatar) return resgatarHal(d.halResgatar);
@@ -15630,6 +15753,7 @@ function start(data) {
   rollPeriods(); presentePioneiro(); eventoEntrada(); halEntrada(); checarNovidades(); setTimeout(pracaEntrada, 1500);
   resize(); setScene('roca'); renderHUD(); renderAccount(); renderPane(); paintMenuIcons(); afterUpdate(); renderTabs();
   ultimaChecagem = Date.now(); autoUpdate();
+  try { luxoRodar(true); } catch (e) { luxoQuieto = false; console.warn('luxo:', e); }
   // app instalável (celular, tablet e o app de Android): abre mesmo sem internet
   if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
   if (!Cloud.available && state.boasVindas) setTimeout(abrirBoasVindas, 600);
