@@ -1575,6 +1575,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 356, txt: "🎶 Vila renovada, parte 2! Moradores com rotina (Seu Tonico, Zé do Rio, Dona Lúcia, Sargento Brito, Dona Teresa e Sá Maria andam pela Vila ao longo do dia e pedem coisas no Quadro de avisos; ❗ marca quem tem pedido). Calendário: segunda/terça/quinta voltam mais rápido as coletas da Praia/Mina/Floresta, sexta é Serenata (lanternas e coreto à noite) e sábado é a Feira (pedidos pagam 50% a mais). Novos lugares: 🎶 coreto (toque música), 🔥 fogueira (marshmallow), ⛵ barco até a 🏝️ ilha com baú, e 📸 foto da Vila (menu Eu). As casinhas ganharam janela acesa, fumaça e caixa de correio. O tesouro do dia agora é um enigma com quente/frio." },
   { v: 355, txt: "🌿 Vila renovada, parte 1! (1) Os itens que flutuavam pelo mapa acabaram: agora há pontos de coleta fixos (arbustos de frutinhas, cogumelos e ervas na Floresta, conchas na Praia e cristais na Mina). Toque no botão perto do ponto e o avatar coleta; cada ponto volta em 8 a 12 min, com raros ✨ e lendários 🌈. Tudo vai pro celeiro e preenche o 📖 Álbum de coleção (menu Eu). (2) O Mural virou Quadro de avisos, que junta Pedidos dos moradores (entregue o que coletou por moedas e amizade), Metas e chefe, e Tarefas do dia. (3) O tiro ao alvo foi para a Quermesse, junto com o jogo da argola e a pescaria de patinhos." },
   { v: 353, txt: "🏘️ A Vila foi reorganizada! Agora tem o Centro (praça de pedra no lado esquerdo, com a Igreja, a Quermesse e o Mercado) e o Bairro Residencial (gramado com calçadas e rua, onde ficam as casinhas dos jogadores). A Mina ficou menor, no canto sudoeste, e nada mais fica em cima dela. O ping agora mostra a palavra ping antes dos ms." },
   { v: 352, txt: "🪙 A moeda que aparece na igreja (dízimo e ranking), na quermesse, no aluguel do terreno e nos textos que flutuam na Vila agora é a moeda dourada do jogo (antes aparecia prateada)." },
@@ -14441,6 +14442,10 @@ const VILA_LOCAIS = {
   mural:   { u: 32, v: 17, nome: 'Quadro de avisos',   ic: '📋' },
   mercado: { u: 16.8, v: 31.2, nome: 'Mercado', ic: '🏪' },
   quermesse: { u: 12.4, v: 33.4, nome: 'Quermesse', ic: '🎪' },
+  coreto:  { u: 37.5, v: 21.2, nome: 'Coreto', ic: '🎶' },
+  fogueira: { u: 47, v: 36, nome: 'Fogueira', ic: '🔥' },
+  barco:   { u: 46.3, v: 12, nome: 'Barco', ic: '⛵' },
+  ilha:    { u: 56, v: 12, nome: 'Ilha', ic: '🏝️' },
 };
 const VILA_DECOR = ['🌻', '🎃', '🪑', '🏮', '🌳', '⛲', '🧺', '🪴', '🐕', '🎈'];
 const VILA_BOSS_HP = 500, VILA_BOSS_CICLO = 15 * 60e3, VILA_BOSS_JANELA = 5 * 60e3, MERCADO_MAX = 4;
@@ -14541,7 +14546,7 @@ function pracaHtmlMenu(grupo) {
     + sec('Atividades', [it('📜', 'Pedidos e tarefas', 'data-vila-ir="mural"'), it('🎪', 'Quermesse e jogos', 'data-vila-ir="quermesse"')]);
   if (grupo === 'pessoas') return sec('Pessoas', [it('📍', 'Onde estão', 'data-vila-ir="onde"'), it('📣', 'Convidar amigos', 'data-vila-ir="convidar"'), it('✉️', `Cartas${nc ? ' (' + nc + ')' : ''}`, 'data-vila-ir="cartas"'), it('🎙️', 'Voz', 'data-vila-ir="voz"')]);
   return `<div class="vmenu-emo">${PRACA_EMOTES.slice(0, 6).map(e => `<button type="button" data-praca-emote="${e}" aria-label="Emoji ${e}">${e}</button>`).join('')}</div>`
-    + sec('Eu', [it('💃', 'Danças e gestos', 'data-vila-ir="danca"'), it('🏅', 'Títulos e selos', 'data-vila-ir="conq"'), it('🐾', 'Meu pet', 'data-vila-ir="pet"'), it('📖', 'Álbum de coleção', 'data-vila-ir="album"'), it('🎒', 'Móveis', praca.sala && praca.sala.dono === user.uid ? 'data-vila-moveis' : 'disabled'), it(settings.semInter ? '🚫' : '✨', settings.semInter ? 'Interações: off' : 'Interações: on', 'data-vila-bloq')]);
+    + sec('Eu', [it('💃', 'Danças e gestos', 'data-vila-ir="danca"'), it('🏅', 'Títulos e selos', 'data-vila-ir="conq"'), it('🐾', 'Meu pet', 'data-vila-ir="pet"'), it('📖', 'Álbum de coleção', 'data-vila-ir="album"'), it('📸', 'Tirar foto', 'data-vila-foto'), it('🎒', 'Móveis', praca.sala && praca.sala.dono === user.uid ? 'data-vila-moveis' : 'disabled'), it(settings.semInter ? '🚫' : '✨', settings.semInter ? 'Interações: off' : 'Interações: on', 'data-vila-bloq')]);
 }
 function pracaOuvir(chave, ref, cb) { if (praca.refs[chave]) praca.refs[chave].off(); praca.refs[chave] = ref; ref.on('value', cb); }
 // Presença no mundo (praca/jogadores) ou dentro de uma sala (praca/salas/<id>/jog)
@@ -14975,6 +14980,7 @@ function vilaPesca() {
 function vilaContexto() {
   const e = praca.eu; if (!e) return null;
   const p = pracaPos(e, performance.now()), d = (u, v) => Math.hypot(p.u - u, p.v - v);
+  if (!praca.pesca) { if (d(VILA_LOCAIS.barco.u, VILA_LOCAIS.barco.v) < 2.2) return { id: 'barco', txt: '⛵ Ir de barco até a ilha' }; if (d(VILA_LOCAIS.ilha.u, VILA_LOCAIS.ilha.v) < 3.2) return vilaIlhaPronta() ? { id: 'bauilha', txt: '🧰 Abrir o baú da ilha' } : { id: 'voltar', txt: '⛵ Voltar de barco' }; }
   if (praca.pesca || vilaPertoAgua(p)) return { id: 'pesca', txt: !praca.pesca ? '🎣 Pescar' : praca.pesca.fase === 'espera' ? '🎣 Esperando… (não puxe!)' : '❗ PUXAR!', fisgou: !!praca.pesca && praca.pesca.fase === 'fisgou' };
   if (pracaBossAtivo()) { const b = pracaBossPos(); if (d(b.u, b.v) < 6) return { id: 'boss', txt: `⚔️ Atacar o ${pracaBossNome().slice(3)}!` }; }
   if (praca.colhendo) return { id: 'colhendo', txt: '⏳ Coletando…' };
@@ -14983,6 +14989,8 @@ function vilaContexto() {
   const tes = vilaTesouro(); if (!pracaSt().c.tesOk && d(tes.u, tes.v) < 2) return { id: 'tesouro', txt: '⛏️ Cavar aqui' };
   if (d(VILA_LOCAIS.mural.u, VILA_LOCAIS.mural.v) < 3.5) return { id: 'mural', txt: '📋 Ver o quadro de avisos' };
   if (d(VILA_LOCAIS.mercado.u, VILA_LOCAIS.mercado.v) < 4) return { id: 'mercado', txt: '🏪 Entrar no mercado' };
+  if (d(VILA_LOCAIS.coreto.u, VILA_LOCAIS.coreto.v) < 2.6) return { id: 'coreto', txt: '🎶 Tocar no coreto' };
+  if (d(VILA_LOCAIS.fogueira.u, VILA_LOCAIS.fogueira.v) < 2.8) return { id: 'fogueira', txt: '🍡 Assar marshmallow' };
   if (d(VILA_LOCAIS.quermesse.u, VILA_LOCAIS.quermesse.v) < 3.6) return { id: 'quermesse', txt: '🎪 Ir à quermesse' };
   return null;
 }
@@ -14991,6 +14999,11 @@ function vilaAcao() {
   const c = vilaContexto() || (praca.ctx && performance.now() - praca.ctx.t < 1500 ? praca.ctx.cx : null); if (!c || praca.painel) return;
   const bt = $('#pracaAcao'); if (bt && c.id !== 'pesca' && c.id !== 'boss') { bt.hidden = true; bt.dataset.k = ''; praca.ctx = null; }
   if (c.id === 'tesouro') return vilaCavar();
+  if (c.id === 'coreto') return vilaCoreto();
+  if (c.id === 'fogueira') return vilaMarshmallow();
+  if (c.id === 'barco') return vilaTeleporta(55.2, 12.6, 'Navegando até a ilha… ⛵');
+  if (c.id === 'voltar') return vilaTeleporta(46.8, 12.8, 'Voltando para o cais… ⛵');
+  if (c.id === 'bauilha') return vilaBauIlha();
   if (c.id.startsWith('col:')) return vilaColetar(vilaPontos().find(x => x.id === c.id.slice(4)));
   if (c.id === 'pesca') return vilaPesca();
   if (c.id === 'boss') return pracaBater();
@@ -15034,6 +15047,7 @@ function pracaHud(now) {
   if (praca.sala) { el.textContent = ''; el.dataset.t = ''; return; }
   const t = pracaAgora(), ciclo = VILA_BOSS_CICLO, dentro = t % ciclo, ativo = pracaBossAtivo(), noite = vilaNoite() > 0.5;
   const linhas = [ativo ? `${pracaBossNome()} no Campo! ${Math.min(praca.boss, VILA_BOSS_HP)}/${VILA_BOSS_HP} · ${fmt(Math.ceil((VILA_BOSS_JANELA - dentro) / 1000))}` : `⚔️ Próximo chefe em ${fmt(Math.ceil((ciclo - dentro) / 1000))}`];
+  linhas.push(`${vilaEvento().e} Hoje: ${vilaEvento().n}`);
   { const pr = vilaPontos().filter(x => vilaPontoPronto(x)).length; linhas.push(`${noite ? '🌙' : '☀️'} ${pr} pontos de coleta prontos`); }
   const txt = linhas.join('\n'); if (el.dataset.t !== txt) { el.dataset.t = txt; el.textContent = txt; }
 }
@@ -15047,7 +15061,12 @@ function pracaCasaDesenho(g, q, G, c) {
   g.fillStyle = tm.parede; g.fillRect(q.x - w / 2, q.y - h, w, h);
   g.fillStyle = tm.telhado; g.beginPath(); g.moveTo(q.x - w * 0.62, q.y - h); g.lineTo(q.x, q.y - h - w * 0.5); g.lineTo(q.x + w * 0.62, q.y - h); g.closePath(); g.fill();
   g.fillStyle = tm.porta; g.fillRect(q.x - w * 0.1, q.y - h * 0.6, w * 0.2, h * 0.6);
-  g.fillStyle = tm.moldura; g.fillRect(q.x + w * 0.2, q.y - h * 0.75, w * 0.18, w * 0.18);
+  const nt = vilaNoite() > 0.45;
+  g.fillStyle = nt ? '#ffe39a' : tm.moldura; g.fillRect(q.x + w * 0.2, q.y - h * 0.75, w * 0.18, w * 0.18);
+  if (nt) { const gl = g.createRadialGradient(q.x + w * 0.29, q.y - h * 0.62, 1, q.x + w * 0.29, q.y - h * 0.62, w * 0.6); gl.addColorStop(0, 'rgba(255,220,130,.35)'); gl.addColorStop(1, 'rgba(255,220,130,0)'); g.fillStyle = gl; g.fillRect(q.x - w * 0.4, q.y - h * 1.5, w * 1.4, w * 1.2); }
+  g.fillStyle = '#7a5a46'; g.fillRect(q.x - w * 0.4, q.y - h - w * 0.34, w * 0.12, w * 0.3);
+  for (let k = 0; k < 3; k++) { const pp = ((performance.now() / 2200) + k / 3) % 1; g.globalAlpha = 0.5 * (1 - pp); g.fillStyle = '#eee'; g.beginPath(); g.arc(q.x - w * 0.34 + Math.sin(pp * 5 + k) * w * 0.05, q.y - h - w * (0.4 + pp * 0.5), w * (0.04 + pp * 0.06), 0, 7); g.fill(); g.globalAlpha = 1; }
+  g.fillStyle = '#4a6a8a'; g.fillRect(q.x + w * 0.55, q.y - h * 0.4, w * 0.04, h * 0.4); g.fillStyle = '#d8402f'; g.fillRect(q.x + w * 0.5, q.y - h * 0.55, w * 0.14, w * 0.09);
   g.font = `${Math.round(G.tw * 0.8)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; (c.d || []).slice(0, 3).forEach((e, i) => g.fillText(e, q.x + (i - 1) * G.tw * 0.85, q.y + G.tw * 0.5));
 }
 function pracaFrame(now) {
@@ -15063,6 +15082,7 @@ function pracaFrame(now) {
     pracaDesenha(g, c, now, dpr);
     }
   } catch (e) { console.warn('vila desenho:', e); }
+  if (praca.fade) { const k = (now - praca.fade.t0) / praca.fade.dur; if (k >= 1) praca.fade = null; else { g.globalAlpha = Math.sin(Math.PI * k) * 0.95; g.fillStyle = '#0a1a2a'; g.fillRect(0, 0, c.width, c.height); g.globalAlpha = 1; g.font = `800 ${Math.round(c.height * 0.04)}px system-ui`; g.textAlign = 'center'; g.fillStyle = `rgba(255,255,255,${Math.sin(Math.PI * k)})`; g.fillText('⛵ …', c.width / 2, c.height / 2); } }
   ctx = saved; $('#pracaInfo').textContent = praca.conectado ? `👥 ${Object.keys(praca.jog).length + (praca.eu ? 1 : 0)} · ${praca.ping < 120 ? '🟢' : praca.ping < 300 ? '🟡' : '🔴'} ${praca.ping || '…'} ms` : 'conectando…';
   requestAnimationFrame(pracaFrame);
 }
@@ -15121,10 +15141,15 @@ function pracaDesenha(g, c, now, dpr) {
       if (id === 'mural') { g.fillStyle = '#7a4a22'; g.fillRect(q.x - tw * 1.3, q.y - tw * 2.1, tw * 2.6, tw * 1.6); g.fillStyle = '#f4e2b0'; g.fillRect(q.x - tw * 1.15, q.y - tw * 1.95, tw * 2.3, tw * 1.3); g.fillRect(q.x - tw * 1.3, q.y - tw * 0.5, tw * 0.2, tw * 0.6); g.fillRect(q.x + tw * 1.1, q.y - tw * 0.5, tw * 0.2, tw * 0.6); g.font = `${Math.round(tw * 1.1)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('📋', q.x, q.y - tw * 0.95); }
       else if (id === 'alvo') { g.fillStyle = '#7a4a22'; g.fillRect(q.x - tw * 0.12, q.y - tw * 1.6, tw * 0.24, tw * 1.6); for (let k = 0; k < 4; k++) { g.fillStyle = k % 2 ? '#fff' : '#e0463a'; g.beginPath(); g.arc(q.x, q.y - tw * 2.1, tw * (1.1 - k * 0.27), 0, 7); g.fill(); } g.fillStyle = '#ffd54a'; g.beginPath(); g.arc(q.x, q.y - tw * 2.1, tw * 0.12, 0, 7); g.fill(); }
       else if (id === 'quermesse') quermesseDesenha(g, q, tw, dpr, now);
+      else if (id === 'coreto') coretoDesenha(g, q, tw, dpr, now, noite);
+      else if (id === 'fogueira') fogueiraDesenha(g, q, tw, dpr, now, noite);
+      else if (id === 'barco') barcoDesenha(g, q, tw, dpr, now);
+      else if (id === 'ilha') ilhaDesenha(g, q, tw, dpr, now);
       else { for (let k = 0; k < 8; k++) { g.fillStyle = k % 2 ? '#fff' : '#e0463a'; g.fillRect(q.x - tw * 2 + k * tw * 0.5, q.y - tw * 2.2, tw * 0.5, tw * 0.7); } g.fillStyle = '#b88350'; g.fillRect(q.x - tw * 1.8, q.y - tw * 1.5, tw * 3.6, tw * 1.5); g.font = `${Math.round(tw * 1.0)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('🍎🥕🥚', q.x, q.y - tw * 0.4); }
       g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffe08a'; g.strokeText(l.nome, q.x, q.y + tw * 0.7); g.fillText(l.nome, q.x, q.y + tw * 0.7);
     });
-    praca.hits.push({ id, x: q.x, y: q.y - tw, r: tw * 2.2 });
+    if (id !== 'barco' && id !== 'ilha') praca.hits.push({ id, x: q.x, y: q.y - tw, r: tw * 2.2 });
+    else praca.hits.push({ id: 'loc:' + id, x: q.x, y: q.y - tw, r: tw * 2 });
   }
   for (const [tipo, F] of Object.entries(FESTAS)) { const q = I(F.u, F.v); if (!(q.x > -120 && q.x < W + 120 && q.y > -160 && q.y < H + 80)) continue;
     if (tipo === 'igreja') { push(F.u + F.v, () => igrejaFachada(g, q, tw, dpr, now, noite > 0.5)); praca.hits.push({ id: 'f:igreja', x: q.x, y: q.y - tw * 2, r: tw * 3 }); continue; }
@@ -15146,11 +15171,8 @@ function pracaDesenha(g, c, now, dpr) {
     push(it.u + it.v, () => { const bob = Math.sin(now / 300 + it.i) * 3 * dpr; g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 0.5, tw * 0.2, 0, 0, 7); g.fill(); g.font = `${Math.round(tw * (it.tipo === 'bau' ? 1.5 : 1.1))}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(I2.e, q.x, q.y - tw * 0.3 + bob); if (it.tipo === 'gema' || it.tipo === 'bau') { g.fillStyle = `rgba(255,240,150,${0.5 + 0.5 * Math.sin(now / 200)})`; g.font = `${Math.round(tw * 0.6)}px system-ui`; g.fillStyle = '#000'; g.fillText('✨', q.x + tw * 0.5, q.y - tw * 1 + bob); } });
     if (it.tipo === 'bau') praca.hits.push({ id: 'item:' + it.i, x: q.x, y: q.y - tw * 0.6, r: tw * 1.3 }); }
   // NPCs
-  VILA_NPCS.forEach((n, i) => { const p = vilaNpcPos(n, pracaAgora()), q = I(p.u, p.v); if (!vis(q)) return; const fa = praca.npcFala[i], viz = NEIGHBORS.find(v => v.id === n.viz); if (!viz) return;
-    push(p.u + p.v, () => { const esN = clamp(tw / 48, 0.3, 3.5); g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 0.5, tw * 0.2, 0, 0, 7); g.fill(); drawAvatar(g, q.x, q.y, esN, viz.avatar, now, true, p.dir);
-      const top = q.y - 72 * esN; g.font = `800 ${Math.round(10 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#cfe8ff'; g.strokeText(viz.nome, q.x, top); g.fillText(viz.nome, q.x, top);
-      if (fa && fa.ate > now) { g.font = `700 ${Math.round(11 * dpr)}px system-ui, sans-serif`; const bw = g.measureText(fa.t).width + 12 * dpr, bx = clamp(q.x - bw / 2, 4, W - bw - 4), by = top - 24 * dpr; g.fillStyle = '#fff'; g.beginPath(); g.roundRect(bx, by, bw, 18 * dpr, 8 * dpr); g.fill(); g.fillStyle = '#2f2a1f'; g.textAlign = 'left'; g.fillText(fa.t, bx + 6 * dpr, by + 13 * dpr); g.textAlign = 'center'; } });
-    praca.hits.push({ id: 'npc:' + i, x: q.x, y: q.y - tw * 1.2, r: tw * 1.3 }); });
+  vilaMoradoresDesenha(g, I, tw, dpr, now, push, vis, W);
+  vilaCalendarioDesenha(g, I, tw, dpr, now, noite, push);
   // chefe
   if (pracaBossAtivo()) { const b = pracaBossPos(), q = I(b.u, b.v);
     push(b.u + b.v, () => { const b2 = pracaBossPos(250), dirB = (b2.u - b2.v) - (b.u - b.v) >= 0 ? 1 : -1; g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 1.6, tw * 0.55, 0, 0, 7); g.fill();
@@ -15241,9 +15263,10 @@ function pracaToque(ev) {
     const id = h.id;
     if (id === 'boss') { const b = pracaBossPos(); if (Math.hypot(p.u - b.u, p.v - b.v) > 6) { toast('Chegue mais perto do chefe para atacar!'); return pracaIrPara(b.u - 2, b.v + 2); } return pracaBater(); }
     if (id.startsWith('f:')) { const F = FESTAS[id.slice(2)]; if (Math.hypot(p.u - F.u, p.v - (F.v + 1.5)) < 4.5) return vilaEntrarFesta(id.slice(2)); praca.alvoAcao = id; return pracaIrPara(F.u, F.v + 2); }
+    if (id === 'coreto' || id === 'fogueira' || id.startsWith('loc:')) { const l = VILA_LOCAIS[id.replace('loc:', '')]; if (Math.hypot(p.u - l.u, p.v - l.v) < 2.2) { const c = vilaContexto(); if (c) { praca.ctx = null; return vilaAcao(); } return; } return pracaIrPara(l.u, l.v + (id === 'loc:ilha' ? 0 : 1.4)); }
     if (id === 'mural' || id === 'mercado' || id === 'alvo' || id === 'quermesse') { const l = VILA_LOCAIS[id]; if (Math.hypot(p.u - l.u, p.v - l.v) < 4) return pracaPainelAbrir(id); praca.alvoAcao = id; return pracaIrPara(l.u, l.v + 1.8); }
     if (id.startsWith('item:')) { const it = praca.spawns.find(z => z.i === Number(id.slice(5))); if (!it) return; if (Math.hypot(p.u - it.u, p.v - it.v) < 2.6) return vilaPegar(it); return pracaIrPara(it.u, it.v + 1.2); }
-    if (id.startsWith('npc:')) { const i = Number(id.slice(4)), n = VILA_NPCS[i]; praca.npcFala[i] = { t: n.fala[Math.floor(Math.random() * n.fala.length)], ate: now + 3000 }; sfx('click'); return; }
+    if (id.startsWith('mor:')) { const i = Number(id.slice(4)), m = VILA_MORADORES[i], ped = vilaPedidos()[i]; if (!m) return; const feito = vilaPedSt().feito[m.id]; praca.npcFala[i] = { t: feito ? 'Obrigado pela ajuda de hoje! 💛' : `${ped.qtd} ${itemEmoji(ped.id)} ${((PRODUCT[ped.id] && PRODUCT[ped.id].nomePl) || ped.id).toLowerCase()}, por favor!`, ate: now + 4000 }; sfx('click'); if (!feito) { praca.avTab = 'pedidos'; setTimeout(() => { if (!praca.painel) pracaPainelAbrir('mural'); }, 700); } return; }
     if (id.startsWith('banco:')) { const i = Number(id.slice(6)), b = VILA_BANCOS[i]; if (Object.values(praca.jog).some(j => j.ia === 'sentar' && Math.hypot(j.tu - b[0], j.tv - b[1]) < 0.6)) return toast('Essa cadeira já está ocupada! 🪑'); return vilaPedirAssento('🪑 Cadeira', 'Sentar', () => vilaSentar(i)); }
     if (id === 'fonte') return vilaDesejo();
     return pracaPainelAbrir(id);
@@ -15584,6 +15607,119 @@ function igrejaPessoas(g, I, tw, dpr, now, es, push) {
   });
 }
 
+// ---- Moradores com rotina: cada um segue um roteiro durante o "dia" da Vila (ciclo de 24 min, igual para todos) ----
+const VILA_ROTINAS = {
+  padeiro:    { av: { sexo: 'm', pele: 1, cabelo: 'curto', corCabelo: 5, chapeu: 'sem', camisa: 'regata', calca: 'jeans', sapato: 'tenis', mao: 'nada' }, rota: [[0, 16.2, 32.8, 'trab'], [0.3, 30, 27.5, 'passeio'], [0.52, 13.8, 35, 'papo'], [0.75, 30, 41.6, 'casa']] },
+  pescador:   { av: { sexo: 'm', pele: 3, cabelo: 'curto', corCabelo: 4, chapeu: 'palha', camisa: 'xadrez', calca: 'bermuda', sapato: 'bota', mao: 'vara' }, rota: [[0, 44.5, 14, 'pesca'], [0.48, 47, 38.5, 'pesca'], [0.7, 14.5, 35, 'papo'], [0.85, 36, 41.6, 'casa']] },
+  professora: { av: { sexo: 'f', pele: 0, cabelo: 'rabo', corCabelo: 2, chapeu: 'sem', camisa: 'blusa', calca: 'saia', sapato: 'sapatilha', mao: 'nada' }, rota: [[0, 28, 27.4, 'passeio'], [0.35, 24, 22.4, 'ensina'], [0.62, 7.6, 35.8, 'papo'], [0.82, 26, 41.6, 'casa']] },
+  guarda:     { av: { sexo: 'm', pele: 2, cabelo: 'curto', corCabelo: 4, chapeu: 'bone', camisa: 'camiseta', calca: 'jeans', sapato: 'bota', mao: 'nada' }, rota: [[0, 31, 24.4, 'ronda'], [0.17, 36, 26.4, 'ronda'], [0.33, 32, 30.6, 'ronda'], [0.5, 27, 26.2, 'ronda'], [0.67, 31, 24.4, 'ronda'], [0.83, 33, 28, 'ronda']] },
+  ferreira:   { av: { sexo: 'f', pele: 2, cabelo: 'rabo', corCabelo: 4, chapeu: 'sem', camisa: 'camiseta', calca: 'macacao', sapato: 'bota', mao: 'enxada' }, rota: [[0, 9, 43.4, 'trab'], [0.45, 18.2, 33.4, 'papo'], [0.7, 11, 35.2, 'papo'], [0.88, 24, 41.6, 'casa']] },
+  feirante:   { av: { sexo: 'f', pele: 1, cabelo: 'rabo', corCabelo: 4, chapeu: 'palha', camisa: 'florida', calca: 'saia', sapato: 'sapatilha', mao: 'nada' }, rota: [[0, 12, 35.2, 'trab'], [0.4, 16, 33.6, 'papo'], [0.65, 34, 26.4, 'passeio'], [0.85, 12.4, 35.2, 'trab']] },
+};
+function vilaMoradorPos(m, t) {
+  const R = VILA_ROTINAS[m.id].rota, ph = (t % 1440e3) / 1440e3, n = R.length; let i = n - 1; for (let k = 0; k < n; k++) if (R[k][0] <= ph) i = k;
+  const cur = R[i], prev = R[(i + n - 1) % n], dur = 0.07, dt = ph - cur[0] + (ph < cur[0] ? 1 : 0), f = Math.min(1, dt / dur);
+  const u = prev[1] + (cur[1] - prev[1]) * f, v = prev[2] + (cur[2] - prev[2]) * f, sx = (cur[1] - prev[1]) - (cur[2] - prev[2]);
+  return { u, v, mov: f < 1, dir: Math.abs(sx) > 0.01 ? (sx > 0 ? 1 : -1) : 1, ativ: cur[3] };
+}
+function vilaMoradoresDesenha(g, I, tw, dpr, now, push, vis, W) {
+  VILA_MORADORES.forEach((m, i) => {
+    const p = vilaMoradorPos(m, pracaAgora()), q = I(p.u, p.v); if (!vis(q)) return; const fa = praca.npcFala[i], R = VILA_ROTINAS[m.id], es = clamp(tw / 48, 0.3, 3.5);
+    push(p.u + p.v, () => {
+      g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 0.5, tw * 0.2, 0, 0, 7); g.fill();
+      const trab = !p.mov && p.ativ === 'trab', bob = trab ? Math.abs(Math.sin(now / 260 + i)) * 2 * es : 0, av = R.av;
+      drawAvatar(g, q.x, q.y - bob, es, av, now, p.mov || p.ativ === 'ronda', p.dir);
+      if (!p.mov && p.ativ === 'papo') { g.font = `${Math.round(13 * dpr)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(['💬', '😊', '🍴'][i % 3], q.x + 14 * es, q.y - 66 * es + Math.sin(now / 400 + i) * 2 * dpr); }
+      if (!p.mov && p.ativ === 'ensina') { g.font = `${Math.round(14 * dpr)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('📖', q.x + 16 * es, q.y - 40 * es); }
+      if (!p.mov && p.ativ === 'trab' && m.id === 'ferreira') { g.font = `${Math.round(13 * dpr)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; const k = (now / 300 + i) % 1; g.globalAlpha = 1 - k; g.fillText('✨', q.x + 18 * es, q.y - 30 * es - k * 12 * es); g.globalAlpha = 1; }
+      const top = q.y - 72 * es; g.font = `800 ${Math.round(10 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#cfe8ff'; g.strokeText(`${m.e} ${m.n}`, q.x, top); g.fillText(`${m.e} ${m.n}`, q.x, top);
+      if (!vilaPedSt().feito[m.id]) { g.font = `${Math.round(15 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('❗', q.x, top - 14 * dpr + Math.sin(now / 300 + i) * 2 * dpr); }   // tem pedido hoje
+      if (fa && fa.ate > now) { g.font = `700 ${Math.round(11 * dpr)}px system-ui, sans-serif`; const bw = g.measureText(fa.t).width + 12 * dpr, bx = clamp(q.x - bw / 2, 4, W - bw - 4), by = top - 28 * dpr; g.fillStyle = '#fff'; g.beginPath(); g.roundRect(bx, by, bw, 18 * dpr, 8 * dpr); g.fill(); g.fillStyle = '#2f2a1f'; g.textAlign = 'left'; g.fillText(fa.t, bx + 6 * dpr, by + 13 * dpr); g.textAlign = 'center'; }
+    });
+    praca.hits.push({ id: 'mor:' + i, x: q.x, y: q.y - tw * 1.2, r: tw * 1.3 });
+  });
+}
+// ============ 🎶 Coreto, 🔥 fogueira, ⛵ barco e 🏝️ ilha, 🗓️ calendário, 📸 foto ============
+const VILA_EVENTOS = {
+  0: { n: 'Missa das Crianças e piquenique', e: '⛪', dica: 'A igreja está aberta com a missa das crianças.' },
+  1: { n: 'Segunda de Pescaria: conchas voltam 2× mais rápido na Praia', e: '🏖️', bioma: 'praia' },
+  2: { n: 'Terça da Mina: cristais voltam 2× mais rápido', e: '⛏️', bioma: 'mina' },
+  3: { n: 'Missa da Família na igreja', e: '⛪', dica: 'A igreja está aberta com a missa da família.' },
+  4: { n: 'Quinta da Mata: frutas e cogumelos voltam 2× mais rápido', e: '🌲', bioma: 'floresta' },
+  5: { n: 'Sexta da Serenata: à noite o coreto toca e a Vila fica de lanternas', e: '🎶', serenata: true },
+  6: { n: 'Feira da Vila: pedidos dos moradores pagam 50% a mais!', e: '🎪', feira: true },
+};
+const vilaEvento = () => VILA_EVENTOS[igrejaDia()] || VILA_EVENTOS[6];
+function coretoDesenha(g, q, tw, dpr, now, noite) {
+  const tocando = Object.values(praca.jog).some(j => j.emote && j.emote.ate > now && j.emote.k === '🎵' && Math.hypot((j.tu || 0) - VILA_LOCAIS.coreto.u, (j.tv || 0) - VILA_LOCAIS.coreto.v) < 3) || (praca.eu && praca.eu.emote && praca.eu.emote.ate > now && praca.eu.emote.k === '🎵' && Math.hypot(pracaPos(praca.eu, now).u - VILA_LOCAIS.coreto.u, pracaPos(praca.eu, now).v - VILA_LOCAIS.coreto.v) < 3) || (vilaEvento().serenata && noite > 0.4);
+  const W = tw * 3.6;
+  g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, W * 0.62, W * 0.2, 0, 0, 7); g.fill();
+  g.fillStyle = '#c9b890'; g.beginPath(); g.ellipse(q.x, q.y - tw * 0.1, W * 0.55, W * 0.18, 0, 0, 7); g.fill(); g.fillStyle = '#e2d6b6'; g.beginPath(); g.ellipse(q.x, q.y - tw * 0.3, W * 0.5, W * 0.16, 0, 0, 7); g.fill();
+  for (const dx of [-0.42, -0.14, 0.14, 0.42]) { g.fillStyle = '#fff'; g.fillRect(q.x + dx * W - tw * 0.07, q.y - tw * 2.4, tw * 0.14, tw * 2.1); }
+  g.fillStyle = '#e0463a'; g.beginPath(); g.moveTo(q.x - W * 0.58, q.y - tw * 2.3); g.lineTo(q.x, q.y - tw * 3.6); g.lineTo(q.x + W * 0.58, q.y - tw * 2.3); g.closePath(); g.fill();
+  for (let k = 0; k < 5; k++) { g.fillStyle = k % 2 ? '#fff' : '#e0463a'; g.beginPath(); g.moveTo(q.x - W * 0.58 + k * W * 0.232, q.y - tw * 2.3); g.lineTo(q.x - W * 0.58 + (k + 1) * W * 0.232, q.y - tw * 2.3); g.lineTo(q.x - W * 0.58 + (k + 0.5) * W * 0.232, q.y - tw * 2.05); g.closePath(); g.fill(); }
+  g.fillStyle = '#ffd54a'; g.beginPath(); g.arc(q.x, q.y - tw * 3.65, tw * 0.1, 0, 7); g.fill();
+  if (noite > 0.4) { const gl = g.createRadialGradient(q.x, q.y - tw * 1.5, 1, q.x, q.y - tw * 1.5, tw * 3); gl.addColorStop(0, 'rgba(255,220,130,.35)'); gl.addColorStop(1, 'rgba(255,220,130,0)'); g.fillStyle = gl; g.fillRect(q.x - tw * 3, q.y - tw * 4.5, tw * 6, tw * 6); }
+  if (tocando) for (let k = 0; k < 4; k++) { const pp = ((now / 1500) + k / 4) % 1; g.globalAlpha = 1 - pp; g.font = `${Math.round(16 * dpr)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(['♪', '♫', '♬', '🎶'][k], q.x + Math.sin(pp * 6 + k * 2) * tw * 0.9, q.y - tw * 1.6 - pp * tw * 2.2); g.globalAlpha = 1; }
+}
+function vilaCoreto() {
+  if (!praca.eu) return; praca.eu.emote = { k: '🎵', ate: performance.now() + 6000 }; pracaEnviarMov({ ek: '🎵', et: Date.now() }); sfx('collect'); pracaPontos(1);
+  const c = pracaSt().c; c.cor = (c.cor || 0) + 1; if (c.cor === 5) { state.coins += 100; toast('🎶 O público adorou! +100 moedas', 'good'); done(); } else toast('🎶 Você tocou no coreto!');
+}
+function fogueiraDesenha(g, q, tw, dpr, now, noite) {
+  g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 1.1, tw * 0.4, 0, 0, 7); g.fill();
+  g.fillStyle = '#6a6a72'; for (let k = 0; k < 9; k++) { const a = k / 9 * 6.28; g.beginPath(); g.ellipse(q.x + Math.cos(a) * tw * 0.7, q.y + Math.sin(a) * tw * 0.26, tw * 0.14, tw * 0.1, 0, 0, 7); g.fill(); }
+  g.strokeStyle = '#6a4326'; g.lineWidth = tw * 0.16; g.lineCap = 'round'; g.beginPath(); g.moveTo(q.x - tw * 0.5, q.y + tw * 0.1); g.lineTo(q.x + tw * 0.4, q.y - tw * 0.25); g.moveTo(q.x + tw * 0.5, q.y + tw * 0.1); g.lineTo(q.x - tw * 0.4, q.y - tw * 0.25); g.stroke();
+  const f = 0.8 + 0.2 * Math.sin(now / 90), f2 = 0.85 + 0.15 * Math.sin(now / 70 + 2);
+  g.fillStyle = '#e8562a'; g.beginPath(); g.moveTo(q.x - tw * 0.4, q.y - tw * 0.1); g.quadraticCurveTo(q.x - tw * 0.3, q.y - tw * 1.1 * f, q.x, q.y - tw * 1.4 * f); g.quadraticCurveTo(q.x + tw * 0.3, q.y - tw * 0.9 * f2, q.x + tw * 0.4, q.y - tw * 0.1); g.closePath(); g.fill();
+  g.fillStyle = '#ffb830'; g.beginPath(); g.moveTo(q.x - tw * 0.22, q.y - tw * 0.1); g.quadraticCurveTo(q.x - tw * 0.1, q.y - tw * 0.8 * f2, q.x, q.y - tw * 0.95 * f2); g.quadraticCurveTo(q.x + tw * 0.15, q.y - tw * 0.6, q.x + tw * 0.22, q.y - tw * 0.1); g.closePath(); g.fill();
+  for (let k = 0; k < 4; k++) { const pp = ((now / 1100) + k / 4) % 1; g.globalAlpha = 1 - pp; g.fillStyle = '#ffd54a'; g.beginPath(); g.arc(q.x + Math.sin(pp * 7 + k) * tw * 0.4, q.y - tw * (0.8 + pp * 1.6), 2 * dpr, 0, 7); g.fill(); g.globalAlpha = 1; }
+  const gl = g.createRadialGradient(q.x, q.y - tw * 0.5, 1, q.x, q.y - tw * 0.5, tw * (noite > 0.4 ? 4.5 : 2)); gl.addColorStop(0, `rgba(255,170,60,${noite > 0.4 ? 0.45 : 0.18})`); gl.addColorStop(1, 'rgba(255,170,60,0)'); g.fillStyle = gl; g.fillRect(q.x - tw * 5, q.y - tw * 5, tw * 10, tw * 10);
+}
+function vilaMarshmallow() {
+  if (!praca.eu) return; clearTimeout(praca._comeT); praca.alvoAcao = null; praca.eu.ia = 'comer'; praca.eu.ek = '🍡'; praca.eu.ic = null; pracaEnviarMov({ ia: 'comer', ek: '🍡', ic: null, iz: null }); sfx('collect');
+  praca._comeT = setTimeout(() => { if (praca.eu && praca.eu.ia === 'comer') { praca.eu.ia = null; pracaEnviarMov({ ia: null, ek: '', ic: null, iz: null }); } }, 6000); toast('🍡 Marshmallow assado na fogueira… que quentinho! 😋'); pracaPontos(1);
+}
+function barcoDesenha(g, q, tw, dpr, now) {
+  const b = Math.sin(now / 700) * tw * 0.05; g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(q.x, q.y + tw * 0.05, tw * 1.1, tw * 0.3, 0, 0, 7); g.fill();
+  g.fillStyle = '#9a5a2a'; g.beginPath(); g.moveTo(q.x - tw * 1.1, q.y - tw * 0.55 + b); g.lineTo(q.x + tw * 1.1, q.y - tw * 0.55 + b); g.lineTo(q.x + tw * 0.7, q.y - tw * 0.05 + b); g.lineTo(q.x - tw * 0.7, q.y - tw * 0.05 + b); g.closePath(); g.fill();
+  g.fillStyle = '#c98a4a'; g.fillRect(q.x - tw * 1.05, q.y - tw * 0.6 + b, tw * 2.1, tw * 0.1); g.fillStyle = '#6a4326'; g.fillRect(q.x - tw * 0.04, q.y - tw * 2 + b, tw * 0.08, tw * 1.45);
+  g.fillStyle = '#fff6d8'; g.beginPath(); g.moveTo(q.x + tw * 0.06, q.y - tw * 1.95 + b); g.lineTo(q.x + tw * 0.75, q.y - tw * 0.8 + b); g.lineTo(q.x + tw * 0.06, q.y - tw * 0.8 + b); g.closePath(); g.fill();
+}
+function ilhaDesenha(g, q, tw, dpr, now) {
+  g.fillStyle = '#e8d49a'; g.beginPath(); g.ellipse(q.x, q.y, tw * 2.2, tw * 0.9, 0, 0, 7); g.fill(); g.fillStyle = '#7cc653'; g.beginPath(); g.ellipse(q.x, q.y - tw * 0.1, tw * 1.5, tw * 0.55, 0, 0, 7); g.fill();
+  for (const [dx, h, c] of [[-0.9, 2.6, 0], [0.8, 2.1, 1]]) { const bx = q.x + dx * tw, sw = Math.sin(now / 900 + c) * tw * 0.12; g.strokeStyle = '#7a5230'; g.lineWidth = tw * 0.14; g.beginPath(); g.moveTo(bx, q.y); g.quadraticCurveTo(bx + tw * 0.1, q.y - tw * h * 0.5, bx + tw * 0.2 + sw, q.y - tw * h); g.stroke();
+    g.fillStyle = '#3f9a3a'; for (let k = 0; k < 6; k++) { const a = k / 6 * 6.28 + sw * 0.5; g.beginPath(); g.ellipse(bx + tw * 0.2 + sw + Math.cos(a) * tw * 0.6, q.y - tw * h + Math.sin(a) * tw * 0.25, tw * 0.55, tw * 0.13, a * 0.3, 0, 7); g.fill(); } }
+  const ok = vilaIlhaPronta(); g.fillStyle = '#8a5a2a'; g.fillRect(q.x - tw * 0.3, q.y - tw * 0.5, tw * 0.6, tw * 0.4); g.fillStyle = ok ? '#ffd54a' : '#9a8a6a'; g.fillRect(q.x - tw * 0.3, q.y - tw * 0.5, tw * 0.6, tw * 0.12); g.fillRect(q.x - tw * 0.05, q.y - tw * 0.4, tw * 0.1, tw * 0.14);
+  if (ok) { const t = (now / 800) % 1; g.globalAlpha = 1 - t; g.strokeStyle = '#fff'; g.lineWidth = 1.5 * dpr; const sx = q.x + tw * 0.4, sy = q.y - tw * (0.8 + t * 0.4), r = tw * 0.14; g.beginPath(); g.moveTo(sx - r, sy); g.lineTo(sx + r, sy); g.moveTo(sx, sy - r); g.lineTo(sx, sy + r); g.stroke(); g.globalAlpha = 1; }
+}
+const vilaIlhaPronta = () => (vilaColSt().ilha || 0) <= Date.now();
+function vilaTeleporta(u, v, msg) {
+  if (!praca.eu) return; praca.fade = { t0: performance.now(), dur: 1100 }; toast('⛵ ' + msg.replace('⛵', '').trim()); sfx('water');
+  setTimeout(() => { if (!praca.eu || praca.sala) return; praca.eu = Object.assign(praca.eu, { fu: u, fv: v, tu: u, tv: v, t0: performance.now(), dur: 0, pts: null }); praca.cam = { u, v }; pracaEnviarMov(); }, 550);
+}
+function vilaBauIlha() {
+  if (!vilaIlhaPronta()) return; const C = vilaColSt(); C.ilha = Date.now() + 30 * 60e3;
+  const ids = [...VILA_BIOMAS.praia.raro, ...VILA_BIOMAS.floresta.raro, ...VILA_BIOMAS.mina.raro, ...VILA_BIOMAS.praia.comum], id = ids[Math.floor(Math.random() * ids.length)], m = 150 + Math.floor(Math.random() * 250);
+  state.barn[id] = (state.barn[id] || 0) + 1; C.album[id] = (C.album[id] || 0) + 1; state.coins += m; vilaConq('bau'); pracaPontos(5); sfx('level');
+  praca.flutua.push({ txt: `${itemEmoji(id)} +1`, u: 56, v: 11, t: performance.now() }); toast(`🧰 Baú da ilha: +${m} moedas e ${(PRODUCT[id] && PRODUCT[id].nome || id).toLowerCase()} ${itemEmoji(id)}!`, 'good'); done(); praca.ctx = null;
+}
+// Calendário: bandeirinhas na feira e lanternas na serenata
+function vilaCalendarioDesenha(g, I, tw, dpr, now, noite, push) {
+  const ev = vilaEvento();
+  if (ev.feira) push(1, () => { const pts = [[26, 19.5], [38, 19.5], [38, 30.5], [26, 30.5], [26, 19.5]]; for (let i = 0; i < 4; i++) { const a = I(...pts[i]), b = I(...pts[i + 1]); g.strokeStyle = 'rgba(60,40,20,.6)'; g.lineWidth = dpr; g.beginPath(); g.moveTo(a.x, a.y - tw * 2.6); g.lineTo(b.x, b.y - tw * 2.6); g.stroke(); for (let k = 1; k < 12; k++) { const f = k / 12, x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f - tw * 2.6 + Math.sin(f * 3.14) * tw * 0.25; g.fillStyle = ['#e0463a', '#f2c14e', '#3a8fd8', '#4aa84a', '#a05ac8'][k % 5]; g.beginPath(); g.moveTo(x - tw * 0.1, y); g.lineTo(x + tw * 0.1, y); g.lineTo(x, y + tw * 0.28); g.closePath(); g.fill(); } } });
+  if (ev.serenata && noite > 0.3) push(2, () => { for (let k = 0; k < 14; k++) { const u = 24 + (k * 37 % 17), v = 19 + (k * 53 % 14), q = I(u, v), by = Math.sin(now / 1200 + k) * tw * 0.2; const gl = g.createRadialGradient(q.x, q.y - tw * 2.6 + by, 1, q.x, q.y - tw * 2.6 + by, tw * 0.9); gl.addColorStop(0, 'rgba(255,200,110,.6)'); gl.addColorStop(1, 'rgba(255,200,110,0)'); g.fillStyle = gl; g.fillRect(q.x - tw, q.y - tw * 3.6 + by, tw * 2, tw * 2); g.fillStyle = k % 2 ? '#ff9a4a' : '#ffd54a'; g.beginPath(); g.ellipse(q.x, q.y - tw * 2.6 + by, tw * 0.17, tw * 0.22, 0, 0, 7); g.fill(); } });
+}
+// 📸 Foto da Vila (com moldura), compartilha ou baixa
+function vilaFoto() {
+  const c = $('#pracaCv'); if (!c) return; const W = c.width, H = c.height, o = document.createElement('canvas'); o.width = W; o.height = H; const g = o.getContext('2d');
+  g.drawImage(c, 0, 0); g.strokeStyle = '#f8e7b0'; g.lineWidth = Math.round(W * 0.02); g.strokeRect(0, 0, W, H); g.fillStyle = 'rgba(40,26,16,.8)'; g.fillRect(0, H - Math.round(H * 0.07), W, Math.round(H * 0.07));
+  g.fillStyle = '#ffe9a8'; g.font = `800 ${Math.round(H * 0.035)}px system-ui, sans-serif`; g.textAlign = 'left'; g.fillText(`📸 Roça Feliz · Vila · ${new Date().toLocaleDateString('pt-BR')} · ${meuApelido()}`, Math.round(W * 0.04), H - Math.round(H * 0.022));
+  o.toBlob(async blob => { if (!blob) return toast('Não consegui tirar a foto.', 'bad'); const f = new File([blob], 'vila.png', { type: 'image/png' });
+    try { if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: 'Foto da Vila' }); return; } } catch (e) { return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'vila.png'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast('📸 Foto salva!', 'good'); }, 'image/png');
+  sfx('collect'); toast('📸 Click!');
+}
 // ============ 📋 Quadro de avisos: pedidos dos moradores + metas da vila + tarefas do dia ============
 const VILA_MORADORES = [
   { id: 'padeiro',   n: 'Seu Tonico',      e: '🥖', pap: 'Padeiro',       itens: ['cogumelo', 'frutasilv', 'ervas'],     fala: 'Preciso de ingredientes frescos para a fornada!' },
@@ -15596,7 +15732,7 @@ const VILA_MORADORES = [
 const vilaPedSt = () => { const d = localDay(); if (!state.vilaPed || state.vilaPed.d !== d) state.vilaPed = { d, feito: {}, rep: (state.vilaPed && state.vilaPed.rep) || {} }; return state.vilaPed; };
 function vilaPedidos() { // 1 pedido por morador por dia (igual para todos os dias da semana, muda a cada dia)
   const r = vilaRng(localDay() * 7919 + 13);
-  return VILA_MORADORES.map(m => { const id = m.itens[Math.floor(r() * m.itens.length)], qtd = 2 + Math.floor(r() * 4), preco = (PRODUCT[id] && PRODUCT[id].preco) || 30; return { m, id, qtd, moedas: Math.round(preco * qtd * 2.2), xp: 5 + qtd * 2 }; });
+  return VILA_MORADORES.map(m => { const id = m.itens[Math.floor(r() * m.itens.length)], qtd = 2 + Math.floor(r() * 4), preco = (PRODUCT[id] && PRODUCT[id].preco) || 30; return { m, id, qtd, moedas: Math.round(preco * qtd * 2.2 * (vilaEvento().feira ? 1.5 : 1)), xp: 5 + qtd * 2 }; });
 }
 function vilaEntregar(mid) {
   const ped = vilaPedidos().find(x => x.m.id === mid), S = vilaPedSt(); if (!ped || S.feito[mid]) return;
@@ -15653,7 +15789,7 @@ function vilaColetaFim(pt) {
   praca.colhendo = null; if (!state || !vilaPontoPronto(pt)) return;
   const B = VILA_BIOMAS[pt.b], x = Math.random(), raridade = x < 0.03 ? 2 : x < 0.2 ? 1 : 0, lista = raridade === 2 ? B.lend : raridade === 1 ? B.raro : B.comum;
   const id = lista[Math.floor(Math.random() * lista.length)], qtd = raridade ? 1 : 1 + Math.floor(Math.random() * 3), C = vilaColSt();
-  state.barn[id] = (state.barn[id] || 0) + qtd; C.album[id] = (C.album[id] || 0) + qtd; C.t[pt.id] = Date.now() + (pt.b === 'mina' ? 12 : 8) * 60e3;
+  state.barn[id] = (state.barn[id] || 0) + qtd; C.album[id] = (C.album[id] || 0) + qtd; C.t[pt.id] = Date.now() + (pt.b === 'mina' ? 12 : 8) * 60e3 * (vilaEvento().bioma === pt.b ? 0.5 : 1);
   const emo = itemEmoji(id) || '✨', nome = (PRODUCT[id] && PRODUCT[id].nome) || id;
   vilaConq('item'); if (raridade) vilaConq('bau'); pracaPontos(1 + raridade * 3);
   praca.flutua.push({ txt: `${emo} +${qtd}`, u: pt.u, v: pt.v, t: performance.now() }); sfx(raridade ? 'level' : 'collect');
@@ -16019,9 +16155,18 @@ function vilaTesouro() { // lugar secreto do dia, o mesmo para todos
   for (let k = 0; k < 40; k++) { u = 6 + r() * 52; v = 5 + r() * 40; if (!vilaAgua(u, v) && !vilaEstrada(u, v) && !vilaPracaR(u, v) && !(u > 38 && u < 47 && v > 8 && v < 16) && !(u > 19 && u < 48 && v > 37.5) && !(u < 20 && v > 26 && v < 37.5)) break; }
   return { u, v };
 }
+const VILA_ENIGMAS = {
+  plaza: 'Onde a água dança e sobe sem parar, o tesouro espia sem se mostrar.', lago: 'Perto de onde o peixe pula e a vara balança, o ouro descansa à espera de quem cansa.',
+  floresta: 'Entre pinheiros que cochicham ao vento, o tesouro cochila num cantinho isento.', mina: 'Longe do sol, onde a pedra é rainha, uma moeda brilha na terra vizinha.',
+  praia: 'Onde o mar beija a areia devagar, há um segredo que o sol quer guardar.', bairro: 'Perto das casas de janela acesa, o tesouro dorme sem fazer defesa.',
+  campo: 'Onde o grande bicho passeia em fúria, o tesouro ri da nossa curiosidade.', disco: 'Onde a música ferve e a luz roda, o tesouro faz uma silenciosa roda.',
+  cinema: 'Onde a tela conta histórias de ilusão, um baú espera em silêncio e razão.', piscina: 'Onde a água é azul e a toalha é leve, um tesouro mergulha sem fazer relevo.',
+  igreja: 'Perto do sino que chama a canção, repousa um tesouro em silêncio e oração.', quermesse: 'Onde o cheiro de pastel flutua no ar, o tesouro está só a te esperar.',
+};
 function vilaDicaTesouro() {
   const t = vilaTesouro(); let melhor = null; for (const [id, z] of Object.entries(VILA_ZONAS)) { const d = Math.hypot(t.u - z.u, t.v - z.v); if (!melhor || d < melhor.d) melhor = { id, z, d }; }
-  const dp = Math.hypot(t.u - 32, t.v - 25); return `Está perto de ${melhor.z.ic} ${melhor.z.nome} (cerca de ${Math.round(melhor.d)} passos de lá) e a ${Math.round(dp)} passos da praça. Chegue perto que aparece o botão ⛏️ Cavar.`;
+  const e = praca.eu ? pracaPos(praca.eu, performance.now()) : null, dq = e ? Math.hypot(e.u - t.u, e.v - t.v) : 99, calor = dq < 4 ? '🔥 Quentíssimo!' : dq < 9 ? '♨️ Quente' : dq < 18 ? '🌤️ Morno' : '❄️ Frio';
+  return `Enigma do dia: “${VILA_ENIGMAS[melhor.id] || 'Procure com atenção.'}” — Agora você está: ${calor}. Quando chegar perto, aparece o botão ⛏️ Cavar aqui.`;
 }
 function vilaCavar() {
   const c = pracaSt().c; if (c.tesOk) return toast('Você já achou o tesouro de hoje!');
@@ -16430,6 +16575,7 @@ $('#praca')?.addEventListener('click', e => {
   if (q('[data-vila-moveis]') && praca.sala) { praca.sala.edit = true; praca.qtab = 'inv'; pracaPainelAbrir('moveis'); quartoBarra(); return; }
   if ((b = q('[data-vila-tarefa]'))) return pracaTarefaPegar(b.dataset.vilaTarefa);
   if ((b = q('[data-vila-dizimo]'))) return dizimoDar(Number(b.dataset.vilaDizimo));
+  if (q('[data-vila-foto]')) { pracaPainelAbrir(null); return setTimeout(vilaFoto, 250); }
   if ((b = q('[data-vila-comer]'))) return vilaComer(b.dataset.vilaComer);
   if ((b = q('[data-vila-av]'))) { praca.avTab = b.dataset.vilaAv; return pracaPainel(); }
   if ((b = q('[data-vila-entregar]'))) return vilaEntregar(b.dataset.vilaEntregar);
