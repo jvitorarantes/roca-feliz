@@ -1575,6 +1575,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 360, txt: "🙏 Dízimo: corrigido o ranking de doadores. Se o seu total ofertado não aparecia (por exemplo, ofertas grandes feitas antes do ranking gravar direito), agora o jogo sincroniza sozinho o valor investido quando você abre o dízimo e ele entra no ranking. Se der erro, aparece um aviso no próprio painel." },
   { v: 359, txt: "⛏️ A Mina agora é uma mina de verdade, com 3 andares! Entre pela boca da caverna (canto sudoeste da Vila): lá dentro é escuro, com lanternas, cristais brilhando e morcegos. Toque nos veios para picar (vários golpes por veio) e levar carvão, ferro, cobre, prata, ouro e gemas para o celeiro: são os mesmos minérios da Forja da fazenda. Use as escadas para descer (andares mais fundos têm minérios mais raros). Cada veio volta em 20 minutos (a metade na Terça da Mina)." },
   { v: 358, txt: "⚔️ Chefe novo! Agora ele é um evento raro: aparece 1 vez por hora, por 12 minutos, e o aviso chega 1 minuto antes (a tela escurece e treme quando ele chega). Tem nome, fala e 4 versões (Lobo Alfa no Halloween, e Javali Gigante, Jacaré do Pântano ou Onça Rei nos outros dias). Três fases: a cada 20 s fica ‘vulnerável’ por 6 s (golpe 3×, e 5× se acertar o 🎯 ponto fraco brilhante); a partir da fase 2 faz INVESTIDAS (um aviso vermelho no chão: saia da frente ou fica atordoado 3 s); na fase 3 chama filhotes (toque neles para 4 de dano). Com 2 ou mais amigos perto o dano dobra. O prêmio agora é 600 moedas, 5 doces e uma estátua exclusiva do chefe para o seu quarto." },
   { v: 357, txt: "🌳 Visual novo da Vila: árvores (pinheiros, carvalhos, macieiras, árvores de outono), palmeiras, pedras e flores agora são desenhadas e balançam ao vento (chega de emojis). O chão tem manchas de grama, as ruas têm contorno e faixas, o lago brilha e tem patinhos, o mar tem espuma. Passarinhos e borboletas de dia, vaga-lumes à noite e folhas caindo no outono." },
@@ -14694,7 +14695,7 @@ function pracaPainel() {
   box.hidden = false; box.classList.toggle('curto', id === 'moveis');
   const topo = t => `<div class="vp-head"><b>${t}</b><button type="button" class="iconbtn" data-vila-fechar aria-label="Fechar painel">✕</button></div>`;
   if (id === 'intencoes') { box.innerHTML = topo('✉️ Intenções') + pracaHtmlIntencoes(); if (!praca.intencoesOk && !praca.intCarregando) igrejaIntCarrega(); }
-  else if (id === 'dizimo') { box.innerHTML = topo('🙏 Dízimo') + pracaHtmlDizimo(); if (!praca.dizimoRank && !praca.dizimoCarregando) dizimoCarrega(); }
+  else if (id === 'dizimo') { box.innerHTML = topo('🙏 Dízimo') + pracaHtmlDizimo(); if (!praca.dizimoRank && !praca.dizimoCarregando) dizimoCarrega(); if (!praca._dzTent) { praca._dzTent = 1; dizimoSync(); } }
   else if (id === 'mural') box.innerHTML = topo('📋 Quadro de avisos') + pracaHtmlQuadro();
   else if (id === 'mercado') box.innerHTML = topo('🏪 Mercado dos jogadores') + pracaHtmlMercado();
   else if (id === 'casa') box.innerHTML = topo('🏠 Minha casinha') + pracaHtmlCasa();
@@ -16134,11 +16135,22 @@ function dizimoDar(v) {
   if (!praca.rt || !praca.conectado || !user) return toast('Conecte-se à Vila (internet) para dar o dízimo e entrar no ranking.', 'bad');
   if (state.coins < v) return toast('Você não tem moedas suficientes para esse dízimo.', 'bad');
   state.coins -= v; state.dizimoTotal = (state.dizimoTotal || 0) + v;
-  praca.rt.ref('praca/dizimo/' + user.uid).set({ n: meuApelido().slice(0, 24), v: state.dizimoTotal, ts: firebase.database.ServerValue.TIMESTAMP }).then(() => dizimoCarrega()).catch(e => console.warn('dízimo:', e));
+  dizimoSync();
   const B = DIZIMO_BENCAOS[Math.floor(Math.random() * DIZIMO_BENCAOS.length)], n = DIZIMO_QTD[dizimoNivel(v)];
   B.fn(n); sfx('level'); vilaConq('dizimo');
   praca.igBencao = { txt: B.frase, ate: performance.now() + 9000, ganho: B.txt(n) };
   toast(`🙏 O padre abençoou você: "${B.frase}" Ganhou ${B.txt(n)}`, 'good'); done(); pracaPainel();
+}
+// Garante que o total ofertado (guardado no jogo) apareça no ranking. A regra do servidor só aceita subir até 50.000 por vez,
+// então, se faltar valor (ex.: ofertas feitas quando o ranking não gravava), sobe em degraus até igualar.
+async function dizimoSync() {
+  if (!praca.rt || !user || !(state.dizimoTotal > 0) || praca._dzSync) return; praca._dzSync = true;
+  try {
+    const ref = praca.rt.ref('praca/dizimo/' + user.uid), snap = await ref.child('v').once('value'); let atual = Number(snap.val()) || 0; const alvo = state.dizimoTotal;
+    while (atual < alvo) { const prox = Math.min(alvo, atual + 50000); await ref.set({ n: meuApelido().slice(0, 24), v: prox, ts: firebase.database.ServerValue.TIMESTAMP }); atual = prox; }
+    praca.dzErro = false; dizimoCarrega();
+  } catch (e) { console.warn('dízimo:', e); praca.dzErro = true; if (praca.painel === 'dizimo') pracaPainel(); }
+  finally { praca._dzSync = false; }
 }
 function dizimoCarrega() {
   if (!praca.rt) return; praca.dizimoCarregando = true;
@@ -16152,7 +16164,8 @@ function pracaHtmlDizimo() {
   let h = `<div class="vp-card"><b>🙏 Dízimo da igreja</b><small>Contribua com a Igreja da Vila. Cada oferta recebe uma bênção aleatória do padre! Seu total ofertado: ${MOEDA}${fmtN(tot)}</small>
     <div class="vp-decor">${DIZIMO_VALORES.map(v => `<button type="button" class="btn ${state.coins >= v ? 'gold' : 'ghost'}" data-vila-dizimo="${v}" ${state.coins >= v ? '' : 'disabled'}>${MOEDA}${fmtN(v)}</button>`).join('')}</div>
     <small>Bênçãos maiores vêm com ofertas maiores.</small></div>`;
-  h += `<div class="vp-card"><b>🏆 Ranking de doadores (de todo o jogo)</b>${rk ? (rk.length ? rk.map((x, i) => `<div>${['🥇', '🥈', '🥉'][i] || (i + 1) + 'º'} ${esc(x.n)}${x.uid === (user && user.uid) ? ' (você)' : ''} — ${MOEDA}${fmtN(x.v)}</div>`).join('') : '<div>Ninguém doou ainda. Seja o primeiro!</div>') : '<div>Carregando…</div>'}</div>`;
+  const minhaLinha = tot > 0 && rk && !rk.some(x => user && x.uid === user.uid && x.v >= tot) ? `<div>⏳ Você: ${MOEDA}${fmtN(tot)}${praca.dzErro ? ' — não consegui registrar no ranking (confira a internet e as regras do Firebase)' : ' — atualizando no ranking…'}</div>` : '';
+  h += `<div class="vp-card"><b>🏆 Ranking de doadores (de todo o jogo)</b>${minhaLinha}${rk ? (rk.length ? rk.map((x, i) => `<div>${['🥇', '🥈', '🥉'][i] || (i + 1) + 'º'} ${esc(x.n)}${x.uid === (user && user.uid) ? ' (você)' : ''} — ${MOEDA}${fmtN(x.v)}</div>`).join('') : '<div>Ninguém doou ainda. Seja o primeiro!</div>') : '<div>Carregando…</div>'}</div>`;
   return h;
 }
 // Faixa com a missa do dia + prêmio da bênção final
