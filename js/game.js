@@ -948,7 +948,7 @@ function lvlupCard(bonus, trevos, premio) {
   const card = $('#lvlupCard'); if (!card) return;
   $('#lvlupN').textContent = state.level;
   $('#lvlupRewards').innerHTML = `
-    <div class="lvlup-item"><span class="lvlup-emoji">🪙</span>+${bonus.toLocaleString('pt-BR')}</div>
+    <div class="lvlup-item"><span class="lvlup-emoji">${MOEDA}</span>+${bonus.toLocaleString('pt-BR')}</div>
     <div class="lvlup-item"><span class="lvlup-emoji">🍀</span>+${trevos}</div>
     <div class="lvlup-item"><img alt="" src="${itemIcon(premio.id)}">${premio.nome}</div>`;
   clearTimeout(lvlupTimer);
@@ -1349,7 +1349,7 @@ function luxoHTML() {
     if (tem && ['trator', 'fabrica', 'ajud'].includes(id)) extra += `<br><button class="btn ${luxoAtivo(id) ? 'ghost' : 'gold'} mais" data-luxo-liga="${id}">${luxoAtivo(id) ? '⏸️ Desativar' : '▶️ Ativar'}</button>`;
     if (tem && id === 'fabrica') { const u = L.fabUlt;
       extra += `<br><small>${u ? `Última rodada (há ${Math.max(0, Math.round((Date.now() - u.t) / 60e3))} min): recolheu ${u.col} e começou ${u.ini} receitas.` : 'Ainda não rodou.'} Veja as máquinas em Negócios.</small><br><button class="btn gold mais" data-luxo-fab="1">🏭 Rodar agora</button>`; }
-    if (tem && id === 'terreno') extra = `<br><button class="btn gold mais" data-luxo-coletar="1">Coletar aluguel: 🪙 ${luxoAluguel().toLocaleString('pt-BR')}</button>`;
+    if (tem && id === 'terreno') extra = `<br><button class="btn gold mais" data-luxo-coletar="1">Coletar aluguel: ${MOEDA}${luxoAluguel().toLocaleString('pt-BR')}</button>`;
     html += `<div class="row ${tem ? 'sel' : ''}"><div class="avatar" style="background:#6a4a8a;font-size:26px">${X.ic}</div>
       <div><div class="name">${X.nome}</div><div class="meta">${X.desc}${extra}</div></div>
       ${tem ? `<button class="btn ghost" disabled>${['trator', 'fabrica', 'ajud'].includes(id) && !luxoAtivo(id) ? 'Desligado' : 'Comprado ✔'}</button>` : `<button class="btn ${state.coins >= X.preco ? 'gold' : ''}" data-luxo-comprar="${id}">${moeda(X.preco)}</button>`}</div>`;
@@ -1574,6 +1574,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 352, txt: "🪙 A moeda que aparece na igreja (dízimo e ranking), na quermesse, no aluguel do terreno e nos textos que flutuam na Vila agora é a moeda dourada do jogo (antes aparecia prateada)." },
   { v: 351, txt: "🚜 O Trator só anda quando a verificação (a cada 10 min) achou serviço. Sem serviço ou desativado, ele fica parado ao lado da lavoura." },
   { v: 350, txt: "🚜 O Trator da Colheita agora aceita até 5 plantas (antes eram 3), na ordem que você escolher. Quando acabam as da 1ª, passa para a 2ª, e assim até a 5ª." },
   { v: 349, txt: "🎪 Quermesse ao lado da igreja! A barraca da Dona Maria vende pastel, pamonha, açaí, caldo de mocotó, canjica, espetinho, pipoca, caldo de cana, quentão e água de coco. Ao comprar, a aba fecha e o seu avatar come ou bebe na hora (os outros jogadores também veem). Título: Boca Boa." },
@@ -6577,7 +6578,7 @@ function explicarBloqueado(e) {
   let msg = '';
   if (/^n[íi]vel\s*\d+/i.test(txt)) msg = `🔒 Libera no ${txt.toLowerCase()}. Continue jogando para subir de nível!`;
   else if (/🍀/.test(txt)) msg = `🍀 Faltam trevos: custa ${txt.replace(/[^0-9]/g, '')}. Ganhe resgatando peixes, domínio e conquistas em Missões › 🍀 Trevos.`;
-  else if (/^\d|moedas|^×/.test(txt) || b.querySelector('.coin')) msg = `🪙 Moedas insuficientes: custa ${txt.replace(/^×\d+/, '').replace(/[^0-9.]/g, '')} moedas.`;
+  else if (/^\d|moedas|^×/.test(txt) || b.querySelector('.coin')) msg = `Moedas insuficientes: custa ${txt.replace(/^×\d+/, '').replace(/[^0-9.]/g, '')} moedas.`;
   else if (/cheio|cheia/i.test(txt)) msg = 'Não cabe mais: aumente o abrigo na aba Abrigos.';
   else if (b.dataset.fruteiraCheia) msg = `Limite de ${ENFEITE[b.dataset.fruteiraCheia].nome.toLowerCase()} atingido (${LIMITE_FRUTEIRA[ENFEITE[b.dataset.fruteiraCheia].fruteira]}). Derrube uma seca para comprar outra.`;
   if (!msg) return false;
@@ -14723,7 +14724,7 @@ function pracaHtmlMercado() {
       const maxQ = Math.min(10, estoqueDe(sel)), q = clamp(praca.vmQtd || 1, 1, maxQ), [mn, mx] = faixaPreco(sel, q), preco = clamp(praca.vmPreco || valorDe(sel) * q, mn, mx);
       praca.vmQtd = q; praca.vmPreco = preco;
       h += `<div class="vp-card"><div class="vm-sel"><img alt="" src="${itemIcon(sel)}"><div><b>${esc(nomeI(sel))}</b><div>Quantidade</div><div class="vm-qtd"><button type="button" class="btn ghost" data-vila-vq="-1">−</button><b>${q}</b><button type="button" class="btn ghost" data-vila-vq="1">＋</button></div></div></div>
-        <label>Preço total (🪙) <input id="vmPreco" type="number" min="${mn}" max="${mx}" value="${preco}" inputmode="numeric"></label><div class="vm-precos"><button type="button" class="btn ghost" data-vila-vp="${mn}">Mínimo ${mn}</button><button type="button" class="btn ghost" data-vila-vp="${valorDe(sel) * q}">Justo ${valorDe(sel) * q}</button><button type="button" class="btn ghost" data-vila-vp="${mx}">Máximo ${mx}</button></div><small>Preço permitido: ${mn} a ${mx} moedas</small><button class="btn gold" type="button" data-vila-anunciar>📣 Anunciar ${q}× ${esc(nomeI(sel))} por ${preco} 🪙</button></div>`;
+        <label>Preço total (moedas) <input id="vmPreco" type="number" min="${mn}" max="${mx}" value="${preco}" inputmode="numeric"></label><div class="vm-precos"><button type="button" class="btn ghost" data-vila-vp="${mn}">Mínimo ${mn}</button><button type="button" class="btn ghost" data-vila-vp="${valorDe(sel) * q}">Justo ${valorDe(sel) * q}</button><button type="button" class="btn ghost" data-vila-vp="${mx}">Máximo ${mx}</button></div><small>Preço permitido: ${mn} a ${mx} moedas</small><button class="btn gold" type="button" data-vila-anunciar>📣 Anunciar ${q}× ${esc(nomeI(sel))} por ${preco} 🪙</button></div>`;
     }
     return h;
   }
@@ -15199,7 +15200,7 @@ function pracaDesenha(g, c, now, dpr) {
   }
   // números que sobem
   praca.flutua = praca.flutua.filter(f => now - f.t < 900);
-  for (const f of praca.flutua) { const q = I(f.u, f.v), k = (now - f.t) / 900; g.font = `900 ${Math.round(16 * dpr)}px system-ui`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = `rgba(0,0,0,${0.7 * (1 - k)})`; g.fillStyle = `rgba(255,230,130,${1 - k})`; g.strokeText(f.txt, q.x, q.y - tw * 1.5 - k * 40 * dpr); g.fillText(f.txt, q.x, q.y - tw * 1.5 - k * 40 * dpr); }
+  for (const f of praca.flutua) { const q = I(f.u, f.v), k = (now - f.t) / 900; g.font = `900 ${Math.round(16 * dpr)}px system-ui`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = `rgba(0,0,0,${0.7 * (1 - k)})`; g.fillStyle = `rgba(255,230,130,${1 - k})`; flutTexto(g, f.txt, q.x, q.y - tw * 1.5 - k * 40 * dpr, dpr, true); }
   // noite
   const al = noite * 0.4 + (hal ? 0.1 : 0); if (al > 0.02) { g.fillStyle = `rgba(12,16,64,${al})`; g.fillRect(0, 0, W, H); }
   // mini-mapa
@@ -15341,11 +15342,18 @@ function quartoMoveisHtml() {
   const v = quartoSt(), S = praca.sala; if (!S || S.dono !== user.uid) return '';
   const tab = praca.qtab || 'inv', tabs = `<div class="seg small">${[['inv', '🎒 Meus'], ['loja', '🛒 Loja'], ['estilo', '🎨 Estilo'], ['acesso', '🔑 Acesso']].map(([k, t]) => `<button type="button" data-vila-qtab="${k}" aria-checked="${tab === k}">${t}</button>`).join('')}</div>`;
   const ico = id => MOVEIS[id].e ? `<span class="mv-e">${MOVEIS[id].e}</span>` : `<span class="mv-e mv-tap" style="background:${MOVEIS[id].piso}"></span>`;
-  if (tab === 'loja') return tabs + `<div class="vp-card"><small>Você tem 🪙 ${fmtN(state.coins)}.</small><div class="vm-grid">${Object.entries(MOVEIS).filter(([, M]) => !M.publico).map(([id, M]) => `<button type="button" class="vm-item" data-vila-mcomprar="${id}" ${state.coins < M.preco ? 'style="opacity:.55"' : ''}>${ico(id)}<span>${M.n}</span><small>🪙 ${M.preco}</small></button>`).join('')}</div></div>`;
+  if (tab === 'loja') return tabs + `<div class="vp-card"><small>Você tem ${MOEDA}${fmtN(state.coins)}.</small><div class="vm-grid">${Object.entries(MOVEIS).filter(([, M]) => !M.publico).map(([id, M]) => `<button type="button" class="vm-item" data-vila-mcomprar="${id}" ${state.coins < M.preco ? 'style="opacity:.55"' : ''}>${ico(id)}<span>${M.n}</span><small>🪙 ${M.preco}</small></button>`).join('')}</div></div>`;
   if (tab === 'estilo') return tabs + `<div class="vp-card"><b>Parede</b><div class="vp-decor">${PAREDES.map((p, i) => `<button type="button" style="background:${p.c};width:44px;height:44px" data-vila-qparede="${i}" aria-pressed="${v.q.p === i}" title="${p.n}"></button>`).join('')}</div><b>Piso</b><div class="vp-decor">${PISOS.map((p, i) => `<button type="button" style="background:linear-gradient(135deg,${p.a} 50%,${p.b} 50%);width:44px;height:44px" data-vila-qpiso="${i}" aria-pressed="${v.q.c === i}" title="${p.n}"></button>`).join('')}</div></div>`;
   if (tab === 'acesso') return tabs + `<div class="vp-card"><b>Quem pode visitar seu quarto?</b>${[['todos', '🌎 Todos os jogadores'], ['amigos', '👥 Só amigos'], ['fechado', '🔒 Ninguém (fechado)']].map(([k, t]) => `<button type="button" class="btn ${v.q.a === k ? 'gold' : 'ghost'}" data-vila-qacesso="${k}">${t}</button>`).join('')}</div>`;
   const ids = Object.keys(v.inv).filter(id => v.inv[id] > 0 && MOVEIS[id]);
   return tabs + (ids.length ? `<div class="vp-card"><b>Toque num móvel e depois no chão do quarto para colocar:</b><div class="vm-grid">${ids.map(id => `<button type="button" class="vm-item ${S.sel && S.sel.novo === id ? 'sel' : ''}" data-vila-mpegar="${id}">${ico(id)}<span>${MOVEIS[id].n}</span><small>×${v.inv[id]}</small></button>`).join('')}</div></div>` : '<div class="vp-card">Seu inventário está vazio. Compre móveis na Loja! 🛒</div>');
+}
+const MOEDA = '<span class="coin" aria-hidden="true"></span>'; // moeda dourada do jogo (o emoji 🪙 aparece prateado)
+// texto flutuante no mapa: troca o 🪙 por uma moeda dourada desenhada
+function flutTexto(g, txt, x, y, dpr, stroke) {
+  const tem = txt.includes('🪙'), t = tem ? txt.replace('🪙', '').trim() : txt;
+  if (stroke) g.strokeText(t, x + (tem ? 8 * dpr : 0), y); g.fillText(t, x + (tem ? 8 * dpr : 0), y);
+  if (tem) { const w = g.measureText(t).width, cx = x + 8 * dpr - w / 2 - 9 * dpr, a = g.globalAlpha, c0 = g.fillStyle; g.fillStyle = '#f2b705'; g.beginPath(); g.arc(cx, y - 5.5 * dpr, 7 * dpr, 0, 7); g.fill(); g.strokeStyle = '#b77f00'; g.lineWidth = 1.5 * dpr; g.stroke(); g.fillStyle = '#fff2a8'; g.beginPath(); g.arc(cx - 2 * dpr, y - 8 * dpr, 2.4 * dpr, 0, 7); g.fill(); g.fillStyle = c0; g.globalAlpha = a; }
 }
 const fmtN = n => Number(n).toLocaleString('pt-BR');
 function quartoBarra() {
@@ -15589,8 +15597,8 @@ function quermesseDesenha(g, q, tw, dpr, now) {
   const fum = ((now / 1200) % 1); g.globalAlpha = 0.5 * (1 - fum); g.fillStyle = '#fff'; g.beginPath(); g.arc(q.x - W * 0.42 + Math.sin(fum * 6) * 4, q.y - tw * 1.1 - fum * tw * 1.4, tw * (0.12 + fum * 0.2), 0, 7); g.fill(); g.globalAlpha = 1;
 }
 function pracaHtmlQuermesse() {
-  const lista = QUERMESSE.map(it => `<button type="button" class="vm-item" data-vila-comer="${it.id}" ${state.coins >= it.p ? '' : 'style="opacity:.55"'}><span class="mv-e">${it.e}</span><span>${it.n}</span><small>🪙 ${it.p}</small></button>`).join('');
-  return `<div class="vp-card"><small>🎪 Barraca da Dona Maria, ao lado da igreja. Compre algo gostoso: o seu avatar come ou bebe na hora! Você tem 🪙 ${fmtN(state.coins)}.</small><div class="vm-grid">${lista}</div></div>`;
+  const lista = QUERMESSE.map(it => `<button type="button" class="vm-item" data-vila-comer="${it.id}" ${state.coins >= it.p ? '' : 'style="opacity:.55"'}><span class="mv-e">${it.e}</span><span>${it.n}</span><small>${MOEDA}${it.p}</small></button>`).join('');
+  return `<div class="vp-card"><small>🎪 Barraca da Dona Maria, ao lado da igreja. Compre algo gostoso: o seu avatar come ou bebe na hora! Você tem ${MOEDA}${fmtN(state.coins)}.</small><div class="vm-grid">${lista}</div></div>`;
 }
 function vilaComer(id) {
   const it = QUERMESSE.find(x => x.id === id); if (!it || !praca.eu) return;
@@ -15643,7 +15651,7 @@ const DIZIMO_BENCAOS = [
   { id: 'trevo',  frase: 'Que a sorte e o trevo acompanhem você!',         txt: n => `+${n} 🍀 trevo${n > 1 ? 's' : ''}`, fn: n => { trevosDe().saldo += n; } },
   { id: 'bichos', frase: 'Que Deus abençoe todos os seus bichinhos.',      txt: n => `+${n} ração${n > 1 ? 'ões' : ''} especia${n > 1 ? 'is' : 'l'} 🥣`, fn: n => { state.racaoEsp = (state.racaoEsp || 0) + n; } },
   { id: 'cura',   frase: 'Que nenhuma colheita se perca na sua roça.',     txt: n => `+${n} poç${n > 1 ? 'ões' : 'ão'} 🧪`, fn: n => { state.pocao = (state.pocao || 0) + n; } },
-  { id: 'fartura', frase: 'Fartura na mesa e alegria no lar!',             txt: n => `+${n * 40} moedas de volta 🪙`, fn: n => { state.coins += n * 40; } },
+  { id: 'fartura', frase: 'Fartura na mesa e alegria no lar!',             txt: n => `+${n * 40} moedas de volta`, fn: n => { state.coins += n * 40; } },
 ];
 const dizimoNivel = v => v >= 50000 ? 2 : v >= 1000 ? 1 : 0, DIZIMO_QTD = [1, 3, 8];
 function dizimoDar(v) {
@@ -15666,10 +15674,10 @@ function dizimoCarrega() {
 }
 function pracaHtmlDizimo() {
   const tot = state.dizimoTotal || 0, rk = praca.dizimoRank;
-  let h = `<div class="vp-card"><b>🙏 Dízimo da igreja</b><small>Contribua com a Igreja da Vila. Cada oferta recebe uma bênção aleatória do padre! Seu total ofertado: 🪙 ${fmtN(tot)}</small>
-    <div class="vp-decor">${DIZIMO_VALORES.map(v => `<button type="button" class="btn ${state.coins >= v ? 'gold' : 'ghost'}" data-vila-dizimo="${v}" ${state.coins >= v ? '' : 'disabled'}>🪙 ${fmtN(v)}</button>`).join('')}</div>
+  let h = `<div class="vp-card"><b>🙏 Dízimo da igreja</b><small>Contribua com a Igreja da Vila. Cada oferta recebe uma bênção aleatória do padre! Seu total ofertado: ${MOEDA}${fmtN(tot)}</small>
+    <div class="vp-decor">${DIZIMO_VALORES.map(v => `<button type="button" class="btn ${state.coins >= v ? 'gold' : 'ghost'}" data-vila-dizimo="${v}" ${state.coins >= v ? '' : 'disabled'}>${MOEDA}${fmtN(v)}</button>`).join('')}</div>
     <small>Bênçãos maiores vêm com ofertas maiores.</small></div>`;
-  h += `<div class="vp-card"><b>🏆 Ranking de doadores (de todo o jogo)</b>${rk ? (rk.length ? rk.map((x, i) => `<div>${['🥇', '🥈', '🥉'][i] || (i + 1) + 'º'} ${esc(x.n)}${x.uid === (user && user.uid) ? ' (você)' : ''} — 🪙 ${fmtN(x.v)}</div>`).join('') : '<div>Ninguém doou ainda. Seja o primeiro!</div>') : '<div>Carregando…</div>'}</div>`;
+  h += `<div class="vp-card"><b>🏆 Ranking de doadores (de todo o jogo)</b>${rk ? (rk.length ? rk.map((x, i) => `<div>${['🥇', '🥈', '🥉'][i] || (i + 1) + 'º'} ${esc(x.n)}${x.uid === (user && user.uid) ? ' (você)' : ''} — ${MOEDA}${fmtN(x.v)}</div>`).join('') : '<div>Ninguém doou ainda. Seja o primeiro!</div>') : '<div>Carregando…</div>'}</div>`;
   return h;
 }
 // Faixa com a missa do dia + prêmio da bênção final
@@ -15756,7 +15764,7 @@ function quartoDesenha(g, c, now, dpr) {
   D.sort((a, b) => a.s - b.s); for (const d of D) d.fn();
   if (praca.qdrag && praca.sala && praca.sala.edit) { const dr = praca.qdrag, it = quartoAtual().m[dr.idx], M = it && MOVEIS[it.i]; if (M) { const [w, dd] = quartoTam(M, it.r || 0), k0 = I(dr.u, dr.v), k1 = I(dr.u + w, dr.v), k2 = I(dr.u + w, dr.v + dd), k3 = I(dr.u, dr.v + dd); g.fillStyle = dr.ok ? 'rgba(80,220,80,.45)' : 'rgba(230,60,60,.45)'; g.beginPath(); g.moveTo(k0.x, k0.y); g.lineTo(k1.x, k1.y); g.lineTo(k2.x, k2.y); g.lineTo(k3.x, k3.y); g.closePath(); g.fill(); if (M.e) { const ct = I(dr.u + w / 2, dr.v + dd / 2); g.globalAlpha = 0.7; g.font = `${Math.round(tw * (0.9 + 0.3 * Math.max(w, dd)) * 1.1)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(M.e, ct.x, ct.y + tw * 0.15); g.globalAlpha = 1; } } }
   praca.flutua = praca.flutua.filter(f => now - f.t < 900);
-  for (const f of praca.flutua) { const qq = I(f.u, f.v), k = (now - f.t) / 900; g.font = `900 ${Math.round(16 * dpr)}px system-ui`; g.textAlign = 'center'; g.fillStyle = `rgba(255,230,130,${1 - k})`; g.fillText(f.txt, qq.x, qq.y - tw * 1.5 - k * 40 * dpr); }
+  for (const f of praca.flutua) { const qq = I(f.u, f.v), k = (now - f.t) / 900; g.font = `900 ${Math.round(16 * dpr)}px system-ui`; g.textAlign = 'center'; g.fillStyle = `rgba(255,230,130,${1 - k})`; flutTexto(g, f.txt, qq.x, qq.y - tw * 1.5 - k * 40 * dpr, dpr, false); }
   g.font = `800 ${Math.round(13 * dpr)}px system-ui, sans-serif`; g.textAlign = 'left'; g.fillStyle = '#fff'; g.fillText(S.tipo ? `${FESTAS[S.tipo].ic} ${FESTAS[S.tipo].nome} · ${Object.keys(praca.jog).length + 1} aqui` : `🏠 Quarto de ${S.dono === user.uid ? 'você' : (praca.quartoVis && praca.quartoVis.n) || 'amigo'}${S.edit ? ' · modo edição' : ''}`, 10 * dpr, 20 * dpr);
   if (S.tipo === 'igreja') igrejaBanner(g, W, H, dpr, now);
 }
@@ -15979,7 +15987,7 @@ const CARTA_PRESENTES = [['', 'Só a carta', 0], ['c10', 'Moedas', 10], ['c25', 
 function pracaHtmlCartas() {
   const lista = Object.entries(praca.cartas || {}).filter(([, c]) => c && state.friends.includes(c.de)).sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
   if (!lista.length) return '<div class="vp-card">Sua caixa está vazia. Peça aos amigos para deixarem cartas no seu quarto ou pelo perfil na Vila! 📮</div>';
-  const pres = p => p ? (p[0] === 'c' ? `🪙 ${p.slice(1)} moedas` : `${(MOVEIS[p.slice(2)] || {}).e || '🎁'} ${(MOVEIS[p.slice(2)] || {}).n || 'móvel'}`) : '';
+  const pres = p => p ? (p[0] === 'c' ? `${MOEDA}${p.slice(1)} moedas` : `${(MOVEIS[p.slice(2)] || {}).e || '🎁'} ${(MOVEIS[p.slice(2)] || {}).n || 'móvel'}`) : '';
   return lista.map(([k, c]) => `<div class="vp-card"><div class="vp-linha"><b>✉️ ${esc(c.n || '?')}</b><small>${new Date(c.ts || 0).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small></div><div>${esc(c.t || '')}</div>${c.p ? `<button class="btn gold" type="button" data-vila-cpegar="${k}">🎁 Pegar ${pres(c.p)}</button>` : ''}<button class="btn ghost" type="button" data-vila-capagar="${k}">🗑️ Apagar</button></div>`).join('');
 }
 function pracaHtmlCartaW(dono) {
