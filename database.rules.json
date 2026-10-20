@@ -491,6 +491,27 @@
             ".validate": false
           }
         }
+      },
+      "intencoes": {
+        ".read": "auth != null",
+        "$ciclo": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['n', 't', 'ts'])",
+            "n": {
+              ".validate": "newData.isString() && newData.val().length <= 24"
+            },
+            "t": {
+              ".validate": "newData.isString() && newData.val().length <= 140"
+            },
+            "ts": {
+              ".validate": "newData.isNumber()"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          }
+        }
       }
     }
   }
