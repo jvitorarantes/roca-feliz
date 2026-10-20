@@ -1552,6 +1552,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 342, txt: "🧑‍🌾 O Caseiro agora pesca em qualquer ponto de água da roça (lago, pesqueiro e blocos de água): joga a vara, espera a boia, puxa o peixe e depois vai pescar em outro ponto." },
   { v: 341, txt: "🧑‍🌾 Quando o Caseiro não está trabalhando, ele vai pescar no lago da sua roça." },
   { v: 340, txt: "👑 O Ajudante Fixo agora é um Caseiro: um morador de verdade (chapéu de palha, bota e regador) em vez do robô. Ele passeia pela propriedade quando não tem serviço." },
   { v: 339, txt: "👑 Trator e Ajudante Fixo: quando não têm o que fazer (ou estão desativados), agora ficam passeando pela propriedade, na faixa de grama ao redor dos canteiros." },
@@ -4828,15 +4829,76 @@ function drawLuxoMaquinas(t) {
   }
   if (aA) {
     const cu = (B.u0 + B.u1) / 2, cv = (B.v0 + B.v1) / 2, ru = Math.max(1, (B.u1 - B.u0) / 2 * 0.75), rv = Math.max(1, (B.v1 - B.v0) / 2 * 0.75);
-    const pq = posOf(state, 'roca', 'pesqueiro'), lago = temaDe(state).lago ? { u: LAGO_POS[0] + 0.2, v: LAGO_POS[1] + 1.5 } : pq ? { u: pq[0] + 1.1, v: pq[1] + 0.2 } : null; // sem serviço: vai pescar no lago (lago grande ou pesqueiro)
-    const u = cu + ru * Math.sin(t / 7000), v = cv + rv * Math.sin(t / 5300 + 1.3), ps = tA ? null : luxoPasseio('ajud', t, 0.7, lago), q = ps ? iso(ps.u, ps.v) : iso(u, v), d = ps ? ps.d : Math.cos(t / 7000) >= 0 ? 1 : -1, bal = !ps || ps.mov ? Math.sin(t / 220) * 1.5 : 0;
-    // Caseiro: um morador de verdade (mesmo desenho dos vizinhos), de regador na mão quando tem a melhoria
-    const pesca = !!(ps && ps.chegou), esc = L.W / 95, andando = !ps || ps.mov, av = { sexo: 'm', pele: 3, cabelo: 'curto', corCabelo: 4, chapeu: 'palha', camisa: 'regata', calca: 'jeans', sapato: 'bota', mao: pesca ? 'vara' : (!ps && X.ajud2) ? 'regador' : 'enxada' };
+    const esc = L.W / 95;
+    let ps = null, d, q, pe = null, mao = X.ajud2 ? 'regador' : 'enxada', andando = true;
+    if (tA) { // trabalhando: passeia pelos canteiros
+      const u = cu + ru * Math.sin(t / 7000), v = cv + rv * Math.sin(t / 5300 + 1.3); q = iso(u, v); d = Math.cos(t / 7000) >= 0 ? 1 : -1;
+    } else {
+      const aguas = luxoAguas(t);
+      if (aguas.length) { // sem serviço: pesca em qualquer ponto de água (lago, pesqueiro ou blocos de água)
+        pe = luxoPe; if (pe.i < 0 || pe.i >= aguas.length) { pe.i = Math.floor(Math.random() * aguas.length); pe.fase = 'anda'; pe.n = 0; }
+        const A = aguas[pe.i]; ps = luxoPasseio('ajud', t, 0.7, A.stand); q = iso(ps.u, ps.v);
+        const sx = (A.u - ps.u) - (A.v - ps.v); d = ps.chegou ? (sx >= 0 ? 1 : -1) : ps.d; andando = ps.mov;
+        if (ps.chegou) {
+          const dt = t - pe.t0;
+          if (pe.fase === 'anda') { pe.fase = 'lanca'; pe.t0 = t; pe.espera = 2200 + Math.random() * 2800; }
+          else if (pe.fase === 'lanca' && dt > 800) { pe.fase = 'espera'; pe.t0 = t; }
+          else if (pe.fase === 'espera' && dt > pe.espera) { pe.fase = 'puxa'; pe.t0 = t; }
+          else if (pe.fase === 'puxa' && dt > 1300) {
+            pe.n++; pe.t0 = t; pe.espera = 2200 + Math.random() * 2800;
+            if (pe.n >= 2 + Math.floor(Math.random() * 2) && aguas.length > 1) { let j; do { j = Math.floor(Math.random() * aguas.length); } while (j === pe.i); pe.i = j; pe.n = 0; pe.fase = 'anda'; } // vai pescar em outro ponto de água
+            else pe.fase = 'lanca';
+          }
+        } else if (pe.fase !== 'anda') pe.fase = 'anda';
+        mao = 'nada';
+      } else { ps = luxoPasseio('ajud', t, 0.7); q = iso(ps.u, ps.v); d = ps.d; andando = ps.mov; mao = 'enxada'; }
+    }
+    const av = { sexo: 'm', pele: 3, cabelo: 'curto', corCabelo: 4, chapeu: 'palha', camisa: 'regata', calca: 'jeans', sapato: 'bota', mao };
     g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(q.x, q.y, L.W * 0.13, L.W * 0.045, 0, 0, 7); g.fill();
     drawAvatar(g, q.x, q.y, esc, av, t, andando, d);
     if (X.ajud2 && tA) for (let k = 0; k < 4; k++) { const p = ((t / 500) + k / 4) % 1; g.globalAlpha = 1 - p; g.fillStyle = '#7cc8ff'; g.beginPath(); g.arc(q.x + d * (L.W * 0.2 + p * 4), q.y - L.W * 0.32 + p * L.W * 0.3, 1.8 * sc * 1.5, 0, 7); g.fill(); }
     g.globalAlpha = 1;
+    if (pe && ps && ps.chegou) luxoDesenhaPesca(g, q, d, esc, t, pe, luxoAguas(t)[pe.i]);
   }
+}
+// Pontos de água da roça: lago grande, pesqueiro e cada bloco de água. "stand" é onde o caseiro fica; (u, v) é a água.
+let luxoAguasC = { t: -1e9, l: [] };
+function luxoAguas(t) {
+  if (t - luxoAguasC.t < 3000) return luxoAguasC.l;
+  const l = [];
+  if (temaDe(state).lago) l.push({ u: LAGO_POS[0], v: LAGO_POS[1], stand: { u: LAGO_POS[0] + 0.2, v: LAGO_POS[1] + 1.5 } });
+  const pq = posOf(state, 'roca', 'pesqueiro'); if (pq) l.push({ u: pq[0], v: pq[1], stand: { u: pq[0] + 1.1, v: pq[1] + 0.2 } });
+  for (const o of objetosDe(state, 'roca')) if (ehAgua(o.id)) l.push({ u: o.u + 0.5, v: o.v + 0.5, stand: { u: o.u + 0.5, v: o.v + 1.7 } });
+  return luxoAguasC = { t, l }, l;
+}
+const luxoPe = { i: -1, fase: 'anda', t0: 0, n: 0, espera: 3000 };
+// Vara de pescar: lança, espera a boia, puxa e o peixe sai da água
+function luxoDesenhaPesca(g, q, d, esc, t, pe, A) {
+  if (!A) return;
+  const dt = t - pe.t0, w = iso(A.u, A.v), hx = q.x + d * 9 * esc, hy = q.y - 36 * esc, rl = 36 * esc, ease = x => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+  let ang = -50, boia = { x: w.x, y: w.y }, linha = 'frouxa', peixe = 0;
+  if (pe.fase === 'lanca') { const k = ease(dt / 800); ang = -150 + 130 * k; boia = { x: q.x + (w.x - q.x) * k, y: q.y - 40 * esc + (w.y - q.y + 40 * esc) * k - Math.sin(Math.PI * k) * 26 * esc }; }
+  else if (pe.fase === 'espera') ang = -25 + Math.sin(t / 500) * 2;
+  else if (pe.fase === 'puxa') { const k = Math.min(1, dt / 500); ang = -25 - 85 * Math.sin(Math.PI * Math.min(1, dt / 900)) ; peixe = dt / 1300; linha = 'esticada'; }
+  const rad = ang * Math.PI / 180, tx = hx + d * Math.cos(rad) * rl, ty = hy + Math.sin(rad) * rl;
+  g.strokeStyle = '#7a4a22'; g.lineWidth = 2.2 * esc; g.lineCap = 'round'; g.beginPath(); g.moveTo(hx, hy); g.lineTo(tx, ty); g.stroke();
+  const bb = pe.fase === 'espera' ? Math.sin(t / 280) * 1.6 * esc + (dt > pe.espera - 700 ? Math.sin(t / 60) * 2.5 * esc : 0) : 0;
+  const bx = boia.x, by = boia.y + bb;
+  g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 1; g.beginPath(); g.moveTo(tx, ty);
+  if (pe.fase === 'puxa' && peixe > 0.15) { const p = Math.min(1, (peixe - 0.15) / 0.85), fx = bx + (hx - bx) * p, fy = by + (hy - 10 * esc - by) * p - Math.sin(Math.PI * p) * 34 * esc; g.lineTo(fx, fy); g.stroke(); drawPeixinho(g, fx, fy, esc, d, t); }
+  else { g.quadraticCurveTo((tx + bx) / 2, Math.max(ty, by) + 14 * esc, bx, by); g.stroke(); }
+  if (pe.fase !== 'puxa' || peixe < 0.2) {
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(bx, by, 3 * esc, 0, 7); g.fill(); g.fillStyle = '#e03a2a'; g.beginPath(); g.arc(bx, by - 1.2 * esc, 2.6 * esc, Math.PI, 0); g.fill();
+    if (pe.fase !== 'lanca') { g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1; for (let k = 0; k < 2; k++) { const r = ((t / 900) + k / 2) % 1; g.globalAlpha = 1 - r; g.beginPath(); g.ellipse(bx, by + 2 * esc, (4 + r * 10) * esc, (1.5 + r * 4) * esc, 0, 0, 7); g.stroke(); } g.globalAlpha = 1; }
+  }
+  if (pe.fase === 'puxa' && dt < 400) { g.fillStyle = '#bfe6ff'; for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2, r = dt / 400; g.globalAlpha = 1 - r; g.beginPath(); g.arc(bx + Math.cos(a) * 9 * esc * r, by - Math.abs(Math.sin(a)) * 12 * esc * r, 1.5 * esc, 0, 7); g.fill(); } g.globalAlpha = 1; }
+}
+function drawPeixinho(g, x, y, esc, d, t) {
+  g.save(); g.translate(x, y); g.rotate(Math.sin(t / 60) * 0.4); g.scale(d, 1);
+  g.fillStyle = '#e8a23a'; g.beginPath(); g.ellipse(0, 0, 7 * esc, 3.6 * esc, 0, 0, 7); g.fill();
+  g.beginPath(); g.moveTo(-6 * esc, 0); g.lineTo(-11 * esc, -3.5 * esc); g.lineTo(-11 * esc, 3.5 * esc); g.closePath(); g.fill();
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(3.5 * esc, -0.8 * esc, 1.1 * esc, 0, 7); g.fill();
+  g.restore();
 }
 function drawRoca(s, t, home) {
   const tod = timeOfDay(), W = L.W;
