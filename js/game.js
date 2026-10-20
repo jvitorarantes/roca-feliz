@@ -1241,21 +1241,32 @@ function luxoAjudante() {
   }
   return n;
 }
+// O que a fábrica pode vender agora: o que passa de 10 de cada planta (e não está bloqueado), até 60 itens por lote.
+function luxoFabricaLista(max = 60) {
+  const out = [];
+  for (const id of Object.keys(state.barn).filter(id => PRODUCE[id]).sort((a, b) => item(b).preco - item(a).preco)) {
+    if (max <= 0) break;
+    const q = state.barn[id], v = Math.min(max, q - bloqQtd(id, q) - PLANTAS_BAIXO);
+    if (v > 0) { out.push({ id, v }); max -= v; }
+  }
+  return out;
+}
 function luxoFabrica(lotes) {
-  let total = 0;
+  let total = 0, itens = 0;
   for (let k = 0; k < lotes; k++) {
-    let sobra = 60;
-    const ids = Object.keys(state.barn).filter(id => PRODUCE[id]).sort((a, b) => item(b).preco - item(a).preco);
-    for (const id of ids) {
-      if (sobra <= 0) break;
-      const q = state.barn[id], guarda = PRODUCE[id].planta ? PLANTAS_BAIXO : 0, v = Math.min(sobra, q - bloqQtd(id, q) - guarda);
-      if (v <= 0) continue;
-      state.barn[id] = q - v; if (!state.barn[id]) delete state.barn[id];
-      total += Math.round(v * item(id).preco * 1.5); sobra -= v;
+    for (const { id, v } of luxoFabricaLista()) {
+      state.barn[id] -= v; if (!state.barn[id]) delete state.barn[id];
+      total += Math.round(v * item(id).preco * 1.5); itens += v;
     }
   }
   if (total) { state.coins += total; state.stats.vendido += total; }
+  if (lotes > 0) luxoDe().fabUlt = { t: Date.now(), moedas: total, n: itens };
   return total;
+}
+function luxoFabAgora() {
+  const antes = luxoFabricaLista().reduce((t, x) => t + x.v, 0);
+  if (!antes) return toast('A fábrica não tem o que vender: ela só vende o que passa de 10 de cada planta no celeiro (e não está bloqueado 🔒).', 'bad');
+  const m = luxoFabrica(1); luxoDe().fabT = Date.now(); sfx('coin'); toast(`🏭 A fábrica vendeu ${antes} itens por ${m.toLocaleString('pt-BR')} moedas!`, 'good'); done();
 }
 function luxoAluguel() { const L = luxoDe(); return L.terreno ? Math.floor(Math.min(24, Math.max(0, (Date.now() - (L.aluT || Date.now())) / 3600e3)) * 1200) : 0; }
 // Roda as máquinas. "fora" = ficou um tempo sem rodar (jogo fechado): simula em passos de 30 min.
@@ -1333,6 +1344,8 @@ function luxoHTML() {
     let extra = '';
     if (tem && id === 'trator') extra = `<br><b>Plantar automático (nessa ordem):</b>` + luxoLista().map((v, i) => `<br>${i + 1}º <select class="luxosel" data-luxo-slot="${i}"><option value="">${i ? '— nenhuma —' : '— a mais lucrativa —'}</option>${CROPS.filter(c => c.nivel <= state.level).map(c => `<option value="${c.id}" ${v === c.id ? 'selected' : ''}>${esc(c.nome)} (${plantaQtd(c)} no celeiro)</option>`).join('')}</select>`).join('') + '<br><small>Quando acabam as plantas da 1ª, passa para a 2ª, depois a 3ª.</small>';
     if (tem && ['trator', 'fabrica', 'ajud'].includes(id)) extra += `<br><button class="btn ${luxoAtivo(id) ? 'ghost' : 'gold'} mais" data-luxo-liga="${id}">${luxoAtivo(id) ? '⏸️ Desativar' : '▶️ Ativar'}</button>`;
+    if (tem && id === 'fabrica') { const u = L.fabUlt, pr = luxoFabricaLista(), np = pr.reduce((t, x) => t + x.v, 0), mp = pr.reduce((t, x) => t + Math.round(x.v * item(x.id).preco * 1.5), 0);
+      extra += `<br><small>${u ? `Última rodada (há ${Math.max(0, Math.round((Date.now() - u.t) / 60e3))} min): ${u.n ? `vendeu ${u.n} itens por ${u.moedas.toLocaleString('pt-BR')} moedas` : 'nada para vender'}.` : 'Ainda não rodou.'} Agora dá para vender: ${np} itens (≈ ${mp.toLocaleString('pt-BR')} moedas).</small><br><button class="btn gold mais" data-luxo-fab="1">🏭 Vender agora</button>`; }
     if (tem && id === 'terreno') extra = `<br><button class="btn gold mais" data-luxo-coletar="1">Coletar aluguel: 🪙 ${luxoAluguel().toLocaleString('pt-BR')}</button>`;
     html += `<div class="row ${tem ? 'sel' : ''}"><div class="avatar" style="background:#6a4a8a;font-size:26px">${X.ic}</div>
       <div><div class="name">${X.nome}</div><div class="meta">${X.desc}${extra}</div></div>
@@ -1558,6 +1571,7 @@ function buyDogFood(n) {
 // Ao lançar algo novo, acrescente aqui { v: número da versão (rf-version), txt }.
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
+  { v: 345, txt: "🏭 Fábrica Automática: o card em Loja › Luxo agora mostra a última rodada e quanto dá para vender agora, e tem o botão 'Vender agora'. Lembrete: ela só vende o que passa de 10 de cada planta no celeiro (e não está bloqueado)." },
   { v: 344, txt: "👑 Trator e Caseiro agora verificam se há serviço a cada 10 minutos (e quando você liga ou compra). Se acharem, trabalham um pouco; se não, o trator estaciona ao lado da lavoura e o caseiro vai pescar." },
   { v: 343, txt: "🏰 Mansão: ao comprar, a sua casa fica maior e muda de design por fora (dois andares, telhado de ardósia, colunas, sacada e postes de luz) e por dentro (sala maior com piso de mármore, tapete, cortinas e castiçais)." },
   { v: 342, txt: "🧑‍🌾 O Caseiro agora pesca em qualquer ponto de água da roça (lago, pesqueiro e blocos de água): joga a vara, espera a boia, puxa o peixe e depois vai pescar em outro ponto." },
@@ -6606,6 +6620,7 @@ $('#pane').addEventListener('click', e => {
   if (d.pracaAbrir) return pracaAbrir();
   if (d.luxoComprar) return luxoComprar(d.luxoComprar);
   if (d.luxoColetar) return luxoColetar();
+  if (d.luxoFab) return luxoFabAgora();
   if (d.luxoLiga) return luxoLiga(d.luxoLiga);
   if (d.halEnviar) return enviarCartaHal(d.halEnviar);
   if (d.halAbrir) { halCartaTick(); return; }
