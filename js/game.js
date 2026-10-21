@@ -1577,6 +1577,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 372, txt: "➕ Dá para pedir amizade direto pelos rankings: no 🌎 Ranking de todo o jogo (Amigos) e no 🏅 Ranking de hoje da Vila aparece o botão '➕ Amigo' ao lado de cada jogador que ainda não é seu amigo." },
   { v: 371, txt: "🎙️ Voz da Vila: corrigido o caso de duas pessoas com o microfone ligado (uma derrubava a conexão da outra e ninguém se ouvia) e de quem só ouve ficar sem som por causa do navegador. Conexões de voz que não completam agora são refeitas sozinhas." },
   { v: 370, txt: "🏅 Na Vila, o título embaixo do nome (Rei da Festa, Caçador…) agora aparece em cima do nome e não tampa mais a cara do personagem." },
   { v: 369, txt: "🎙️ Microfone da Vila: enquanto ele está ligado a música fica muda (antes ficava muito alta no celular). E ficou mais confiável: se o microfone falhar ao ligar o jogo tenta de novo sozinho, e se o celular o derrubar (bloqueio de tela, ligação, outro app) ele é pego de novo ao voltar, sem precisar reiniciar o jogo." },
@@ -6838,6 +6839,7 @@ $('#pane').addEventListener('click', e => {
     done(); return renderPane();
   }
   if (d.rankModo) { rankModo = d.rankModo; renderPane(); return; }
+  if (d.rankAdd) { pedirAmizade(d.rankAdd).then(() => { rankHTMLcacheGlobal = ''; renderPane(); }).catch(() => toast('Não consegui mandar o pedido agora.', 'bad')); return; }
   if (d.seg) { shopSeg = d.seg; renderPane(); $('#pane').scrollTop = 0; if (d.focus) focusRow('abrigo-' + d.focus); }
   else if (d.abrigo) buyAbrigo(d.abrigo);
   else if (d.seed) { state.seed = d.seed; state.tool = 'seed'; if (!isHome()) goHome(); setScene('roca'); closePanel(); save(); toast(`${CROP[d.seed].nome} na mão: clique nas terras aradas para plantar (${plantaQtd(CROP[d.seed])} plantas).`); }
@@ -10204,6 +10206,12 @@ function rankingHTML() {
     <div class="rankmodo"><button type="button" class="btn tiny ${global ? 'ghost' : 'gold'}" data-rank-modo="amigos">Amigos</button><button type="button" class="btn tiny ${global ? 'gold' : 'ghost'}" data-rank-modo="global">🌎 Todos os jogadores</button></div>
     <div id="rankLista">${lista}</div>`;
 }
+// Botão de pedir amizade ao lado de alguém dos rankings (semana e Vila). attr: nome do data- que o clique usa.
+function btnAmizade(uid, attr) {
+  if (!user || !uid || uid === 'eu' || uid === user.uid || !state || state.friends.includes(uid)) return '';
+  if (state.sent[uid]) return '<small title="Pedido enviado">⏳</small>';
+  return `<button type="button" class="btn tiny" ${attr}="${esc(uid)}" title="Enviar pedido de amizade">➕ Amigo</button>`;
+}
 function listaRank(docs, r) {
   const w = r.w, linhas = [{ uid: 'eu', nome: `${meuApelido()} (você)`, pts: r.pts, eu: true }];
   for (const uid of state.friends) { const d = docs[uid], f = friendInfo[uid]; linhas.push({ uid, nome: (d && d.nome) || (f && f.name && !f.erro ? f.name : 'Amigo'), pts: ptsNaSemana(d, w) }); }
@@ -10215,7 +10223,7 @@ function listaRankGlobal(docs, r) {
   const w = r.w, meuUid = user && user.uid, linhas = [{ uid: 'eu', nome: `${meuApelido()} (você)`, pts: r.pts, eu: true }];
   for (const [uid, d] of Object.entries(docs)) { if (uid === meuUid) continue; linhas.push({ uid, nome: (d && d.nome) || 'Jogador', pts: ptsNaSemana(d, w) }); }
   linhas.sort((a, b) => b.pts - a.pts || (a.eu ? -1 : 1));
-  return linhas.slice(0, 50).map((l, k) => `<div class="rankrow ${l.eu ? 'eu' : ''}"><b>${['🥇', '🥈', '🥉'][k] || `${k + 1}º`}</b><span>${esc(l.nome)}</span><strong>${l.pts} pts</strong></div>`).join('');
+  return linhas.slice(0, 50).map((l, k) => `<div class="rankrow ${l.eu ? 'eu' : ''}" style="grid-template-columns:36px 1fr auto auto"><b>${['🥇', '🥈', '🥉'][k] || `${k + 1}º`}</b><span>${esc(l.nome)}</span><strong>${l.pts} pts</strong><span>${btnAmizade(l.uid, 'data-rank-add')}</span></div>`).join('');
 }
 
 // Liga/desliga do número vermelho (aviso de itens) no botão do Celeiro e do Inventário.
@@ -14953,8 +14961,8 @@ function pracaHtmlMural() {
     <div>${venceu ? '🏆 Derrotado por todos!' : ativo ? `Ele está no Campo, ao sul da praça! Toque nele (golpe fraco 1; no ponto fraco brilhante e quando ele fica ‘vulnerável’ o golpe é 3 a 5; com 2+ amigos juntos o dano dobra). Cuidado com as investidas! Dano: ${n}/${VILA_BOSS_HP}` : `Chefe raro: aparece de novo em ${fmt(seg)}`} <small>(seus golpes: ${meus})</small></div>
     ${ativo ? '<button class="btn gold" type="button" data-vila-ir-z="campo">🧭 Ir ao Campo</button>' : ''}
     ${venceu && meus >= 5 && !jaPego ? '<button class="btn gold" type="button" data-vila-boss-premio>🎁 Pegar prêmio (600 moedas, 5 doces e uma estátua)</button>' : venceu && jaPego ? '<div>✅ Prêmio recebido</div>' : venceu ? '<div>Dê pelo menos 5 golpes na próxima vez para ter prêmio.</div>' : ''}</div>`;
-  const rk = Object.values(praca.rank).filter(x => x && typeof x.p === 'number').sort((a, b) => b.p - a.p).slice(0, 5);
-  h += `<div class="vp-card"><b>🏅 Ranking de hoje</b>${rk.length ? rk.map((x, i) => `<div>${['🥇', '🥈', '🥉', '4º', '5º'][i]} ${esc(x.n || '?')} — ${x.p} pts</div>`).join('') : '<div>Ninguém pontuou ainda. Pesque no lago, ataque o chefe e puxe a corda!</div>'}</div>`;
+  const rk = Object.entries(praca.rank).filter(([, x]) => x && typeof x.p === 'number').map(([uid, x]) => Object.assign({ uid }, x)).sort((a, b) => b.p - a.p).slice(0, 5);
+  h += `<div class="vp-card"><b>🏅 Ranking de hoje</b>${rk.length ? rk.map((x, i) => `<div>${['🥇', '🥈', '🥉', '4º', '5º'][i]} ${esc(x.n || '?')} — ${x.p} pts ${btnAmizade(x.uid, 'data-vila-convidar')}</div>`).join('') : '<div>Ninguém pontuou ainda. Pesque no lago, ataque o chefe e puxe a corda!</div>'}</div>`;
   h += `<div class="vp-card"><b>🎯 Metas de hoje (todos juntos)</b><small>Faça as tarefas na sua roça. Quando a vila bater a meta, pegue o prêmio.</small>` + PRACA_METAS.map(m => {
     const v = Math.min(m.meta, praca.prog[m.id] || 0), ok = v >= m.meta, pego = !!st.res[praca.progDia + ':' + m.id], seu = st.c[m.ev] || 0;
     return `<div class="pracameta"><div>${m.ic} ${m.nome}: ${v}/${m.meta} <small>(você: ${seu})</small></div><div class="barra"><i style="width:${Math.round(v / m.meta * 100)}%"></i></div>
