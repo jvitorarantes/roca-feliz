@@ -641,7 +641,7 @@ function migrate(s) {
   s.vagaCao = s.vagaCao && typeof s.vagaCao === 'object' ? s.vagaCao : {};
   for (const b of ['roca', 'animais']) if (s.dogs[b + '2']) s.vagaCao[b] = 1; // quem já tinha o 2º cachorro mantém a vaga
   s.dogFood = Math.max(0, Number(s.dogFood) || 0);
-  s.news = Array.isArray(s.news) ? s.news.filter(n => n && n.at > Date.now() - NEWS_DIAS * 86400e3).slice(0, 30) : [];
+  s.news = Array.isArray(s.news) ? s.news.filter(n => n && n.at).sort((a, b) => b.at - a.at).slice(0, 30) : [];
   s.newsSeen = Number(s.newsSeen) || 0;
   s.limits = s.limits && typeof s.limits === 'object' ? s.limits : {};
   if (s.barn && s.barn.trufa) { s.barn.bacon = (s.barn.bacon || 0) + s.barn.trufa; delete s.barn.trufa; } // a trufa virou bacon
@@ -1166,7 +1166,6 @@ function harvestPlot(p, pos) {
     track('dourada'); sfx('level');
     popupAt(pos, `Dourada! ×${OURO_VEZES}`, '#ffd54a', 250);
     toast(`Colheita dourada de ${crop.nome.toLowerCase()}: ${qty} ${crop.prodNome.toLowerCase()}!`, 'good');
-    addNews(`Você fez uma colheita dourada de ${crop.nome.toLowerCase()} (${qty} ${crop.prodNome.toLowerCase()}).`);
   }
   if (xpAllowed(crop.id)) { state.xpDay.c[crop.id] = (state.xpDay.c[crop.id] || 0) + 1; addXP(crop.xp, pos); }
   else if (state.xpDay.c[crop.id] === XP_CAP) { state.xpDay.c[crop.id]++; toast(`Hoje ${crop.nome.toLowerCase()} já deu todo o XP (${XP_CAP} colheitas). Ainda rende moedas; o XP volta amanhã.`); }
@@ -1577,6 +1576,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 373, txt: "📬 Correio: colheita dourada não manda mais carta, e o correio guarda só as 30 cartas mais novas (as mais antigas são apagadas sozinhas, sem limite de dias)." },
   { v: 372, txt: "➕ Dá para pedir amizade direto pelos rankings: no 🌎 Ranking de todo o jogo (Amigos) e no 🏅 Ranking de hoje da Vila aparece o botão '➕ Amigo' ao lado de cada jogador que ainda não é seu amigo." },
   { v: 371, txt: "🎙️ Voz da Vila: corrigido o caso de duas pessoas com o microfone ligado (uma derrubava a conexão da outra e ninguém se ouvia) e de quem só ouve ficar sem som por causa do navegador. Conexões de voz que não completam agora são refeitas sozinhas." },
   { v: 370, txt: "🏅 Na Vila, o título embaixo do nome (Rei da Festa, Caçador…) agora aparece em cima do nome e não tampa mais a cara do personagem." },
@@ -1887,13 +1887,13 @@ function checarNovidades() {
   if (!novas.length) return;
   const agora = Date.now();
   novas.forEach((n, k) => { state.news.unshift({ at: agora + k, msg: '📰 Novidade na Roça Feliz: ' + n.txt }); });
-  state.news.length = Math.min(state.news.length, 30);
+  podarNews();
   state.novVisto = ultima; save(); renderTabs();
   setTimeout(() => toast(`📬 Chegou ${novas.length > 1 ? `${novas.length} cartas novas` : 'uma carta nova'} no correio: novidades do jogo!`, 'good'), 2500);
 }
-// Cartas do correio ficam no máximo 7 dias (e as 30 mais novas); dá para apagar antes.
-const NEWS_DIAS = 7;
-function podarNews() { const lim = Date.now() - NEWS_DIAS * 86400e3; state.news = state.news.filter(n => n.at > lim).slice(0, 30); }
+// O correio guarda as 30 cartas mais novas; dá para apagar antes.
+// O correio guarda só as 30 cartas mais novas (as mais antigas somem)
+function podarNews() { state.news = state.news.filter(n => n && n.at).sort((a, b) => b.at - a.at).slice(0, 30); }
 function addNews(msg) {
   state.news.unshift({ at: Date.now(), msg });
   podarNews();
@@ -6630,7 +6630,7 @@ function renderPane() {
     // Caixa de correio: as novidades da sua roça (visitas, presentes, cachorro, animais…)
     podarNews();
     html += `<p class="hint">✉️ Papel de carta:</p>${cartasEscolhaHTML()}`;
-    html += `<p class="hint">Tudo o que aconteceu na sua roça (visitas dos amigos, presentes, o que o cachorro fez, recados da vila) e as novidades do jogo 📰. As cartas somem sozinhas depois de ${NEWS_DIAS} dias.</p>`;
+    html += `<p class="hint">Tudo o que aconteceu na sua roça (visitas dos amigos, presentes, o que o cachorro fez, recados da vila) e as novidades do jogo 📰. O correio guarda as 30 cartas mais novas: as mais antigas somem sozinhas.</p>`;
     if (!state.news.length) html += `<div class="empty">A caixa de correio está vazia.</div>`;
     else {
       html += `<div class="newsbar"><button class="btn ghost" type="button" data-news-limpar="1">🗑️ Apagar todas</button></div>`;
