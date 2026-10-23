@@ -1576,6 +1576,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 374, txt: "🏭 O número vermelho do botão Fábrica agora conta só o que está pronto nas máquinas; os pedidos do caminhão aparecem só no caminhão, na roça." },
   { v: 373, txt: "📬 Correio: colheita dourada não manda mais carta, e o correio guarda só as 30 cartas mais novas (as mais antigas são apagadas sozinhas, sem limite de dias)." },
   { v: 372, txt: "➕ Dá para pedir amizade direto pelos rankings: no 🌎 Ranking de todo o jogo (Amigos) e no 🏅 Ranking de hoje da Vila aparece o botão '➕ Amigo' ao lado de cada jogador que ainda não é seu amigo." },
   { v: 371, txt: "🎙️ Voz da Vila: corrigido o caso de duas pessoas com o microfone ligado (uma derrubava a conexão da outra e ninguém se ouvia) e de quem só ouve ficar sem som por causa do navegador. Conexões de voz que não completam agora são refeitas sozinhas." },
@@ -6265,7 +6266,7 @@ function renderTabs() {
   renderGiftBtn();
   // Avisos nos botões Roça e Rancho: quantas coisas estão prontas para colher ou recolher.
   if (state) {
-    const prontos = visitando ? { roca: 0, animais: 0, maquinas: 0 } : { roca: state.plots.filter(p => ripe(p)).length, maquinas: MAQUINAS.reduce((t, M) => t + prontosFabDe(M.id), 0) + entregaveis(),
+    const prontos = visitando ? { roca: 0, animais: 0, maquinas: 0 } : { roca: state.plots.filter(p => ripe(p)).length, maquinas: MAQUINAS.reduce((t, M) => t + prontosFabDe(M.id), 0),
       animais: state.animals.filter(a => (ANIMAL[a.k].tipo === 'prod' && a.ready) || isAdult(a)).length };
     const bm = document.querySelector('#scenes [data-scene="maquinas"]'); if (bm) bm.hidden = visitando;
     for (const [sc, n] of Object.entries(prontos)) {
@@ -6273,7 +6274,7 @@ function renderTabs() {
       const k = String(n), o = b.querySelector('.badge');
       if (o && o.textContent === k) continue;
       if (o) o.remove();
-      if (n) b.insertAdjacentHTML('beforeend', `<span class="badge ready" aria-label="${n} ${sc === 'roca' ? 'para colher' : sc === 'maquinas' ? 'prontos nas máquinas ou pedidos para entregar' : 'para recolher ou vender'}">${n}</span>`);
+      if (n) b.insertAdjacentHTML('beforeend', `<span class="badge ready" aria-label="${n} ${sc === 'roca' ? 'para colher' : sc === 'maquinas' ? 'prontos nas máquinas' : 'para recolher ou vender'}">${n}</span>`);
     }
   }
 }
