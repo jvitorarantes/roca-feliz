@@ -837,7 +837,7 @@ const amigosComBanca = () => (state && user ? state.friends.filter(bancaAmigo) :
 // De tempos em tempos vê quem está pedindo ajuda (para o número no botão Amigos)
 setInterval(() => { try { latidosAmbiente(); } catch (e) { /* sem latido */ } }, 1500);
 setInterval(() => { try { if (state && !isGated()) { eventoEntrada(); halEntrada(); natEntrada(); } } catch (e) { /* sem evento */ } }, 60e3);
-setInterval(() => { try { halTick(); halCartaTick(); } catch (e) { /* sem evento */ } }, 1000);
+setInterval(() => { try { halTick(); halCartaTick(); natCartaTick(); } catch (e) { /* sem evento */ } }, 1000);
 setInterval(() => { if (user && state && !document.hidden) state.friends.forEach(uid => fetchFriendInfo(uid)); }, 150e3);
 
 const $ = s => document.querySelector(s);
@@ -1576,6 +1576,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 376, txt: "😈 Grinch gigante e presentes de Natal! O Grinch gigante aparece de vez em quando na sua roça: toque nele e convença-o com algo doce, quentinho ou brilhante, cantando a sequência de luzes, ou deixe um prato de biscoitos pronto (cachorro acordado também assusta). Todo dia você ganha 1 Presente de Natal, 1 Papai Noel atrapalhado e 1 Visita do Grinch (guarda até 3 dias) para mandar a amigos COM MENSAGEM sua: quando abrirem, acontece algo na roça dele (rena, árvore mágica, presentes espalhados, boneco de neve, o Grinch…). Em Missões › 🎄 Natal. Novas receitas na Fábrica: biscoito de gengibre, panetone, rabanada e chocolate quente." },
   { v: 375, txt: "🎄 NATAL! De hoje até 25/12, às 23:59: neve, luzes piscando na roça, a Casa Natalina (presente seu), uma árvore de Natal que dá para mover, e o lago congelou: toque nele para ⛸️ patinar (acerte o ponto verde para fazer piruetas e ganhar flocos ❄️ e moedas). Todo dia tem um presente do Advento em Missões › 🎄 Natal; se você não pegar, ele fica guardado por até 3 dias. Vem mais por aí: Grinch, presentes para amigos, Fábrica de Natal e a Vila!" },
   { v: 374, txt: "🏭 O número vermelho do botão Fábrica agora conta só o que está pronto nas máquinas; os pedidos do caminhão aparecem só no caminhão, na roça." },
   { v: 373, txt: "📬 Correio: colheita dourada não manda mais carta, e o correio guarda só as 30 cartas mais novas (as mais antigas são apagadas sozinhas, sem limite de dias)." },
@@ -6783,6 +6784,9 @@ $('#pane').addEventListener('click', e => {
   if (d.halResgatar) return resgatarHal(d.halResgatar);
   if (d.natAdv) return natPegarAdvento();
   if (d.natPista) return abrirPista();
+  if (d.natEnv) return natEnviar(d.natEnv);
+  if (d.natPrato) return natPrato();
+  if (d.natAbrir) return natCartaTick();
   if (d.evResgatar) return resgatarEvento(d.evResgatar);
   if (d.evComprar) return comprarEnfeiteEvento(d.evComprar);
   if (d.chocDilema !== undefined) { const ov = state.chocadeira.ovos[Number(d.chocDilema)]; if (ov) { closePanel(); dilemaChoc(ov); } return; }
@@ -7236,6 +7240,9 @@ cv.addEventListener('click', e => {
   else if (target.kind === 'caca') abrirCaca();
   else if (target.kind === 'bicho') actBicho(target.i);
   else if (target.kind === 'lago') { if (festaAtiva() && isHome()) escolher('O lago congelou! O que você quer fazer?', [{ txt: '⛸️ Patinar no gelo', gold: true, fn: abrirPista }, { txt: '🎣 Pescar', fn: abrirPesca }, { txt: 'Cancelar', ghost: true }]); else abrirPesca(); }
+  else if (target.kind === 'grinch') grinchToque();
+  else if (target.kind === 'natpres') natPegarPres(target.i);
+  else if (target.kind === 'natboneco') natDerrubarBoneco();
   else if (target.kind === 'natalarvore') { missSeg = 'natal'; openPanel('missoes'); }
   else if (target.kind === 'folhas') rastelarFolhas(target.id);
   else if (target.kind === 'invasor') espantarInvasor();
@@ -7981,7 +7988,7 @@ function onChat(lista) {
       navigator.serviceWorker.ready.then(reg => reg.showNotification(`💬 ${quem}`, { body: m.txt.slice(0, 120), icon: 'icons/icon-192.png', tag: 'chat-' + m.de, renotify: true, data: { link: './' } })).catch(() => {});
   }
   chatPrimeira = false;
-  halReceberCartas();
+  halReceberCartas(); natReceberPresentes();
   if (chatCom) { renderChat(); marcarLido(chatCom); }
   renderTabs(); if (tab === 'amigos') renderPane();
   // limpeza: mensagens com mais de 30 dias saem da sua caixa
@@ -10330,6 +10337,11 @@ const RECEITAS = [
   { id: 'cocar',    nome: 'Cocar de penas',       nivel: 10, in: { pena: 4 },                            tempo: 45 * MIN, forma: 'novelo',   cor: '#3f9a5a' },
   { id: 'amuleto',  nome: 'Amuleto de pata',      nivel: 10, in: { pata: 2 },                            tempo: HOUR,     forma: 'manteiga', cor: '#8a6234' },
   { id: 'colar',    nome: 'Colar de presas',      nivel: 20, in: { presa: 1 },                           tempo: 2 * HOUR, forma: 'queijo',   cor: '#3a2a3a' },
+  // receitas de Natal (só aparecem durante o evento)
+  { id: 'biscoito',  nome: 'Biscoito de gengibre', nivel: 2,  in: { farinha: 1, ovo: 1 },              tempo: 15 * MIN, forma: 'pao',      cor: '#b8742a', evento: 'natal' },
+  { id: 'panetone',  nome: 'Panetone',             nivel: 4,  in: { farinha: 2, ovo: 1, geleia: 1 },   tempo: 45 * MIN, forma: 'bolo',     cor: '#e8b45a', evento: 'natal' },
+  { id: 'rabanada',  nome: 'Rabanada',             nivel: 4,  in: { pao: 1, ovo: 1, leite: 1 },        tempo: 30 * MIN, forma: 'pao',      cor: '#e8a040', evento: 'natal' },
+  { id: 'chocolatequente', nome: 'Chocolate quente', nivel: 10, in: { leite: 2, pacoca: 1 },         tempo: 30 * MIN, forma: 'pote',     cor: '#6b3a1a', evento: 'natal' },
 ];
 const RECEITA = Object.fromEntries(RECEITAS.map(r => [r.id, r]));
 // O produto vale 50% a mais que os ingredientes, e um pouco pelo tempo de fábrica.
@@ -10343,7 +10355,7 @@ for (const r of RECEITAS) {
 // Todas as máquinas têm 6 espaços (o 1º de graça no nível, os outros 5 compram-se subindo de nível).
 const MAQUINAS = [
   { id: 'padaria',    nome: 'Moinho & Padaria', emoji: '🌾',
-    receitas: ['farinha', 'farofa', 'pipoca', 'pao', 'bolo', 'arrozfeijao', 'pacoca', 'rapadura'],
+    receitas: ['farinha', 'farofa', 'pipoca', 'pao', 'bolo', 'arrozfeijao', 'pacoca', 'rapadura', 'biscoito', 'panetone', 'rabanada'],
     slots: [{ nivel: 2, custo: 0 }, { nivel: 4, custo: 300 }, { nivel: 8, custo: 900 }, { nivel: 15, custo: 2200 }, { nivel: 24, custo: 4500 }, { nivel: 35, custo: 8000 }] },
   { id: 'cozinha',    nome: 'Cozinha do Rio', emoji: '🐟',
     receitas: ['peixefrito', 'caldo', 'moqueca', 'pintadoass', 'douradobr', 'casaca'],
@@ -10352,7 +10364,7 @@ const MAQUINAS = [
     receitas: ['molho', 'geleia', 'novelo'],
     slots: [{ nivel: 5, custo: 0 }, { nivel: 10, custo: 500 }, { nivel: 16, custo: 1300 }, { nivel: 24, custo: 3000 }, { nivel: 34, custo: 6000 }, { nivel: 46, custo: 11000 }] },
   { id: 'laticinios', nome: 'Laticínios', emoji: '🧀',
-    receitas: ['manteiga', 'queijo'],
+    receitas: ['manteiga', 'queijo', 'chocolatequente'],
     slots: [{ nivel: 10, custo: 0 }, { nivel: 14, custo: 650 }, { nivel: 20, custo: 1500 }, { nivel: 28, custo: 3000 }, { nivel: 38, custo: 6000 }, { nivel: 50, custo: 11000 }] },
   { id: 'suqueira',   nome: 'Suqueira', emoji: '🧃',
     receitas: ['sucouva', 'sucolar'],
@@ -10551,7 +10563,7 @@ function itensPossiveis() {
   const l = CROPS.filter(c => c.nivel <= state.level).map(c => c.prod);
   const bichos = new Set(state.animals.filter(a => ANIMAL[a.k].tipo === 'prod' && ANIMAL[a.k].prod !== 'leitao').map(a => ANIMAL[a.k].prod));
   const caca = PRODUTOS_CACA.filter(p => jaCacou(p.id)).map(p => p.id);
-  return [...l, ...bichos, ...caca, ...MINERIOS.filter(m => m.nivel <= state.level && state.level >= MINA_NIVEL).map(m => m.id), ...RECEITAS.filter(r => r.nivel <= state.level && receitaPossivel(r)).map(r => r.id)];
+  return [...l, ...bichos, ...caca, ...MINERIOS.filter(m => m.nivel <= state.level && state.level >= MINA_NIVEL).map(m => m.id), ...RECEITAS.filter(r => r.nivel <= state.level && !r.evento && receitaPossivel(r)).map(r => r.id)];
 }
 function novoPedido() {
   const pool = itensPossiveis(), n = 1 + Math.floor(Math.random() * Math.min(3, 1 + state.level / 6)), itens = {};
@@ -10877,7 +10889,7 @@ $('#confirmaNao').addEventListener('click', () => fecharConfirma(false));
 $('#confirmaModal').addEventListener('click', e => { if (e.target === $('#confirmaModal')) fecharConfirma(false); });
 $('#escolhaOps').addEventListener('click', e => { const b = e.target.closest('[data-escolha]'); if (!b || b.disabled) return; const o = escolhaOps[Number(b.dataset.escolha)]; fecharEscolha(); if (o && o.fn) o.fn(); });
 $('#escolhaModal').addEventListener('click', e => { if (e.target === $('#escolhaModal')) fecharEscolha(); });
-$('#cartaBtn').addEventListener('click', halCartaBotao);
+$('#cartaBtn').addEventListener('click', () => natCartaAtual ? natCartaBotao() : halCartaBotao());
 $('#minaModal').addEventListener('click', e => {
   if (e.target === $('#minaModal') || e.target.closest('[data-close]')) return fecharMinaModal();
   if (e.target.closest('[data-mina-info]')) { fecharMinaModal(); openPanel('mina'); }
@@ -10920,7 +10932,7 @@ function fabricaHTML() {
       }).join('')}</div>`;
       const prontosM = prontosFabDe(M.id);
       if (prontosM) html += `<button class="btn gold" data-fab-recolher="${M.id}">Recolher ${prontosM > 1 ? `tudo (${prontosM})` : 'o que ficou pronto'}</button>`;
-      const receitasM = M.receitas.map(id => RECEITA[id]);
+      const receitasM = M.receitas.map(id => RECEITA[id]).filter(r => !r.evento || festaAtiva());
       const vis = receitasM.filter(r => r.nivel <= state.level), prox = receitasM.filter(r => r.nivel > state.level).slice(0, 1);
       for (const r of [...vis, ...prox]) {
         const locked = r.nivel > state.level, ok = !locked && temIngredientes(r) && m.fila.length < max;
@@ -11511,6 +11523,10 @@ $('#moveLayouts')?.addEventListener('click', abrirLayouts);
 window.addEventListener('keydown', e => { if ((e.key === 'r' || e.key === 'R') && moveMode && movQualquerGiro() && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) girarMovendo(); });
 $('#moveCancel')?.addEventListener('click', cancelarMove);
 $('#pistaGirar')?.addEventListener('click', pistaGirar);
+$('#natMsgEnviar')?.addEventListener('click', mandarPresNat);
+$('#natMsgCancelar')?.addEventListener('click', () => { $('#natMsgModal').hidden = true; natMsg = null; });
+$('#natMsgFrases')?.addEventListener('click', e => { const b = e.target.closest('[data-nat-frase]'); if (b) $('#natMsgTxt').value = b.dataset.natFrase; });
+$('#cantarModal')?.addEventListener('click', e => { const b = e.target.closest('[data-nota]'); if (b) return cantarToque(Number(b.dataset.nota)); if (e.target.closest('#cantarFechar')) fecharCantar(); });
 $('#pistaFechar')?.addEventListener('click', fecharPista);
 window.addEventListener('keydown', e => { if (pista && !$('#pistaModal').hidden && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); pistaGirar(); } });
 // Desenha os objetos da cena. "tras": os que ficam atrás da cerca (u ou v negativos); "frente": o resto.
@@ -14228,14 +14244,20 @@ const natalAtivo = () => { const n = Date.now(); return n >= NAT.ini && n <= NAT
 const anoAtivo = () => { const n = Date.now(); return n >= ANO.ini && n <= ANO.fim; };
 const festaAtiva = () => natalAtivo() || anoAtivo(); // o clima (neve, luzes, árvore) vale nos dois
 const NAT_ADV_MAX = 3, NAT_PISTA_DIA = 3;
-const natDe = () => { if (!state.natal || state.natal.id !== NAT.id) state.natal = { id: NAT.id, flocos: 0, ultDia: 0, pend: 0, pista: { d: 0, n: 0 }, presente: 0, total: 0 }; return state.natal; };
+const natDe = () => {
+  if (!state.natal || state.natal.id !== NAT.id) state.natal = { id: NAT.id, flocos: 0, ultDia: 0, pend: 0, pista: { d: 0, n: 0 }, presente: 0, total: 0 };
+  const n = state.natal; n.pres ||= { tem: { presente: 0, noel: 0, grinch: 0 } }; n.caixa ||= []; n.vistas ||= {}; n.efeitos ||= {}; n.enviadas ||= { d: 0, u: [] }; n.vencidos ||= 0; n.prato ||= 0;
+  return n;
+};
 const natFlocos = n => { const x = natDe(); x.flocos += n; x.total += n; };
 // Presente do Advento: um por dia; se você não pegar, ele fica guardado (no máximo 3 dias).
 function natAcumula() {
   const n = natDe(), hoje = localDay();
   if (n.ultDia === hoje) return false;
   const dias = n.ultDia ? Math.max(1, hoje - n.ultDia) : 1;
-  n.pend = Math.min(NAT_ADV_MAX, (n.pend || 0) + dias); n.ultDia = hoje; return true;
+  n.pend = Math.min(NAT_ADV_MAX, (n.pend || 0) + dias); n.ultDia = hoje;
+  for (const t of ['presente', 'noel', 'grinch']) n.pres.tem[t] = Math.min(NAT_ADV_MAX, (n.pres.tem[t] || 0) + dias); // 1 de cada por dia, guarda até 3 dias
+  return true;
 }
 function natEntrada() {
   if (!state || !festaAtiva()) return;
@@ -14264,8 +14286,255 @@ function natHTML() {
   html += `<div class="row ${n.pend ? 'sel' : ''}"><div class="avatar" style="background:#2f8a4a;font-size:22px">🎁</div><div><div class="name">${n.pend ? `${n.pend} presente${n.pend > 1 ? 's' : ''} para pegar` : 'Nada para pegar agora'}</div><div class="meta">${n.pend ? `Vale ${10 * n.pend} ❄️ e ${150 * n.pend} moedas.` : 'Volte amanhã para o próximo.'}</div></div>${n.pend ? '<button class="btn gold" data-nat-adv="1">Pegar</button>' : '<button class="btn ghost" disabled>Amanhã</button>'}</div>`;
   html += `<h3>⛸️ Pista de patinação</h3><p class="hint">O lago da roça congelou! Toque nele (ou aqui) e patine: acerte o ponto verde para fazer piruetas e ganhar ❄️ e moedas. Rendem até ${NAT_PISTA_DIA} vezes por dia.</p>`;
   html += `<div class="row"><div class="avatar" style="background:#4aa3df;font-size:22px">⛸️</div><div><div class="name">Patinar no gelo</div><div class="meta">Hoje ainda rendem ${rest} de ${NAT_PISTA_DIA} vezes.</div></div><button class="btn gold" data-nat-pista="1">Patinar</button></div>`;
+  html += `<h3>💌 Presentes para amigos</h3><p class="hint">Todo dia você ganha 1 de cada (guardo até ${NAT_ADV_MAX} dias). Escolha o amigo e escreva uma mensagem! Quando ele abrir, acontece algo na roça dele.</p>`;
+  if (n.caixa.length) html += `<div class="row sel"><div class="avatar" style="background:#e0463a;font-size:22px">✉️</div><div><div class="name">${n.caixa.length} presente${n.caixa.length > 1 ? 's' : ''} para abrir</div><div class="meta">Amigos mandaram para você!</div></div><button class="btn gold" data-nat-abrir="1">Abrir</button></div>`;
+  for (const [tipo, P] of Object.entries(NAT_PRES)) html += `<div class="row ${n.pres.tem[tipo] ? '' : 'locked'}"><div class="avatar" style="background:#2f8a4a;font-size:22px">${P.emoji}</div><div><div class="name">${P.nome}</div><div class="meta">${n.pres.tem[tipo] ? `Você tem ${n.pres.tem[tipo]}` : 'Acabou por hoje'} · ${P.pool.map(id => NAT_EFEITOS[id].emoji).join(' ')}</div></div><button class="btn gold" data-nat-env="${tipo}" ${n.pres.tem[tipo] ? '' : 'disabled'}>Enviar</button></div>`;
+  html += `<h3>😈 Grinch gigante</h3><p class="hint">De vez em quando o Grinch gigante aparece na sua roça. Ele quer algo doce, quentinho ou brilhante. Dê o que ele pede, cante com as luzes, ou deixe um prato de biscoitos pronto. Se ninguém o convencer em 5 minutos, ele leva até 15 ❄️. Um cachorro acordado (com ração) também pode assustá-lo. Você já convenceu ele ${n.vencidos} ${n.vencidos === 1 ? 'vez' : 'vezes'}.</p>`;
+  html += `<div class="row ${n.prato > Date.now() ? 'sel' : ''}"><div class="avatar" style="background:#c98a4b;font-size:22px">🍪</div><div><div class="name">Prato de biscoitos</div><div class="meta">${n.prato > Date.now() ? `Pronto por mais ${fmt((n.prato - Date.now()) / 1000)}` : `Gasta 1 biscoito de gengibre (você tem ${state.barn.biscoito || 0}). Vale 12 horas.`}</div></div><button class="btn gold" data-nat-prato="1" ${n.prato > Date.now() ? 'disabled' : ''}>Deixar</button></div>`;
   html += `<h3>🌲 Árvore de Natal</h3><p class="hint">A árvore está na sua roça. Toque nela para voltar aqui, ou use o botão Mover para mudar de lugar.</p>`;
   return html;
+}
+// ---- Presentes de Natal para amigos (3 por dia, guarda até 3 dias, com mensagem sua) ----
+const NAT_PRES = {
+  presente: { nome: 'Presente de Natal',      emoji: '🎁', pool: ['rena', 'arvore', 'estrela', 'neve'] },
+  noel:     { nome: 'Papai Noel atrapalhado', emoji: '🎅', pool: ['espalhados', 'boneco', 'rena', 'estrela'] },
+  grinch:   { nome: 'Visita do Grinch',       emoji: '😈', pool: ['grinch', 'grinch', 'arvore'] },
+};
+const NAT_EFEITOS = {
+  rena:       { nome: 'Rena visitante',      emoji: '🦌', txt: 'Uma rena passou pela sua roça e deixou 300 moedas e 8 ❄️ flocos!' },
+  arvore:     { nome: 'Árvore mágica',       emoji: '🎄', txt: 'Uma árvore mágica brotou e deu 15 ❄️ flocos e 100 moedas!' },
+  estrela:    { nome: 'Estrela da sorte',    emoji: '⭐', txt: 'Estrela da sorte! Sua próxima plantação vira colheita dourada.' },
+  neve:       { nome: 'Bola de neve',        emoji: '☃️', txt: 'Uma bola de neve explodiu em brilho: +10 ❄️ flocos e +150 moedas!' },
+  espalhados: { nome: 'Presentes espalhados', emoji: '🎅', txt: 'O Papai Noel atrapalhado derrubou 5 presentes pela sua roça! Toque neles em 10 minutos antes que sumam.' },
+  boneco:     { nome: 'Boneco de neve gigante', emoji: '⛄', txt: 'Um boneco de neve gigante apareceu na sua roça por 2 horas. Toque nele para derrubar e ganhar moedas e flocos!' },
+  grinch:     { nome: 'Visita do Grinch',    emoji: '😈', txt: 'O Grinch gigante foi visitar a sua roça! Convença ele a ir embora (toque nele quando aparecer).' },
+};
+const natMsgLimpa = v => String(v || '').replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+function natPresEnviadas() { const n = natDe(), hoje = localDay(); if (n.enviadas.d !== hoje) n.enviadas = { d: hoje, u: [] }; return n.enviadas.u; }
+async function natEnviar(tipo) {
+  const n = natDe(), P = NAT_PRES[tipo]; natAcumula();
+  if (!natalAtivo()) return;
+  if (!(n.pres.tem[tipo] > 0)) return toast('Esse presente acabou por hoje. Amanhã vêm mais!');
+  if (!user) return toast('Entre com o Google para mandar presentes aos amigos.');
+  if (!state.friends.length) return toast('Você ainda não tem amigos para mandar o presente. Adicione em Amigos!');
+  const faltam = state.friends.filter(u => !(friendInfo[u] && typeof friendInfo[u] === 'object' && !friendInfo[u].erro));
+  if (faltam.length) { toast('Carregando seus amigos…'); faltam.forEach(u => fetchFriendInfo(u)); for (let i = 0; i < 24 && faltam.some(u => friendInfo[u] === 'loading' || friendInfo[u] === undefined); i++) await espera(250); }
+  const jaRecebeu = u => natPresEnviadas().includes(u);
+  if (state.friends.every(jaRecebeu)) return toast('Você já mandou um presente hoje para cada amigo. Amanhã tem mais!');
+  const nomeDe = u => { const f = friendInfo[u]; return f && typeof f === 'object' && !f.erro && f.name ? f.name : 'Amigo'; };
+  escolher(`Para qual amigo mandar ${P.emoji} ${P.nome}?`, [
+    ...state.friends.map(u => ({ txt: esc(nomeDe(u)) + (jaRecebeu(u) ? ' · já recebeu hoje' : ''), off: jaRecebeu(u), fn: () => abrirMsgNat(u, tipo) })),
+    { txt: 'Cancelar', ghost: true },
+  ]);
+}
+let natMsg = null;
+const NAT_FRASES = ['Feliz Natal! 🎄', 'Boas festas! ✨', 'Que o seu Natal seja doce! 🍬', 'Saudade de você! 💚', 'Que 2027 seja incrível! 🎆'];
+function abrirMsgNat(uid, tipo) {
+  natMsg = { uid, tipo }; const f = friendInfo[uid];
+  $('#natMsgTit').textContent = `${NAT_PRES[tipo].emoji} ${NAT_PRES[tipo].nome} para ${f && f.name ? f.name : 'seu amigo'}`;
+  $('#natMsgTxt').value = ''; $('#natMsgFrases').innerHTML = NAT_FRASES.map(t => `<button type="button" data-nat-frase="${esc(t)}">${esc(t)}</button>`).join('');
+  $('#natMsgModal').hidden = false; setTimeout(() => { if (!pointer.touch) $('#natMsgTxt').focus(); }, 50);
+}
+async function mandarPresNat() {
+  const m = natMsg; if (!m || !user) return; const n = natDe(), P = NAT_PRES[m.tipo], f = friendInfo[m.uid], msg = natMsgLimpa($('#natMsgTxt').value);
+  if (!(n.pres.tem[m.tipo] > 0)) { $('#natMsgModal').hidden = true; natMsg = null; return; }
+  if (natPresEnviadas().includes(m.uid)) { $('#natMsgModal').hidden = true; natMsg = null; return toast('Você já mandou um presente para esse amigo hoje.'); }
+  $('#natMsgModal').hidden = true; natMsg = null;
+  natPresEnviadas().push(m.uid); n.pres.tem[m.tipo]--; done(); renderPane();
+  try {
+    await Cloud.enviarMsg(user.uid, m.uid, { txt: `${P.emoji} ${meuApelido()} te mandou ${P.nome.toLowerCase()}!${msg ? ` “${msg}”` : ''} Atualize o jogo para abrir.`, at: Date.now(), nome: meuApelido(), nat: m.tipo, msg, cid: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) });
+    avisarAmigo(m.uid, 'presente', `${P.emoji} ${meuApelido()} te mandou um presente de Natal!`);
+    sfx('buy'); addXP(2, null); track('carta'); ganharAmizade(m.uid);
+    toast(`${P.emoji} Presente enviado para ${f && f.name ? f.name : 'seu amigo'}!`, 'good'); done();
+  } catch (e) {
+    console.warn(e); n.pres.tem[m.tipo]++; const ix = natPresEnviadas().indexOf(m.uid); if (ix >= 0) natPresEnviadas().splice(ix, 1); done(); renderPane();
+    if (e && e.code === 'permission-denied') reatarAmizade(m.uid); else toast('Não consegui enviar o presente agora. Tente de novo.', 'bad');
+  }
+}
+// Presentes que chegam como mensagens do chat
+function natReceberPresentes() {
+  if (!state || !user || !festaAtiva()) return;
+  const n = natDe(); let novo = false;
+  for (const m of chatMsgs) {
+    if (m.de === user.uid || !m.nat || !NAT_PRES[m.nat] || typeof m.cid !== 'string' || n.vistas[m.cid]) continue;
+    if (!state.friends.includes(m.de) && !m.nome) continue;
+    n.vistas[m.cid] = 1; const de = limpaNome(m.nome) || 'um amigo', msg = natMsgLimpa(m.msg);
+    n.caixa.push({ tipo: m.nat, de, msg, at: m.at || Date.now() }); novo = true;
+    addNews(`${NAT_PRES[m.nat].emoji} ${de} te mandou um presente de Natal${msg ? `: “${msg}”` : ''}`);
+  }
+  if (novo) { const ks = Object.keys(n.vistas); if (ks.length > 200) for (const k of ks.slice(0, ks.length - 200)) delete n.vistas[k]; done(); setTimeout(natCartaTick, 800); }
+}
+let natCartaAtual = null;
+function natCartaTick() {
+  if (!state || !festaAtiva() || natCartaAtual || halCartaAtual || isGated() || document.hidden || !isHome() || escolhaAberta()) return;
+  if (['#boasvindas', '#presente', '#nome', '#cartaModal'].some(q => $(q) && !$(q).hidden)) return;
+  const c = natDe().caixa[0]; if (c) mostrarNatCarta(c);
+}
+function mostrarNatCarta(c) {
+  natCartaAtual = c; const P = NAT_PRES[c.tipo];
+  $('#cartaModal').style.background = 'rgba(14,46,28,.88)'; $('#cartaModal .modal-card').classList.remove('cartahal');
+  $('#cartaArte').innerHTML = `<div style="font-size:78px;line-height:110px">${P.emoji}</div>`;
+  $('#cartaDe').textContent = `${P.emoji} ${P.nome} de ${c.de}`;
+  $('#cartaTxt').textContent = c.msg ? `“${c.msg}”` : 'Uma caixa embrulhada com um laço dourado. Abra!';
+  $('#cartaBtn').textContent = '🎀 Abrir o presente'; $('#cartaBtn').dataset.fase = 'abrir'; $('#cartaBtn').disabled = false;
+  $('#cartaModal').hidden = false;
+}
+function natCartaBotao() {
+  const c = natCartaAtual; if (!c) return;
+  if ($('#cartaBtn').dataset.fase === 'fechar') { $('#cartaModal').hidden = true; natCartaAtual = null; setTimeout(natCartaTick, 600); return; }
+  const n = natDe(), id = sorteia(NAT_PRES[c.tipo].pool), E = NAT_EFEITOS[id], i = n.caixa.indexOf(c); if (i >= 0) n.caixa.splice(i, 1);
+  natAplicar(id); sfx('level'); track('abrir');
+  $('#cartaDe').textContent = `${E.emoji} ${E.nome}!`; $('#cartaTxt').textContent = E.txt;
+  $('#cartaBtn').dataset.fase = 'fechar'; $('#cartaBtn').textContent = 'Que legal!';
+}
+function natAplicar(id) {
+  const n = natDe(), agora = Date.now(), a = avatarArea('roca');
+  if (id === 'rena') { state.coins += 300; natFlocos(8); }
+  else if (id === 'arvore') { state.coins += 100; natFlocos(15); }
+  else if (id === 'neve') { state.coins += 150; natFlocos(10); }
+  else if (id === 'estrela') state.ouroProx = (state.ouroProx || 0) + 1;
+  else if (id === 'espalhados') n.efeitos.espalhados = { fim: agora + 10 * 60e3, itens: Array.from({ length: 5 }, (_, k) => ({ id: k, u: a.u0 + Math.random() * (a.u1 - a.u0), v: a.v0 + Math.random() * (a.v1 - a.v0) })) };
+  else if (id === 'boneco') n.efeitos.boneco = { fim: agora + 2 * 3600e3, u: a.u0 + Math.random() * (a.u1 - a.u0), v: a.v0 + Math.random() * (a.v1 - a.v0) };
+  else if (id === 'grinch') n.grinchPend = 1;
+  done(); renderHUD();
+}
+// Presentes espalhados e boneco de neve (efeitos dos presentes de amigos)
+function natEfeitosDesenho(now) {
+  const n = natDe(), W = L.W, agora = Date.now();
+  const e = n.efeitos;
+  if (e.espalhados && agora > e.espalhados.fim) { delete e.espalhados; done(); }
+  if (e.boneco && agora > e.boneco.fim) { delete e.boneco; done(); }
+  if (e.espalhados) e.espalhados.itens.forEach((it, k) => {
+    const q = iso(it.u, it.v), s = W / 100, bob = Math.abs(Math.sin(now / 400 + k)) * 4 * s, cor = ['#d8402f', '#2f8a4a', '#4aa3df', '#f2b705', '#c04ab0'][k % 5];
+    ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(q.x, q.y, 11 * s, 4 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = cor; ctx.fillRect(q.x - 9 * s, q.y - 16 * s - bob, 18 * s, 15 * s); ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillRect(q.x - 1.5 * s, q.y - 16 * s - bob, 3 * s, 15 * s); ctx.fillRect(q.x - 9 * s, q.y - 10 * s - bob, 18 * s, 3 * s);
+    hits.push({ kind: 'natpres', i: it.id, x: q.x, y: q.y - 8 * s, r: Math.max(16 * s, 20) });
+  });
+  if (e.boneco) {
+    const q = iso(e.boneco.u, e.boneco.v), s = W / 100 * 1.6;
+    ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(q.x, q.y, 22 * s, 6 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#b8d0e8'; ctx.lineWidth = 1.5; for (const [dy, r] of [[-14, 18], [-42, 13], [-62, 9]]) { ctx.beginPath(); ctx.arc(q.x, q.y + dy * s, r * s, 0, 7); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(q.x - 3 * s, q.y - 64 * s, 1.3 * s, 0, 7); ctx.arc(q.x + 3 * s, q.y - 64 * s, 1.3 * s, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f08a24'; ctx.beginPath(); ctx.moveTo(q.x, q.y - 62 * s); ctx.lineTo(q.x + 9 * s, q.y - 60 * s); ctx.lineTo(q.x, q.y - 59 * s); ctx.fill();
+    ctx.fillStyle = '#c0392b'; ctx.fillRect(q.x - 10 * s, q.y - 48 * s, 20 * s, 4 * s); ctx.fillStyle = '#222'; ctx.fillRect(q.x - 8 * s, q.y - 78 * s, 16 * s, 6 * s); ctx.fillRect(q.x - 11 * s, q.y - 72 * s, 22 * s, 2 * s);
+    hits.push({ kind: 'natboneco', x: q.x, y: q.y - 36 * s, r: Math.max(34 * s, 26) });
+  }
+}
+function natPegarPres(i) {
+  const e = natDe().efeitos.espalhados; if (!e) return; const k = e.itens.findIndex(x => x.id === i); if (k < 0) return;
+  e.itens.splice(k, 1); natFlocos(3); state.coins += 50; sfx('coin'); popupAt(iso(0, 0), '+3 ❄️', '#bfe6ff');
+  if (!e.itens.length) { delete natDe().efeitos.espalhados; toast('🎅 Você juntou todos os presentes!', 'good'); }
+  done(); renderHUD();
+}
+function natDerrubarBoneco() {
+  const n = natDe(); if (!n.efeitos.boneco) return; delete n.efeitos.boneco; natFlocos(5); state.coins += 120; sfx('level'); toast('⛄ Boneco derrubado! +5 ❄️ e +120 moedas.', 'good'); done(); renderHUD();
+}
+// ---- Grinch gigante ----
+const GRINCH_QUER = [
+  { nome: 'algo doce',     ids: ['panetone', 'biscoito', 'rabanada', 'bolo', 'geleia', 'pacoca', 'rapadura'] },
+  { nome: 'algo quentinho', ids: ['chocolatequente', 'caldo', 'arrozfeijao', 'moqueca', 'peixefrito', 'pipoca'] },
+  { nome: 'algo brilhante', ids: ['pingente', 'alianca', 'aneldegema', 'lingoteprata', 'lingoteouro', 'prata', 'ouro', 'gema'] },
+];
+let grinch = null, proxGrinch = Date.now() + (15 + Math.random() * 20) * 60e3;
+function grinchTick() {
+  if (!state || kicked || document.hidden || !natalAtivo() || !isHome() || scene !== 'roca' || isGated() || !$('#panel').hidden || grinch) return;
+  const n = natDe(), agora = Date.now();
+  if (!n.grinchPend && agora < proxGrinch) return;
+  const amigo = !!n.grinchPend; n.grinchPend = 0; proxGrinch = agora + (2 + Math.random() * 2) * 3600e3;
+  const a = avatarArea('roca'), entrada = { u: a.u1 + 5, v: a.v0 - 1 }, para = { u: (a.u0 + a.u1) / 2 - 1, v: (a.v0 + a.v1) / 2 };
+  grinch = { fase: 'vem', t0: performance.now(), de: entrada, para, entrada, quer: Math.floor(Math.random() * GRINCH_QUER.length), expira: agora + 5 * 60e3, dir: -1 };
+  // prevenção: prato de biscoitos ou cachorro acordado
+  if (n.prato > agora) { n.prato = 0; grinch.fase = 'come'; grinch.comeAte = performance.now() + 4500; grinch.t0 = performance.now(); grinch.de = para; toast('🍪 O Grinch gigante achou o prato de biscoitos e está comendo…', 'good'); return done(); }
+  if (!amigo && ['roca', 'roca2'].some(sl => state.dogs[sl] && dogAwake(state.dogs[sl])) && Math.random() < 0.6) { grinch.fase = 'foge'; grinch.t0 = performance.now(); grinch.de = para; grinch.para = entrada; toast('🐶 Seu cachorro latiu e o Grinch gigante saiu correndo!', 'good'); natFlocos(3); return done(); }
+  sfx('fala'); toast('😈 O Grinch gigante chegou na sua roça! Toque nele para ver o que ele quer.', 'bad');
+}
+setInterval(() => { try { grinchTick(); } catch (e) { /* sem grinch */ } }, 10e3);
+function desenhaGrinch(x, y, s, t, anda, dir, feliz) {
+  const sw = anda ? Math.sin(t / 150) : 0;
+  ctx.save(); ctx.translate(x, y); ctx.scale(dir * s, s);
+  ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(0, 0, 24, 6, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#4a8a2a'; ctx.fillRect(-12, -22, 9, 22 + Math.max(0, sw) * 2); ctx.fillRect(3, -22, 9, 22 + Math.max(0, -sw) * 2);
+  ctx.fillStyle = '#2a1a10'; ctx.fillRect(-14, -3, 12, 4); ctx.fillRect(2, -3, 12, 4);
+  ctx.fillStyle = '#b8402a'; ctx.beginPath(); ctx.ellipse(0, -42, 22, 24, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillRect(-21, -22, 42, 5);
+  ctx.fillStyle = '#6fbf3a'; ctx.beginPath(); ctx.ellipse(0, -43, 14, 13, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#6fbf3a'; ctx.save(); ctx.translate(-20, -50); ctx.rotate(-0.5 + sw * 0.3); ctx.fillRect(-4, 0, 8, 22); ctx.restore(); ctx.save(); ctx.translate(20, -50); ctx.rotate(0.5 - sw * 0.3); ctx.fillRect(-4, 0, 8, 22); ctx.restore();
+  ctx.fillStyle = '#6fbf3a'; ctx.beginPath(); ctx.ellipse(0, -76, 16, 18, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#5aa02e'; ctx.beginPath(); ctx.moveTo(-10, -92); ctx.lineTo(-6, -84); ctx.lineTo(-2, -92); ctx.lineTo(2, -84); ctx.lineTo(6, -92); ctx.lineTo(10, -84); ctx.lineTo(14, -90); ctx.lineTo(8, -88); ctx.fill();
+  ctx.fillStyle = '#ffe033'; ctx.beginPath(); ctx.ellipse(-6, -78, 4.5, 3.4, 0.3, 0, 7); ctx.ellipse(6, -78, 4.5, 3.4, -0.3, 0, 7); ctx.fill();
+  ctx.fillStyle = '#c0200f'; ctx.beginPath(); ctx.arc(-6, -78, 1.5, 0, 7); ctx.arc(6, -78, 1.5, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#2a4a14'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-11, -84); ctx.lineTo(-2, -81); ctx.moveTo(11, -84); ctx.lineTo(2, -81); ctx.stroke();
+  ctx.strokeStyle = '#2a1a10'; ctx.lineWidth = 1.8; ctx.beginPath(); if (feliz) { ctx.arc(0, -71, 6, 0.15, Math.PI - 0.15); } else { ctx.moveTo(-8, -69); ctx.quadraticCurveTo(0, -64, 8, -71); } ctx.stroke();
+  ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.moveTo(-15, -88); ctx.quadraticCurveTo(0, -122, 22, -96); ctx.lineTo(15, -86); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, -87, 16, 4, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(22, -97, 5, 0, 7); ctx.fill();
+  if (!feliz) { ctx.fillStyle = '#7a5230'; ctx.beginPath(); ctx.ellipse(-20, -40, 11, 15, 0.3, 0, 7); ctx.fill(); ctx.strokeStyle = '#d8402f'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-26, -50); ctx.lineTo(-14, -48); ctx.stroke(); }
+  ctx.restore();
+}
+function drawGrinch(t) {
+  if (!grinch || !isHome() || scene !== 'roca') return;
+  const g = grinch, W = L.W, agora = Date.now();
+  const dist = Math.hypot(g.para.u - g.de.u, g.para.v - g.de.v), dur = Math.max(700, dist / 1.1 * 1000), k = Math.min(1, (t - g.t0) / dur);
+  if (g.fase === 'vem' && k >= 1) g.fase = 'espera';
+  if (g.fase === 'espera' && agora > g.expira) { // ninguém convenceu: ele leva umas coisas e vai embora
+    const n = natDe(), perde = Math.min(15, n.flocos); n.flocos -= perde; g.fase = 'vai'; g.t0 = t; g.de = g.para; g.para = g.entrada; g.rouba = true;
+    toast(`😈 O Grinch gigante foi embora levando ${perde} ❄️ flocos da árvore! Ele volta mais tarde…`, 'bad'); done();
+  }
+  if (g.fase === 'come' && t > g.comeAte) { g.fase = 'vai'; g.t0 = t; g.de = g.para; g.para = g.entrada; g.feliz = true; grinchRecompensa('biscoito'); }
+  if ((g.fase === 'vai' || g.fase === 'foge') && k >= 1) { grinch = null; return; }
+  const sx = (g.para.u - g.de.u) - (g.para.v - g.de.v); if (Math.abs(sx) > 0.01) g.dir = sx > 0 ? 1 : -1;
+  const u = g.de.u + (g.para.u - g.de.u) * k, v = g.de.v + (g.para.v - g.de.v) * k, q = iso(u, v), s = W / 100 * 2.4, anda = k < 1 && g.fase !== 'come';
+  desenhaGrinch(q.x, q.y, s, t, anda, g.dir, g.feliz || g.fase === 'come');
+  if (g.fase === 'espera') {
+    hits.push({ kind: 'grinch', x: q.x, y: q.y - 50 * s * 0.45, r: Math.max(46 * s * 0.8, 40) });
+    const seg = Math.max(0, Math.round((g.expira - agora) / 1000));
+    maqBalao(q.x, q.y - 128 * s * 0.8, Math.max(0.9, s * 0.4), `Quero ${GRINCH_QUER[g.quer].nome}! ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}`, t, null);
+  } else if (g.fase === 'come') maqBalao(q.x, q.y - 128 * s * 0.8, Math.max(0.9, s * 0.4), 'Nham, biscoitos! 🍪', t, null);
+}
+function grinchRecompensa(como) {
+  const n = natDe(); n.vencidos++; natFlocos(15); state.coins += 300; addXP(8, null); sfx('level'); track('grinch');
+  toast(`💚 O coração do Grinch cresceu${como === 'biscoito' ? ' com os biscoitos' : ''}! Ele deixou um presente: +15 ❄️ e +300 moedas.`, 'good'); done(); renderHUD();
+}
+function grinchVence(como) {
+  if (!grinch || grinch.fase !== 'espera') return;
+  grinch.fase = 'vai'; grinch.t0 = performance.now(); grinch.de = grinch.para; grinch.para = grinch.entrada; grinch.feliz = true; grinchRecompensa(como);
+}
+function grinchToque() {
+  const g = grinch; if (!g || g.fase !== 'espera') return;
+  const Q = GRINCH_QUER[g.quer], tenho = Q.ids.filter(id => (state.barn[id] || 0) > 0 && item(id)).slice(0, 3);
+  escolher(`😈 O Grinch gigante quer ${Q.nome}! Escolha como convencer ele.`, [
+    ...tenho.map(id => ({ txt: `Dar ${item(id).nome.toLowerCase()} (você tem ${state.barn[id]})`, gold: true, fn: () => { if (!grinch || grinch.fase !== 'espera' || !(state.barn[id] > 0)) return; state.barn[id]--; if (!state.barn[id]) delete state.barn[id]; grinchVence('presente'); } })),
+    { txt: '🎶 Cantar com as luzes (minigame)', fn: abrirCantar },
+    { txt: 'Deixar quieto', ghost: true },
+  ]);
+}
+// ---- Minigame: repetir a sequência de luzes/notas para o Grinch ----
+let cantar = null;
+function abrirCantar() {
+  if (!grinch || grinch.fase !== 'espera') return;
+  cantar = { seq: Array.from({ length: 5 }, () => Math.floor(Math.random() * 4)), i: 0, mostrando: true, tent: 3 };
+  $('#cantarModal').hidden = false; cantarMostra();
+}
+function cantarLuz(k) { const b = document.querySelectorAll('#cantarModal [data-nota]')[k]; if (!b) return; b.classList.add('on'); sfx(['click', 'coin', 'water', 'buy'][k]); setTimeout(() => b.classList.remove('on'), 380); }
+function cantarMostra() {
+  if (!cantar) return; cantar.mostrando = true; cantar.i = 0; $('#cantarInfo').textContent = `Escute a canção… (tentativas: ${cantar.tent})`;
+  cantar.seq.forEach((k, j) => setTimeout(() => { if (cantar) cantarLuz(k); }, 800 + j * 700));
+  setTimeout(() => { if (cantar) { cantar.mostrando = false; $('#cantarInfo').textContent = 'Sua vez! Repita a sequência.'; } }, 800 + cantar.seq.length * 700);
+}
+function cantarToque(k) {
+  if (!cantar || cantar.mostrando) return; cantarLuz(k);
+  if (k !== cantar.seq[cantar.i]) {
+    cantar.tent--; if (cantar.tent <= 0) { fecharCantar(); return toast('O Grinch riu da canção… Tente de novo ou ofereça um presente!', 'bad'); }
+    $('#cantarInfo').textContent = 'Errou! Escute de novo…'; cantar.mostrando = true; return void setTimeout(cantarMostra, 1000);
+  }
+  if (++cantar.i >= cantar.seq.length) { fecharCantar(); grinchVence('cantou'); }
+}
+function fecharCantar() { $('#cantarModal').hidden = true; cantar = null; }
+// Prato de biscoitos: deixa pronto para a próxima visita do Grinch (vale 12 horas)
+function natPrato() {
+  const n = natDe(); if (!natalAtivo()) return;
+  if (n.prato > Date.now()) return toast('O prato de biscoitos já está pronto na árvore!');
+  if (!(state.barn.biscoito > 0)) return toast('Você precisa de 1 biscoito de gengibre (faça na máquina Moinho & Padaria).', 'bad');
+  state.barn.biscoito--; if (!state.barn.biscoito) delete state.barn.biscoito; n.prato = Date.now() + 12 * 3600e3; sfx('buy'); toast('🍪 Prato de biscoitos posto perto da árvore! Se o Grinch chegar nas próximas 12 horas, ele come e vai embora feliz.', 'good'); done(); renderPane();
 }
 // ---- Pista de patinação (minigame): acerte o ponto verde 6 vezes ----
 let pista = null;
@@ -14346,6 +14615,7 @@ function drawTemaNatal(t) {
     const H = 1.18; luzesMundo(P(0, ROOM, H), P(0, 0, H), W * 0.05, now); luzesMundo(P(0, 0, H), P(ROOM, 0, H), W * 0.05, now);
     return;
   }
+  if (scene === 'roca' && isHome() && natalAtivo()) { natEfeitosDesenho(now); drawGrinch(now); }
   desenhaNeve(now);
 }
 // ============================================================
@@ -14456,7 +14726,7 @@ function halCartaTick() {
   if (c) mostrarCartaHal(c);
 }
 function mostrarCartaHal(c) {
-  const C = HAL_CARTAS[c.tipo]; halCartaAtual = c;
+  const C = HAL_CARTAS[c.tipo]; halCartaAtual = c; $('#cartaModal').style.background = 'rgba(10,0,22,.86)'; $('#cartaModal .modal-card').classList.add('cartahal');
   $('#cartaArte').innerHTML = `<img alt="" src="${halIcone(c.tipo)}">`;
   $('#cartaDe').textContent = `📮 Carta de ${c.de}`;
   $('#cartaTxt').textContent = `Uma carta lacrada com cera preta, com ${C.emoji} ${C.nome.toLowerCase()} desenhado no envelope. Abra se tiver coragem…`;

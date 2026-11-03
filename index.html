@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- Versão do jogo: é o mesmo número do ?v= dos scripts lá embaixo. Aumente os dois juntos. -->
-<meta name="rf-version" content="375">
+<meta name="rf-version" content="376">
 <script src="firebase-config.js?v=236"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -639,6 +639,11 @@
   #pescaBtn { min-width: 200px; min-height: 48px; font-size: 18px; }
   .pulsa { animation: pulsa .35s ease-in-out infinite alternate; }
   @keyframes pulsa { to { transform: scale(1.08); } }
+  .notas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .notas button { height: 84px; border-radius: 18px; border: 3px solid #fff; opacity: .55; box-shadow: 0 3px 0 rgba(0,0,0,.25); }
+  .notas button.on { opacity: 1; transform: scale(1.06); filter: brightness(1.25); box-shadow: 0 0 22px 4px rgba(255,255,255,.7); }
+  .natfrases { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .natfrases button { border: 1.5px solid #c9a86a; background: #fff8e8; border-radius: 14px; padding: 4px 10px; font: inherit; font-size: 13px; }
   .pistabarra { position: relative; height: 28px; border-radius: 14px; background: #cfe8f7; border: 2px solid #6b4220; overflow: hidden; }
   .pistabarra i { position: absolute; left: 42%; width: 16%; top: 0; bottom: 0; background: #6fd36f; }
   .pistabarra b { position: absolute; top: 0; bottom: 0; width: 8px; margin-left: -4px; background: #e0463a; border-radius: 4px; }
@@ -1094,6 +1099,27 @@
   </div>
 </div>
 
+<div class="modal" id="natMsgModal" hidden role="dialog" aria-modal="true" aria-labelledby="natMsgTit" style="z-index:60">
+  <div class="modal-card" style="width:min(100%,400px)">
+    <section>
+      <h2 id="natMsgTit" style="margin:0 0 6px;font-size:18px"></h2>
+      <p style="margin:0 0 6px;font-size:14px">Escreva uma mensagem para o seu amigo (opcional, até 120 letras):</p>
+      <textarea id="natMsgTxt" maxlength="120" rows="3" style="width:100%;box-sizing:border-box;border-radius:10px;border:2px solid #c9a86a;padding:8px;font:inherit" placeholder="Feliz Natal!"></textarea>
+      <div id="natMsgFrases" class="natfrases"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px"><button class="btn ghost" type="button" id="natMsgCancelar">Cancelar</button><button class="btn gold" type="button" id="natMsgEnviar">Enviar 🎁</button></div>
+    </section>
+  </div>
+</div>
+<div class="modal" id="cantarModal" hidden role="dialog" aria-modal="true" aria-labelledby="cantarTit" style="z-index:60">
+  <div class="modal-card" style="width:min(100%,360px)">
+    <section style="text-align:center">
+      <h2 id="cantarTit" style="margin:0 0 4px">🎶 Cante para o Grinch</h2>
+      <p id="cantarInfo" style="margin:4px 0 10px;font-weight:700;min-height:22px"></p>
+      <div class="notas"><button type="button" data-nota="0" style="background:#e0463a"></button><button type="button" data-nota="1" style="background:#f2b705"></button><button type="button" data-nota="2" style="background:#2f8a4a"></button><button type="button" data-nota="3" style="background:#4aa3df"></button></div>
+      <button class="btn ghost" type="button" id="cantarFechar" style="margin-top:12px">Desistir</button>
+    </section>
+  </div>
+</div>
 <div class="modal" id="pistaModal" hidden role="dialog" aria-modal="true" aria-labelledby="pistaTit" style="z-index:60">
   <div class="modal-card" style="width:min(100%,380px)">
     <section style="text-align:center">
@@ -1236,8 +1262,8 @@
 </div>
 
 <!-- Ao mudar os scripts, aumente o ?v= (e o rf-version lá em cima) para o navegador não misturar arquivos novos e velhos. -->
-<script src="js/audio.js?v=375"></script>
+<script src="js/audio.js?v=376"></script>
 <script src="js/cloud.js?v=236"></script>
-<script src="js/game.js?v=375"></script>
+<script src="js/game.js?v=376"></script>
 </body>
 </html>
