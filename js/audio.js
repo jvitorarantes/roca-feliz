@@ -339,6 +339,35 @@
         [[N.D5, 2], [N.B4, 2], [N.G5, 4]],
       ],
     },
+    { // Natal: "Jingle Bells" em sininhos e violão, 4/4 (domínio público)
+      nome: 'Sinos de Natal', bpm: 132, steps: 8, lead: 'bell', shaker: true,
+      chords: [[48, 60, 64, 67], [48, 60, 64, 67], [48, 60, 64, 67], [48, 60, 64, 67], [53, 60, 65, 69], [48, 60, 64, 67], [43, 59, 62, 67], [48, 60, 64, 67]],
+      arp: [1, 2, 3, 2, 1, 2, 3, 2],
+      melody: [
+        [[N.E5, 2], [N.E5, 2], [N.E5, 4]],
+        [[N.E5, 2], [N.E5, 2], [N.E5, 4]],
+        [[N.E5, 2], [N.G5, 2], [N.C5, 3], [N.D5, 1]],
+        [[N.E5, 8]],
+        [[N.F5, 2], [N.F5, 2], [N.F5, 3], [N.F5, 1]],
+        [[N.F5, 2], [N.E5, 2], [N.E5, 2], [N.E5, 1], [N.E5, 1]],
+        [[N.E5, 2], [N.D5, 2], [N.D5, 2], [N.E5, 2]],
+        [[N.D5, 4], [N.G5, 4]],
+      ],
+    },
+    { // Natal: "Noite Feliz" em valsa de sininhos (domínio público)
+      nome: 'Noite Feliz', bpm: 66, steps: 6, lead: 'bell', waltz: true,
+      chords: [[48, 60, 64, 67], [48, 60, 64, 67], [48, 60, 64, 67], [48, 60, 64, 67], [43, 59, 62, 67], [48, 60, 64, 67], [53, 60, 65, 69], [48, 60, 64, 67]],
+      melody: [
+        [[N.G4, 3], [N.A4, 1], [N.G4, 2]],
+        [[N.E4, 6]],
+        [[N.G4, 3], [N.A4, 1], [N.G4, 2]],
+        [[N.E4, 6]],
+        [[N.D5, 4], [N.D5, 2]],
+        [[N.C5, 6]],
+        [[N.C5, 3], [N.G4, 2], [N.E4, 1]],
+        [[N.C5, 6]],
+      ],
+    },
   ];
   // Terça abaixo dentro de ré maior (a "segunda voz" da viola).
   const D_MAJOR = [2, 4, 6, 7, 9, 11, 1];

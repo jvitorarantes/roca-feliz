@@ -1578,6 +1578,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 386, txt: "🎵 Música de Natal! Duas novas músicas em Configurações › Música: 'Sinos de Natal' (Jingle Bells em sininhos e violão), que toca sozinha enquanto o evento estiver no ar, e 'Noite Feliz' em valsa de sininhos." },
   { v: 385, txt: "⛸️ Na pista de patinação agora aparece o seu avatar de verdade (com patins) deslizando e girando a cada pirueta, tanto no painel quanto no lago, em vez de só a bota." },
   { v: 384, txt: "💃 O Cabaré da Márcia agora dá para ENTRAR: toque na porta e veja o salão por dentro, com palco, pista, bar, sofás à luz de velas, a Márcia atrás do balcão e os 4 pretendentes (Lúcia canta no palco, Antônio toca piano, Rafael com o violão e Tereza dançando). Toque neles para conversar, no bar para pedir bebidas, no palco para o show. E no chat com um amigo tem o botão 💞 para pedir namoro, noivado ou casamento (ele recebe uma mensagem e o pedido aparece na tela dele)." },
   { v: 383, txt: "💞 Relacionamentos e Cabaré da Márcia! Na Vila agora tem o 💃 Cabaré da Márcia (neon rosa, bar sem álcool, palco, mesa de casal, mural de fofocas) com 4 pretendentes NPC para paquerar (Lúcia, Rafael, Tereza e Antônio): converse, dê presentes, saia em encontros e peça em namoro (um de cada vez; namoro com NPC dá +5% de XP). Entre jogadores: toque num jogador na Vila e veja o cartão de relacionamento (amizade, romance, status de inimigo a casado), com ações (conversar, elogiar, abraçar, paquerar, provocar…), pedidos de namoro, noivado e casamento com aceite, término, rivalidade, pazes e bloqueio. Casar com outra pessoa desfaz o relacionamento anterior e avisa o(a) ex. Casais ganham bônus de XP, missões de casal e o status aparece ao lado do nome na Vila. Em Vila › Pessoas › 💞 Relacionamentos." },
@@ -14315,6 +14316,8 @@ function natAcumula() {
 function natEntrada() {
   if (!state || !festaAtiva()) return;
   const n = natDe();
+  // música de Natal toca sozinha no começo do evento (quem escolher outra depois, fica com a escolha)
+  if (!halloweenAtivo() && settings.natMusica !== NAT.id && window.RFAudio && window.RFAudio.tracks.length > 11) { settings.natMusica = NAT.id; settings.track = 10; saveSettings(); if (settings.music) setTimeout(() => toast('🎵 Tocando "Sinos de Natal"! Troque em ⚙️ › Música (tem também "Noite Feliz").', 'good'), 3200); applySettings(); }
   if (!n.presente) {
     n.presente = 1; state.skins.natalina = true; state.invNovos = (state.invNovos || 0) + 1;
     const msg = '🎄 Natal na Roça Feliz! Até 25/12, às 23:59: neve, luzes piscando, a árvore de Natal (movível, no Modo Mover), o lago congelado para patinar ⛸️ e um presente do Advento por dia. Seu presente: a Casa Natalina (Loja › Temas). Veja tudo em Missões › 🎄 Natal.';
