@@ -1577,6 +1577,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 380, txt: "🎁 Corrigido: os presentes de Natal para amigos (com mensagem) agora cabem nas regras de mensagens do jogo e chegam normalmente." },
   { v: 379, txt: "🎆 ANO NOVO! De 26/12 até 10/01, às 23:59: fogos no céu da roça (toque nos dourados para ganhar moedas e ⭐ estrelas), contagem regressiva e chuva de fogos à meia-noite de 31/12, 3 resoluções para escolher (600 moedas e 15 ⭐ cada, com bônus se cumprir as 3), simpatias do dia (lentilha, 7 uvas, romã), as 7 ondas do Réveillon na praia da Vila e a loja de estrelas (cartola, camisa branca, poção de sorte). Tudo em Missões › 🎆 Ano Novo." },
   { v: 378, txt: "🎄 Natal na Vila! A fonte da praça congelou (toque nela para ⛸️ patinar, e a pista dá pontos no Ranking de hoje), tem uma árvore de Natal gigante: todos penduram enfeites (1 ❄️ cada) até acender, e a meta coletiva dá prêmio em Vila › Mural. O Grinch Gigante virou o chefe da Vila em dias alternados. A Quermesse vende chocolate quente, panetone e rabanada. No dia 24/12 tem a Missa do Galo na Igreja. E no perfil de um amigo na Vila tem o botão 🎁 Mandar presente de Natal." },
   { v: 377, txt: "🛍️ Loja de Natal! Em Missões › 🎄 Natal você troca ❄️ flocos por enfeites (boneco de neve, pilha de presentes, estrela, pinheirinho enfeitado), chapéus para o avatar (Gorro de Natal e Chifres de rena), Poção de sorte e moedas. O caminhão também traz 🎄 Cestas de Natal: pedem biscoito, panetone, rabanada ou chocolate quente, pagam 50% a mais e dão 10 ❄️." },
@@ -14377,7 +14378,7 @@ async function mandarPresNat() {
   $('#natMsgModal').hidden = true; natMsg = null;
   natPresEnviadas().push(m.uid); n.pres.tem[m.tipo]--; done(); renderPane();
   try {
-    await Cloud.enviarMsg(user.uid, m.uid, { txt: `${P.emoji} ${meuApelido()} te mandou ${P.nome.toLowerCase()}!${msg ? ` “${msg}”` : ''} Atualize o jogo para abrir.`, at: Date.now(), nome: meuApelido(), nat: m.tipo, msg, cid: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) });
+    await Cloud.enviarMsg(user.uid, m.uid, { txt: `${P.emoji} ${meuApelido()} te mandou ${P.nome.toLowerCase()}!${msg ? ` “${msg}”` : ''} Atualize o jogo para abrir.`, at: Date.now(), nome: meuApelido(), nat: m.tipo + ':' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), msg }); // (as regras do chat aceitam no máximo 7 campos)
     avisarAmigo(m.uid, 'presente', `${P.emoji} ${meuApelido()} te mandou um presente de Natal!`);
     sfx('buy'); addXP(2, null); track('carta'); ganharAmizade(m.uid);
     toast(`${P.emoji} Presente enviado para ${f && f.name ? f.name : 'seu amigo'}!`, 'good'); done();
@@ -14391,11 +14392,12 @@ function natReceberPresentes() {
   if (!state || !user || !festaAtiva()) return;
   const n = natDe(); let novo = false;
   for (const m of chatMsgs) {
-    if (m.de === user.uid || !m.nat || !NAT_PRES[m.nat] || typeof m.cid !== 'string' || n.vistas[m.cid]) continue;
+    const [tipo, cid] = typeof m.nat === 'string' ? m.nat.split(':') : [];
+    if (m.de === user.uid || !tipo || !NAT_PRES[tipo] || !cid || n.vistas[cid]) continue;
     if (!state.friends.includes(m.de) && !m.nome) continue;
-    n.vistas[m.cid] = 1; const de = limpaNome(m.nome) || 'um amigo', msg = natMsgLimpa(m.msg);
-    n.caixa.push({ tipo: m.nat, de, msg, at: m.at || Date.now() }); novo = true;
-    addNews(`${NAT_PRES[m.nat].emoji} ${de} te mandou um presente de Natal${msg ? `: “${msg}”` : ''}`);
+    n.vistas[cid] = 1; const de = limpaNome(m.nome) || 'um amigo', msg = natMsgLimpa(m.msg);
+    n.caixa.push({ tipo, de, msg, at: m.at || Date.now() }); novo = true;
+    addNews(`${NAT_PRES[tipo].emoji} ${de} te mandou um presente de Natal${msg ? `: “${msg}”` : ''}`);
   }
   if (novo) { const ks = Object.keys(n.vistas); if (ks.length > 200) for (const k of ks.slice(0, ks.length - 200)) delete n.vistas[k]; done(); setTimeout(natCartaTick, 800); }
 }
