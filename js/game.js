@@ -1577,6 +1577,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 381, txt: "⛸️ Patinação mais fácil: a barra agora anda bem mais devagar e a zona verde ficou maior." },
   { v: 380, txt: "🎁 Corrigido: os presentes de Natal para amigos (com mensagem) agora cabem nas regras de mensagens do jogo e chegam normalmente." },
   { v: 379, txt: "🎆 ANO NOVO! De 26/12 até 10/01, às 23:59: fogos no céu da roça (toque nos dourados para ganhar moedas e ⭐ estrelas), contagem regressiva e chuva de fogos à meia-noite de 31/12, 3 resoluções para escolher (600 moedas e 15 ⭐ cada, com bônus se cumprir as 3), simpatias do dia (lentilha, 7 uvas, romã), as 7 ondas do Réveillon na praia da Vila e a loja de estrelas (cartola, camisa branca, poção de sorte). Tudo em Missões › 🎆 Ano Novo." },
   { v: 378, txt: "🎄 Natal na Vila! A fonte da praça congelou (toque nela para ⛸️ patinar, e a pista dá pontos no Ranking de hoje), tem uma árvore de Natal gigante: todos penduram enfeites (1 ❄️ cada) até acender, e a meta coletiva dá prêmio em Vila › Mural. O Grinch Gigante virou o chefe da Vila em dias alternados. A Quermesse vende chocolate quente, panetone e rabanada. No dia 24/12 tem a Missa do Galo na Igreja. E no perfil de um amigo na Vila tem o botão 🎁 Mandar presente de Natal." },
@@ -14616,13 +14617,14 @@ function natComprar(id) {
 let pista = null;
 function abrirPista() {
   if (!festaAtiva() || !isHome()) return;
-  pista = { r: 0, pts: 0, t0: performance.now(), vel: 0.0006, premio: natalAtivo() && natPistaRestante() > 0, fim: false };
+  pista = { r: 0, pts: 0, t0: performance.now(), ult: performance.now(), fase: 0, vel: 0.00038, premio: natalAtivo() && natPistaRestante() > 0, fim: false };
   $('#pistaModal').hidden = false; $('#pistaArte').textContent = '⛸️'; $('#pistaArte').style.transform = '';
   $('#pistaGirar').hidden = false; $('#pistaGirar').textContent = 'Girar!';
   $('#pistaInfo').textContent = pista.premio ? 'Acerte o ponto verde! São 6 piruetas.' : 'Hoje já rendeu o máximo, mas dá para treinar à vontade!';
   requestAnimationFrame(pistaLoop);
 }
-const pistaPos = t => 0.5 + 0.5 * Math.sin((t - pista.t0) * pista.vel * Math.PI * 2 / 1.0);
+// a fase vai acumulando (sem pulo quando a velocidade muda): começa devagar (~2,6 s por ida e volta) e acelera só um pouco a cada pirueta
+const pistaPos = t => { pista.fase += Math.max(0, t - pista.ult) * pista.vel * Math.PI * 2; pista.ult = t; return 0.5 + 0.5 * Math.sin(pista.fase); };
 function pistaLoop(t) {
   if (!pista || $('#pistaModal').hidden) return;
   $('#pistaMarca').style.left = (pistaPos(t) * 100) + '%';
@@ -14631,8 +14633,8 @@ function pistaLoop(t) {
 function pistaGirar() {
   if (!pista || pista.fim) return;
   const x = pistaPos(performance.now()), d = Math.abs(x - 0.5);
-  const pt = d < 0.08 ? 3 : d < 0.2 ? 2 : d < 0.35 ? 1 : 0;
-  pista.pts += pt; pista.r++; pista.vel *= 1.12;
+  const pt = d < 0.12 ? 3 : d < 0.26 ? 2 : d < 0.4 ? 1 : 0;
+  pista.pts += pt; pista.r++; pista.vel *= 1.05;
   const arte = $('#pistaArte'); arte.style.transition = 'transform .5s'; arte.style.transform = `rotate(${pista.r * 360}deg) scale(${1 + pt * 0.1})`;
   $('#pistaInfo').textContent = `${['😵 Escorregou!', '🙂 Bom!', '😃 Muito bem!', '🤩 Perfeito!'][pt]}  ·  piruetas ${pista.r}/6  ·  ${pista.pts} pontos`;
   sfx(pt >= 2 ? 'coin' : 'click');
