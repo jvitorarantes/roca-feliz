@@ -40,9 +40,6 @@
           "et": {
             ".validate": "newData.isNumber()"
           },
-          "$outro": {
-            ".validate": false
-          },
           "ia": {
             ".validate": "newData.isString() && newData.val().length <= 10"
           },
@@ -72,6 +69,12 @@
           },
           "pt": {
             ".validate": "newData.isString() && newData.val().length <= 6"
+          },
+          "rl": {
+            ".validate": "newData.isString() && newData.val().length <= 30"
+          },
+          "$outro": {
+            ".validate": false
           }
         }
       },
@@ -513,6 +516,67 @@
             "$outro": {
               ".validate": false
             }
+          }
+        }
+      },
+      "relsinal": {
+        "$para": {
+          ".read": "auth != null && auth.uid === $para",
+          "$id": {
+            ".write": "auth != null && ((!data.exists() && newData.child('de').val() === auth.uid) || (data.exists() && auth.uid === $para))",
+            ".validate": "newData.hasChildren(['de', 'k', 'ts'])",
+            "de": {
+              ".validate": "newData.val() === auth.uid"
+            },
+            "n": {
+              ".validate": "newData.isString() && newData.val().length <= 24"
+            },
+            "k": {
+              ".validate": "newData.val() === 'acao' || newData.val() === 'inimigo' || newData.val() === 'paz' || newData.val() === 'pedido' || newData.val() === 'resp' || newData.val() === 'fim' || newData.val() === 'casal'"
+            },
+            "a": {
+              ".validate": "newData.isString() && newData.val().length <= 12"
+            },
+            "t": {
+              ".validate": "newData.isString() && newData.val().length <= 12"
+            },
+            "m": {
+              ".validate": "newData.isString() && newData.val().length <= 12"
+            },
+            "ok": {
+              ".validate": "newData.isNumber()"
+            },
+            "p": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20"
+            },
+            "ts": {
+              ".validate": "newData.val() === now"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "fofocas": {
+        ".read": "auth != null",
+        ".indexOn": [
+          "ts"
+        ],
+        "$id": {
+          ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid",
+          ".validate": "newData.hasChildren(['u', 't', 'ts'])",
+          "u": {
+            ".validate": "newData.val() === auth.uid"
+          },
+          "t": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 100"
+          },
+          "ts": {
+            ".validate": "newData.val() === now"
+          },
+          "$outro": {
+            ".validate": false
           }
         }
       }

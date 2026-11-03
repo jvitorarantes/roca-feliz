@@ -961,6 +961,7 @@ function addXP(n, pos) {
   n = Math.max(n, Math.round(n * (1 + comfort(state) / 100)));
   if (state.luxo && state.luxo.mansao) n = Math.round(n * 1.25); // 🏰 Mansão: +25% de XP
   if (state.ano && state.ano.id === ANO.id && state.ano.xp > Date.now()) n = Math.round(n * 1.25); // 🍇 simpatia das 7 uvas
+  { const b = Math.max(relBonusXP(), state.cabare && state.cabare.namoro ? 0.05 : 0); if (b) n = Math.round(n * (1 + b)); } // 💞 bônus de quem está namorando/casado
   state.xp += n;
   popupAt(pos, `+${n} XP`, '#4aa3df', 180);
   while (state.xp >= need(state.level)) {
@@ -1577,6 +1578,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 383, txt: "💞 Relacionamentos e Cabaré da Márcia! Na Vila agora tem o 💃 Cabaré da Márcia (neon rosa, bar sem álcool, palco, mesa de casal, mural de fofocas) com 4 pretendentes NPC para paquerar (Lúcia, Rafael, Tereza e Antônio): converse, dê presentes, saia em encontros e peça em namoro (um de cada vez; namoro com NPC dá +5% de XP). Entre jogadores: toque num jogador na Vila e veja o cartão de relacionamento (amizade, romance, status de inimigo a casado), com ações (conversar, elogiar, abraçar, paquerar, provocar…), pedidos de namoro, noivado e casamento com aceite, término, rivalidade, pazes e bloqueio. Casar com outra pessoa desfaz o relacionamento anterior e avisa o(a) ex. Casais ganham bônus de XP, missões de casal e o status aparece ao lado do nome na Vila. Em Vila › Pessoas › 💞 Relacionamentos." },
   { v: 382, txt: "⛸️ Agora dá para ver o seu avatar patinando no lago congelado enquanto você joga a pista (com rastro no gelo, e ele gira a cada pirueta). O painel fica embaixo da tela. A patinação também ficou mais fácil: barra mais lenta e zona verde maior." },
   { v: 381, txt: "⛸️ Patinação mais fácil: a barra agora anda bem mais devagar e a zona verde ficou maior." },
   { v: 380, txt: "🎁 Corrigido: os presentes de Natal para amigos (com mensagem) agora cabem nas regras de mensagens do jogo e chegam normalmente." },
@@ -10931,7 +10933,7 @@ $('#confirmaNao').addEventListener('click', () => fecharConfirma(false));
 $('#confirmaModal').addEventListener('click', e => { if (e.target === $('#confirmaModal')) fecharConfirma(false); });
 $('#escolhaOps').addEventListener('click', e => { const b = e.target.closest('[data-escolha]'); if (!b || b.disabled) return; const o = escolhaOps[Number(b.dataset.escolha)]; fecharEscolha(); if (o && o.fn) o.fn(); });
 $('#escolhaModal').addEventListener('click', e => { if (e.target === $('#escolhaModal')) fecharEscolha(); });
-$('#cartaBtn').addEventListener('click', () => natCartaAtual ? natCartaBotao() : halCartaBotao());
+$('#cartaBtn').addEventListener('click', () => { if (cartaGen) { cartaGen = false; $('#cartaModal').hidden = true; return; } natCartaAtual ? natCartaBotao() : halCartaBotao(); });
 $('#minaModal').addEventListener('click', e => {
   if (e.target === $('#minaModal') || e.target.closest('[data-close]')) return fecharMinaModal();
   if (e.target.closest('[data-mina-info]')) { fecharMinaModal(); openPanel('mina'); }
@@ -14864,6 +14866,335 @@ function anoTick() {
 }
 setInterval(() => { try { anoTick(); } catch (e) { /* sem virada */ } }, 2000);
 // ============================================================
+// Relacionamentos (jogadores e NPCs) e o Cabaré da Márcia
+// ============================================================
+// Entre jogadores: barras de amizade e romance, status (inimigo … amigo … namorando, noivo, casado, ex), pedidos com aceite.
+// Os dados de cada um ficam na própria roça (state.rel); o banco só leva "sinais" curtos (praca/relsinal/<destino>) e as fofocas.
+const relDe = uid => { const R = (state.rel ||= {}); return R[uid] ||= { n: '', a: 0, r: 0, s: '', ts: 0, uso: { d: 0, c: {} } }; };
+const ROMANTICOS = ['namoro', 'noivo', 'casado'];
+const relParceiro = () => Object.entries(state.rel || {}).find(([, x]) => ROMANTICOS.includes(x.s)) || null;
+function relRotulo(uid) {
+  const x = (state.rel || {})[uid]; if (!x) return ['🙂', 'Conhecido'];
+  if (x.s === 'casado') return ['👰', 'Casado(a)']; if (x.s === 'noivo') return ['💍', 'Noivo(a)']; if (x.s === 'namoro') return ['❤️', 'Namorando'];
+  if (x.s === 'ex') return ['💔', 'Ex']; if (x.s === 'inimigo') return ['😠', 'Inimigo'];
+  if (x.r >= 40) return ['😘', 'Paquera'];
+  if (x.a <= -50) return ['😠', 'Inimigo']; if (x.a <= -20) return ['😒', 'Rival']; if (x.a < 20) return ['🙂', 'Conhecido']; if (x.a < 60) return ['😄', 'Amigo'];
+  return ['🤝', 'Melhor amigo'];
+}
+const relTextoPublico = () => { const p = state && relParceiro(); if (!p) return ''; const x = p[1]; return `${{ namoro: '❤️', noivo: '💍', casado: '👰' }[x.s]} ${x.n || ''}`.slice(0, 30); };
+const relClamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function relMuda(uid, nome, da, dr) { const x = relDe(uid); if (nome) x.n = limpaNome(nome); x.a = relClamp(x.a + da, -100, 100); x.r = relClamp(x.r + dr, 0, 100); x.ts = Date.now(); }
+const REL_ACOES = {
+  conversar: { e: '💬', n: 'Conversar',      a: 2,  r: 0, ms: 'conversou com você' },
+  elogiar:   { e: '🌹', n: 'Elogiar',        a: 3,  r: 1, ms: 'te elogiou' },
+  piada:     { e: '😂', n: 'Contar piada',   a: 3,  r: 0, ms: 'contou uma piada para você' },
+  abracar:   { e: '🤗', n: 'Abraçar',        a: 4,  r: 1, min: 10, ms: 'te deu um abraço' },
+  paquerar:  { e: '😘', n: 'Paquerar',       a: 1,  r: 5, ms: 'está de olho em você', rom: 1 },
+  provocar:  { e: '😝', n: 'Provocar',       a: -4, r: 0, ms: 'te provocou' },
+};
+// ---- sinais pelo banco ----
+function relEnviar(uid, k, extra) {
+  if (!praca.rt || !user) return false;
+  praca.rt.ref('praca/relsinal/' + uid).push(Object.assign({ de: user.uid, n: meuApelido().slice(0, 24), k, ts: firebase.database.ServerValue.TIMESTAMP }, extra || {})).catch(e => console.warn('rel sinal:', e));
+  return true;
+}
+const relNoticia = msg => { addNews(msg); setTimeout(() => toast(msg, 'good'), 400); };
+let relUltAviso = 0;
+function relSinal(m) {
+  if (!m || typeof m.de !== 'string' || m.de === user.uid || !state || (state.relBloq || {})[m.de]) return;
+  const nome = limpaNome(m.n) || 'Alguém', x = relDe(m.de); x.n = nome;
+  if (m.k === 'acao') {
+    const A = REL_ACOES[m.a]; if (!A || (A.rom && state.relSemRomance)) return;
+    relMuda(m.de, nome, A.a, A.r);
+    if (Date.now() - relUltAviso > 20000) { relUltAviso = Date.now(); toast(`${A.e} ${nome} ${A.ms}`, A.a < 0 ? 'bad' : 'good'); }
+  } else if (m.k === 'inimigo') {
+    if (!ROMANTICOS.includes(x.s)) { x.s = 'inimigo'; x.a = Math.min(x.a, -60); relNoticia(`😠 ${nome} declarou rivalidade com você. Dá para fazer as pazes em Vila › Relacionamentos.`); }
+  } else if (m.k === 'paz') {
+    if (x.s === 'inimigo' || x.a < 0) { x.s = ''; x.a = Math.max(x.a, 0); relNoticia(`🕊️ ${nome} quer fazer as pazes. Vocês não são mais inimigos!`); }
+  } else if (m.k === 'pedido') {
+    if (!['namoro', 'noivado', 'casamento'].includes(m.t) || state.relSemRomance) return relEnviar(m.de, 'resp', { t: m.t, ok: 0, m: 'nao' });
+    state.relPend = (state.relPend || []).filter(p => !(p.de === m.de && p.t === m.t)); state.relPend.push({ de: m.de, n: nome, t: m.t, ts: Date.now() });
+    setTimeout(relPedidoTick, 600);
+  } else if (m.k === 'resp') {
+    if (m.ok) relConfirma(m.de, m.t, true); else relNoticia(`💔 ${nome} recusou o pedido de ${REL_PED[m.t] ? REL_PED[m.t].nome : 'relacionamento'}${m.m === 'ocupado' ? ' (já está com outra pessoa)' : ''}.`);
+  } else if (m.k === 'fim') {
+    if (ROMANTICOS.includes(x.s)) { const antes = x.s; x.s = 'ex'; x.r = 0; x.a = Math.min(x.a, 0); relNoticia(`💔 ${nome} ${m.m === 'casou' ? 'se casou com outra pessoa' : 'terminou o relacionamento'}. ${antes === 'casado' ? 'O casamento foi desfeito.' : 'Vocês agora são ex.'}`); sfx('error'); }
+  } else if (m.k === 'casal') {
+    if (ROMANTICOS.includes(x.s)) { relMuda(m.de, nome, 3, m.p || 6); casalFeito('juntos'); }
+  }
+  done(); renderPane();
+}
+// ---- pedidos de namoro, noivado e casamento ----
+const REL_PED = { namoro: { nome: 'namoro', e: '❤️', custo: 100, rom: 15, a: 10 }, noivado: { nome: 'noivado', e: '💍', custo: 0, rom: 35, a: 20 }, casamento: { nome: 'casamento', e: '👰', custo: 1000, rom: 50, a: 20 } };
+function relPedir(uid, t) {
+  const P = REL_PED[t], x = relDe(uid), j = praca.jog[uid], nome = (j && j.n) || x.n || 'essa pessoa'; if (j && j.n) x.n = limpaNome(j.n);
+  if (x.r < P.rom) return toast(`Ainda é cedo: precisa de pelo menos ${P.rom} de romance (você tem ${Math.floor(x.r)}). Paquere, elogie, dance, vá a encontros!`, 'bad');
+  if (x.a < P.a) return toast(`Vocês precisam ser mais próximos (amizade ${P.a}+).`, 'bad');
+  const par = relParceiro();
+  if (t !== 'casamento' && par && par[0] !== uid) return toast(`Você já está com ${par[1].n || 'alguém'}. Termine antes (ou case-se, que isso desfaz o anterior).`, 'bad');
+  if (t === 'noivado' && x.s !== 'namoro') return toast('Primeiro precisam estar namorando.', 'bad');
+  if (t === 'namoro' && x.s === 'namoro') return toast('Vocês já estão namorando!');
+  if (t === 'casamento' && x.s === 'casado') return toast('Vocês já são casados!');
+  const aliança = t === 'noivado' || (t === 'casamento' && x.s !== 'noivo');
+  if (aliança && !(state.barn.alianca > 0)) return toast('Para esse pedido você precisa de 1 Aliança de ouro (faça na Forja & Joalheria).', 'bad');
+  if (state.coins < P.custo) return vilaSemMoedas(P.custo);
+  perguntar(`Pedir ${P.nome} a ${nome}?${P.custo ? `\n\nCusta ${P.custo.toLocaleString('pt-BR')} moedas.` : ''}${aliança ? '\nVai uma Aliança de ouro.' : ''}${t === 'casamento' && par && par[0] !== uid ? `\n\nAtenção: você está com ${par[1].n || 'outra pessoa'}. Casar vai DESFAZER esse relacionamento e avisar a pessoa.` : ''}`, () => {
+    state.coins -= P.custo; if (aliança) { state.barn.alianca--; if (!state.barn.alianca) delete state.barn.alianca; }
+    relEnviar(uid, 'pedido', { t }); sfx('buy'); toast(`${P.e} Pedido de ${P.nome} enviado a ${nome}! Agora é esperar a resposta…`, 'good'); done(); pracaPainel();
+  });
+}
+function relPedidoTick() {
+  if (!state || isGated() || document.hidden || escolhaAberta() || !(state.relPend || []).length) return;
+  if (['#boasvindas', '#presente', '#nome', '#cartaModal'].some(q => $(q) && !$(q).hidden)) return;
+  const agora = Date.now(); state.relPend = state.relPend.filter(p => agora - p.ts < 3 * 86400e3);
+  const p = state.relPend[0]; if (!p || p.mostrado && agora - p.mostrado < 5 * 60e3) return; p.mostrado = agora;
+  const P = REL_PED[p.t];
+  escolher(`${P.e} ${p.n} fez um pedido de ${P.nome} para você! ${p.t === 'casamento' ? 'Aceitar vai desfazer qualquer outro namoro, noivado ou casamento seu.' : ''}`, [
+    { txt: 'Aceitar 💖', gold: true, fn: () => relResponder(p.de, p.t, true) },
+    { txt: 'Recusar', fn: () => relResponder(p.de, p.t, false) },
+    { txt: 'Decidir depois', ghost: true },
+  ]);
+}
+setInterval(() => { try { relPedidoTick(); } catch (e) { /* sem pedido */ } }, 4000);
+function relResponder(uid, t, ok) {
+  state.relPend = (state.relPend || []).filter(p => !(p.de === uid && p.t === t));
+  if (!ok) { relEnviar(uid, 'resp', { t, ok: 0 }); done(); renderPane(); return toast('Você recusou o pedido.'); }
+  const par = relParceiro();
+  if (t !== 'casamento' && par && par[0] !== uid) { relEnviar(uid, 'resp', { t, ok: 0, m: 'ocupado' }); done(); renderPane(); return toast(`Você já está com ${par[1].n || 'alguém'}: pedido recusado.`, 'bad'); }
+  relEnviar(uid, 'resp', { t, ok: 1 }); relConfirma(uid, t, false);
+}
+const REL_STATUS = { namoro: 'namoro', noivado: 'noivo', casamento: 'casado' };
+// Os dois lados chamam isto quando o pedido é aceito; "pedinte" = quem fez o pedido
+function relConfirma(uid, t, pedinte) {
+  const x = relDe(uid), P = REL_PED[t], nome = x.n || 'seu par';
+  if (t === 'casamento') { // casar com outro desfaz o relacionamento anterior (e avisa a pessoa)
+    for (const [ou, ox] of Object.entries(state.rel || {})) if (ou !== uid && ROMANTICOS.includes(ox.s)) { const era = ox.s; ox.s = 'ex'; ox.r = 0; relEnviar(ou, 'fim', { m: 'casou' }); relNoticia(`💔 Você se casou com outra pessoa: ${era === 'casado' ? 'o casamento com' : 'o relacionamento com'} ${ox.n || 'a pessoa anterior'} foi desfeito e ${ox.n || 'ela'} foi avisado(a).`); }
+  }
+  x.s = REL_STATUS[t]; x.r = Math.max(x.r, 60); x.a = Math.max(x.a, 40); x.ts = Date.now();
+  state.coins += t === 'casamento' ? 500 : 100; addXP(10, null); sfx('level');
+  if (t === 'casamento') cabCena('💒💍', `Casamento com ${nome}!`, `${meuApelido()} e ${nome} disseram "sim" na Igreja da Vila, com o coral cantando e os fiéis jogando arroz! Vocês agora são casados. 🎉 (+500 moedas de presente dos convidados)`);
+  else cabCena(P.e, t === 'noivado' ? `Noivado com ${nome}!` : `Namoro com ${nome}!`, t === 'noivado' ? 'Um anel brilhante no dedo e um sorriso no rosto. Vocês estão noivos! 💍' : 'Um buquê de flores e um coração batendo forte. Vocês estão namorando! ❤️');
+  if (pedinte) fofocaPublica(t === 'casamento' ? `💒 ${meuApelido()} e ${nome} se casaram!` : t === 'noivado' ? `💍 ${meuApelido()} e ${nome} ficaram noivos!` : `❤️ ${meuApelido()} e ${nome} começaram a namorar!`);
+  relNoticia(`${P.e} ${t === 'casamento' ? 'Você se casou com' : t === 'noivado' ? 'Você ficou noivo(a) de' : 'Você está namorando'} ${nome}!`);
+  pracaEnviarMov(); done(); renderPane(); renderHUD();
+}
+function relTerminar(uid) {
+  const x = relDe(uid); if (!ROMANTICOS.includes(x.s)) return;
+  perguntar(`Terminar o relacionamento com ${x.n || 'essa pessoa'}? Ela será avisada.`, () => {
+    const era = x.s; x.s = 'ex'; x.r = 0; x.a = Math.min(x.a, 0) - 10; relEnviar(uid, 'fim', { m: 'terminou' });
+    fofocaPublica(era === 'casado' ? `💔 ${meuApelido()} e ${x.n || 'o(a) parceiro(a)'} se divorciaram.` : `💔 ${meuApelido()} e ${x.n || 'o(a) parceiro(a)'} terminaram.`);
+    relNoticia(`💔 Você terminou com ${x.n || 'a pessoa'}.`); pracaEnviarMov(); done(); pracaPainel();
+  });
+}
+function relAcao(uid, ac) {
+  const A = REL_ACOES[ac], x = relDe(uid), j = praca.jog[uid]; if (!A) return;
+  if (j && j.n) x.n = limpaNome(j.n);
+  if ((state.relBloq || {})[uid]) return toast('Você bloqueou essa pessoa. Desbloqueie em Vila › Relacionamentos.');
+  if (A.min && x.a < A.min) return toast(`Para ${A.n.toLowerCase()} vocês precisam ser mais próximos (amizade ${A.min}+).`);
+  if (A.rom && state.relSemRomance) return toast('Você desligou os pedidos românticos. Ligue em Vila › Relacionamentos.');
+  const hoje = localDay(); if (x.uso.d !== hoje) x.uso = { d: hoje, c: {} };
+  const tot = Object.values(x.uso.c).reduce((t, n) => t + n, 0), agora = Date.now();
+  if (tot >= 15) return toast('Por hoje já chega de interações com essa pessoa. Volte amanhã!');
+  if (agora - (x.uso['t_' + ac] || 0) < 5 * 60e3) return toast(`Espere uns minutinhos para ${A.n.toLowerCase()} de novo.`);
+  x.uso['t_' + ac] = agora; x.uso.c[ac] = (x.uso.c[ac] || 0) + 1;
+  relMuda(uid, null, A.a, A.r); relEnviar(uid, 'acao', { a: ac }); sfx(A.a < 0 ? 'click' : 'coin'); addXP(1, null);
+  if (ROMANTICOS.includes(x.s) && A.a > 0) casalFeito('carinho');
+  toast(`${A.e} ${A.n} ${j && j.n ? esc(j.n) : x.n || ''}!`, A.a < 0 ? 'bad' : 'good'); done(); pracaPainel();
+}
+function relDeclarar(uid, k) {
+  const x = relDe(uid), j = praca.jog[uid]; if (j && j.n) x.n = limpaNome(j.n);
+  if (k === 'inimigo') { if (ROMANTICOS.includes(x.s)) return toast('Termine o relacionamento antes de virar inimigo.'); x.s = 'inimigo'; x.a = Math.min(x.a, -60); relEnviar(uid, 'inimigo'); fofocaPublica(`😠 ${meuApelido()} e ${x.n || 'alguém'} viraram inimigos!`); toast(`😠 Você declarou rivalidade com ${x.n}.`); }
+  else { x.s = ''; x.a = Math.max(x.a, 0); relEnviar(uid, 'paz'); toast(`🕊️ Você fez as pazes com ${x.n}.`, 'good'); }
+  done(); pracaPainel();
+}
+function relBloquear(uid) { const B = (state.relBloq ||= {}); if (B[uid]) delete B[uid]; else B[uid] = 1; done(); pracaPainel(); toast(B[uid] ? '🚫 Pessoa bloqueada: ela não consegue mais interagir com você.' : 'Pessoa desbloqueada.'); }
+// ---- fofocas da Márcia (mural público, só eventos de relacionamento) ----
+function fofocaPublica(t) {
+  if (state.fofocaOff || !praca.rt || !user) return;
+  praca.rt.ref('praca/fofocas').push({ u: user.uid, t: String(t).slice(0, 100), ts: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+}
+function fofocasCarrega() {
+  if (!praca.rt || praca.fofCarregando) return; praca.fofCarregando = true;
+  praca.rt.ref('praca/fofocas').orderByChild('ts').limitToLast(20).once('value').then(snap => { const l = []; snap.forEach(c => { const v = c.val(); if (v && typeof v.t === 'string') l.push({ t: v.t.slice(0, 100), ts: v.ts || 0 }); }); praca.fofocas = l.sort((a, b) => b.ts - a.ts); praca.fofCarregando = false; praca.fofOk = true; if (praca.painel === 'cabare') pracaPainel(); }).catch(() => { praca.fofCarregando = false; praca.fofOk = true; praca.fofocas = praca.fofocas || []; });
+}
+// ---- benefícios de casal ----
+function casalSt() { const hoje = localDay(); if (!state.casal || state.casal.d !== hoje) state.casal = { d: hoje, f: {}, r: {} }; return state.casal; }
+const CASAL_MISSOES = [
+  { id: 'carinho', txt: 'Mande um carinho ao(à) parceiro(a) (elogio, abraço, conversa…)', moedas: 200 },
+  { id: 'juntos',  txt: 'Façam algo juntos no Cabaré (mesa de casal ou dança em dupla)', moedas: 300 },
+];
+function casalFeito(id) { if (!relParceiro()) return; const c = casalSt(); if (!c.f[id]) { c.f[id] = 1; toast('💞 Missão de casal cumprida! Pegue o prêmio em Vila › Relacionamentos.', 'good'); } }
+function casalResgatar(id) { const c = casalSt(), m = CASAL_MISSOES.find(x => x.id === id); if (!m || !c.f[id] || c.r[id] || !relParceiro()) return; c.r[id] = 1; state.coins += m.moedas; sfx('level'); toast(`💞 +${m.moedas} moedas pela missão de casal!`, 'good'); done(); pracaPainel(); renderHUD(); }
+const relBonusXP = () => { const p = state && relParceiro(); return p ? ({ namoro: 0.05, noivo: 0.08, casado: 0.1 }[p[1].s] || 0) : 0; };
+// ---- cena (cartão com emojis e texto) ----
+let cartaGen = false;
+function cabCena(emoji, titulo, txt) {
+  cartaGen = true; $('#cartaModal').style.background = 'rgba(60,10,40,.86)'; $('#cartaModal .modal-card').classList.remove('cartahal');
+  $('#cartaArte').innerHTML = `<div style="font-size:64px;line-height:110px">${emoji}</div>`; $('#cartaDe').textContent = titulo; $('#cartaTxt').textContent = txt;
+  $('#cartaBtn').textContent = 'Que lindo! 💕'; $('#cartaBtn').dataset.fase = 'cena'; $('#cartaBtn').disabled = false; $('#cartaModal').hidden = false;
+}
+// ---- cartão de relacionamento no perfil do jogador (Vila) ----
+function relCartaoHTML(uid) {
+  if (!state || uid === (user && user.uid)) return '';
+  const x = (state.rel || {})[uid] || { a: 0, r: 0, s: '', uso: { d: 0, c: {} } }, [e, nome] = relRotulo(uid), par = relParceiro(), bloq = (state.relBloq || {})[uid], rom = ROMANTICOS.includes(x.s);
+  const barra = (v, mn, cor) => `<div class="barra"><i style="width:${Math.round((v - mn) / (100 - mn) * 100)}%;background:${cor}"></i></div>`;
+  let h = `<div class="vp-card"><b>💞 Relacionamento: ${e} ${nome}</b><small>Amizade ${Math.round(x.a)} · Romance ${Math.floor(x.r)}</small>${barra(x.a, -100, '#4aa3df')}${barra(x.r, 0, '#e25b8f')}<div class="vp-inter">`;
+  h += Object.entries(REL_ACOES).map(([k, A]) => `<button type="button" class="btn ${A.a < 0 ? 'ghost' : ''}" data-vila-rel="a:${esc(uid)}:${k}" ${bloq || (A.rom && state.relSemRomance) ? 'disabled' : ''}>${A.e} ${A.n}</button>`).join('');
+  h += '</div><div class="vp-inter">';
+  if (!rom) h += `<button type="button" class="btn gold" data-vila-rel="p:${esc(uid)}:namoro">❤️ Pedir em namoro</button>`;
+  if (x.s === 'namoro') h += `<button type="button" class="btn gold" data-vila-rel="p:${esc(uid)}:noivado">💍 Pedir em noivado</button>`;
+  if (x.s !== 'casado') h += `<button type="button" class="btn gold" data-vila-rel="p:${esc(uid)}:casamento">👰 Pedir em casamento</button>`;
+  if (rom) h += `<button type="button" class="btn ghost" data-vila-rel="t:${esc(uid)}">💔 ${x.s === 'casado' ? 'Divórcio' : 'Terminar'}</button>`;
+  h += x.s === 'inimigo' || x.a < -20 ? `<button type="button" class="btn" data-vila-rel="d:${esc(uid)}:paz">🕊️ Fazer as pazes</button>` : (rom ? '' : `<button type="button" class="btn ghost" data-vila-rel="d:${esc(uid)}:inimigo">⚔️ Declarar rivalidade</button>`);
+  h += `<button type="button" class="btn ghost" data-vila-rel="b:${esc(uid)}">${bloq ? '✅ Desbloquear' : '🚫 Bloquear'}</button></div>`;
+  if (par && par[0] !== uid) h += `<small>Você está com ${esc(par[1].n || 'alguém')} (${REL_ROM_NOME[par[1].s]}). Casar com outra pessoa desfaz isso.</small>`;
+  return h + '</div>';
+}
+const REL_ROM_NOME = { namoro: 'namorando', noivo: 'noivado', casado: 'casado' };
+// ---- painel Relacionamentos (Vila) ----
+function pracaHtmlRel() {
+  const par = relParceiro(), R = Object.entries(state.rel || {}).filter(([, x]) => x.n && (x.a || x.r || x.s)).sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0)).slice(0, 25);
+  let h = `<div class="vp-card"><b>💞 ${par ? `${{ namoro: 'Namorando', noivo: 'Noivo(a)', casado: 'Casado(a)' }[par[1].s]} com ${esc(par[1].n || 'alguém')}` : 'Você está solteiro(a)'}</b><small>${par ? `Bônus de XP: +${Math.round(relBonusXP() * 100)}% enquanto vocês estiverem juntos.` : 'Paquere, dance, vá a encontros e peça em namoro no perfil de alguém.'}</small></div>`;
+  const pend = (state.relPend || []);
+  if (pend.length) h += `<div class="vp-card"><b>💌 Pedidos para você</b>${pend.map((p, i) => `<div class="vp-linha"><span>${REL_PED[p.t].e} ${esc(p.n)} · ${REL_PED[p.t].nome}</span><span><button type="button" class="btn gold" data-vila-relp="${i}:1">Aceitar</button> <button type="button" class="btn ghost" data-vila-relp="${i}:0">Recusar</button></span></div>`).join('')}</div>`;
+  if (par) { const c = casalSt(); h += `<div class="vp-card"><b>🎯 Missões de casal (hoje)</b>${CASAL_MISSOES.map(m => `<div class="vp-linha"><span>${m.txt}</span>${c.r[m.id] ? '<small>✅</small>' : c.f[m.id] ? `<button type="button" class="btn gold" data-vila-casal="${m.id}">Pegar ${m.moedas}</button>` : `<small>${m.moedas} 🪙</small>`}</div>`).join('')}</div>`; }
+  h += `<div class="vp-card"><b>⚙️ Preferências</b><div class="vp-inter"><button type="button" class="btn ${state.relSemRomance ? 'ghost' : 'gold'}" data-vila-relcfg="rom">${state.relSemRomance ? '💔 Pedidos românticos: desligados' : '💘 Pedidos românticos: ligados'}</button><button type="button" class="btn ${state.fofocaOff ? 'ghost' : 'gold'}" data-vila-relcfg="fof">${state.fofocaOff ? '🤐 Fofocas sobre mim: desligadas' : '🗞️ Fofocas sobre mim: ligadas'}</button></div></div>`;
+  h += `<div class="vp-card"><b>👥 Suas relações</b>${R.length ? R.map(([uid, x]) => { const [e, n] = relRotulo(uid); return `<div class="vp-linha"><span>${e} ${esc(x.n)}</span><small>${n} · 🤝${Math.round(x.a)} 💗${Math.floor(x.r)}</small></div>`; }).join('') : '<small>Ninguém ainda. Toque num jogador na Vila e veja o cartão de relacionamento dele.</small>'}</div>`;
+  return h;
+}
+// ============================================================
+// Cabaré da Márcia (Vila): bar, palco, mesa de casal, fofocas e pretendentes NPC
+// ============================================================
+const cabDe = () => (state.cabare ||= { afeto: {}, d: 0, uso: {}, namoro: '', fase: {} });
+const PRETENDENTES = [
+  { id: 'lucia', nome: 'Lúcia', papel: 'Cantora de boleros', f: true, gosta: ['bolo', 'geleia', 'pacoca', 'rapadura', 'panetone', 'biscoito', 'rabanada', 'pingente'],
+    av: { sexo: 'f', pele: 1, cabelo: 'comprido', corCabelo: 2, chapeu: 'flores', camisa: 'florida', calca: 'saia', sapato: 'sapatilha', mao: 'nada' },
+    conv: [{ q: 'Qual bolero combina com uma noite de lua cheia?', o: [['“Sabor a Mi”, bem devagarinho.', 4, 'Ela sorri, fecha os olhos e cantarola… “Você tem bom gosto, hein?”'], ['Qualquer um, desde que seja você cantando.', 3, 'Lúcia ri e joga o cabelo: “Ai, ai… me derreti toda!”'], ['Prefiro funk!', 0, 'Ela arregala os olhos: “Funk?! Ora, ora… vou fingir que não ouvi.”']] },
+           { q: 'Lúcia pergunta: você já dançou agarradinho na chuva?', o: [['Ainda não, mas com você eu danço!', 4, '“Anotado! Vou cobrar essa dança.” Ela pisca para você.'], ['Só debaixo de guarda-chuva.', 2, 'Ela dá uma gargalhada gostosa.'], ['Chuva estraga o cabelo.', 0, '“Que sem graça!”, diz ela, rindo.']] }] },
+  { id: 'rafael', nome: 'Rafael', papel: 'Crooner do violão', f: false, gosta: ['queijo', 'manteiga', 'sucouva', 'sucolar', 'chocolatequente', 'alianca', 'pingente'],
+    av: { sexo: 'm', pele: 2, cabelo: 'curto', corCabelo: 0, chapeu: 'panama', camisa: 'camiseta', calca: 'jeans', sapato: 'bota', mao: 'violao' },
+    conv: [{ q: 'Posso tocar uma canção só para você?', o: [['Toque, vou fechar os olhos e escutar.', 4, 'Rafael dedilha o violão com delicadeza. Que canção linda…'], ['Só se for rapidinho.', 1, 'Ele toca três notas, meio sem graça.'], ['Prefiro silêncio.', 0, 'Rafael guarda o violão, cabisbaixo.']] },
+           { q: 'Qual é o seu maior sonho?', o: [['Uma casinha na roça com um violão na varanda.', 4, '“Esse também é o meu sonho”, diz ele, emocionado.'], ['Ficar rico!', 1, 'Ele sorri sem jeito: “Dinheiro é bom, mas…”'], ['Não tenho sonhos.', 0, '“Todo mundo tem, só ainda não achou”, responde.']] }] },
+  { id: 'tereza', nome: 'Tereza', papel: 'Dançarina de salão', f: true, gosta: ['pingente', 'alianca', 'aneldegema', 'geleia', 'sucouva', 'chocolatequente', 'panetone'],
+    av: { sexo: 'f', pele: 3, cabelo: 'rabo', corCabelo: 0, chapeu: 'sem', camisa: 'regatinha', calca: 'saia', sapato: 'sandalia', mao: 'buque' },
+    conv: [{ q: 'Você sabe dançar?', o: [['Não sei, mas com você aprendo!', 4, 'Tereza te puxa pela mão: “Então vem, que eu ensino!”'], ['Danço muito bem!', 3, '“Hmm… vamos ver”, diz ela, com um sorriso atrevido.'], ['Tenho dois pés esquerdos.', 2, 'Ela ri: “Dois pés esquerdos? Perfeito, eu danço pelos dois.”']] },
+           { q: 'Quem é mais teimoso, eu ou você?', o: [['Nós dois. Por isso combinamos.', 4, '“Combinamos mesmo!” Ela pisca e rodopia.'], ['Você, sem dúvida.', 1, '“Eu?!”, ela finge ofensa e bate no seu ombro.'], ['Eu, claro!', 2, '“Admitir ajuda. Ponto pra você.”']] }] },
+  { id: 'antonio', nome: 'Antônio', papel: 'Pianista tímido', f: false, gosta: ['pao', 'bolo', 'panetone', 'chocolatequente', 'biscoito', 'rabanada', 'pipoca'],
+    av: { sexo: 'm', pele: 1, cabelo: 'cacheado', corCabelo: 1, chapeu: 'boina', camisa: 'xadrez', calca: 'bermuda', sapato: 'tenis', mao: 'nada' },
+    conv: [{ q: 'Antônio ficou vermelho ao te ver…', o: [['Achei fofo.', 4, 'Ele esconde o rosto com as mãos, todo sorridente.'], ['Fica à vontade, sem pressa.', 4, '“Obrigado por ser tão gentil”, sussurra.'], ['Hahaha, que engraçado!', 0, 'Ele se encolhe no banco do piano, sem graça.']] },
+           { q: 'Posso tocar uma música minha?', o: [['Quero muito ouvir!', 4, 'Os olhos dele brilham, e ele toca uma melodia suave só para você.'], ['Se não demorar.', 1, 'Ele toca um pedacinho e para, tímido.'], ['Depois.', 0, '“Tudo bem…”, diz baixinho.']] }] },
+];
+const PRET = Object.fromEntries(PRETENDENTES.map(n => [n.id, n]));
+const PRET_ESTAGIOS = [[0, 'Desconhecido(a)'], [10, 'Admirador(a)'], [30, 'Paquera'], [50, 'Apaixonado(a)'], [70, 'Pronto(a) para namorar']];
+const PRET_PREMIOS = { 10: 200, 30: 300, 50: 500 };
+const pretEstagio = a => PRET_ESTAGIOS.filter(([m]) => a >= m).pop()[1];
+const pretIcone = id => makeIcon('pret:' + id, () => { ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(48, 90, 26, 7, 0, 0, 7); ctx.fill(); drawAvatar(ctx, 48, 90, 0.98, PRET[id].av, 0, false, 1); });
+function cabUso(id) { const c = cabDe(), hoje = localDay(); if (c.d !== hoje) { c.d = hoje; c.uso = {}; } return c.uso[id] ||= { conv: 0, pres: 0, enc: 0, ds: {} }; }
+function cabAfeto(id, n) {
+  const c = cabDe(), N = PRET[id], antes = c.afeto[id] || 0, dep = relClamp(antes + n, 0, 100); c.afeto[id] = dep;
+  for (const [min, premio] of Object.entries(PRET_PREMIOS)) if (antes < +min && dep >= +min) { state.coins += premio; relNoticia(`💌 ${N.nome} (${N.papel}) mandou uma cartinha: “Você mexeu comigo… Estou me tornando seu(sua) ${pretEstagio(dep).toLowerCase()}!” (+${premio} moedas)`); }
+  if (antes < 70 && dep >= 70) relNoticia(`💘 ${N.nome} está pronto(a) para namorar com você! Peça em namoro no Cabaré da Márcia.`);
+  // ciúme leve do(a) namorado(a)
+  if (c.namoro && c.namoro !== id && n > 0) { const N2 = PRET[c.namoro]; c.afeto[c.namoro] = Math.max(0, (c.afeto[c.namoro] || 0) - 2); toast(`😒 ${N2.nome} ouviu falar que você anda perto de ${N.nome}… ficou com ciúme (−2).`, 'bad'); }
+}
+function cabConversar(id) {
+  const N = PRET[id], u = cabUso(id); if (u.conv >= 3) return toast(`${N.nome} precisa respirar! Hoje já conversaram 3 vezes. Volte amanhã.`);
+  const q = N.conv[Math.floor(Math.random() * N.conv.length)];
+  escolher(`${N.nome}: ${q.q}`, q.o.map(([t, pts, r]) => ({ txt: t, fn: () => { u.conv++; cabAfeto(id, pts); cabCena(N.f ? '👩' : '👨', `${N.nome} (${pts >= 4 ? '💖' : pts >= 2 ? '😊' : '😐'})`, `${r}${pts ? ` (+${pts} de afeto)` : ''}`); done(); pracaPainel(); } })));
+}
+function cabPresentear(id) {
+  const N = PRET[id], u = cabUso(id); if (u.pres >= 3) return toast(`${N.nome} já ganhou presentes demais hoje!`);
+  const tem = Object.keys(state.barn).filter(k => state.barn[k] > 0 && item(k) && !PRODUCE[k]);
+  const gosta = tem.filter(k => N.gosta.includes(k)).slice(0, 4), outros = tem.filter(k => !N.gosta.includes(k)).slice(0, 2);
+  if (!gosta.length && !outros.length) return toast(`Você não tem presentes para dar. ${N.nome} adora ${N.gosta.slice(0, 3).map(k => item(k) ? item(k).nome.toLowerCase() : k).join(', ')}…`);
+  escolher(`🎁 Dar um presente a ${N.nome}:`, [...[...gosta, ...outros].map(k => ({ txt: `${item(k).nome} (você tem ${state.barn[k]})${N.gosta.includes(k) ? ' 💖' : ''}`, fn: () => { if (!(state.barn[k] > 0)) return; state.barn[k]--; if (!state.barn[k]) delete state.barn[k]; u.pres++; const gostou = N.gosta.includes(k); cabAfeto(id, gostou ? 8 : 2); cabCena(gostou ? '🥰' : '🙂', gostou ? `${N.nome} adorou!` : `${N.nome} agradeceu`, gostou ? `“${item(k).nome}! Como você sabia?” +8 de afeto.` : `“Obrigado(a), é gentil da sua parte…” +2 de afeto. (Dica: ${N.nome} gosta de ${N.gosta.slice(0, 3).map(z => item(z) ? item(z).nome.toLowerCase() : z).join(', ')}.)`); done(); pracaPainel(); } })), { txt: 'Cancelar', ghost: true }]);
+}
+const PRET_ENC = [
+  { id: 'danca',    nome: 'Dança lenta na pista',          min: 10, custo: 0,   pts: 6,  e: '💃🕺', t: 'A luz baixa, a música suave e as mãos dadas. Vocês dançam coladinhos até a última nota.' },
+  { id: 'jantar',   nome: 'Jantar à luz de velas',         min: 25, custo: 150, pts: 10, e: '🕯️🍽️', t: 'Uma mesa para dois, velas, vinho de uva sem álcool e uma sobremesa para dividir. A conversa não tem fim.' },
+  { id: 'praia',    nome: 'Passeio na praia ao pôr do sol', min: 40, custo: 50,  pts: 8,  e: '🌅🏖️', t: 'Pés na areia, o sol se pondo no mar e as ondas molhando os tornozelos. Vocês caminham de mãos dadas.' },
+  { id: 'estrelas', nome: 'Ver as estrelas na ilha',       min: 60, custo: 0,   pts: 12, e: '🌌🏝️', t: 'Deitados na areia, vocês contam estrelas cadentes e fazem desejos em silêncio. Ela(e) apoia a cabeça no seu ombro.' },
+];
+function cabEncontro(id) {
+  const N = PRET[id], c = cabDe(), u = cabUso(id), af = c.afeto[id] || 0; if (u.enc >= 2) return toast(`${N.nome} já saiu com você 2 vezes hoje. Amanhã tem mais!`);
+  escolher(`🕯️ Encontro com ${N.nome} (afeto ${Math.floor(af)}):`, [...PRET_ENC.map(E => ({ txt: `${E.nome}${E.custo ? ` (${E.custo} moedas)` : ''}${af < E.min ? ` 🔒 afeto ${E.min}` : ''}`, off: af < E.min || u.ds[E.id], fn: () => {
+    if (state.coins < E.custo) return vilaSemMoedas(E.custo); state.coins -= E.custo; u.enc++; u.ds[E.id] = 1; cabAfeto(id, E.pts); casalFeito('juntos');
+    cabCena(E.e, `${E.nome} com ${N.nome}`, `${E.t} (+${E.pts} de afeto)`); sfx('level'); done(); pracaPainel(); renderHUD(); } })), { txt: 'Cancelar', ghost: true }]);
+}
+function cabNamorar(id) {
+  const N = PRET[id], c = cabDe(), af = c.afeto[id] || 0;
+  if (c.namoro === id) return;
+  if (af < 70) return toast(`${N.nome} ainda não está pronto(a): afeto ${Math.floor(af)} de 70.`, 'bad');
+  if (c.namoro) return toast(`Você já está namorando ${PRET[c.namoro].nome}. Termine antes.`, 'bad');
+  if (state.coins < 300) return vilaSemMoedas(300);
+  perguntar(`Pedir ${N.nome} em namoro? Custa 300 moedas (buquê de flores).`, () => { state.coins -= 300; c.namoro = id; c.afeto[id] = 100; sfx('level'); addXP(8, null);
+    cabCena('💐💘', `${N.nome} aceitou!`, `“Sim! Eu aceito namorar com você!” ${N.nome} abraça você com carinho. Vocês estão namorando! (+5% de XP enquanto namorarem)`); relNoticia(`💘 Você está namorando ${N.nome} (${N.papel})!`); done(); pracaPainel(); renderHUD(); });
+}
+function cabTerminar(id) {
+  const N = PRET[id], c = cabDe(); if (c.namoro !== id) return;
+  perguntar(`Terminar o namoro com ${N.nome}? Ele(a) vai ficar triste, mas entende.`, () => { c.namoro = ''; c.afeto[id] = 30; cabCena('🥀', `${N.nome} entendeu`, `“Foi bom enquanto durou. Seja feliz…” ${N.nome} acena com um sorriso triste. (afeto volta para 30)`); done(); pracaPainel(); renderHUD(); });
+}
+const FOFOCAS_DICAS = ['Dizem que a Lúcia derrete com doces: bolo, geleia, panetone…', 'Ouvi dizer que o Rafael não resiste a um queijo fresquinho e a uma boa canção.', 'A Tereza gosta de joias brilhantes. Pingente de prata, quem sabe?', 'O Antônio é tímido, mas adora pão quentinho. Vá com calma!', 'Quem dança com os pretendentes ganha afeto rapidinho!', 'Pedir em casamento custa 1.000 moedas e uma aliança… mas a festa vale a pena!', 'Quem namora ganha um bônus de XP. Cuidado com o ciúme!', 'Quarta e domingo tem missa. Casamento, só na igreja!'];
+function cabFofoca() { cabCena('🗞️', 'Fofoca da Márcia', `“Vem cá, querido(a)… ${FOFOCAS_DICAS[Math.floor(Math.random() * FOFOCAS_DICAS.length)]}”`); }
+function cabMesa() {
+  const par = relParceiro(); if (state.coins < 200) return vilaSemMoedas(200); const c = cabDe(), hoje = localDay();
+  if (c.mesaDia === hoje) return toast('Vocês já jantaram na mesa de casal hoje. Volte amanhã!');
+  c.mesaDia = hoje; state.coins -= 200; sfx('level');
+  if (par) { relMuda(par[0], null, 3, 10); relEnviar(par[0], 'casal', { p: 10 }); casalFeito('juntos'); cabCena('🕯️🥂', `Mesa de casal com ${par[1].n || 'seu par'}`, 'Uma mesinha no canto do cabaré, uma vela e um brinde com suco de uva. Vocês trocam olhares apaixonados. (+10 de romance)'); }
+  else cabCena('🕯️🥂', 'Mesa para um', 'Márcia serve um suco de uva e diz: “Fica tranquilo(a), meu bem, a pessoa certa aparece! Enquanto isso, conheça os pretendentes da casa.” 💕');
+  done(); pracaPainel(); renderHUD();
+}
+function cabPalco() {
+  if (!praca.eu) return; praca.alvoAcao = null; pracaDancar('dc1'); toast('🎤 Você subiu no palco! O público aplaude…', 'good');
+  clearTimeout(praca._palcoT); praca._palcoT = setTimeout(() => { if (praca.eu && praca.eu.ia === 'dc1') pracaParar(); }, 40000);
+}
+function cabDancaDupla() {
+  const par = relParceiro(); if (!par) return toast('A dança em dupla é para casais. Peça alguém em namoro (perfil de um jogador na Vila).');
+  if (!praca.jog[par[0]]) return toast(`${par[1].n || 'Seu par'} não está na Vila agora.`);
+  const hoje = localDay(), c = cabDe(); if (c.duplaDia === hoje) return toast('Vocês já dançaram juntos hoje. Amanhã tem mais!'); c.duplaDia = hoje;
+  relMuda(par[0], null, 3, 8); relEnviar(par[0], 'casal', { p: 8 }); casalFeito('juntos'); pracaDancar('dc4'); sfx('level');
+  toast(`💃 Vocês dançaram juntos! ${par[1].n || 'Seu par'} também ganhou romance. (+8)`, 'good'); done(); renderHUD();
+}
+function pracaHtmlCabare() {
+  const aba = praca.cabTab || 'pret', c = cabDe();
+  const segs = `<div class="seg small">${[['pret', '💘 Pretendentes'], ['show', '🎤 Show'], ['bar', '🍹 Bar'], ['fof', '🗞️ Fofocas']].map(([k, t]) => `<button type="button" data-vila-cab="tab:${k}" aria-checked="${aba === k}">${t}</button>`).join('')}</div>`;
+  let h = segs + `<div class="vp-card"><small>💃 Márcia: “Entra, meu bem! Aqui tem música, bebida e o melhor da noite. Você tem ${MOEDA}${fmtN(state.coins)}.”</small></div>`;
+  if (aba === 'pret') {
+    h += '<div class="vp-card"><small>Paquere à vontade (pode vários!), mas só dá para namorar um de cada vez. Conversar, presentear e sair: afeto sobe até 100. Namoro com NPC é só namoro (sem casamento).</small></div>';
+    for (const N of PRETENDENTES) {
+      const af = Math.floor(c.afeto[N.id] || 0), u = cabUso(N.id), nm = c.namoro === N.id, cor = nm ? '#e25b8f' : '#e0463a';
+      h += `<div class="vp-card"><div class="vp-linha"><img alt="" src="${pretIcone(N.id)}" style="width:64px;height:64px;border-radius:12px;background:#2a1d3d"><div style="flex:1;margin-left:8px"><b>${N.nome}${nm ? ' ❤️' : ''}</b><small style="display:block">${N.papel} · ${nm ? 'Namorando' : pretEstagio(af)}</small><div class="barra"><i style="width:${af}%;background:${cor}"></i></div><small>Afeto ${af}/100</small></div></div>
+        <div class="vp-inter"><button type="button" class="btn" data-vila-cab="conv:${N.id}">💬 Conversar (${3 - u.conv})</button><button type="button" class="btn" data-vila-cab="pres:${N.id}">🎁 Presente (${3 - u.pres})</button><button type="button" class="btn" data-vila-cab="enc:${N.id}">🕯️ Encontro (${2 - u.enc})</button>${nm ? `<button type="button" class="btn ghost" data-vila-cab="fim:${N.id}">💔 Terminar</button>` : `<button type="button" class="btn gold" data-vila-cab="nam:${N.id}" ${af >= 70 && !c.namoro ? '' : 'disabled'}>💘 Pedir em namoro</button>`}</div></div>`;
+    }
+  } else if (aba === 'show') {
+    const par = relParceiro();
+    h += `<div class="vp-card"><b>🎤 Palco</b><small>Suba e dance 40 segundos para o público!</small><button type="button" class="btn gold" data-vila-cab="palco">🎤 Subir no palco</button></div>
+      <div class="vp-card"><b>💃 Dança em dupla</b><small>${par ? `Dancem juntos: ${esc(par[1].n || 'seu par')} também ganha romance (1 vez por dia).` : 'Para casais: namore alguém para dançar em dupla.'}</small><button type="button" class="btn ${par ? 'gold' : 'ghost'}" data-vila-cab="dupla">💃 Dançar com ${par ? esc(par[1].n || 'meu par') : 'meu par'}</button></div>
+      <div class="vp-card"><b>🕯️ Mesa de casal</b><small>Custa 200 moedas, uma vez por dia. ${par ? 'Dá +10 de romance para os dois.' : 'Sem par, Márcia faz companhia com um suco.'}</small><button type="button" class="btn gold" data-vila-cab="mesa">🕯️ Reservar a mesa</button></div>`;
+  } else if (aba === 'bar') {
+    h += `<div class="vp-card"><small>🍹 Bebidas e petiscos da casa (sem álcool). Toque para pedir e ver o avatar saboreando.</small></div><div class="vm-lista">${QUERMESSE.filter(it => it.cab).map(it => `<button type="button" class="vm-item" data-vila-comer="${it.id}" ${state.coins >= it.p ? '' : 'style="opacity:.55"'}><span class="vm-e">${it.e}</span><b>${it.n}</b><small>${MOEDA}${it.p}</small></button>`).join('')}</div>`;
+  } else {
+    if (!praca.fofOk && !praca.fofCarregando) fofocasCarrega();
+    h += `<div class="vp-card"><b>🗞️ Mural de fofocas da Márcia</b><small>Novidades de relacionamento da Vila (só de quem deixa). Quer ouvir uma dica?</small><button type="button" class="btn gold" data-vila-cab="fofoca">👂 Ouvir a Márcia</button></div>`;
+    h += `<div class="vp-card">${(praca.fofocas || []).length ? praca.fofocas.map(f => `<div>${esc(f.t)} <small>${new Date(f.ts).toLocaleDateString('pt-BR')}</small></div>`).join('') : '<small>' + (praca.fofOk ? 'Ainda não tem fofoca. Seja o primeiro a começar um romance!' : 'Carregando as fofocas…') + '</small>'}</div>`;
+  }
+  return h;
+}
+function cabareDesenha(g, q, tw, dpr, now) {
+  const W = tw * 4.2, H = tw * 3.1, noite = vilaNoite() > 0.5, pulso = 0.6 + 0.4 * Math.sin(now / 260), flick = (Math.floor(now / 140) % 23) === 0 ? 0.3 : 1;
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(q.x, q.y, W * 0.62, W * 0.16, 0, 0, 7); g.fill();
+  g.fillStyle = '#2a1230'; g.fillRect(q.x - W / 2, q.y - H, W, H);
+  g.fillStyle = '#3d1a44'; g.fillRect(q.x - W / 2, q.y - H, W, H * 0.14);
+  for (let k = 0; k < 8; k++) { g.fillStyle = k % 2 ? '#c0243a' : '#fff0d8'; g.beginPath(); g.moveTo(q.x - W / 2 + k * W / 8, q.y - H * 0.86); g.lineTo(q.x - W / 2 + (k + 1) * W / 8, q.y - H * 0.86); g.lineTo(q.x - W / 2 + (k + 0.5) * W / 8, q.y - H * 0.68); g.closePath(); g.fill(); }
+  g.fillStyle = '#120818'; g.beginPath(); g.roundRect(q.x - tw * 0.55, q.y - H * 0.5, tw * 1.1, H * 0.5, [tw * 0.55, tw * 0.55, 0, 0]); g.fill();
+  g.fillStyle = `rgba(255,150,190,${0.35 + 0.2 * pulso})`; g.beginPath(); g.roundRect(q.x - tw * 0.4, q.y - H * 0.42, tw * 0.8, H * 0.42, [tw * 0.4, tw * 0.4, 0, 0]); g.fill();
+  drawAvatar(g, q.x, q.y - H * 0.02, tw / 60, { sexo: 'f', pele: 1, cabelo: 'comprido', corCabelo: 2, chapeu: 'flores', camisa: 'florida', calca: 'saia', sapato: 'sapatilha', mao: 'nada' }, now, false, 1);
+  for (const dx of [-W * 0.34, W * 0.34]) { g.fillStyle = '#ffd96a'; g.fillRect(q.x + dx - tw * 0.3, q.y - H * 0.55, tw * 0.6, tw * 0.5); g.fillStyle = `rgba(255,240,170,${noite ? 0.9 : 0.5})`; g.fillRect(q.x + dx - tw * 0.22, q.y - H * 0.5, tw * 0.44, tw * 0.38); }
+  g.save(); g.shadowColor = `rgba(255,60,150,${0.9 * flick})`; g.shadowBlur = (noite ? 18 : 8) * dpr; g.font = `900 ${Math.round(tw * 0.78)}px 'Baloo 2', system-ui, sans-serif`; g.textAlign = 'center'; g.fillStyle = `rgba(255,120,190,${flick})`; g.fillText('CABARÉ', q.x, q.y - H - tw * 0.55); g.font = `800 ${Math.round(tw * 0.5)}px system-ui, sans-serif`; g.fillStyle = `rgba(120,230,255,${flick})`; g.fillText('da Márcia 💃', q.x, q.y - H - tw * 0.05); g.restore();
+  for (let k = 0; k < 14; k++) { g.fillStyle = ['#ff4a8a', '#ffd54a', '#4ad0ff', '#7bff7a'][(k + Math.floor(now / 400)) % 4]; g.beginPath(); g.arc(q.x - W / 2 + k * W / 13, q.y - H * 0.96 + Math.sin(k * 0.9) * tw * 0.07, tw * 0.07, 0, 7); g.fill(); }
+  if (noite) { const gr = g.createRadialGradient(q.x, q.y - H * 0.5, tw, q.x, q.y - H * 0.5, tw * 4); gr.addColorStop(0, 'rgba(255,60,150,.25)'); gr.addColorStop(1, 'rgba(255,60,150,0)'); g.fillStyle = gr; g.fillRect(q.x - tw * 4, q.y - H - tw * 3, tw * 8, tw * 8); }
+}
+// ============================================================
 // Evento: Halloween 2026 (de 16/10 até 31/10, 23:59)
 // ============================================================
 // Tema assombrado, música sombria, lobos passeando e uivando, coleção de enfeites e as cartas assombradas:
@@ -15334,6 +15665,7 @@ const VILA_LOCAIS = {
   mural:   { u: 32, v: 17, nome: 'Quadro de avisos',   ic: '📋' },
   mercado: { u: 16.8, v: 31.2, nome: 'Mercado', ic: '🏪' },
   quermesse: { u: 12.4, v: 33.4, nome: 'Quermesse', ic: '🎪' },
+  cabare:  { u: 21.8, v: 35.6, nome: 'Cabaré da Márcia', ic: '💃' },
   coreto:  { u: 37.5, v: 21.2, nome: 'Coreto', ic: '🎶' },
   fogueira: { u: 47, v: 36, nome: 'Fogueira', ic: '🔥' },
   barco:   { u: 46.3, v: 12, nome: 'Barco', ic: '⛵' },
@@ -15447,7 +15779,7 @@ function pracaHtmlMenu(grupo) {
   if (grupo === 'lugares') return sec('Lugares', [...Object.entries(VILA_ZONAS).map(([id, z]) => it(z.ic, z.nome, `data-vila-ir-z="${id}"`)), it('📋', 'Quadro de avisos', 'data-vila-ir="mural"'), it('🏪', 'Mercado', 'data-vila-ir="mercado"')])
     + sec('Quartos', [it('🛏️', 'Meu quarto', 'data-vila-meuquarto'), it('🏠', 'Quartos de amigos', 'data-vila-ir="quartos"'), it('🏡', 'Minha casinha', 'data-vila-ir="casa"')])
     + sec('Atividades', [it('📜', 'Pedidos e tarefas', 'data-vila-ir="mural"'), it('🎪', 'Quermesse e jogos', 'data-vila-ir="quermesse"')]);
-  if (grupo === 'pessoas') return sec('Pessoas', [it('📍', 'Onde estão', 'data-vila-ir="onde"'), it('📣', 'Convidar amigos', 'data-vila-ir="convidar"'), it('✉️', `Cartas${nc ? ' (' + nc + ')' : ''}`, 'data-vila-ir="cartas"'), it('🎙️', 'Voz', 'data-vila-ir="voz"')]);
+  if (grupo === 'pessoas') return sec('Pessoas', [it('📍', 'Onde estão', 'data-vila-ir="onde"'), it('💞', 'Relacionamentos', 'data-vila-ir="rel"'), it('📣', 'Convidar amigos', 'data-vila-ir="convidar"'), it('✉️', `Cartas${nc ? ' (' + nc + ')' : ''}`, 'data-vila-ir="cartas"'), it('🎙️', 'Voz', 'data-vila-ir="voz"')]);
   return `<div class="vmenu-emo">${PRACA_EMOTES.slice(0, 6).map(e => `<button type="button" data-praca-emote="${e}" aria-label="Emoji ${e}">${e}</button>`).join('')}</div>`
     + sec('Eu', [it('💃', 'Danças e gestos', 'data-vila-ir="danca"'), it('🏅', 'Títulos e selos', 'data-vila-ir="conq"'), it('🐾', 'Meu pet', 'data-vila-ir="pet"'), it('📖', 'Álbum de coleção', 'data-vila-ir="album"'), it('📸', 'Tirar foto', 'data-vila-foto'), it('🎒', 'Móveis', praca.sala && praca.sala.dono === user.uid ? 'data-vila-moveis' : 'disabled'), it(settings.semInter ? '🚫' : '✨', settings.semInter ? 'Interações: off' : 'Interações: on', 'data-vila-bloq')]);
 }
@@ -15483,6 +15815,9 @@ function pracaEntrar() {
   if (praca.refs.vozsinal) praca.refs.vozsinal.off();
   praca.refs.vozsinal = rt.ref('praca/vozsinal/' + user.uid);
   praca.refs.vozsinal.on('child_added', s => { const m = s.val(); s.ref.remove().catch(() => {}); if (m && pracaAgora() - (m.ts || 0) < 30000) vozSinal(m); });
+  if (praca.refs.relsinal) praca.refs.relsinal.off();
+  praca.refs.relsinal = rt.ref('praca/relsinal/' + user.uid);
+  praca.refs.relsinal.on('child_added', s => { const m = s.val(); s.ref.remove().catch(() => {}); if (m && pracaAgora() - (m.ts || 0) < 3 * 86400e3) { try { relSinal(m); } catch (e) { console.warn('rel:', e); } } });
   vozTrocouSala(); vozMicUI();
   pracaSlots(true);
   // limpeza: mensagens com mais de 1 dia saem do servidor
@@ -15510,7 +15845,7 @@ function pracaSair() {
 function pracaEnviarMov(extra) {
   const e = praca.eu; if (!e || !praca.refs.eu) return;
   const selo = fotoParaSalvar(); // só o selo do jogo vai para a Vila (nunca a foto do Google)
-  praca.refs.eu.update(Object.assign({ n: meuApelido().slice(0, 24), a: state.avatar, lv: state.level || 1, tt: vilaTituloTxt().slice(0, 28), sb: vilaSelosTxt(), pt: VILA_PETS[state.vilaPet] ? state.vilaPet : '', ft: minhaFazenda().slice(0, 30), sl: selo.startsWith('icone:') ? selo.slice(0, 24) : '', mo: String(molduraAtual() || '').slice(0, 20), fu: +e.fu.toFixed(2), fv: +e.fv.toFixed(2), tu: +e.tu.toFixed(2), tv: +e.tv.toFixed(2), ts: firebase.database.ServerValue.TIMESTAMP }, extra || {})).catch(e2 => console.warn('vila mov:', e2));
+  praca.refs.eu.update(Object.assign({ n: meuApelido().slice(0, 24), a: state.avatar, lv: state.level || 1, tt: vilaTituloTxt().slice(0, 28), rl: relTextoPublico(), sb: vilaSelosTxt(), pt: VILA_PETS[state.vilaPet] ? state.vilaPet : '', ft: minhaFazenda().slice(0, 30), sl: selo.startsWith('icone:') ? selo.slice(0, 24) : '', mo: String(molduraAtual() || '').slice(0, 20), fu: +e.fu.toFixed(2), fv: +e.fv.toFixed(2), tu: +e.tu.toFixed(2), tv: +e.tv.toFixed(2), ts: firebase.database.ServerValue.TIMESTAMP }, extra || {})).catch(e2 => console.warn('vila mov:', e2));
 }
 function pracaPos(e, now) {
   const k = e.dur ? Math.min(1, (now - e.t0) / e.dur) : 1;
@@ -15530,7 +15865,7 @@ function pracaRecebe(todos) {
       if (Math.abs(du - dv) > 0.01) j.dir = du - dv > 0 ? 1 : -1;
       j.pts = null; if (praca.sala) { const pts = quartoCaminho(quartoAtual(), p, d.tu, d.tv); if (pts) quartoDefinePath(j, pts); }
     }
-    j.n = typeof d.n === 'string' ? d.n : 'Jogador'; j.a = d.a ? avatarOk(d.a) : null; j.ia = d.ia || null; j.ek = typeof d.ek === 'string' ? d.ek : ''; j.ic = d.ic || null; j.iz = d.iz || 0; j.tt = typeof d.tt === 'string' ? d.tt : ''; j.sb = typeof d.sb === 'string' ? d.sb : ''; j.pt = typeof d.pt === 'string' ? d.pt : ''; j.lv = d.lv || 0; j.ft = typeof d.ft === 'string' ? d.ft : ''; j.sl = typeof d.sl === 'string' ? d.sl : ''; j.mo = typeof d.mo === 'string' ? d.mo : '';
+    j.n = typeof d.n === 'string' ? d.n : 'Jogador'; j.a = d.a ? avatarOk(d.a) : null; j.ia = d.ia || null; j.ek = typeof d.ek === 'string' ? d.ek : ''; j.ic = d.ic || null; j.iz = d.iz || 0; j.tt = typeof d.tt === 'string' ? d.tt : ''; j.rl = typeof d.rl === 'string' ? d.rl : ''; j.sb = typeof d.sb === 'string' ? d.sb : ''; j.pt = typeof d.pt === 'string' ? d.pt : ''; j.lv = d.lv || 0; j.ft = typeof d.ft === 'string' ? d.ft : ''; j.sl = typeof d.sl === 'string' ? d.sl : ''; j.mo = typeof d.mo === 'string' ? d.mo : '';
     if (d.et && d.et !== j.et) { j.et = d.et; if (typeof d.ek === 'string') j.emote = { k: d.ek, ate: agora + 3200 }; }
   }
 }
@@ -15603,6 +15938,8 @@ function pracaPainel() {
   else if (id === 'tarefas') { praca.avTab = 'tarefas'; box.innerHTML = topo('📋 Quadro de avisos') + pracaHtmlQuadro(); }
   else if (id === 'alvo') box.innerHTML = topo(`${(JOGOS_QM[alvo.jogo] || JOGOS_QM.tiro).ic} ${(JOGOS_QM[alvo.jogo] || JOGOS_QM.tiro).n}`) + pracaHtmlAlvo() + '<button class="btn ghost" type="button" data-vila-ir="quermesse">⬅️ Voltar à quermesse</button>';
   else if (id === 'quermesse') box.innerHTML = topo('🎪 Quermesse') + pracaHtmlQuermesse();
+  else if (id === 'cabare') box.innerHTML = topo('💃 Cabaré da Márcia') + pracaHtmlCabare();
+  else if (id === 'rel') box.innerHTML = topo('💞 Relacionamentos') + pracaHtmlRel();
   else if (id === 'amigo') box.innerHTML = topo('👋 Ir até um amigo') + pracaHtmlAmigoIr();
   else if (id === 'album') box.innerHTML = topo('📖 Álbum de coleção') + pracaHtmlAlbum();
   else if (id === 'voz') { box.innerHTML = topo('🎙️ Voz da Vila') + pracaHtmlVoz(); if (!praca._pv) { praca._pv = 1; vozAtualizaPerm().finally(() => { praca._pv = 0; }); } }
@@ -15808,6 +16145,7 @@ function pracaHtmlJogador(uid) {
   }
   h += `<button class="btn ${voz.mudos.has(uid) ? 'gold' : 'ghost'}" type="button" data-vila-mudar="${esc(uid)}">${voz.mudos.has(uid) ? '🔇 Voz silenciada' : '🔇 Silenciar voz dele'}</button><button class="btn" type="button" data-vila-quarto="${esc(uid)}">🛏️ Visitar o quarto</button>${amigo ? `<button class="btn" type="button" data-vila-ir="cartaw:${esc(uid)}">✉️ Deixar uma carta</button>` : ''}`;
   h += '</div><div class="vp-card"><b>✨ Interagir</b><small>O outro jogador precisa aceitar.</small><div class="vp-inter">' + Object.entries(INTER).map(([k, I]) => `<button type="button" class="btn ${I.amigo && !amigo ? 'ghost' : ''}" data-vila-ia="${k}" data-uid="${esc(uid)}" ${I.amigo && !amigo ? 'disabled title="Só entre amigos"' : ''}>${I.e} ${I.nome}${I.amigo && !amigo ? ' 🔒' : ''}</button>`).join('') + '</div></div>';
+  h += relCartaoHTML(uid);
   return h;
 }
 async function pracaPrivada(uid) {
@@ -15847,6 +16185,7 @@ const VILA_ZONAS = {
   piscina:  { nome: 'Piscina',  ic: '🏊', u: 32, v: 9.5 },
   igreja:   { nome: 'Igreja',   ic: '⛪', u: 6.2, v: 35.4 },
   quermesse: { nome: 'Quermesse', ic: '🎪', u: 12.4, v: 35.2 },
+  cabare:   { nome: 'Cabaré da Márcia', ic: '💃', u: 21.8, v: 37.4 },
 };
 const VILA_BANCOS_TODOS = [[27, 21, 1], [37, 21, -1], [27, 29.5, 1], [37, 29.5, -1], [41.5, 15, 1], [28.5, 25, 1], [35.5, 25, -1], [29.5, 17.5, 1], [34.5, 17.5, -1], [29.5, 32.5, 1], [34.5, 32.5, -1], [24, 23, 1], [40, 27, -1]];
 const VILA_BANCOS = VILA_BANCOS_TODOS.filter(([u, v]) => !vilaAgua(u, v)); // nada de cadeira na água
@@ -15934,6 +16273,7 @@ function vilaContexto() {
   if (d(VILA_LOCAIS.coreto.u, VILA_LOCAIS.coreto.v) < 2.6) return { id: 'coreto', txt: '🎶 Tocar no coreto' };
   if (d(VILA_LOCAIS.fogueira.u, VILA_LOCAIS.fogueira.v) < 2.8) return { id: 'fogueira', txt: '🍡 Assar marshmallow' };
   if (d(VILA_LOCAIS.quermesse.u, VILA_LOCAIS.quermesse.v) < 3.6) return { id: 'quermesse', txt: '🎪 Ir à quermesse' };
+  if (d(VILA_LOCAIS.cabare.u, VILA_LOCAIS.cabare.v) < 3.8) return { id: 'cabare', txt: '💃 Entrar no Cabaré da Márcia' };
   return null;
 }
 function vilaEntrarFesta(tipo) { const F = FESTAS[tipo]; if (!F) return; vilaConq('festa'); praca.volta = { u: F.u, v: F.v + 2.6 }; pracaIrSala('f_' + tipo, null, tipo); }
@@ -16055,7 +16395,7 @@ function vilaLogica(now, p) {
     else if (P.fase === 'fisgou' && now > P.ate) { praca.pesca = null; toast('O peixe escapou… 😅'); }
   }
   for (const it of praca.spawns) if (it.tipo !== 'bau' && !praca.pegos[it.i] && Math.hypot(p.u - it.u, p.v - it.v) < 1.2) vilaPegar(it);
-  if (praca.alvoAcao && p.k >= 1) { const a = praca.alvoAcao; praca.alvoAcao = null; if (a === 'mural' || a === 'mercado' || a === 'alvo' || a === 'quermesse') pracaPainelAbrir(a); else if (a.startsWith('f:')) vilaEntrarFesta(a.slice(2)); }
+  if (praca.alvoAcao && p.k >= 1) { const a = praca.alvoAcao; praca.alvoAcao = null; if (a === 'mural' || a === 'mercado' || a === 'alvo' || a === 'quermesse' || a === 'cabare') pracaPainelAbrir(a); else if (a.startsWith('f:')) vilaEntrarFesta(a.slice(2)); }
   const e = praca.eu; if (e && e.dur && p.k >= 1) e.dur = 0;
   let cx = vilaContexto();
   if (cx) praca.ctx = { cx, t: now }; else if (praca.ctx && now - praca.ctx.t < 1500 && !praca.pesca) cx = praca.ctx.cx; else praca.ctx = null; // não pisca quando o chefe/NPC sai e entra do alcance
@@ -16180,6 +16520,7 @@ function pracaDesenha(g, c, now, dpr) {
       if (id === 'mural') { g.fillStyle = '#7a4a22'; g.fillRect(q.x - tw * 1.3, q.y - tw * 2.1, tw * 2.6, tw * 1.6); g.fillStyle = '#f4e2b0'; g.fillRect(q.x - tw * 1.15, q.y - tw * 1.95, tw * 2.3, tw * 1.3); g.fillRect(q.x - tw * 1.3, q.y - tw * 0.5, tw * 0.2, tw * 0.6); g.fillRect(q.x + tw * 1.1, q.y - tw * 0.5, tw * 0.2, tw * 0.6); g.font = `${Math.round(tw * 1.1)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('📋', q.x, q.y - tw * 0.95); }
       else if (id === 'alvo') { g.fillStyle = '#7a4a22'; g.fillRect(q.x - tw * 0.12, q.y - tw * 1.6, tw * 0.24, tw * 1.6); for (let k = 0; k < 4; k++) { g.fillStyle = k % 2 ? '#fff' : '#e0463a'; g.beginPath(); g.arc(q.x, q.y - tw * 2.1, tw * (1.1 - k * 0.27), 0, 7); g.fill(); } g.fillStyle = '#ffd54a'; g.beginPath(); g.arc(q.x, q.y - tw * 2.1, tw * 0.12, 0, 7); g.fill(); }
       else if (id === 'quermesse') quermesseDesenha(g, q, tw, dpr, now);
+      else if (id === 'cabare') cabareDesenha(g, q, tw, dpr, now);
       else if (id === 'coreto') coretoDesenha(g, q, tw, dpr, now, noite);
       else if (id === 'fogueira') fogueiraDesenha(g, q, tw, dpr, now, noite);
       else if (id === 'barco') barcoDesenha(g, q, tw, dpr, now);
@@ -16264,7 +16605,7 @@ function pracaDesenha(g, c, now, dpr) {
         g.globalAlpha = 1; if (boca > 0.85) { g.font = `${Math.round(16 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('😋', q.x - dx * 18 * es, q.y - 60 * es); } }
       else drawAvatar(g, q.x, q.y - hop, es, o.a, now, andando, e.dir);
       const top = q.y - 72 * es;
-      g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff'; g.strokeText(o.n, q.x, top); g.fillText(o.n, q.x, top); if (vozFalando(o.uid, now)) { const nw = g.measureText(o.n).width; g.font = `${Math.round(13 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('🔊', q.x + nw / 2 + 11 * dpr, top); g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; } { const tt = o.me ? vilaTituloTxt() : o.e.tt; if (tt) { g.font = `700 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffd9a0'; g.strokeText(tt, q.x, top - 11 * dpr); g.fillText(tt, q.x, top - 11 * dpr); } }
+      g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff'; g.strokeText(o.n, q.x, top); g.fillText(o.n, q.x, top); if (vozFalando(o.uid, now)) { const nw = g.measureText(o.n).width; g.font = `${Math.round(13 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('🔊', q.x + nw / 2 + 11 * dpr, top); g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; } { const tt = o.me ? vilaTituloTxt() : o.e.tt; if (tt) { g.font = `700 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffd9a0'; g.strokeText(tt, q.x, top - 11 * dpr); g.fillText(tt, q.x, top - 11 * dpr); } } { const rl = o.me ? relTextoPublico() : o.e.rl; if (rl) { g.font = `700 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffb0d0'; g.strokeText(rl, q.x, top - 22 * dpr); g.fillText(rl, q.x, top - 22 * dpr); } }
       const fa = praca.falas[o.uid]; let yb = top - 8 * dpr;
       if (e.emote && e.emote.ate > now) { g.font = `${Math.round(24 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText(e.emote.k, q.x, yb - 2 * dpr); yb -= 26 * dpr; }
       if (o.me && praca.pesca && praca.pesca.fase === 'fisgou') { g.font = `900 ${Math.round(34 * dpr)}px system-ui`; g.fillStyle = '#e0463a'; g.fillText('❗', q.x, yb - 4 * dpr); yb -= 34 * dpr; }
@@ -16314,7 +16655,7 @@ function pracaToque(ev) {
     if (id === 'boss') { const b = pracaBossPos(); if (Math.hypot(p.u - b.u, p.v - b.v) > 6) { toast('Chegue mais perto do chefe para atacar!'); return pracaIrPara(b.u - 2, b.v + 2); } return pracaBater(); }
     if (id.startsWith('f:')) { const F = FESTAS[id.slice(2)]; if (Math.hypot(p.u - F.u, p.v - (F.v + 1.5)) < 4.5) return vilaEntrarFesta(id.slice(2)); praca.alvoAcao = id; return pracaIrPara(F.u, F.v + 2); }
     if (id === 'coreto' || id === 'fogueira' || id.startsWith('loc:')) { const l = VILA_LOCAIS[id.replace('loc:', '')]; if (Math.hypot(p.u - l.u, p.v - l.v) < 2.2) { const c = vilaContexto(); if (c) { praca.ctx = null; return vilaAcao(); } return; } return pracaIrPara(l.u, l.v + (id === 'loc:ilha' ? 0 : 1.4)); }
-    if (id === 'mural' || id === 'mercado' || id === 'alvo' || id === 'quermesse') { const l = VILA_LOCAIS[id]; if (Math.hypot(p.u - l.u, p.v - l.v) < 4) return pracaPainelAbrir(id); praca.alvoAcao = id; return pracaIrPara(l.u, l.v + 1.8); }
+    if (id === 'mural' || id === 'mercado' || id === 'alvo' || id === 'quermesse' || id === 'cabare') { const l = VILA_LOCAIS[id]; if (Math.hypot(p.u - l.u, p.v - l.v) < 4) return pracaPainelAbrir(id); praca.alvoAcao = id; return pracaIrPara(l.u, l.v + 1.8); }
     if (id.startsWith('item:')) { const it = praca.spawns.find(z => z.i === Number(id.slice(5))); if (!it) return; if (Math.hypot(p.u - it.u, p.v - it.v) < 2.6) return vilaPegar(it); return pracaIrPara(it.u, it.v + 1.2); }
     if (id.startsWith('mor:')) { const i = Number(id.slice(4)), m = VILA_MORADORES[i], ped = vilaPedidos()[i]; if (!m) return; const feito = vilaPedSt().feito[m.id]; praca.npcFala[i] = { t: feito ? 'Obrigado pela ajuda de hoje! 💛' : `${ped.qtd} ${itemEmoji(ped.id)} ${((PRODUCT[ped.id] && PRODUCT[ped.id].nomePl) || ped.id).toLowerCase()}, por favor!`, ate: now + 4000 }; sfx('click'); if (!feito) { praca.avTab = 'pedidos'; setTimeout(() => { if (!praca.painel) pracaPainelAbrir('mural'); }, 700); } return; }
     if (id.startsWith('banco:')) { const i = Number(id.slice(6)), b = VILA_BANCOS[i]; if (Object.values(praca.jog).some(j => j.ia === 'sentar' && Math.hypot(j.tu - b[0], j.tv - b[1]) < 0.6)) return toast('Essa cadeira já está ocupada! 🪑'); return vilaPedirAssento('🪑 Cadeira', 'Sentar', () => vilaSentar(i)); }
@@ -16979,6 +17320,10 @@ const QUERMESSE = [
   { id: 'chocolate', e: '🍫', n: 'Chocolate quente', p: 18, k: 'beber', natal: 1 },
   { id: 'panetoneq', e: '🎂', n: 'Fatia de panetone', p: 22, k: 'comer', natal: 1 },
   { id: 'rabanadaq', e: '🍞', n: 'Rabanada',         p: 20, k: 'comer', natal: 1 },
+  { id: 'soda',     e: '🥤', n: 'Soda italiana',     p: 20, k: 'beber', cab: 1 },
+  { id: 'rose',     e: '🍹', n: 'Drinque rosé (sem álcool)', p: 28, k: 'beber', cab: 1 },
+  { id: 'cafe',     e: '☕', n: 'Café com bolo',     p: 18, k: 'comer', cab: 1 },
+  { id: 'torta',    e: '🍰', n: 'Torta da casa',     p: 24, k: 'comer', cab: 1 },
 ];
 function quermesseDesenha(g, q, tw, dpr, now) {
   const W = tw * 4.6, noite = vilaNoite() > 0.5;
@@ -17004,7 +17349,7 @@ function pracaHtmlQuermesse() {
       Object.entries(JOGOS_QM).map(([k, J]) => `<div class="vp-card"><b>${J.ic} ${J.n}</b><small>${J.tiros} lances · ${J.mult} moedas por ponto · até 10 partidas por dia (hoje: ${c.alvoN || 0}/10)</small><button class="btn gold" type="button" data-vila-jogo="${k}">${J.ic} Jogar</button></div>`).join('') +
       `<div class="vp-card"><b>🦆 Pescaria de patinhos</b><small>Escolha um patinho! Custa ${MOEDA}30 e pode dar até ${MOEDA}600 (hoje: ${pat}/12).</small>${praca.patRes ? `<div><b>${praca.patRes}</b></div>` : ''}<div class="vp-decor">${[0, 1, 2, 3, 4, 5].map(i => `<button type="button" class="btn" data-vila-patinho="${i}" style="font-size:26px;padding:4px 12px">🦆</button>`).join('')}</div></div>`;
   }
-  const lista = QUERMESSE.filter(it => !it.natal || festaAtiva()).map(it => `<button type="button" class="vm-item" data-vila-comer="${it.id}" ${state.coins >= it.p ? '' : 'style="opacity:.55"'}><span class="mv-e">${it.e}</span><span>${it.n}</span><small>${MOEDA}${it.p}</small></button>`).join('');
+  const lista = QUERMESSE.filter(it => !it.cab && (!it.natal || festaAtiva())).map(it => `<button type="button" class="vm-item" data-vila-comer="${it.id}" ${state.coins >= it.p ? '' : 'style="opacity:.55"'}><span class="mv-e">${it.e}</span><span>${it.n}</span><small>${MOEDA}${it.p}</small></button>`).join('');
   return segs + `<div class="vp-card"><small>🎪 Barraca da Dona Maria, ao lado da igreja. Compre algo gostoso: o seu avatar come ou bebe na hora! Você tem ${MOEDA}${fmtN(state.coins)}.</small><div class="vm-grid">${lista}</div></div>`;
 }
 function vilaComer(id) {
@@ -17176,7 +17521,7 @@ function quartoDesenha(g, c, now, dpr) {
       else if (naAgua) { g.save(); g.beginPath(); g.rect(qq.x - 80 * es, qq.y - 150 * es, 160 * es, 150 * es - 24 * es); g.clip(); drawAvatar(g, qq.x, qq.y - 3 * es, es, o.a, now, p.k < 1 && !!e.dur, dirV); g.restore(); g.fillStyle = 'rgba(59,159,224,.5)'; g.beginPath(); g.ellipse(qq.x, qq.y - 22 * es, 26 * es, 8 * es, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = Math.max(1, dpr); g.beginPath(); g.ellipse(qq.x, qq.y - 22 * es, 26 * es + Math.sin(now / 250) * 3, 8 * es + Math.sin(now / 250), 0, 0, 7); g.stroke(); }
       else drawAvatar(g, qq.x, qq.y, es, o.a, now, p.k < 1 && !!e.dur, dirV);
       const top = qq.y - 72 * es - (dorme ? -50 * es : 0), fa = praca.falas[o.uid]; let yb = top - 8 * dpr;
-      g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff'; g.strokeText(o.n, qq.x, top); g.fillText(o.n, qq.x, top); if (vozFalando(o.uid, now)) { const nw = g.measureText(o.n).width; g.font = `${Math.round(13 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('🔊', qq.x + nw / 2 + 11 * dpr, top); g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; } { const tt = o.me ? vilaTituloTxt() : o.e.tt; if (tt) { g.font = `700 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffd9a0'; g.strokeText(tt, qq.x, top - 11 * dpr); g.fillText(tt, qq.x, top - 11 * dpr); } }
+      g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = o.me ? '#ffe08a' : '#fff'; g.strokeText(o.n, qq.x, top); g.fillText(o.n, qq.x, top); if (vozFalando(o.uid, now)) { const nw = g.measureText(o.n).width; g.font = `${Math.round(13 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText('🔊', qq.x + nw / 2 + 11 * dpr, top); g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; } { const tt = o.me ? vilaTituloTxt() : o.e.tt; if (tt) { g.font = `700 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffd9a0'; g.strokeText(tt, qq.x, top - 11 * dpr); g.fillText(tt, qq.x, top - 11 * dpr); } } { const rl = o.me ? relTextoPublico() : o.e.rl; if (rl) { g.font = `700 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffb0d0'; g.strokeText(rl, qq.x, top - 22 * dpr); g.fillText(rl, qq.x, top - 22 * dpr); } }
       if (e.emote && e.emote.ate > now) { g.font = `${Math.round(24 * dpr)}px system-ui`; g.fillStyle = '#000'; g.fillText(e.emote.k, qq.x, yb - 2 * dpr); yb -= 26 * dpr; }
       if (fa && fa.ate > now) { g.font = `700 ${Math.round(11 * dpr)}px system-ui, sans-serif`; const bw = g.measureText(fa.t).width + 12 * dpr, bx = clamp(qq.x - bw / 2, 4, W - bw - 4), by = yb - 18 * dpr; g.fillStyle = '#fff'; g.beginPath(); g.roundRect(bx, by, bw, 18 * dpr, 8 * dpr); g.fill(); g.fillStyle = '#2f2a1f'; g.textAlign = 'left'; g.fillText(fa.t, bx + 6 * dpr, by + 13 * dpr); g.textAlign = 'center'; }
     });
@@ -17815,6 +18160,15 @@ $('#praca')?.addEventListener('click', e => {
   if (q('[data-vila-conv-todos]')) return pracaConvidarTodos();
   if ((b = q('[data-vila-priv]'))) return pracaPrivada(b.dataset.vilaPriv);
   if ((b = q('[data-vila-natal]'))) return natPresenteAmigo(b.dataset.vilaNatal);
+  if ((b = q('[data-vila-cab]'))) { const [k, v] = b.dataset.vilaCab.split(':');
+    if (k === 'tab') { praca.cabTab = v; return pracaPainel(); }
+    if (k === 'conv') return cabConversar(v); if (k === 'pres') return cabPresentear(v); if (k === 'enc') return cabEncontro(v); if (k === 'nam') return cabNamorar(v); if (k === 'fim') return cabTerminar(v);
+    if (k === 'palco') return cabPalco(); if (k === 'dupla') return cabDancaDupla(); if (k === 'mesa') return cabMesa(); if (k === 'fofoca') return cabFofoca(); return; }
+  if ((b = q('[data-vila-rel]'))) { const [k, uid, x] = b.dataset.vilaRel.split(':');
+    if (k === 'a') return relAcao(uid, x); if (k === 'p') return relPedir(uid, x); if (k === 't') return relTerminar(uid); if (k === 'd') return relDeclarar(uid, x); if (k === 'b') return relBloquear(uid); return; }
+  if ((b = q('[data-vila-relp]'))) { const [i, ok] = b.dataset.vilaRelp.split(':'), p0 = (state.relPend || [])[Number(i)]; if (p0) relResponder(p0.de, p0.t, ok === '1'); return pracaPainel(); }
+  if ((b = q('[data-vila-casal]'))) return casalResgatar(b.dataset.vilaCasal);
+  if ((b = q('[data-vila-relcfg]'))) { if (b.dataset.vilaRelcfg === 'rom') state.relSemRomance = !state.relSemRomance; else state.fofocaOff = !state.fofocaOff; done(); return pracaPainel(); }
   if ((b = q('[data-vila-conversa]'))) { const u2 = b.dataset.vilaConversa; return abrirChat(u2); }
   if ((b = q('[data-vila-convidar]'))) { const u2 = b.dataset.vilaConvidar; return pedirAmizade(u2).then(pracaPainel).catch(() => toast('Não consegui mandar o convite agora.', 'bad')); }
   if ((b = q('[data-vila-aceitar]'))) return acceptRequest(b.dataset.vilaAceitar).then(pracaPainel);
