@@ -300,6 +300,9 @@
               },
               "pt": {
                 ".validate": "newData.isString() && newData.val().length <= 6"
+              },
+              "rl": {
+                ".validate": "newData.isString() && newData.val().length <= 30"
               }
             }
           }
