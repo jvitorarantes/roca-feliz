@@ -1576,6 +1576,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 377, txt: "🛍️ Loja de Natal! Em Missões › 🎄 Natal você troca ❄️ flocos por enfeites (boneco de neve, pilha de presentes, estrela, pinheirinho enfeitado), chapéus para o avatar (Gorro de Natal e Chifres de rena), Poção de sorte e moedas. O caminhão também traz 🎄 Cestas de Natal: pedem biscoito, panetone, rabanada ou chocolate quente, pagam 50% a mais e dão 10 ❄️." },
   { v: 376, txt: "😈 Grinch gigante e presentes de Natal! O Grinch gigante aparece de vez em quando na sua roça: toque nele e convença-o com algo doce, quentinho ou brilhante, cantando a sequência de luzes, ou deixe um prato de biscoitos pronto (cachorro acordado também assusta). Todo dia você ganha 1 Presente de Natal, 1 Papai Noel atrapalhado e 1 Visita do Grinch (guarda até 3 dias) para mandar a amigos COM MENSAGEM sua: quando abrirem, acontece algo na roça dele (rena, árvore mágica, presentes espalhados, boneco de neve, o Grinch…). Em Missões › 🎄 Natal. Novas receitas na Fábrica: biscoito de gengibre, panetone, rabanada e chocolate quente." },
   { v: 375, txt: "🎄 NATAL! De hoje até 25/12, às 23:59: neve, luzes piscando na roça, a Casa Natalina (presente seu), uma árvore de Natal que dá para mover, e o lago congelou: toque nele para ⛸️ patinar (acerte o ponto verde para fazer piruetas e ganhar flocos ❄️ e moedas). Todo dia tem um presente do Advento em Missões › 🎄 Natal; se você não pegar, ele fica guardado por até 3 dias. Vem mais por aí: Grinch, presentes para amigos, Fábrica de Natal e a Vila!" },
   { v: 374, txt: "🏭 O número vermelho do botão Fábrica agora conta só o que está pronto nas máquinas; os pedidos do caminhão aparecem só no caminhão, na roça." },
@@ -6785,6 +6786,7 @@ $('#pane').addEventListener('click', e => {
   if (d.natAdv) return natPegarAdvento();
   if (d.natPista) return abrirPista();
   if (d.natEnv) return natEnviar(d.natEnv);
+  if (d.natComprar) return natComprar(d.natComprar);
   if (d.natPrato) return natPrato();
   if (d.natAbrir) return natCartaTick();
   if (d.evResgatar) return resgatarEvento(d.evResgatar);
@@ -8371,7 +8373,7 @@ const AV_CORES_CABELO = ['#2a1a10', '#5a3614', '#a8481e', '#e0b44a', '#b9b4ac'];
 const AV_OPC = {
   sexo: [['m', 'Menino'], ['f', 'Menina']],
   cabelo: [['curto', 'Curto'], ['cacheado', 'Cacheado'], ['comprido', 'Comprido'], ['rabo', 'Rabo de cavalo']],
-  chapeu: [['sem', 'Sem'], ['palha', 'Palha'], ['bone', 'Boné'], ['cowboy', 'Cowboy'], ['couro', 'Couro'], ['flores', 'Coroa de flores'], ['cangaceiro', 'Cangaceiro'], ['boina', 'Boina'], ['panama', 'Panamá'], ['gorro', 'Gorro de lã'], ['festa', 'Palha de festa'], ['bandeirinhas', 'Chapéu de bandeirinhas']],
+  chapeu: [['sem', 'Sem'], ['palha', 'Palha'], ['bone', 'Boné'], ['cowboy', 'Cowboy'], ['couro', 'Couro'], ['flores', 'Coroa de flores'], ['cangaceiro', 'Cangaceiro'], ['boina', 'Boina'], ['panama', 'Panamá'], ['gorro', 'Gorro de lã'], ['noel', 'Gorro de Natal'], ['rena', 'Chifres de rena'], ['festa', 'Palha de festa'], ['bandeirinhas', 'Chapéu de bandeirinhas']],
   mao: [['nada', 'Nada'], ['vara', 'Vara de pesca'], ['espingarda', 'Espingarda'], ['enxada', 'Enxada'], ['facao', 'Facão'], ['foice', 'Foice'], ['laco', 'Laço'], ['viola', 'Viola'], ['machado', 'Machado'], ['lampiao', 'Lampião'], ['sanfona', 'Sanfona'], ['buque', 'Buquê'], ['regador', 'Regador dourado'], ['violao', 'Violão'], ['triangulo', 'Triângulo'], ['cesta', 'Cesta de frutas']],
 };
 // Roupas: cada um tem as suas (menino e menina têm peças e cores diferentes).
@@ -8391,7 +8393,7 @@ const AV_ROUPAS = {
 const AV_NIVEL = { facao: 5, foice: 10, laco: 15, viola: 20, machado: 25 };
 // Itens exclusivos da Loja do Trevo (só depois de comprar com 🍀).
 const AV_TREVO = { couro: 'chapeu:couro', flores: 'chapeu:flores', lampiao: 'mao:lampiao', cangaceiro: 'chapeu:cangaceiro', boina: 'chapeu:boina', panama: 'chapeu:panama', gorro: 'chapeu:gorro', sanfona: 'mao:sanfona', buque: 'mao:buque', regador: 'mao:regador', festa: 'chapeu:festa', bandeirinhas: 'chapeu:bandeirinhas', violao: 'mao:violao', triangulo: 'mao:triangulo', cesta: 'mao:cesta', poncho: 'camisa:poncho' };
-const avTravado = (k, id) => (k === 'mao' && AV_NIVEL[id] > (state ? state.level : 1)) || (!!AV_TREVO[id] && !temTrevoItem(AV_TREVO[id]));
+const avTravado = (k, id) => (k === 'mao' && AV_NIVEL[id] > (state ? state.level : 1)) || (k === 'chapeu' && ['noel', 'rena'].includes(id) && !(state && state.festaLoja && state.festaLoja[id])) || (!!AV_TREVO[id] && !temTrevoItem(AV_TREVO[id]));
 const ROUPA_PADRAO = { m: { camisa: 'xadrez', calca: 'jeans', sapato: 'bota' }, f: { camisa: 'blusa', calca: 'saia', sapato: 'sapatilha' } };
 const opcoesAvatar = (av, k) => AV_OPC[k] || AV_ROUPAS[av.sexo === 'f' ? 'f' : 'm'][k];
 const AV_PADRAO = { sexo: 'm', pele: 1, camisa: 'xadrez', calca: 'jeans', sapato: 'bota', cabelo: 'curto', corCabelo: 1, chapeu: 'sem', mao: 'nada' };
@@ -8432,6 +8434,12 @@ function drawChapeu(g, tipo) {
     g.beginPath(); g.roundRect(-9, -73, 18, 10, 4); g.fill();
     g.fillStyle = '#2a2a2a'; g.fillRect(-9, -66.5, 18, 2.6);
     g.strokeStyle = 'rgba(120,100,60,.4)'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(0, -73); g.lineTo(0, -68); g.stroke();
+  } else if (tipo === 'noel') {
+    g.fillStyle = '#d8342a'; g.beginPath(); g.moveTo(-11, -64); g.quadraticCurveTo(-4, -86, 12, -76); g.lineTo(11, -64); g.closePath(); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.ellipse(0, -64, 12.5, 3.6, 0, 0, 7); g.fill(); g.beginPath(); g.arc(12, -77, 3.4, 0, 7); g.fill();
+  } else if (tipo === 'rena') {
+    g.strokeStyle = '#7a4a22'; g.lineWidth = 2.2; g.lineCap = 'round'; g.beginPath(); g.moveTo(-6, -66); g.lineTo(-10, -78); g.moveTo(-9, -73); g.lineTo(-15, -76); g.moveTo(-9.5, -76); g.lineTo(-8, -83); g.moveTo(6, -66); g.lineTo(10, -78); g.moveTo(9, -73); g.lineTo(15, -76); g.moveTo(9.5, -76); g.lineTo(8, -83); g.stroke();
+    g.fillStyle = '#7a4a22'; g.fillRect(-10, -66, 20, 3);
   } else if (tipo === 'gorro') {
     g.fillStyle = '#3f8ac8'; g.beginPath(); g.ellipse(0, -64, 10.5, 9, 0, Math.PI, 0); g.fill();
     g.fillStyle = '#f4f1ea'; g.fillRect(-10.5, -65.5, 21, 3.5); g.fillRect(-10, -70, 20, 1.6);
@@ -10576,6 +10584,10 @@ function novoPedido() {
   const ped = { itens, moedas: Math.round(valor * 1.6 / 5) * 5, xp: Math.max(3, Math.round(valor / 25)), feito: false };
   if (Math.random() < 0.5) ped.muda = sortearMuda(2 + Math.floor(Math.random() * 4));
   if (Math.random() < 0.12) ped.animal = true;
+  if (festaAtiva() && Math.random() < 0.35) { // Cesta de Natal: pede produtos de Natal, paga 50% a mais e dá flocos
+    const rec = RECEITAS.filter(r => r.evento && r.nivel <= state.level);
+    if (rec.length) { const a = rec[Math.floor(Math.random() * rec.length)], b = rec[Math.floor(Math.random() * rec.length)]; ped.itens = a === b ? { [a.id]: 2 } : { [a.id]: 1, [b.id]: 1 }; const v2 = Object.entries(ped.itens).reduce((t, [id, q]) => t + valorDe(id) * q, 0); ped.moedas = Math.round(v2 * 2.4 / 5) * 5; ped.xp = Math.max(3, Math.round(v2 / 25)); ped.flocos = 10; ped.nat = true; }
+  }
   if (state.level >= MINA_NIVEL) { const r = Math.random(); ped.ferr = r < 0.3 ? { pic: 6 } : r < 0.45 ? { din: 1 } : r < 0.5 ? { tnt: 1 } : null; if (!ped.ferr) delete ped.ferr; }
   return ped;
 }
@@ -10593,7 +10605,7 @@ function entregar(k, confirmado) {
   if (sobras.length && !confirmado) return perguntar(`Ao entregar esse pedido vão sobrar só: ${sobras.join(', ')} (o ideal é ter pelo menos ${PLANTAS_BAIXO} de cada para plantar).\n\nQuer prosseguir?`, () => entregar(k, true));
   for (const [id, q] of Object.entries(p.itens)) { state.barn[id] -= q; if (!state.barn[id]) delete state.barn[id]; }
   p.feito = true;
-  state.coins += p.moedas; addXP(p.xp, null); track('entregar');
+  state.coins += p.moedas; addXP(p.xp, null); track('entregar'); if (p.flocos && festaAtiva()) natFlocos(p.flocos);
   if (p.muda) darMuda(p.muda);
   if (p.ferr) for (const [f, n] of Object.entries(p.ferr)) darFerr(f, n);
   const bichoC = p.animal ? sortearAnimalCred() : null;
@@ -10964,7 +10976,7 @@ function fabricaHTML() {
       const ok = podeEntregar(p);
       const lista = Object.entries(p.itens).map(([id, q]) => `<span class="${(state.barn[id] || 0) >= q ? '' : 'falta'}"><img alt="" src="${itemIcon(id)}">${q} ${esc(item(id).nome.toLowerCase())} (${state.barn[id] || 0})</span>`).join('');
       html += `<div class="row ${p.feito ? 'locked' : ok ? 'sel' : ''}"><div class="avatar" style="background:${p.feito ? '#4f9a2f' : '#3f6fa8'}">${p.feito ? '✓' : k + 1}</div>
-        <div><div class="pedido">${lista}</div><div class="meta">${p.moedas.toLocaleString('pt-BR')} moedas · ${p.xp} XP${p.muda ? ` · 🌱 ${txtMuda(p.muda)}` : ''}${p.animal ? ' · 🐾 animal surpresa' : ''}${p.ferr ? ` · ⛏️ ${txtFerr(p.ferr)}` : ''}</div></div>
+        <div><div class="pedido">${lista}</div><div class="meta">${p.nat ? '🎄 Cesta de Natal · ' : ''}${p.moedas.toLocaleString('pt-BR')} moedas · ${p.xp} XP${p.flocos ? ` · ❄️ ${p.flocos}` : ''}${p.muda ? ` · 🌱 ${txtMuda(p.muda)}` : ''}${p.animal ? ' · 🐾 animal surpresa' : ''}${p.ferr ? ` · ⛏️ ${txtFerr(p.ferr)}` : ''}</div></div>
         ${p.feito ? '<button class="btn ghost" disabled>Entregue</button>' : `<button class="btn gold" data-entregar="${k}" ${ok ? '' : 'disabled'}>Entregar</button>`}</div>`;
     });
   }
@@ -11124,6 +11136,10 @@ const ENFEITES = [
   { id: 'hal_caveira', nome: 'Caveira com vela', especial: true, halloween: true, conforto: 2, custo: 500 },
   { id: 'hal_livro', nome: 'Livro de feitiços', especial: true, halloween: true, conforto: 2, custo: 500 },
   { id: 'hal_tumulo', nome: 'Túmulo assombrado', especial: true, halloween: true, conforto: 2, custo: 500 },
+  { id: 'nat_boneco',   nome: 'Boneco de neve',            especial: true, natal: true, conforto: 2, custo: 500 },
+  { id: 'nat_presentes', nome: 'Pilha de presentes',       especial: true, natal: true, conforto: 2, custo: 500 },
+  { id: 'nat_estrela',  nome: 'Estrela de Natal',          especial: true, natal: true, conforto: 2, custo: 500 },
+  { id: 'nat_pinheiro', nome: 'Pinheirinho enfeitado',     especial: true, natal: true, conforto: 3, custo: 800 },
   { id: 'ev_balanco',   nome: 'Balanço colorido',          especial: true, evento: true, conforto: 2, custo: 600 },
   { id: 'ev_escorrega', nome: 'Escorregador',              especial: true, evento: true, conforto: 2, custo: 900 },
   { id: 'ev_castelo',   nome: 'Castelinho de areia',       especial: true, evento: true, conforto: 2, custo: 700 },
@@ -11138,7 +11154,7 @@ const ENFEITES = [
   { id: 'boibumba',     nome: 'Boi-bumbá',                 especial: true, trevo: true, conforto: 3 },
 ];
 // Etiqueta de onde veio um item especial.
-const origemEnfeite = (e, s) => e.halloween ? 'Coleção de Halloween 2026 🎃' : e.evento ? 'Dia das Crianças 2026 🎈' : e.chocadeira ? 'Choca os ovos das aves do rancho 🥚' : e.caca ? 'Troféu da caçada 🎯' : e.trevo ? 'Exclusivo da Loja do Trevo 🍀' : e.vila ? 'Presente da vila' : `Especial dos pioneiros · ${obtidoEm(s)}`;
+const origemEnfeite = (e, s) => e.natal ? 'Loja de Natal 2026 ❄️ (Missões › Natal)' : e.halloween ? 'Coleção de Halloween 2026 🎃' : e.evento ? 'Dia das Crianças 2026 🎈' : e.chocadeira ? 'Choca os ovos das aves do rancho 🥚' : e.caca ? 'Troféu da caçada 🎯' : e.trevo ? 'Exclusivo da Loja do Trevo 🍀' : e.vila ? 'Presente da vila' : `Especial dos pioneiros · ${obtidoEm(s)}`;
 const ENFEITE = Object.fromEntries(ENFEITES.map(e => [e.id, e]));
 // Lugares antigos (saves de antes do modo Mover): viram posições livres.
 const LUGARES = {
@@ -11767,7 +11783,7 @@ function inventarioHTML() {
   html += `<h3>Guardados</h3>`;
   if (!guardados.length) html += `<div class="empty">Nada guardado. Compre enfeites na Loja › Enfeites.</div>`;
   for (const e of guardados) {
-    html += `<div class="row wide ${e.especial ? 'sel' : ''}"><img alt="" src="${enfeiteIcon(e.id)}"><div><div class="name">${e.nome} × ${state.enfeites[e.id]}${e.especial ? ` <span class="tag">${e.chocadeira ? '🥚 rancho' : e.vila ? '🏡 vila' : '⭐ pioneiros'}</span>` : ''}</div><div class="meta">${e.cerca ? 'Um pedaço de cerca para a roça. Depois de pôr um, já vem o próximo (dá para girar).' : e.chocadeira ? 'Ponha no rancho, onde quiser: sem ela as aves não botam ovos.' : `+${e.conforto}% de XP quando está na roça ou no rancho`}${e.especial ? `<br>${origemEnfeite(e, state)}` : ''}</div></div>
+    html += `<div class="row wide ${e.especial ? 'sel' : ''}"><img alt="" src="${enfeiteIcon(e.id)}"><div><div class="name">${e.nome} × ${state.enfeites[e.id]}${e.especial ? ` <span class="tag">${e.chocadeira ? '🥚 rancho' : e.vila ? '🏡 vila' : e.natal ? '🎄 Natal' : e.halloween ? '🎃 Halloween' : '⭐ pioneiros'}</span>` : ''}</div><div class="meta">${e.cerca ? 'Um pedaço de cerca para a roça. Depois de pôr um, já vem o próximo (dá para girar).' : e.chocadeira ? 'Ponha no rancho, onde quiser: sem ela as aves não botam ovos.' : `+${e.conforto}% de XP quando está na roça ou no rancho`}${e.especial ? `<br>${origemEnfeite(e, state)}` : ''}</div></div>
       <div class="actions">${e.soRancho ? '' : `<button class="btn gold" data-inv-por="${e.id}" data-sc="roca">Pôr na roça</button>`}${e.cerca ? '' : `<button class="btn gold" data-inv-por="${e.id}" data-sc="animais">Pôr no rancho</button>`}
       ${e.especial ? '' : venderBtn('enf:' + e.id, Math.floor(e.custo / 2), state.enfeites[e.id])}</div></div>`;
   }
@@ -12380,6 +12396,8 @@ function drawEnfeite(id, x, y, s, t, rot) {
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + 21 * s, y - 36 * s, 1.5 * s, 0, 7); ctx.fill(); ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x + 21.4 * s, y - 36 * s, 0.7 * s, 0, 7); ctx.fill();
     ctx.strokeStyle = '#f4efe2'; ctx.lineWidth = 2.2 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x + 19 * s, y - 39 * s); ctx.quadraticCurveTo(x + 15 * s, y - 49 * s, x + 21 * s, y - 52 * s); ctx.moveTo(x + 26 * s, y - 39 * s); ctx.quadraticCurveTo(x + 31 * s, y - 49 * s, x + 25 * s, y - 52 * s); ctx.stroke(); ctx.lineCap = 'butt';
     ctx.fillStyle = '#f06292'; ctx.beginPath(); ctx.arc(x + 23 * s, y - 40 * s, 1.8 * s, 0, 7); ctx.fill();
+  } else if (id.startsWith('nat_')) {
+    desenhaNatEnfeite(id, x, y, s, t);
   } else if (id.startsWith('hal_')) {
     desenhaHalEnfeite(id, x, y, s, t);
   } else if (id === 'ev_balanco') {
@@ -14291,6 +14309,8 @@ function natHTML() {
   for (const [tipo, P] of Object.entries(NAT_PRES)) html += `<div class="row ${n.pres.tem[tipo] ? '' : 'locked'}"><div class="avatar" style="background:#2f8a4a;font-size:22px">${P.emoji}</div><div><div class="name">${P.nome}</div><div class="meta">${n.pres.tem[tipo] ? `Você tem ${n.pres.tem[tipo]}` : 'Acabou por hoje'} · ${P.pool.map(id => NAT_EFEITOS[id].emoji).join(' ')}</div></div><button class="btn gold" data-nat-env="${tipo}" ${n.pres.tem[tipo] ? '' : 'disabled'}>Enviar</button></div>`;
   html += `<h3>😈 Grinch gigante</h3><p class="hint">De vez em quando o Grinch gigante aparece na sua roça. Ele quer algo doce, quentinho ou brilhante. Dê o que ele pede, cante com as luzes, ou deixe um prato de biscoitos pronto. Se ninguém o convencer em 5 minutos, ele leva até 15 ❄️. Um cachorro acordado (com ração) também pode assustá-lo. Você já convenceu ele ${n.vencidos} ${n.vencidos === 1 ? 'vez' : 'vezes'}.</p>`;
   html += `<div class="row ${n.prato > Date.now() ? 'sel' : ''}"><div class="avatar" style="background:#c98a4b;font-size:22px">🍪</div><div><div class="name">Prato de biscoitos</div><div class="meta">${n.prato > Date.now() ? `Pronto por mais ${fmt((n.prato - Date.now()) / 1000)}` : `Gasta 1 biscoito de gengibre (você tem ${state.barn.biscoito || 0}). Vale 12 horas.`}</div></div><button class="btn gold" data-nat-prato="1" ${n.prato > Date.now() ? 'disabled' : ''}>Deixar</button></div>`;
+  html += `<h3>🛍️ Loja de flocos ❄️</h3><p class="hint">Você tem ${n.flocos} ❄️. Ganhe flocos no Advento, na pista, nos presentes, com o Grinch e nas cestas do caminhão.</p>`;
+  for (const it of NAT_LOJA) { const tem = it.unico && state.festaLoja && state.festaLoja[it.id.split(':')[1]]; html += `<div class="row ${tem ? 'locked' : ''}"><div class="avatar" style="background:#4aa3df;font-size:22px">${it.ic}</div><div><div class="name">${it.nome}</div><div class="meta">${it.desc}</div></div>${tem ? '<button class="btn ghost" disabled>Já tem</button>' : `<button class="btn gold" data-nat-comprar="${it.id}" ${n.flocos >= it.preco ? '' : 'disabled'}>${it.preco} ❄️</button>`}</div>`; }
   html += `<h3>🌲 Árvore de Natal</h3><p class="hint">A árvore está na sua roça. Toque nela para voltar aqui, ou use o botão Mover para mudar de lugar.</p>`;
   return html;
 }
@@ -14535,6 +14555,45 @@ function natPrato() {
   if (n.prato > Date.now()) return toast('O prato de biscoitos já está pronto na árvore!');
   if (!(state.barn.biscoito > 0)) return toast('Você precisa de 1 biscoito de gengibre (faça na máquina Moinho & Padaria).', 'bad');
   state.barn.biscoito--; if (!state.barn.biscoito) delete state.barn.biscoito; n.prato = Date.now() + 12 * 3600e3; sfx('buy'); toast('🍪 Prato de biscoitos posto perto da árvore! Se o Grinch chegar nas próximas 12 horas, ele come e vai embora feliz.', 'good'); done(); renderPane();
+}
+// ---- Loja de flocos ❄️ e enfeites de Natal ----
+function desenhaBonecoNeve(x, y, s) {
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#b8d0e8'; ctx.lineWidth = 1.2; for (const [dy, r] of [[-12, 15], [-34, 11], [-51, 8]]) { ctx.beginPath(); ctx.arc(x, y + dy * s, r * s, 0, 7); ctx.fill(); ctx.stroke(); }
+  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(x - 3 * s, y - 52 * s, 1.1 * s, 0, 7); ctx.arc(x + 3 * s, y - 52 * s, 1.1 * s, 0, 7); ctx.arc(x, y - 36 * s, 1.2 * s, 0, 7); ctx.arc(x, y - 30 * s, 1.2 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f08a24'; ctx.beginPath(); ctx.moveTo(x, y - 50 * s); ctx.lineTo(x + 8 * s, y - 48.5 * s); ctx.lineTo(x, y - 47.5 * s); ctx.fill();
+  ctx.fillStyle = '#c0392b'; ctx.fillRect(x - 9 * s, y - 42 * s, 18 * s, 3.5 * s); ctx.fillStyle = '#222'; ctx.fillRect(x - 7 * s, y - 66 * s, 14 * s, 6 * s); ctx.fillRect(x - 10 * s, y - 60.5 * s, 20 * s, 2 * s);
+}
+function desenhaNatEnfeite(id, x, y, s, t) {
+  if (id === 'nat_boneco') desenhaBonecoNeve(x, y, s * 1.1);
+  else if (id === 'nat_pinheiro') desenhaArvoreNatal(x, y, s * 100 * 0.62, t);
+  else if (id === 'nat_estrela') {
+    ctx.strokeStyle = '#6b4220'; ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 34 * s); ctx.stroke();
+    const br = 0.75 + 0.25 * Math.sin(t / 300); ctx.fillStyle = `rgba(255,224,90,${br})`; ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? 7 * s : 16 * s; ctx.lineTo(x + Math.cos(a) * r, y - 48 * s + Math.sin(a) * r); } ctx.closePath(); ctx.fill();
+    const g = ctx.createRadialGradient(x, y - 48 * s, 2, x, y - 48 * s, 30 * s); g.addColorStop(0, 'rgba(255,224,90,.4)'); g.addColorStop(1, 'rgba(255,224,90,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - 48 * s, 30 * s, 0, 7); ctx.fill();
+  } else if (id === 'nat_presentes') {
+    [['#d8402f', -12, 0, 14, 12], ['#2f8a4a', 5, 0, 15, 14], ['#4aa3df', -3, -12, 12, 11]].forEach(([c, dx, dy, w, h]) => { ctx.fillStyle = c; ctx.fillRect(x + (dx - w / 2) * s, y + (dy - h) * s, w * s, h * s); ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillRect(x + (dx - 1) * s, y + (dy - h) * s, 2 * s, h * s); ctx.fillRect(x + (dx - w / 2) * s, y + (dy - h / 2 - 1) * s, w * s, 2 * s); });
+  }
+}
+const NAT_LOJA = [
+  { id: 'enf:nat_boneco',   nome: 'Boneco de neve',        desc: 'Enfeite (+2% XP)',            preco: 30, ic: '⛄' },
+  { id: 'enf:nat_presentes', nome: 'Pilha de presentes',   desc: 'Enfeite (+2% XP)',            preco: 25, ic: '🎁' },
+  { id: 'enf:nat_estrela',  nome: 'Estrela de Natal',      desc: 'Enfeite brilhante (+2% XP)',  preco: 20, ic: '⭐' },
+  { id: 'enf:nat_pinheiro', nome: 'Pinheirinho enfeitado', desc: 'Enfeite (+3% XP)',            preco: 40, ic: '🎄' },
+  { id: 'chapeu:noel',      nome: 'Gorro de Natal',        desc: 'Chapéu para o avatar',        preco: 35, ic: '🎅', unico: true },
+  { id: 'chapeu:rena',      nome: 'Chifres de rena',       desc: 'Chapéu para o avatar',        preco: 35, ic: '🦌', unico: true },
+  { id: 'sorte',            nome: 'Poção de sorte',        desc: 'As próximas 2 plantações viram colheita dourada', preco: 50, ic: '🍀' },
+  { id: 'moedas',           nome: 'Sacola de moedas',      desc: '500 moedas',                  preco: 20, ic: '💰' },
+];
+function natComprar(id) {
+  if (!festaAtiva()) return; const n = natDe(), it = NAT_LOJA.find(x => x.id === id); if (!it) return;
+  if (it.unico && state.festaLoja && state.festaLoja[id.split(':')[1]]) return toast('Você já tem esse.');
+  if (n.flocos < it.preco) return toast(`Faltam flocos: custa ${it.preco} ❄️ e você tem ${n.flocos}.`, 'bad');
+  n.flocos -= it.preco;
+  if (id.startsWith('enf:')) { const e = id.slice(4); state.enfeites[e] = (state.enfeites[e] || 0) + 1; state.invNovos = (state.invNovos || 0) + 1; toast(`${it.ic} ${it.nome} no Inventário!`, 'good'); }
+  else if (id.startsWith('chapeu:')) { (state.festaLoja ||= {})[id.split(':')[1]] = 1; toast(`${it.ic} ${it.nome} liberado! Escolha em Configurações › Avatar.`, 'good'); }
+  else if (id === 'sorte') { state.ouroProx = (state.ouroProx || 0) + 2; toast('🍀 Poção de sorte! As próximas 2 plantações viram colheita dourada.', 'good'); }
+  else if (id === 'moedas') { state.coins += 500; toast('💰 +500 moedas!', 'good'); }
+  sfx('buy'); done(); renderPane(); renderHUD();
 }
 // ---- Pista de patinação (minigame): acerte o ponto verde 6 vezes ----
 let pista = null;
