@@ -1577,6 +1577,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 382, txt: "⛸️ Agora dá para ver o seu avatar patinando no lago congelado enquanto você joga a pista (com rastro no gelo, e ele gira a cada pirueta). O painel fica embaixo da tela. A patinação também ficou mais fácil: barra mais lenta e zona verde maior." },
   { v: 381, txt: "⛸️ Patinação mais fácil: a barra agora anda bem mais devagar e a zona verde ficou maior." },
   { v: 380, txt: "🎁 Corrigido: os presentes de Natal para amigos (com mensagem) agora cabem nas regras de mensagens do jogo e chegam normalmente." },
   { v: 379, txt: "🎆 ANO NOVO! De 26/12 até 10/01, às 23:59: fogos no céu da roça (toque nos dourados para ganhar moedas e ⭐ estrelas), contagem regressiva e chuva de fogos à meia-noite de 31/12, 3 resoluções para escolher (600 moedas e 15 ⭐ cada, com bônus se cumprir as 3), simpatias do dia (lentilha, 7 uvas, romã), as 7 ondas do Réveillon na praia da Vila e a loja de estrelas (cartola, camisa branca, poção de sorte). Tudo em Missões › 🎆 Ano Novo." },
@@ -8803,7 +8804,20 @@ function avatarArea(sc) {
   return { u0: c0, u1: c1, v0: r1 + 0.5, v1: r1 + 1.1 };
 }
 // quem: 'eu' (o seu avatar, que vai junto nas visitas) ou 'dono' (o avatar do dono da roça visitada).
+// Durante a pista de patinação, o seu avatar desliza no lago congelado (e gira a cada pirueta)
+function drawAvatarPatinando(t) {
+  const [u, v] = posOf(S(), 'roca', 'pesqueiro'), c = iso(u, v), W = L.W, a = t / 900, rx = W * 0.34, ry = W * 0.115;
+  const x = c.x + Math.cos(a) * rx, y = c.y + Math.sin(a) * ry, dir = -Math.sin(a) * rx >= 0 ? 1 : -1, esc = W / 95;
+  ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath();
+  for (let k = 0; k <= 14; k++) { const b = a - k * 0.07; const px = c.x + Math.cos(b) * rx, py = c.y + Math.sin(b) * ry; k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.stroke();
+  const gira = pista && pista.giro ? Math.min(1, (performance.now() - pista.giro) / 650) : 1, sx = gira < 1 ? Math.cos(gira * Math.PI * 4) : 1;
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x, y, W * 0.1, W * 0.035, 0, 0, 7); ctx.fill();
+  ctx.save(); ctx.translate(x, y - (gira < 1 ? Math.sin(gira * Math.PI) * W * 0.12 : 0)); ctx.scale(sx || 0.05, 1);
+  drawAvatar(ctx, 0, 0, esc, state.avatar, t, true, dir); ctx.restore();
+  ctx.font = `${Math.round(W * 0.09)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.textAlign = 'center'; ctx.fillText('⛸️', x + dir * W * 0.02, y + W * 0.02);
+}
 function drawAvatarWalk(sc, t, quem = 'eu') {
+  if (quem === 'eu' && sc === 'roca' && pista && !$('#pistaModal').hidden && isHome() && !praca.aberta) return drawAvatarPatinando(t);
   const a = avatarArea(sc), chave = sc + ':' + quem;
   let w = avWalk[chave];
   if (!w || w.dono !== view.kind + (view.id || view.uid || '')) {
@@ -14618,6 +14632,8 @@ let pista = null;
 function abrirPista() {
   if (!festaAtiva() || !isHome()) return;
   pista = { r: 0, pts: 0, t0: performance.now(), ult: performance.now(), fase: 0, vel: 0.00038, premio: natalAtivo() && natPistaRestante() > 0, fim: false };
+  const noLago = !praca.aberta; // na roça o painel fica embaixo para você ver o avatar patinando no lago
+  $('#pistaModal').style.cssText = `z-index:60;${noLago ? 'place-items:end center;background:rgba(0,0,0,.12);padding-bottom:12px' : ''}`;
   $('#pistaModal').hidden = false; $('#pistaArte').textContent = '⛸️'; $('#pistaArte').style.transform = '';
   $('#pistaGirar').hidden = false; $('#pistaGirar').textContent = 'Girar!';
   $('#pistaInfo').textContent = pista.premio ? 'Acerte o ponto verde! São 6 piruetas.' : 'Hoje já rendeu o máximo, mas dá para treinar à vontade!';
@@ -14634,7 +14650,7 @@ function pistaGirar() {
   if (!pista || pista.fim) return;
   const x = pistaPos(performance.now()), d = Math.abs(x - 0.5);
   const pt = d < 0.12 ? 3 : d < 0.26 ? 2 : d < 0.4 ? 1 : 0;
-  pista.pts += pt; pista.r++; pista.vel *= 1.05;
+  pista.pts += pt; pista.r++; pista.vel *= 1.05; pista.giro = performance.now();
   const arte = $('#pistaArte'); arte.style.transition = 'transform .5s'; arte.style.transform = `rotate(${pista.r * 360}deg) scale(${1 + pt * 0.1})`;
   $('#pistaInfo').textContent = `${['😵 Escorregou!', '🙂 Bom!', '😃 Muito bem!', '🤩 Perfeito!'][pt]}  ·  piruetas ${pista.r}/6  ·  ${pista.pts} pontos`;
   sfx(pt >= 2 ? 'coin' : 'click');
