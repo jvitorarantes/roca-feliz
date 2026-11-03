@@ -1578,7 +1578,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
-  { v: 387, txt: "🎵 O jogo agora abre sempre com 'Sinos de Natal' enquanto o Natal estiver no ar. Se você escolher outra música em Configurações, ela passa a valer." },
+  { v: 388, txt: "🎵 Na primeira vez que você abre o jogo no Natal, ele começa com 'Sinos de Natal'. Se você trocar a música em Configurações, a sua escolha fica valendo." },
   { v: 386, txt: "🎵 Música de Natal! Duas novas músicas em Configurações › Música: 'Sinos de Natal' (Jingle Bells em sininhos e violão), que toca sozinha enquanto o evento estiver no ar, e 'Noite Feliz' em valsa de sininhos." },
   { v: 385, txt: "⛸️ Na pista de patinação agora aparece o seu avatar de verdade (com patins) deslizando e girando a cada pirueta, tanto no painel quanto no lago, em vez de só a bota." },
   { v: 384, txt: "💃 O Cabaré da Márcia agora dá para ENTRAR: toque na porta e veja o salão por dentro, com palco, pista, bar, sofás à luz de velas, a Márcia atrás do balcão e os 4 pretendentes (Lúcia canta no palco, Antônio toca piano, Rafael com o violão e Tereza dançando). Toque neles para conversar, no bar para pedir bebidas, no palco para o show. E no chat com um amigo tem o botão 💞 para pedir namoro, noivado ou casamento (ele recebe uma mensagem e o pedido aparece na tela dele)." },
@@ -7623,7 +7623,7 @@ $('#settings').addEventListener('click', e => {
   const at = e.target.closest('[data-av-trava]');
   if (at) { sfx('error'); return toast(at.dataset.avTrava, 'bad'); }
   const tr = e.target.closest('#tracks [data-track]');
-  if (tr) { settings.track = Number(tr.dataset.track); settings.music = true; if (typeof HAL !== 'undefined') settings.halMusica = HAL.id; settings.natEscolheu = NAT.id; saveSettings(); renderSettings(); }
+  if (tr) { settings.track = Number(tr.dataset.track); settings.music = true; if (typeof HAL !== 'undefined') settings.halMusica = HAL.id; saveSettings(); renderSettings(); }
   const tm = e.target.closest('#temaSeg [data-tema]');
   if (tm) { settings.tema = tm.dataset.tema; saveSettings(); renderSettings(); }
 });
@@ -14317,8 +14317,8 @@ function natAcumula() {
 function natEntrada() {
   if (!state || !festaAtiva()) return;
   const n = natDe();
-  // o jogo começa com a música de Natal em toda abertura durante o evento (a menos que a pessoa escolha outra música)
-  if (!halloweenAtivo() && natalAtivo() && settings.natEscolheu !== NAT.id && settings.track !== 10 && window.RFAudio && window.RFAudio.tracks.length > 11) { const primeira = settings.natMusica !== NAT.id; settings.natMusica = NAT.id; settings.track = 10; saveSettings(); applySettings(); if (primeira && settings.music) setTimeout(() => toast('🎵 Tocando "Sinos de Natal"! Troque em ⚙️ › Música (tem também "Noite Feliz").', 'good'), 3200); }
+  // na primeira vez que a pessoa abre o jogo no Natal, ele começa com a música de Natal; depois vale a escolha dela (fica salva)
+  if (!halloweenAtivo() && natalAtivo() && settings.natMusica !== NAT.id && window.RFAudio && window.RFAudio.tracks.length > 11) { settings.natMusica = NAT.id; settings.track = 10; saveSettings(); applySettings(); if (settings.music) setTimeout(() => toast('🎵 Tocando "Sinos de Natal"! Troque em ⚙️ › Música (tem também "Noite Feliz").', 'good'), 3200); }
   if (!n.presente) {
     n.presente = 1; state.skins.natalina = true; state.invNovos = (state.invNovos || 0) + 1;
     const msg = '🎄 Natal na Roça Feliz! Até 25/12, às 23:59: neve, luzes piscando, a árvore de Natal (movível, no Modo Mover), o lago congelado para patinar ⛸️ e um presente do Advento por dia. Seu presente: a Casa Natalina (Loja › Temas). Veja tudo em Missões › 🎄 Natal.';
