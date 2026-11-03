@@ -1578,6 +1578,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 384, txt: "💃 O Cabaré da Márcia agora dá para ENTRAR: toque na porta e veja o salão por dentro, com palco, pista, bar, sofás à luz de velas, a Márcia atrás do balcão e os 4 pretendentes (Lúcia canta no palco, Antônio toca piano, Rafael com o violão e Tereza dançando). Toque neles para conversar, no bar para pedir bebidas, no palco para o show. E no chat com um amigo tem o botão 💞 para pedir namoro, noivado ou casamento (ele recebe uma mensagem e o pedido aparece na tela dele)." },
   { v: 383, txt: "💞 Relacionamentos e Cabaré da Márcia! Na Vila agora tem o 💃 Cabaré da Márcia (neon rosa, bar sem álcool, palco, mesa de casal, mural de fofocas) com 4 pretendentes NPC para paquerar (Lúcia, Rafael, Tereza e Antônio): converse, dê presentes, saia em encontros e peça em namoro (um de cada vez; namoro com NPC dá +5% de XP). Entre jogadores: toque num jogador na Vila e veja o cartão de relacionamento (amizade, romance, status de inimigo a casado), com ações (conversar, elogiar, abraçar, paquerar, provocar…), pedidos de namoro, noivado e casamento com aceite, término, rivalidade, pazes e bloqueio. Casar com outra pessoa desfaz o relacionamento anterior e avisa o(a) ex. Casais ganham bônus de XP, missões de casal e o status aparece ao lado do nome na Vila. Em Vila › Pessoas › 💞 Relacionamentos." },
   { v: 382, txt: "⛸️ Agora dá para ver o seu avatar patinando no lago congelado enquanto você joga a pista (com rastro no gelo, e ele gira a cada pirueta). O painel fica embaixo da tela. A patinação também ficou mais fácil: barra mais lenta e zona verde maior." },
   { v: 381, txt: "⛸️ Patinação mais fácil: a barra agora anda bem mais devagar e a zona verde ficou maior." },
@@ -8052,6 +8053,7 @@ function limparChat() {
   });
 }
 $('#chatLimpar')?.addEventListener('click', limparChat);
+$('#chatRel')?.addEventListener('click', () => { if (chatCom) relMenuChat(chatCom); });
 function renderChat() {
   const box = $('#chatLista'); if (!box || !chatCom) return;
   const conversa = chatMsgs.filter(m => (m.de === user.uid && m.para === chatCom) || (m.de === chatCom && m.para === user.uid));
@@ -14927,6 +14929,7 @@ function relSinal(m) {
 // ---- pedidos de namoro, noivado e casamento ----
 const REL_PED = { namoro: { nome: 'namoro', e: '❤️', custo: 100, rom: 15, a: 10 }, noivado: { nome: 'noivado', e: '💍', custo: 0, rom: 35, a: 20 }, casamento: { nome: 'casamento', e: '👰', custo: 1000, rom: 50, a: 20 } };
 function relPedir(uid, t) {
+  if (!praca.rt || !user) return toast('Entre na Vila uma vez (botão Vila) para enviar pedidos de relacionamento.', 'bad');
   const P = REL_PED[t], x = relDe(uid), j = praca.jog[uid], nome = (j && j.n) || x.n || 'essa pessoa'; if (j && j.n) x.n = limpaNome(j.n);
   if (x.r < P.rom) return toast(`Ainda é cedo: precisa de pelo menos ${P.rom} de romance (você tem ${Math.floor(x.r)}). Paquere, elogie, dance, vá a encontros!`, 'bad');
   if (x.a < P.a) return toast(`Vocês precisam ser mais próximos (amizade ${P.a}+).`, 'bad');
@@ -14940,7 +14943,7 @@ function relPedir(uid, t) {
   if (state.coins < P.custo) return vilaSemMoedas(P.custo);
   perguntar(`Pedir ${P.nome} a ${nome}?${P.custo ? `\n\nCusta ${P.custo.toLocaleString('pt-BR')} moedas.` : ''}${aliança ? '\nVai uma Aliança de ouro.' : ''}${t === 'casamento' && par && par[0] !== uid ? `\n\nAtenção: você está com ${par[1].n || 'outra pessoa'}. Casar vai DESFAZER esse relacionamento e avisar a pessoa.` : ''}`, () => {
     state.coins -= P.custo; if (aliança) { state.barn.alianca--; if (!state.barn.alianca) delete state.barn.alianca; }
-    relEnviar(uid, 'pedido', { t }); sfx('buy'); toast(`${P.e} Pedido de ${P.nome} enviado a ${nome}! Agora é esperar a resposta…`, 'good'); done(); pracaPainel();
+    relEnviar(uid, 'pedido', { t }); if (state.friends.includes(uid)) { Cloud.enviarMsg(user.uid, uid, { txt: `${P.e} ${meuApelido()} pediu você em ${P.nome}! Abra a Vila › Relacionamentos para responder.`, at: Date.now(), nome: meuApelido() }).catch(() => {}); avisarAmigo(uid, 'presente', `${P.e} ${meuApelido()} pediu você em ${P.nome}!`); } sfx('buy'); toast(`${P.e} Pedido de ${P.nome} enviado a ${nome}! Agora é esperar a resposta…`, 'good'); done(); pracaPainel();
   });
 }
 function relPedidoTick() {
@@ -14985,6 +14988,15 @@ function relTerminar(uid) {
     fofocaPublica(era === 'casado' ? `💔 ${meuApelido()} e ${x.n || 'o(a) parceiro(a)'} se divorciaram.` : `💔 ${meuApelido()} e ${x.n || 'o(a) parceiro(a)'} terminaram.`);
     relNoticia(`💔 Você terminou com ${x.n || 'a pessoa'}.`); pracaEnviarMov(); done(); pracaPainel();
   });
+}
+function relMenuChat(uid) {
+  const x = (state.rel || {})[uid] || { s: '' }, nome = (friendInfo[uid] && friendInfo[uid].name) || x.n || 'seu amigo', rom = ROMANTICOS.includes(x.s);
+  escolher(`💞 Relacionamento com ${nome} (${relRotulo(uid).join(' ')}). O que fazer?`, [
+    ...(!rom ? [{ txt: '❤️ Pedir em namoro', gold: true, fn: () => relPedir(uid, 'namoro') }] : []),
+    ...(x.s === 'namoro' ? [{ txt: '💍 Pedir em noivado', gold: true, fn: () => relPedir(uid, 'noivado') }] : []),
+    ...(x.s !== 'casado' ? [{ txt: '👰 Pedir em casamento', fn: () => relPedir(uid, 'casamento') }] : []),
+    ...(rom ? [{ txt: x.s === 'casado' ? '💔 Divórcio' : '💔 Terminar', ghost: true, fn: () => relTerminar(uid) }] : []),
+    { txt: 'Cancelar', ghost: true }]);
 }
 function relAcao(uid, ac) {
   const A = REL_ACOES[ac], x = relDe(uid), j = praca.jog[uid]; if (!A) return;
@@ -15179,6 +15191,31 @@ function pracaHtmlCabare() {
     h += `<div class="vp-card">${(praca.fofocas || []).length ? praca.fofocas.map(f => `<div>${esc(f.t)} <small>${new Date(f.ts).toLocaleDateString('pt-BR')}</small></div>`).join('') : '<small>' + (praca.fofOk ? 'Ainda não tem fofoca. Seja o primeiro a começar um romance!' : 'Carregando as fofocas…') + '</small>'}</div>`;
   }
   return h;
+}
+// ---- Cabaré por dentro: Márcia no bar e os 4 pretendentes pelo salão ----
+function cabareParede(g, I, tw, dpr, now, wallH) {
+  const a = I(6, 0), flick = (Math.floor(now / 140) % 23) === 0 ? 0.3 : 1;
+  g.save(); g.shadowColor = `rgba(255,60,150,${0.9 * flick})`; g.shadowBlur = 16 * dpr; g.font = `900 ${Math.round(tw * 0.8)}px 'Baloo 2', system-ui, sans-serif`; g.textAlign = 'center'; g.fillStyle = `rgba(255,120,190,${flick})`; g.fillText('CABARÉ', a.x, a.y - wallH * 0.62);
+  g.font = `800 ${Math.round(tw * 0.42)}px system-ui, sans-serif`; g.fillStyle = `rgba(120,230,255,${flick})`; g.fillText('da Márcia 💃', a.x, a.y - wallH * 0.38); g.restore();
+}
+const CAB_POS = { marcia: [11.3, 3.6, -1], lucia: [5.5, 1.1, 1], antonio: [1.6, 1.4, 1], rafael: [7.4, 1.6, -1], tereza: [5.2, 6.2, 1] };
+function cabNpcToque(id) {
+  if (id === 'marcia') { praca.cabTab = 'bar'; praca.cabFoco = ''; } else { praca.cabTab = 'pret'; praca.cabFoco = id; }
+  toast(id === 'marcia' ? '💃 Márcia: “Peça uma bebida, meu bem!”' : `💘 ${PRET[id].nome} (${PRET[id].papel}) sorri para você.`, 'good');
+  pracaPainelAbrir('cabare');
+}
+function cabarePessoas(g, I, tw, dpr, now, es, push) {
+  const lista = [['marcia', { sexo: 'f', pele: 1, cabelo: 'comprido', corCabelo: 2, chapeu: 'flores', camisa: 'florida', calca: 'saia', sapato: 'sapatilha', mao: 'nada' }, 'Márcia'], ...PRETENDENTES.map(N => [N.id, N.av, N.nome])];
+  for (const [id, av, nome] of lista) {
+    const [u, v, dir] = CAB_POS[id], q = I(u, v), danca = id === 'tereza', bob = danca ? Math.abs(Math.sin(now / 260)) * 4 * es : Math.sin(now / 900 + u) * 0.8 * es;
+    push(u + v + 0.4, () => {
+      g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 0.3, tw * 0.12, 0, 0, 7); g.fill();
+      drawAvatar(g, q.x + (danca ? Math.sin(now / 400) * tw * 0.15 : 0), q.y - bob, es * 0.95, av, now, danca, danca ? (Math.sin(now / 400) > 0 ? 1 : -1) : dir, id === 'antonio');
+      g.font = `800 ${Math.round(9 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = id === 'marcia' ? '#ff9ad0' : '#ffe08a'; g.strokeText(nome, q.x, q.y + tw * 0.32); g.fillText(nome, q.x, q.y + tw * 0.32);
+      if (id === 'lucia' || id === 'antonio' || id === 'rafael') { g.font = `${Math.round(tw * 0.45)}px system-ui`; g.fillStyle = '#000'; g.fillText('🎵', q.x + Math.sin(now / 500 + u) * tw * 0.3, q.y - 62 * es - ((now / 40) % 20)); }
+    });
+    praca.hits.push({ id: 'cabnpc:' + id, x: q.x, y: q.y - 34 * es, r: Math.max(26 * es, 18 * dpr) });
+  }
 }
 function cabareDesenha(g, q, tw, dpr, now) {
   const W = tw * 4.2, H = tw * 3.1, noite = vilaNoite() > 0.5, pulso = 0.6 + 0.4 * Math.sin(now / 260), flick = (Math.floor(now / 140) % 23) === 0 ? 0.3 : 1;
@@ -15665,7 +15702,6 @@ const VILA_LOCAIS = {
   mural:   { u: 32, v: 17, nome: 'Quadro de avisos',   ic: '📋' },
   mercado: { u: 16.8, v: 31.2, nome: 'Mercado', ic: '🏪' },
   quermesse: { u: 12.4, v: 33.4, nome: 'Quermesse', ic: '🎪' },
-  cabare:  { u: 21.8, v: 35.6, nome: 'Cabaré da Márcia', ic: '💃' },
   coreto:  { u: 37.5, v: 21.2, nome: 'Coreto', ic: '🎶' },
   fogueira: { u: 47, v: 36, nome: 'Fogueira', ic: '🔥' },
   barco:   { u: 46.3, v: 12, nome: 'Barco', ic: '⛵' },
@@ -16273,7 +16309,6 @@ function vilaContexto() {
   if (d(VILA_LOCAIS.coreto.u, VILA_LOCAIS.coreto.v) < 2.6) return { id: 'coreto', txt: '🎶 Tocar no coreto' };
   if (d(VILA_LOCAIS.fogueira.u, VILA_LOCAIS.fogueira.v) < 2.8) return { id: 'fogueira', txt: '🍡 Assar marshmallow' };
   if (d(VILA_LOCAIS.quermesse.u, VILA_LOCAIS.quermesse.v) < 3.6) return { id: 'quermesse', txt: '🎪 Ir à quermesse' };
-  if (d(VILA_LOCAIS.cabare.u, VILA_LOCAIS.cabare.v) < 3.8) return { id: 'cabare', txt: '💃 Entrar no Cabaré da Márcia' };
   return null;
 }
 function vilaEntrarFesta(tipo) { const F = FESTAS[tipo]; if (!F) return; vilaConq('festa'); praca.volta = { u: F.u, v: F.v + 2.6 }; pracaIrSala('f_' + tipo, null, tipo); }
@@ -16395,7 +16430,7 @@ function vilaLogica(now, p) {
     else if (P.fase === 'fisgou' && now > P.ate) { praca.pesca = null; toast('O peixe escapou… 😅'); }
   }
   for (const it of praca.spawns) if (it.tipo !== 'bau' && !praca.pegos[it.i] && Math.hypot(p.u - it.u, p.v - it.v) < 1.2) vilaPegar(it);
-  if (praca.alvoAcao && p.k >= 1) { const a = praca.alvoAcao; praca.alvoAcao = null; if (a === 'mural' || a === 'mercado' || a === 'alvo' || a === 'quermesse' || a === 'cabare') pracaPainelAbrir(a); else if (a.startsWith('f:')) vilaEntrarFesta(a.slice(2)); }
+  if (praca.alvoAcao && p.k >= 1) { const a = praca.alvoAcao; praca.alvoAcao = null; if (a === 'mural' || a === 'mercado' || a === 'alvo' || a === 'quermesse') pracaPainelAbrir(a); else if (a.startsWith('f:')) vilaEntrarFesta(a.slice(2)); }
   const e = praca.eu; if (e && e.dur && p.k >= 1) e.dur = 0;
   let cx = vilaContexto();
   if (cx) praca.ctx = { cx, t: now }; else if (praca.ctx && now - praca.ctx.t < 1500 && !praca.pesca) cx = praca.ctx.cx; else praca.ctx = null; // não pisca quando o chefe/NPC sai e entra do alcance
@@ -16520,7 +16555,6 @@ function pracaDesenha(g, c, now, dpr) {
       if (id === 'mural') { g.fillStyle = '#7a4a22'; g.fillRect(q.x - tw * 1.3, q.y - tw * 2.1, tw * 2.6, tw * 1.6); g.fillStyle = '#f4e2b0'; g.fillRect(q.x - tw * 1.15, q.y - tw * 1.95, tw * 2.3, tw * 1.3); g.fillRect(q.x - tw * 1.3, q.y - tw * 0.5, tw * 0.2, tw * 0.6); g.fillRect(q.x + tw * 1.1, q.y - tw * 0.5, tw * 0.2, tw * 0.6); g.font = `${Math.round(tw * 1.1)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('📋', q.x, q.y - tw * 0.95); }
       else if (id === 'alvo') { g.fillStyle = '#7a4a22'; g.fillRect(q.x - tw * 0.12, q.y - tw * 1.6, tw * 0.24, tw * 1.6); for (let k = 0; k < 4; k++) { g.fillStyle = k % 2 ? '#fff' : '#e0463a'; g.beginPath(); g.arc(q.x, q.y - tw * 2.1, tw * (1.1 - k * 0.27), 0, 7); g.fill(); } g.fillStyle = '#ffd54a'; g.beginPath(); g.arc(q.x, q.y - tw * 2.1, tw * 0.12, 0, 7); g.fill(); }
       else if (id === 'quermesse') quermesseDesenha(g, q, tw, dpr, now);
-      else if (id === 'cabare') cabareDesenha(g, q, tw, dpr, now);
       else if (id === 'coreto') coretoDesenha(g, q, tw, dpr, now, noite);
       else if (id === 'fogueira') fogueiraDesenha(g, q, tw, dpr, now, noite);
       else if (id === 'barco') barcoDesenha(g, q, tw, dpr, now);
@@ -16533,6 +16567,7 @@ function pracaDesenha(g, c, now, dpr) {
   }
   for (const [tipo, F] of Object.entries(FESTAS)) { if (F.oculto) continue; const q = I(F.u, F.v); if (!(q.x > -120 && q.x < W + 120 && q.y > -160 && q.y < H + 80)) continue;
     if (tipo === 'mina') { push(F.u + F.v, () => minaFachada(g, q, tw, dpr, now, noite > 0.5)); praca.hits.push({ id: 'f:mina', x: q.x, y: q.y - tw * 1.5, r: tw * 2.6 }); continue; }
+    if (tipo === 'cabare') { push(F.u + F.v, () => { cabareDesenha(g, q, tw, dpr, now); g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffe08a'; g.strokeText('Cabaré da Márcia', q.x, q.y + tw * 0.7); g.fillText('Cabaré da Márcia', q.x, q.y + tw * 0.7); }); praca.hits.push({ id: 'f:cabare', x: q.x, y: q.y - tw * 1.5, r: tw * 2.6 }); continue; }
     if (tipo === 'igreja') { push(F.u + F.v, () => igrejaFachada(g, q, tw, dpr, now, noite > 0.5)); praca.hits.push({ id: 'f:igreja', x: q.x, y: q.y - tw * 2, r: tw * 3 }); continue; }
     push(F.u + F.v, () => { const w = tw * 3.4, h = tw * 2.4; g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.ellipse(q.x, q.y, w * 0.7, w * 0.2, 0, 0, 7); g.fill(); g.fillStyle = F.cor; g.fillRect(q.x - w / 2, q.y - h, w, h); g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.moveTo(q.x - w * 0.6, q.y - h); g.lineTo(q.x, q.y - h - w * 0.45); g.lineTo(q.x + w * 0.6, q.y - h); g.closePath(); g.fill(); g.fillStyle = '#1a1208'; g.fillRect(q.x - w * 0.12, q.y - h * 0.55, w * 0.24, h * 0.55);
       g.font = `${Math.round(tw * 1.6)}px system-ui`; g.textAlign = 'center'; g.fillStyle = '#000'; g.fillText(F.ic, q.x, q.y - h - w * 0.12); g.font = `800 ${Math.round(11 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#ffe08a'; g.strokeText(F.nome, q.x, q.y + tw * 0.8); g.fillText(F.nome, q.x, q.y + tw * 0.8);
@@ -16655,7 +16690,7 @@ function pracaToque(ev) {
     if (id === 'boss') { const b = pracaBossPos(); if (Math.hypot(p.u - b.u, p.v - b.v) > 6) { toast('Chegue mais perto do chefe para atacar!'); return pracaIrPara(b.u - 2, b.v + 2); } return pracaBater(); }
     if (id.startsWith('f:')) { const F = FESTAS[id.slice(2)]; if (Math.hypot(p.u - F.u, p.v - (F.v + 1.5)) < 4.5) return vilaEntrarFesta(id.slice(2)); praca.alvoAcao = id; return pracaIrPara(F.u, F.v + 2); }
     if (id === 'coreto' || id === 'fogueira' || id.startsWith('loc:')) { const l = VILA_LOCAIS[id.replace('loc:', '')]; if (Math.hypot(p.u - l.u, p.v - l.v) < 2.2) { const c = vilaContexto(); if (c) { praca.ctx = null; return vilaAcao(); } return; } return pracaIrPara(l.u, l.v + (id === 'loc:ilha' ? 0 : 1.4)); }
-    if (id === 'mural' || id === 'mercado' || id === 'alvo' || id === 'quermesse' || id === 'cabare') { const l = VILA_LOCAIS[id]; if (Math.hypot(p.u - l.u, p.v - l.v) < 4) return pracaPainelAbrir(id); praca.alvoAcao = id; return pracaIrPara(l.u, l.v + 1.8); }
+    if (id === 'mural' || id === 'mercado' || id === 'alvo' || id === 'quermesse') { const l = VILA_LOCAIS[id]; if (Math.hypot(p.u - l.u, p.v - l.v) < 4) return pracaPainelAbrir(id); praca.alvoAcao = id; return pracaIrPara(l.u, l.v + 1.8); }
     if (id.startsWith('item:')) { const it = praca.spawns.find(z => z.i === Number(id.slice(5))); if (!it) return; if (Math.hypot(p.u - it.u, p.v - it.v) < 2.6) return vilaPegar(it); return pracaIrPara(it.u, it.v + 1.2); }
     if (id.startsWith('mor:')) { const i = Number(id.slice(4)), m = VILA_MORADORES[i], ped = vilaPedidos()[i]; if (!m) return; const feito = vilaPedSt().feito[m.id]; praca.npcFala[i] = { t: feito ? 'Obrigado pela ajuda de hoje! 💛' : `${ped.qtd} ${itemEmoji(ped.id)} ${((PRODUCT[ped.id] && PRODUCT[ped.id].nomePl) || ped.id).toLowerCase()}, por favor!`, ate: now + 4000 }; sfx('click'); if (!feito) { praca.avTab = 'pedidos'; setTimeout(() => { if (!praca.painel) pracaPainelAbrir('mural'); }, 700); } return; }
     if (id.startsWith('banco:')) { const i = Number(id.slice(6)), b = VILA_BANCOS[i]; if (Object.values(praca.jog).some(j => j.ia === 'sentar' && Math.hypot(j.tu - b[0], j.tv - b[1]) < 0.6)) return toast('Essa cadeira já está ocupada! 🪑'); return vilaPedirAssento('🪑 Cadeira', 'Sentar', () => vilaSentar(i)); }
@@ -16697,7 +16732,13 @@ const PISOS = [{ n: 'Madeira', a: '#c8964a', b: '#b88340' }, { n: 'Xadrez', a: '
 const FILMES = [['🦁', 'O Rei da Roça'], ['🚀', 'Viagem ao Celeiro'], ['🦖', 'Parque dos Jurássicos'], ['🧙', 'Harry Trigo'], ['👻', 'Noite Assombrada'], ['🐠', 'Procurando o Peixe'], ['🤠', 'Cowboys do Pantanal']];
 PAREDES.push({ n: 'Igreja', c: '#efe6d2' }); PISOS.push({ n: 'Pedra clara', a: '#dcd3bf', b: '#cdc3ac' });
 const PAREDE_MINA = PAREDES.length, PISO_MINA = PISOS.length; PAREDES.push({ n: 'Rocha', c: '#4a4252' }); PISOS.push({ n: 'Terra da mina', a: '#5a4c3e', b: '#4c4034' });
+const PAREDE_CAB = PAREDES.length, PISO_CAB = PISOS.length; PAREDES.push({ n: 'Cabaré', c: '#4a1a4a' }); PISOS.push({ n: 'Salão do Cabaré', a: '#5a2040', b: '#4a1a36' });
 const FESTAS = {
+  cabare:  { nome: 'Cabaré da Márcia', ic: '💃', N: 12, spawn: [5.5, 10.5], u: 21.8, v: 35.6, cor: '#3d1a44', q: { p: PAREDE_CAB, c: PISO_CAB, a: 'todos', m: [
+    { i: 'palco', u: 4, v: 0 }, { i: 'caixasom', u: 2, v: 0 }, { i: 'caixasom', u: 8, v: 0 }, { i: 'bolaluz', u: 5, v: 5 }, { i: 'pistaD', u: 3, v: 3 }, { i: 'piano', u: 0, v: 0 },
+    { i: 'sofa', u: 0, v: 3, r: 1 }, { i: 'sofa', u: 0, v: 6, r: 1 }, { i: 'sofa', u: 0, v: 9, r: 1 }, { i: 'vela', u: 1, v: 4 }, { i: 'vela', u: 1, v: 7 }, { i: 'vela', u: 1, v: 10 },
+    { i: 'bar', u: 10, v: 3, r: 1 }, { i: 'cadeira', u: 9, v: 3 }, { i: 'cadeira', u: 9, v: 4 }, { i: 'cadeira', u: 7, v: 9 }, { i: 'cadeira', u: 8, v: 9 }, { i: 'vela', u: 7, v: 10 }, { i: 'vela', u: 8, v: 10 },
+    { i: 'planta', u: 11, v: 0 }, { i: 'planta', u: 11, v: 11 }, { i: 'vaso', u: 6, v: 11 }] } },
   disco:   { nome: 'Discoteca', ic: '🪩', N: 12, spawn: [5.5, 10.5], u: 10, v: 22, cor: '#6a2fa0', q: { p: 5, c: 3, a: 'todos', m: [
     { i: 'pistaD', u: 2, v: 3 }, { i: 'dj', u: 5, v: 0 }, { i: 'caixasom', u: 3, v: 0 }, { i: 'caixasom', u: 8, v: 0 }, { i: 'bolaluz', u: 5, v: 5 },
     { i: 'sofa', u: 0, v: 3, r: 1 }, { i: 'sofa', u: 0, v: 6, r: 1 }, { i: 'damas', u: 1, v: 9 }, { i: 'bar', u: 10, v: 3, r: 1 }, { i: 'cadeira', u: 11, v: 6 }, { i: 'cadeira', u: 11, v: 8 }, { i: 'planta', u: 0, v: 0 }, { i: 'planta', u: 11, v: 0 }, { i: 'planta', u: 0, v: 11 }, { i: 'planta', u: 11, v: 11 }] } },
@@ -16774,7 +16815,7 @@ function pracaIrSala(sid, dono, tipo) {
   if (sid) {
     praca.cam = tipo === 'igreja' ? { u: 7.4, v: 5 } : { u: salaN() / 2, v: salaN() / 2 }; praca.seguir = false; // a igreja é larga: a câmera foca o altar e o coral
     if (tipo === 'igreja') { igrejaIntCarrega(); setTimeout(() => { if (praca.sala && praca.sala.tipo === 'igreja' && !praca.painel) pracaPainelAbrir(igrejaAberta() ? 'dizimo' : 'intencoes'); }, 900); }
-    if (tipo) { const F = FESTAS[tipo]; toast(`${F.ic} ${F.nome}! Toque no chão para andar${tipo === 'disco' ? '. Quem pisa na pista dança sozinho!' : tipo === 'cinema' ? ', sente numa poltrona e curta o filme.' : tipo === 'igreja' ? (igrejaAberta() ? `. ${igrejaMissa().nome}: sente num banco e fique até a bênção final para ganhar um prêmio!` : `. Hoje não tem missa: deixe a sua intenção na caixa 💌 para a missa de ${igrejaDiaNome(igrejaProx().dia)}.`) : ' e entre na água!'}`, 'good'); if (tipo === 'disco' && window.RFAudio && window.RFAudio.tracks.length > 9) window.RFAudio.configure({ track: 9 }); }
+    if (tipo) { const F = FESTAS[tipo]; toast(`${F.ic} ${F.nome}! Toque no chão para andar${tipo === 'disco' ? '. Quem pisa na pista dança sozinho!' : tipo === 'cinema' ? ', sente numa poltrona e curta o filme.' : tipo === 'cabare' ? '. Toque na Márcia, nos pretendentes, no bar, no palco ou na pista!' : tipo === 'igreja' ? (igrejaAberta() ? `. ${igrejaMissa().nome}: sente num banco e fique até a bênção final para ganhar um prêmio!` : `. Hoje não tem missa: deixe a sua intenção na caixa 💌 para a missa de ${igrejaDiaNome(igrejaProx().dia)}.`) : ' e entre na água!'}`, 'good'); if (tipo === 'disco' && window.RFAudio && window.RFAudio.tracks.length > 9) window.RFAudio.configure({ track: 9 }); }
     else if (dono !== user.uid) pracaOuvir('quarto', praca.rt.ref('praca/quartos/' + dono), s => { const q = s.val(); if (!q) { toast('O dono desmontou o quarto.'); return pracaIrSala(null); } if (q.a === 'fechado' || (q.a === 'amigos' && !state.friends.includes(dono))) { toast('🔒 O dono fechou o quarto.'); return pracaIrSala(null); } praca.quartoVis = q; });
     else if (!tipo) { const v = quartoSt(); if (!praca.intro) { praca.intro = 1; toast('🏠 Este é o seu quarto! Toque em 🛠️ Editar para colocar móveis.', 'good'); } quartoPublicar(); }
     const sp = tipo ? FESTAS[tipo].spawn : [4.5, 8.5]; pracaPresenca(sp[0] + Math.random() * 0.8, sp[1] + Math.random() * 0.4);
@@ -16805,6 +16846,8 @@ function quartoBarra() {
   if (!el) { el = document.createElement('div'); el.id = 'quartoBar'; el.className = 'quartobar'; el.hidden = true; $('#praca .pracawrap').appendChild(el);
     el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const a = b.dataset.q, S2 = praca.sala; if (!S2) return;
       if (a === 'sair') return pracaIrSala(null);
+      if (a === 'cabare') return pracaPainelAbrir(praca.painel === 'cabare' ? null : 'cabare');
+      if (a === 'rel') return pracaPainelAbrir(praca.painel === 'rel' ? null : 'rel');
       if (a === 'dizimo') return pracaPainelAbrir(praca.painel === 'dizimo' ? null : 'dizimo');
       if (a === 'intencoes') return pracaPainelAbrir(praca.painel === 'intencoes' ? null : 'intencoes');
       if (a === 'editar') { S2.edit = !S2.edit; S2.sel = null; if (!S2.edit) { pracaPainelAbrir(null); quartoPublicar(); } else { praca.qtab = 'inv'; pracaPainelAbrir('moveis'); toast('🛠️ Arraste um móvel para mover. Toque nele para Girar ou Arquivar.', 'good'); } return quartoBarra(); }
@@ -16816,13 +16859,14 @@ function quartoBarra() {
   if (!S || !praca.aberta) { el.hidden = true; return; }
   const dono = S.dono === user.uid, sel = S.sel && S.sel.idx != null ? quartoSt().q.m[S.sel.idx] : null;
   el.hidden = false;
-  const html = `<button type="button" class="btn ghost" data-q="sair">🚪 Sair</button>` + (S.tipo === 'igreja' ? `<button type="button" class="btn gold" data-q="dizimo">🙏 Dízimo</button><button type="button" class="btn" data-q="intencoes">✉️ Intenções</button>` : '') + (dono ? `<button type="button" class="btn ${S.edit ? 'gold' : ''}" data-q="editar">🛠️ ${S.edit ? 'Concluir' : 'Editar'}</button>` + (S.edit ? `<button type="button" class="btn" data-q="moveis">🎒 Móveis</button>` : '') + (sel ? `<span class="qsel">${MOVEIS[sel.i].e || '▦'} ${MOVEIS[sel.i].n}</span><button type="button" class="btn" data-q="girar">↻ Girar</button><button type="button" class="btn" data-q="guardar">📦 Arquivar</button>` : S.sel && S.sel.novo ? `<span class="qsel">Colocar: ${MOVEIS[S.sel.novo].e || '▦'} ${MOVEIS[S.sel.novo].n}</span>` : '') : '');
+  const html = `<button type="button" class="btn ghost" data-q="sair">🚪 Sair</button>` + (S.tipo === 'cabare' ? `<button type="button" class="btn gold" data-q="cabare">💃 Menu do Cabaré</button><button type="button" class="btn" data-q="rel">💞 Relacionamentos</button>` : '') + (S.tipo === 'igreja' ? `<button type="button" class="btn gold" data-q="dizimo">🙏 Dízimo</button><button type="button" class="btn" data-q="intencoes">✉️ Intenções</button>` : '') + (dono ? `<button type="button" class="btn ${S.edit ? 'gold' : ''}" data-q="editar">🛠️ ${S.edit ? 'Concluir' : 'Editar'}</button>` + (S.edit ? `<button type="button" class="btn" data-q="moveis">🎒 Móveis</button>` : '') + (sel ? `<span class="qsel">${MOVEIS[sel.i].e || '▦'} ${MOVEIS[sel.i].n}</span><button type="button" class="btn" data-q="girar">↻ Girar</button><button type="button" class="btn" data-q="guardar">📦 Arquivar</button>` : S.sel && S.sel.novo ? `<span class="qsel">Colocar: ${MOVEIS[S.sel.novo].e || '▦'} ${MOVEIS[S.sel.novo].n}</span>` : '') : '');
   if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; } // só refaz se mudou: refazer a cada quadro apagava o botão no meio do toque e o clique nunca chegava (iPhone)
 }
 function quartoToque(x, y, G) {
   const S = praca.sala, q = quartoAtual(), a = (x - G.cx) / G.tw, b = (y - G.cy) / (G.tw / 2), u = G.ou + (a + b) / 2, v = G.ov + (b - a) / 2, dono = S.dono === user.uid, now = performance.now();
   const h = praca.hits.map(k => ({ k, d: Math.hypot(k.x - x, k.y - y) / k.r })).filter(z => z.d < 1).sort((p1, p2) => p1.d - p2.d).map(z => z.k)[0];
   if (h && h.id === 'porta') return pracaIrSala(null);
+  if (h && h.id.startsWith('cabnpc:')) return cabNpcToque(h.id.slice(7));
   if (S.edit && dono) {
     const st = quartoSt();
     if (h && h.id.startsWith('mov:')) { const idx = Number(h.id.slice(4)); S.sel = { idx }; sfx('click'); return quartoBarra(); }
@@ -16837,6 +16881,7 @@ function quartoToque(x, y, G) {
     const it = q.m[Number(h.id.slice(4))], M = it && MOVEIS[it.i]; if (!M) return;
     if (M.sent || M.dorme) { if (Object.values(praca.jog).some(j => (j.ia === 'sentar' || j.ia === 'dc6') && Math.floor(j.tu) >= it.u && Math.floor(j.tu) < it.u + quartoTam(M, it.r || 0)[0] && Math.floor(j.tv) >= it.v && Math.floor(j.tv) < it.v + quartoTam(M, it.r || 0)[1])) return toast('Está ocupado! 🪑');
       const gu = it.u + 0.5, gv = it.v + 0.5; return vilaPedirAssento(`${M.e} ${M.n}`, M.dorme ? 'Deitar' : 'Sentar', () => { vilaConq('sentar'); praca.seguir = false; quartoIrPara(gu, gv, { ia: M.dorme ? 'dc6' : 'sentar', ic: null, iz: firebase.database.ServerValue.TIMESTAMP, ek: M.dorme ? '😴' : '😌', et: Date.now() }); praca.eu.ia = M.dorme ? 'dc6' : 'sentar'; }); }
+    if (S.tipo === 'cabare' && ['bar', 'palco', 'piano', 'pistaD'].includes(it.i)) { praca.cabTab = it.i === 'bar' ? 'bar' : it.i === 'piano' ? 'pret' : 'show'; return pracaPainelAbrir('cabare'); }
     if (M.intencao) return pracaPainelAbrir('intencoes');
     if (M.veio) return vilaMinerar(it, M.veio);
     if (M.escada) return vilaEscada(M.escada);
@@ -17474,6 +17519,7 @@ function quartoDesenha(g, c, now, dpr) {
   const d1 = I(0, 7.2), d2 = I(0, 9); poly([[d1.x, d1.y], [d2.x, d2.y], [d2.x, d2.y - wallH * 0.7], [d1.x, d1.y - wallH * 0.7]], '#6a4528'); g.font = `${Math.round(tw * 0.8)}px system-ui`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText('🚪', (d1.x + d2.x) / 2, (d1.y + d2.y) / 2 - wallH * 0.3);
   praca.hits.push({ id: 'porta', x: (d1.x + d2.x) / 2, y: (d1.y + d2.y) / 2 - wallH * 0.3, r: tw * 1.4 });
   if (S.tipo === 'igreja') igrejaParede(g, I, tw, dpr, now, wallH);
+  if (S.tipo === 'cabare') cabareParede(g, I, tw, dpr, now, wallH);
   if (S.tipo && S.tipo.startsWith('mina')) minaParede(g, I, tw, dpr, now, wallH);
   // piso
   for (let a = 0; a < N; a++) for (let b = 0; b < N; b++) { const t0 = I(a, b), t1 = I(a + 1, b), t2 = I(a + 1, b + 1), t3 = I(a, b + 1); poly([[t0.x, t0.y], [t1.x, t1.y], [t2.x, t2.y], [t3.x, t3.y]], (a + b) % 2 ? piso.a : piso.b); }
@@ -17505,6 +17551,7 @@ function quartoDesenha(g, c, now, dpr) {
   for (const [uid, j] of Object.entries(praca.jog)) lista.push({ me: false, e: j, n: j.n, a: j.a || state.avatar, uid });
   const es = clamp(tw / 40, 0.3, 3.5);
   if (S.tipo === 'igreja') igrejaPessoas(g, I, tw, dpr, now, es, push);
+  if (S.tipo === 'cabare') cabarePessoas(g, I, tw, dpr, now, es, push);
   for (const o of lista) { const e = o.e, p = o.p = pracaPos(e, now), qq = I(p.u, p.v); const cobre = (tp) => (q.m || []).some(it => { const M = MOVEIS[it.i], [w, d] = M ? quartoTam(M, it.r || 0) : [0, 0]; return M && M.piso === tp && p.u >= it.u && p.u < it.u + w && p.v >= it.v && p.v < it.v + d; });
     const naAgua = cobre('agua'), naPista = cobre('disco'), sentado = e.ia === 'sentar' && p.k >= 1, dorme = e.ia === 'dc6' && p.k >= 1, danca = /^dc[1-57]$/.test(e.ia || '') && p.k >= 1 ? e.ia : (naPista && !e.ia && p.k >= 1 ? ['dc1', 'dc2', 'dc5', 'dc7'][(o.uid.charCodeAt(0) + o.uid.length) % 4] : null);
     if (o.me) { if (naAgua && !praca.naAgua) sfx('water'); praca.naAgua = naAgua; }
@@ -17563,7 +17610,7 @@ function pracaHtmlQuartos() {
   return h;
 }
 // ---- Onde estão (e juntar-se) ----
-const VILA_LUGAR = { f_mina: ['⛏️', 'Mina (1º)'], f_mina2: ['⛏️', 'Mina (2º)'], f_mina3: ['💎', 'Mina (3º)'], mundo: ['🏘️', 'Vila'], f_disco: ['🪩', 'Discoteca'], f_cinema: ['🎬', 'Cinema'], f_piscina: ['🏊', 'Piscina'], f_igreja: ['⛪', 'Igreja'] };
+const VILA_LUGAR = { f_mina: ['⛏️', 'Mina (1º)'], f_mina2: ['⛏️', 'Mina (2º)'], f_mina3: ['💎', 'Mina (3º)'], mundo: ['🏘️', 'Vila'], f_disco: ['🪩', 'Discoteca'], f_cinema: ['🎬', 'Cinema'], f_piscina: ['🏊', 'Piscina'], f_igreja: ['⛪', 'Igreja'], f_cabare: ['💃', 'Cabaré da Márcia'] };
 function pracaOndeSet() {
   if (!praca.rt || !user || !praca.on) return;
   const ref = praca.rt.ref('praca/presenca/' + user.uid); praca.refs.onde = ref;
