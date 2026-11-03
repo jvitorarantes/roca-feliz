@@ -960,6 +960,7 @@ function lvlupCard(bonus, trevos, premio) {
 function addXP(n, pos) {
   n = Math.max(n, Math.round(n * (1 + comfort(state) / 100)));
   if (state.luxo && state.luxo.mansao) n = Math.round(n * 1.25); // 🏰 Mansão: +25% de XP
+  if (state.ano && state.ano.id === ANO.id && state.ano.xp > Date.now()) n = Math.round(n * 1.25); // 🍇 simpatia das 7 uvas
   state.xp += n;
   popupAt(pos, `+${n} XP`, '#4aa3df', 180);
   while (state.xp >= need(state.level)) {
@@ -1576,6 +1577,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 379, txt: "🎆 ANO NOVO! De 26/12 até 10/01, às 23:59: fogos no céu da roça (toque nos dourados para ganhar moedas e ⭐ estrelas), contagem regressiva e chuva de fogos à meia-noite de 31/12, 3 resoluções para escolher (600 moedas e 15 ⭐ cada, com bônus se cumprir as 3), simpatias do dia (lentilha, 7 uvas, romã), as 7 ondas do Réveillon na praia da Vila e a loja de estrelas (cartola, camisa branca, poção de sorte). Tudo em Missões › 🎆 Ano Novo." },
   { v: 378, txt: "🎄 Natal na Vila! A fonte da praça congelou (toque nela para ⛸️ patinar, e a pista dá pontos no Ranking de hoje), tem uma árvore de Natal gigante: todos penduram enfeites (1 ❄️ cada) até acender, e a meta coletiva dá prêmio em Vila › Mural. O Grinch Gigante virou o chefe da Vila em dias alternados. A Quermesse vende chocolate quente, panetone e rabanada. No dia 24/12 tem a Missa do Galo na Igreja. E no perfil de um amigo na Vila tem o botão 🎁 Mandar presente de Natal." },
   { v: 377, txt: "🛍️ Loja de Natal! Em Missões › 🎄 Natal você troca ❄️ flocos por enfeites (boneco de neve, pilha de presentes, estrela, pinheirinho enfeitado), chapéus para o avatar (Gorro de Natal e Chifres de rena), Poção de sorte e moedas. O caminhão também traz 🎄 Cestas de Natal: pedem biscoito, panetone, rabanada ou chocolate quente, pagam 50% a mais e dão 10 ❄️." },
   { v: 376, txt: "😈 Grinch gigante e presentes de Natal! O Grinch gigante aparece de vez em quando na sua roça: toque nele e convença-o com algo doce, quentinho ou brilhante, cantando a sequência de luzes, ou deixe um prato de biscoitos pronto (cachorro acordado também assusta). Todo dia você ganha 1 Presente de Natal, 1 Papai Noel atrapalhado e 1 Visita do Grinch (guarda até 3 dias) para mandar a amigos COM MENSAGEM sua: quando abrirem, acontece algo na roça dele (rena, árvore mágica, presentes espalhados, boneco de neve, o Grinch…). Em Missões › 🎄 Natal. Novas receitas na Fábrica: biscoito de gengibre, panetone, rabanada e chocolate quente." },
@@ -6788,6 +6790,10 @@ $('#pane').addEventListener('click', e => {
   if (d.natPista) return abrirPista();
   if (d.natEnv) return natEnviar(d.natEnv);
   if (d.natComprar) return natComprar(d.natComprar);
+  if (d.anoEsc) return anoEscolher(d.anoEsc);
+  if (d.anoRes) return anoResgatar(d.anoRes);
+  if (d.anoSimp) return anoSimpatia(d.anoSimp);
+  if (d.anoComprar) return anoComprar(d.anoComprar);
   if (d.natPrato) return natPrato();
   if (d.natAbrir) return natCartaTick();
   if (d.evResgatar) return resgatarEvento(d.evResgatar);
@@ -7243,6 +7249,7 @@ cv.addEventListener('click', e => {
   else if (target.kind === 'caca') abrirCaca();
   else if (target.kind === 'bicho') actBicho(target.i);
   else if (target.kind === 'lago') { if (festaAtiva() && isHome()) escolher('O lago congelou! O que você quer fazer?', [{ txt: '⛸️ Patinar no gelo', gold: true, fn: abrirPista }, { txt: '🎣 Pescar', fn: abrirPesca }, { txt: 'Cancelar', ghost: true }]); else abrirPesca(); }
+  else if (target.kind === 'fogo') anoFogoToque(target.ref);
   else if (target.kind === 'grinch') grinchToque();
   else if (target.kind === 'natpres') natPegarPres(target.i);
   else if (target.kind === 'natboneco') natDerrubarBoneco();
@@ -7720,7 +7727,7 @@ function rollPeriods() {
 }
 function track(ev, n = 1) {
   if (!state) return;
-  rankPontos(ev); eventoTrack(ev, n); halTrack(ev, n); pracaTrack(ev, n);
+  rankPontos(ev); eventoTrack(ev, n); halTrack(ev, n); anoTrack(ev, n); pracaTrack(ev, n);
   if (!state.missions) rollPeriods();
   let pronto = false;
   for (const m of [...state.missions.dia, ...state.missions.semana]) {
@@ -8374,18 +8381,18 @@ const AV_CORES_CABELO = ['#2a1a10', '#5a3614', '#a8481e', '#e0b44a', '#b9b4ac'];
 const AV_OPC = {
   sexo: [['m', 'Menino'], ['f', 'Menina']],
   cabelo: [['curto', 'Curto'], ['cacheado', 'Cacheado'], ['comprido', 'Comprido'], ['rabo', 'Rabo de cavalo']],
-  chapeu: [['sem', 'Sem'], ['palha', 'Palha'], ['bone', 'Boné'], ['cowboy', 'Cowboy'], ['couro', 'Couro'], ['flores', 'Coroa de flores'], ['cangaceiro', 'Cangaceiro'], ['boina', 'Boina'], ['panama', 'Panamá'], ['gorro', 'Gorro de lã'], ['noel', 'Gorro de Natal'], ['rena', 'Chifres de rena'], ['festa', 'Palha de festa'], ['bandeirinhas', 'Chapéu de bandeirinhas']],
+  chapeu: [['sem', 'Sem'], ['palha', 'Palha'], ['bone', 'Boné'], ['cowboy', 'Cowboy'], ['couro', 'Couro'], ['flores', 'Coroa de flores'], ['cangaceiro', 'Cangaceiro'], ['boina', 'Boina'], ['panama', 'Panamá'], ['gorro', 'Gorro de lã'], ['noel', 'Gorro de Natal'], ['rena', 'Chifres de rena'], ['cartola', 'Cartola de Ano Novo'], ['festa', 'Palha de festa'], ['bandeirinhas', 'Chapéu de bandeirinhas']],
   mao: [['nada', 'Nada'], ['vara', 'Vara de pesca'], ['espingarda', 'Espingarda'], ['enxada', 'Enxada'], ['facao', 'Facão'], ['foice', 'Foice'], ['laco', 'Laço'], ['viola', 'Viola'], ['machado', 'Machado'], ['lampiao', 'Lampião'], ['sanfona', 'Sanfona'], ['buque', 'Buquê'], ['regador', 'Regador dourado'], ['violao', 'Violão'], ['triangulo', 'Triângulo'], ['cesta', 'Cesta de frutas']],
 };
 // Roupas: cada um tem as suas (menino e menina têm peças e cores diferentes).
 const AV_ROUPAS = {
   m: {
-    camisa: [['camiseta', 'Camiseta'], ['xadrez', 'Xadrez'], ['regata', 'Regata'], ['poncho', 'Poncho listrado']],
+    camisa: [['camiseta', 'Camiseta'], ['xadrez', 'Xadrez'], ['regata', 'Regata'], ['poncho', 'Poncho listrado'], ['branca', 'Camisa branca']],
     calca: [['jeans', 'Jeans'], ['bermuda', 'Bermuda'], ['macacao', 'Macacão']],
     sapato: [['bota', 'Bota'], ['tenis', 'Tênis'], ['chinelo', 'Chinelo']],
   },
   f: {
-    camisa: [['blusa', 'Blusa de babado'], ['florida', 'Florida'], ['regatinha', 'Regatinha'], ['poncho', 'Poncho listrado']],
+    camisa: [['blusa', 'Blusa de babado'], ['florida', 'Florida'], ['regatinha', 'Regatinha'], ['poncho', 'Poncho listrado'], ['brancaf', 'Blusa branca']],
     calca: [['saia', 'Saia rodada'], ['jardineira', 'Jardineira'], ['jeansclara', 'Calça jeans']],
     sapato: [['sapatilha', 'Sapatilha'], ['botinha', 'Botinha'], ['sandalia', 'Sandália']],
   },
@@ -8394,7 +8401,7 @@ const AV_ROUPAS = {
 const AV_NIVEL = { facao: 5, foice: 10, laco: 15, viola: 20, machado: 25 };
 // Itens exclusivos da Loja do Trevo (só depois de comprar com 🍀).
 const AV_TREVO = { couro: 'chapeu:couro', flores: 'chapeu:flores', lampiao: 'mao:lampiao', cangaceiro: 'chapeu:cangaceiro', boina: 'chapeu:boina', panama: 'chapeu:panama', gorro: 'chapeu:gorro', sanfona: 'mao:sanfona', buque: 'mao:buque', regador: 'mao:regador', festa: 'chapeu:festa', bandeirinhas: 'chapeu:bandeirinhas', violao: 'mao:violao', triangulo: 'mao:triangulo', cesta: 'mao:cesta', poncho: 'camisa:poncho' };
-const avTravado = (k, id) => (k === 'mao' && AV_NIVEL[id] > (state ? state.level : 1)) || (k === 'chapeu' && ['noel', 'rena'].includes(id) && !(state && state.festaLoja && state.festaLoja[id])) || (!!AV_TREVO[id] && !temTrevoItem(AV_TREVO[id]));
+const avTravado = (k, id) => (k === 'mao' && AV_NIVEL[id] > (state ? state.level : 1)) || (k === 'chapeu' && ['noel', 'rena', 'cartola'].includes(id) && !(state && state.festaLoja && state.festaLoja[id])) || (k === 'camisa' && ['branca', 'brancaf'].includes(id) && !(state && state.festaLoja && state.festaLoja.branca)) || (!!AV_TREVO[id] && !temTrevoItem(AV_TREVO[id]));
 const ROUPA_PADRAO = { m: { camisa: 'xadrez', calca: 'jeans', sapato: 'bota' }, f: { camisa: 'blusa', calca: 'saia', sapato: 'sapatilha' } };
 const opcoesAvatar = (av, k) => AV_OPC[k] || AV_ROUPAS[av.sexo === 'f' ? 'f' : 'm'][k];
 const AV_PADRAO = { sexo: 'm', pele: 1, camisa: 'xadrez', calca: 'jeans', sapato: 'bota', cabelo: 'curto', corCabelo: 1, chapeu: 'sem', mao: 'nada' };
@@ -8435,6 +8442,9 @@ function drawChapeu(g, tipo) {
     g.beginPath(); g.roundRect(-9, -73, 18, 10, 4); g.fill();
     g.fillStyle = '#2a2a2a'; g.fillRect(-9, -66.5, 18, 2.6);
     g.strokeStyle = 'rgba(120,100,60,.4)'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(0, -73); g.lineTo(0, -68); g.stroke();
+  } else if (tipo === 'cartola') {
+    g.fillStyle = '#1a1a22'; g.beginPath(); g.ellipse(0, -63, 15, 3.6, 0, 0, 7); g.fill(); g.fillRect(-8.5, -80, 17, 17); g.beginPath(); g.ellipse(0, -80, 8.5, 2.4, 0, 0, 7); g.fill();
+    g.fillStyle = '#f2c14e'; g.fillRect(-8.5, -69, 17, 3.2);
   } else if (tipo === 'noel') {
     g.fillStyle = '#d8342a'; g.beginPath(); g.moveTo(-11, -64); g.quadraticCurveTo(-4, -86, 12, -76); g.lineTo(11, -64); g.closePath(); g.fill();
     g.fillStyle = '#fff'; g.beginPath(); g.ellipse(0, -64, 12.5, 3.6, 0, 0, 7); g.fill(); g.beginPath(); g.arc(12, -77, 3.4, 0, 7); g.fill();
@@ -8664,7 +8674,7 @@ function drawAvatar(g, x, y, s, av, t, andando, dir = 1, sentado = false) {
   // cores e mangas de cada peça
   const LOOK = {
     camiseta: ['#d8402f', 8], xadrez: ['#c8402f', 16], regata: ['#f2c14e', 0],
-    blusa: ['#f48fb1', 6], florida: ['#b39ddb', 12], regatinha: ['#7fd1b9', 0], poncho: ['#d94a3a', 9],
+    blusa: ['#f48fb1', 6], florida: ['#b39ddb', 12], regatinha: ['#7fd1b9', 0], poncho: ['#d94a3a', 9], branca: ['#fbfbfb', 8], brancaf: ['#fbfbfb', 6],
   };
   const [corCamisa, manga] = LOOK[av.camisa] || LOOK.xadrez;
   const corManga = av.camisa === 'xadrez' ? '#a53325' : av.camisa === 'blusa' ? '#f8a8c4' : corCamisa;
@@ -10266,18 +10276,21 @@ function missoesHTML() {
   if (missSeg === 'evento' && !eventoAtivo()) missSeg = 'dia';
   if (missSeg === 'halloween' && !halloweenAtivo()) missSeg = 'dia';
   if (missSeg === 'natal' && !natalAtivo()) missSeg = 'dia';
+  if (missSeg === 'ano' && !anoAtivo()) missSeg = 'dia';
   if (missSeg === 'colecao' && state.newStamps) { state.newStamps = 0; setTimeout(renderTabs, 0); save(); }
   const segs = [['dia', 'Diárias'], ['semana', 'Semanais'], ['vila', 'Vila'], ['colecao', 'Coleção'], ['trevos', '🍀 Trevos']];
   if (eventoAtivo()) segs.unshift(['evento', '🎈 Evento']);
   if (halloweenAtivo()) segs.unshift(['halloween', '🎃 Halloween']);
   if (natalAtivo()) segs.unshift(['natal', '🎄 Natal']);
-  const conta = { natal: natProntas(), halloween: halloweenAtivo() ? halProntas() + Object.values(halDe().tem).filter(Boolean).length + halDe().caixa.length : 0, evento: evProntas(), dia: prontasDe('dia'), semana: prontasDe('semana'), vila: vilaProntos(), colecao: state.newStamps || 0, trevos: trevosPendentes() };
+  if (anoAtivo()) segs.unshift(['ano', '🎆 Ano Novo']);
+  const conta = { ano: anoProntas(), natal: natProntas(), halloween: halloweenAtivo() ? halProntas() + Object.values(halDe().tem).filter(Boolean).length + halDe().caixa.length : 0, evento: evProntas(), dia: prontasDe('dia'), semana: prontasDe('semana'), vila: vilaProntos(), colecao: state.newStamps || 0, trevos: trevosPendentes() };
   let html = `<div class="seg small" role="tablist">${segs.map(([id, n]) => `<button type="button" role="tab" data-mseg="${id}" aria-selected="${missSeg === id}">${n}${conta[id] ? `<span class="badge" aria-label="${conta[id]} novidades">${conta[id]}</span>` : ''}</button>`).join('')}</div>`;
   const est = estacao();
   html += `<div class="row sel"><div class="avatar" style="background:#7aa35a;font-size:26px">${est.icone}</div><div><div class="name">${est.nome}</div>
     <div class="meta">Esta semana rendem ${Math.round(ESTACAO_BONUS * 100)}% a mais: ${est.plantas.map(id => (CROP[id] || ENFEITE[id] || { nome: id }).nome.toLowerCase()).join(', ')}.</div></div><div></div></div>`;
   if (missSeg === 'halloween') return html + halHTML();
   if (missSeg === 'natal') return html + natHTML();
+  if (missSeg === 'ano') return html + anoHTML();
   if (missSeg === 'evento') return html + eventoHTML();
   if (missSeg === 'vila') return html + vilaHTML();
   if (missSeg === 'trevos') return html + trevosHTML();
@@ -14286,6 +14299,7 @@ function natEntrada() {
     const msg = '🎄 Natal na Roça Feliz! Até 25/12, às 23:59: neve, luzes piscando, a árvore de Natal (movível, no Modo Mover), o lago congelado para patinar ⛸️ e um presente do Advento por dia. Seu presente: a Casa Natalina (Loja › Temas). Veja tudo em Missões › 🎄 Natal.';
     addNews(msg); setTimeout(() => toast(msg, 'good'), 2600); done();
   }
+  if (anoAtivo()) anoEntrada();
   if (natalAtivo() && natAcumula()) { const m = `🎁 Presente do Advento disponível! Você tem ${natDe().pend} para pegar em Missões › 🎄 Natal (guardo até ${NAT_ADV_MAX} dias).`; addNews(m); setTimeout(() => toast(m, 'good'), 3600); done(); }
 }
 function natPegarAdvento() {
@@ -14679,8 +14693,156 @@ function drawTemaNatal(t) {
     return;
   }
   if (scene === 'roca' && isHome() && natalAtivo()) { natEfeitosDesenho(now); drawGrinch(now); }
+  drawFogos(now);
   desenhaNeve(now);
 }
+// ============================================================
+// Ano Novo 2027 (de 26/12 até 10/01, 23:59): fogos clicáveis, contagem regressiva à meia-noite, resoluções,
+// simpatias, ondas do Réveillon na praia da Vila, retrospectiva e a loja de estrelas ⭐
+// ============================================================
+const VIRADA = new Date(2027, 0, 1, 0, 0, 0).getTime();
+const anoDe = () => {
+  if (!state.ano || state.ano.id !== ANO.id) state.ano = { id: ANO.id, estrelas: 0, total: 0, esc: [], prog: {}, feitas: {}, simp: { d: 0, f: {} }, ondas: { d: 0, n: 0 }, presente: 0, retro: 0, virada: 0, xp: 0, bonus: 0 };
+  return state.ano;
+};
+const anoEstrelas = n => { const a = anoDe(); a.estrelas += n; a.total += n; };
+const ANO_RES = [
+  { id: 'colher',  ev: 'colher',  txt: 'Colher {n} vezes',                 alvo: 300 },
+  { id: 'regar',   ev: 'regar',   txt: 'Regar {n} canteiros',              alvo: 200 },
+  { id: 'pescar',  ev: 'pescar',  txt: 'Pescar {n} peixes',                alvo: 20 },
+  { id: 'coletar', ev: 'coletar', txt: 'Recolher {n} produtos dos animais', alvo: 80 },
+  { id: 'fabricar', ev: 'fabricar', txt: 'Fabricar {n} produtos na Fábrica', alvo: 25 },
+  { id: 'entregar', ev: 'entregar', txt: 'Entregar {n} pedidos do caminhão', alvo: 10 },
+  { id: 'minerar', ev: 'minerar', txt: 'Quebrar {n} pedras na mina',       alvo: 40 },
+  { id: 'carta',   ev: 'carta',   txt: 'Mandar {n} cartas ou presentes a amigos', alvo: 5 },
+];
+function anoTrack(ev, n) {
+  if (!state || !anoAtivo()) return;
+  const a = anoDe(); let pronto = false;
+  for (const id of a.esc) {
+    const r = ANO_RES.find(x => x.id === id); if (!r || r.ev !== ev || a.feitas[id] || (a.prog[id] || 0) >= r.alvo) continue;
+    a.prog[id] = Math.min(r.alvo, (a.prog[id] || 0) + n); if (a.prog[id] >= r.alvo) pronto = true;
+  }
+  if (pronto) { toast('🎆 Resolução de Ano Novo cumprida! Pegue o prêmio em Missões › 🎆 Ano Novo.', 'good'); sfx('level'); renderTabs(); }
+}
+const anoProntas = () => anoAtivo() && state ? anoDe().esc.filter(id => (anoDe().prog[id] || 0) >= ANO_RES.find(r => r.id === id).alvo && !anoDe().feitas[id]).length + (Object.keys(ANO_SIMP).filter(k => !anoDe().simp.f[k]).length ? 1 : 0) : 0;
+function anoEntrada() {
+  if (!state || !anoAtivo()) return;
+  const a = anoDe();
+  if (!a.presente) {
+    a.presente = 1; state.invNovos = (state.invNovos || 0) + 1;
+    const n = natDe(), msg = `🎆 Ano Novo na Roça Feliz! De 26/12 até 10/01, às 23:59: fogos no céu da roça (toque nos dourados), contagem regressiva à meia-noite de 31/12, resoluções para o ano, simpatias, as 7 ondas na praia da Vila e a loja de estrelas ⭐. Veja em Missões › 🎆 Ano Novo. Sua retrospectiva de 2026: nível ${state.level}, ${state.friends.length} amigo${state.friends.length === 1 ? '' : 's'}, ${n.total || 0} ❄️ flocos de Natal e ${n.vencidos || 0} vez${n.vencidos === 1 ? '' : 'es'} que você convenceu o Grinch.`;
+    addNews(msg); setTimeout(() => toast('🎆 Ano Novo! Veja em Missões › 🎆 Ano Novo.', 'good'), 2600); done();
+  }
+}
+const ANO_SIMP = {
+  lentilha: { nome: 'Lentilha (dinheiro)',  emoji: '🫘', txt: 'Você comeu lentilha: +300 moedas e +5 ⭐ para o ano vir próspero!' },
+  uvas:     { nome: '7 uvas (alegria)',     emoji: '🍇', txt: 'Você comeu 7 uvas: +25% de XP por 24 horas!' },
+  roma:     { nome: 'Romã (sorte)',         emoji: '🍎', txt: 'Você guardou 7 sementes de romã: sua próxima plantação vira colheita dourada!' },
+};
+function anoSimpatia(id) {
+  if (!anoAtivo() || !ANO_SIMP[id]) return; const a = anoDe(), hoje = localDay();
+  if (a.simp.d !== hoje) a.simp = { d: hoje, f: {} };
+  if (a.simp.f[id]) return toast('Você já fez essa simpatia hoje. Volte amanhã!');
+  a.simp.f[id] = 1;
+  if (id === 'lentilha') { state.coins += 300; anoEstrelas(5); } else if (id === 'uvas') { a.xp = Date.now() + 24 * 3600e3; anoEstrelas(2); } else { state.ouroProx = (state.ouroProx || 0) + 1; anoEstrelas(3); }
+  sfx('level'); toast(ANO_SIMP[id].emoji + ' ' + ANO_SIMP[id].txt, 'good'); done(); renderPane(); renderHUD();
+}
+function anoEscolher(id) {
+  const a = anoDe(); if (!anoAtivo() || a.esc.includes(id)) return;
+  if (a.esc.length >= 3) return toast('Você já escolheu as 3 resoluções do ano.');
+  a.esc.push(id); a.prog[id] = 0; sfx('buy'); done(); renderPane();
+}
+function anoResgatar(id) {
+  const a = anoDe(), r = ANO_RES.find(x => x.id === id); if (!r || a.feitas[id] || (a.prog[id] || 0) < r.alvo) return;
+  a.feitas[id] = 1; state.coins += 600; anoEstrelas(15); sfx('level'); addXP(6, null);
+  toast('🎆 Resolução cumprida: +600 moedas e +15 ⭐!', 'good');
+  if (a.esc.length === 3 && a.esc.every(x => a.feitas[x]) && !a.bonus) { a.bonus = 1; state.coins += 1500; anoEstrelas(30); toast('🏆 As 3 resoluções! Bônus: +1.500 moedas e +30 ⭐!', 'good'); }
+  done(); renderPane(); renderHUD();
+}
+const ANO_LOJA = [
+  { id: 'chapeu:cartola', nome: 'Cartola de Ano Novo', desc: 'Chapéu para o avatar', preco: 40, ic: '🎩', unico: true },
+  { id: 'camisa:branca',  nome: 'Camisa branca de Réveillon', desc: 'Roupa para o avatar (menino: camisa, menina: blusa)', preco: 30, ic: '👕', unico: true },
+  { id: 'sorte',          nome: 'Poção de sorte', desc: 'As próximas 2 plantações viram colheita dourada', preco: 50, ic: '🍀' },
+  { id: 'moedas',         nome: 'Sacola de moedas', desc: '1.000 moedas', preco: 25, ic: '💰' },
+];
+function anoComprar(id) {
+  if (!anoAtivo()) return; const a = anoDe(), it = ANO_LOJA.find(x => x.id === id); if (!it) return;
+  const chave = id.split(':')[1];
+  if (it.unico && state.festaLoja && state.festaLoja[chave]) return toast('Você já tem esse.');
+  if (a.estrelas < it.preco) return toast(`Faltam estrelas: custa ${it.preco} ⭐ e você tem ${a.estrelas}.`, 'bad');
+  a.estrelas -= it.preco;
+  if (it.unico) { (state.festaLoja ||= {})[chave] = 1; toast(`${it.ic} ${it.nome} liberado! Escolha em Configurações › Avatar.`, 'good'); }
+  else if (id === 'sorte') { state.ouroProx = (state.ouroProx || 0) + 2; toast('🍀 As próximas 2 plantações viram colheita dourada.', 'good'); }
+  else { state.coins += 1000; toast('💰 +1.000 moedas!', 'good'); }
+  sfx('buy'); done(); renderPane(); renderHUD();
+}
+function anoHTML() {
+  const a = anoDe(), falta = ANO.fim - Date.now(), d = Math.floor(falta / 86400e3), hh = Math.floor((falta % 86400e3) / 3600e3), hoje = localDay();
+  if (a.simp.d !== hoje) a.simp = { d: hoje, f: {} };
+  let html = `<div class="row sel"><div class="avatar" style="background:#1f3a8a;font-size:26px">🎆</div><div><div class="name">Ano Novo</div><div class="meta">Termina em 10/01, às 23:59 · faltam ${d ? d + 'd ' : ''}${hh}h. Você tem <b>${a.estrelas} ⭐ estrelas</b>.</div></div><div></div></div>`;
+  html += `<h3>🎯 Resoluções do ano</h3><p class="hint">Escolha 3 metas para cumprir até 10/01. Cada uma dá 600 moedas e 15 ⭐; as 3 juntas dão um bônus. ${a.esc.length < 3 ? `Você escolheu ${a.esc.length} de 3.` : ''}</p>`;
+  for (const r of ANO_RES) {
+    const esc = a.esc.includes(r.id), v = Math.min(r.alvo, a.prog[r.id] || 0), feita = a.feitas[r.id], pronta = esc && v >= r.alvo && !feita;
+    html += `<div class="row ${pronta ? 'sel' : esc ? '' : 'locked'}"><div class="avatar" style="background:#1f3a8a;font-size:20px">${esc ? '🎯' : '➕'}</div><div><div class="name">${r.txt.replace('{n}', r.alvo)}</div><div class="meta">${esc ? `${v}/${r.alvo}` : 'Não escolhida'}</div></div>${feita ? '<button class="btn ghost" disabled>Resgatada</button>' : pronta ? `<button class="btn gold" data-ano-res="${r.id}">Resgatar</button>` : esc ? '<button class="btn ghost" disabled>Em andamento</button>' : `<button class="btn" data-ano-esc="${r.id}" ${a.esc.length >= 3 ? 'disabled' : ''}>Escolher</button>`}</div>`;
+  }
+  html += `<h3>🍀 Simpatias de Ano Novo</h3><p class="hint">Uma de cada por dia, de graça.</p>`;
+  for (const [id, S] of Object.entries(ANO_SIMP)) html += `<div class="row ${a.simp.f[id] ? 'locked' : ''}"><div class="avatar" style="background:#d9b24a;font-size:22px">${S.emoji}</div><div><div class="name">${S.nome}</div><div class="meta">${S.txt.replace('Você comeu ', '').replace('Você guardou ', '')}</div></div><button class="btn gold" data-ano-simp="${id}" ${a.simp.f[id] ? 'disabled' : ''}>${a.simp.f[id] ? 'Feito hoje' : 'Fazer'}</button></div>`;
+  html += `<h3>🌊 Réveillon na praia</h3><p class="hint">Na Vila, toque nas ondas da praia e pule as 7 ondas (${a.ondas.d === hoje ? a.ondas.n : 0}/7 hoje): 7 ondas dão 100 moedas e 10 ⭐.</p>`;
+  html += `<h3>🎆 Fogos</h3><p class="hint">Na roça, os fogos dourados que aparecem no céu dão moedas e ⭐ quando você toca neles. À meia-noite de 31/12 tem contagem regressiva e chuva de fogos!</p>`;
+  html += `<h3>🛍️ Loja de estrelas ⭐</h3>`;
+  for (const it of ANO_LOJA) { const tem = it.unico && state.festaLoja && state.festaLoja[it.id.split(':')[1]]; html += `<div class="row ${tem ? 'locked' : ''}"><div class="avatar" style="background:#1f3a8a;font-size:22px">${it.ic}</div><div><div class="name">${it.nome}</div><div class="meta">${it.desc}</div></div>${tem ? '<button class="btn ghost" disabled>Já tem</button>' : `<button class="btn gold" data-ano-comprar="${it.id}" ${a.estrelas >= it.preco ? '' : 'disabled'}>${it.preco} ⭐</button>`}</div>`; }
+  return html;
+}
+// ---- Ondas do Réveillon (praia da Vila) ----
+function anoOnda() {
+  if (!anoAtivo()) return; const a = anoDe(), hoje = localDay();
+  if (a.ondas.d !== hoje) a.ondas = { d: hoje, n: 0 };
+  if (a.ondas.n >= 7) return toast('🌊 Você já pulou as 7 ondas hoje! Volte amanhã.');
+  a.ondas.n++; sfx('water'); toast(`🌊 Onda ${a.ondas.n} de 7! ${['Um desejo de saúde…', 'Amor…', 'Dinheiro…', 'Paz…', 'Amizade…', 'Sorte…', 'Alegria!'][a.ondas.n - 1]}`, 'good');
+  if (a.ondas.n === 7) { state.coins += 100; anoEstrelas(10); sfx('level'); toast('🌊 As 7 ondas! +100 moedas e +10 ⭐. Feliz Ano Novo!', 'good'); renderHUD(); }
+  done();
+}
+// ---- Fogos de artifício no céu da roça ----
+let fogos = [], proxFogo = 0, proxDourado = 0;
+const FOGO_COR = ['#ff4a3a', '#ffd54a', '#4ad0ff', '#7bff7a', '#ff8ad0', '#ffffff', '#b388ff'];
+function fogoNovo(dourado) {
+  const { cw, ch } = L, cor = dourado ? '#ffd54a' : FOGO_COR[Math.floor(Math.random() * FOGO_COR.length)];
+  fogos.push({ x: cw * (0.12 + Math.random() * 0.76), y: ch * (0.1 + Math.random() * 0.3), t0: performance.now(), cor, ouro: !!dourado, r: dourado ? 70 : 38 + Math.random() * 30, dur: dourado ? 5000 : 1800, pego: false });
+}
+function drawFogos(t) {
+  const agora = Date.now(), mudo = !anoAtivo() || isGated() || !['roca', 'animais'].includes(scene);
+  if (!anoAtivo()) { fogos = []; return; }
+  const apos = agora >= VIRADA && agora < VIRADA + 90e3, taxa = apos ? 350 : 7000 + Math.random() * 5000;
+  if (!mudo && t > proxFogo) { fogoNovo(false); proxFogo = t + taxa; if (apos) for (let k = 0; k < 2; k++) fogoNovo(false); }
+  if (!mudo && t > proxDourado) { fogoNovo(true); proxDourado = t + 45e3 + Math.random() * 30e3; }
+  fogos = fogos.filter(f => t - f.t0 < f.dur);
+  if (!mudo && apos && fogos.length < 3) { fogoNovo(false); proxFogo = Math.min(proxFogo, t + 350); } // chuva de fogos logo depois da meia-noite
+  if (fogos.length) { ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const f of fogos) {
+    const k = (t - f.t0) / f.dur, e = 1 - Math.pow(1 - Math.min(1, k * 1.6), 3), a = Math.max(0, 1 - Math.pow(k, 2));
+    ctx.fillStyle = f.cor; ctx.globalAlpha = a;
+    const n = f.ouro ? 28 : 18;
+    for (let i = 0; i < n; i++) { const ang = i / n * 6.2832 + f.t0, rr = f.r * e * (0.6 + 0.4 * ((i * 7) % 3) / 2); ctx.beginPath(); ctx.arc(f.x + Math.cos(ang) * rr, f.y + Math.sin(ang) * rr + k * k * 26, f.ouro ? 3.4 : 2.2, 0, 7); ctx.fill(); }
+    if (k < 0.15) { ctx.globalAlpha = 1 - k / 0.15; ctx.beginPath(); ctx.arc(f.x, f.y, 10, 0, 7); ctx.fill(); }
+    if (f.ouro && !f.pego) { ctx.globalAlpha = 0.5 + 0.3 * Math.sin(t / 150); ctx.beginPath(); ctx.arc(f.x, f.y, 8, 0, 7); ctx.fill(); }
+  }
+  ctx.restore(); ctx.globalAlpha = 1;
+  if (!mudo && isHome()) for (const f of fogos) if (f.ouro && !f.pego) hits.push({ kind: 'fogo', x: f.x, y: f.y, r: Math.max(f.r * 0.9, 40), ref: f }); }
+  // contagem regressiva da meia-noite de 31/12
+  const falta = VIRADA - agora;
+  if (!mudo && falta > 0 && falta <= 10500) { const n = Math.ceil(falta / 1000); ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `900 ${Math.round(L.ch * 0.34)}px 'Baloo 2', sans-serif`; ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(20,20,70,.8)'; ctx.fillStyle = '#ffd54a'; ctx.globalAlpha = 0.55 + 0.45 * ((falta % 1000) / 1000); ctx.strokeText(n, L.cw / 2, L.ch * 0.42); ctx.fillText(n, L.cw / 2, L.ch * 0.42); ctx.restore(); }
+  if (!mudo && apos && agora - VIRADA < 9000) { ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `900 ${Math.round(Math.min(L.cw * 0.12, L.ch * 0.2))}px 'Baloo 2', sans-serif`; ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(20,20,70,.85)'; ctx.fillStyle = '#ffd54a'; ctx.strokeText('🎆 FELIZ 2027! 🎆', L.cw / 2, L.ch * 0.4); ctx.fillText('🎆 FELIZ 2027! 🎆', L.cw / 2, L.ch * 0.4); ctx.restore(); }
+}
+function anoFogoToque(f) {
+  if (!f || f.pego || !anoAtivo()) return; f.pego = true; state.coins += 50; anoEstrelas(1); sfx('coin'); toast('🎆 Fogo dourado! +50 moedas e +1 ⭐.', 'good'); done(); renderHUD();
+}
+let anoViradaFeita = false;
+function anoTick() {
+  if (!state || !anoAtivo() || anoViradaFeita) return; const a = anoDe(), agora = Date.now();
+  if (agora >= VIRADA && agora < VIRADA + 3600e3 && !a.virada && !document.hidden) { a.virada = 1; anoEstrelas(10); state.coins += 500; sfx('level'); toast('🎆 FELIZ ANO NOVO! Você estava aqui na virada: +500 moedas e +10 ⭐!', 'good'); done(); renderHUD(); }
+}
+setInterval(() => { try { anoTick(); } catch (e) { /* sem virada */ } }, 2000);
 // ============================================================
 // Evento: Halloween 2026 (de 16/10 até 31/10, 23:59)
 // ============================================================
@@ -15989,6 +16151,7 @@ function pracaDesenha(g, c, now, dpr) {
     const qf = I(32, 25), qa = I(37.2, 27.6), prog = natalAtivo() ? Math.min(1, (praca.prog.enfeitar || 0) / 120) : 1;
     push(51, () => { const r = tw * 2.2; g.fillStyle = 'rgba(214,236,250,.95)'; g.beginPath(); g.ellipse(qf.x, qf.y - 2 * dpr, r, r / 2, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 2 * dpr; g.stroke(); g.strokeStyle = 'rgba(150,190,220,.8)'; g.lineWidth = dpr; g.beginPath(); g.moveTo(qf.x - r * 0.6, qf.y); g.lineTo(qf.x - r * 0.1, qf.y - r * 0.2); g.lineTo(qf.x + r * 0.4, qf.y + r * 0.1); g.stroke(); g.font = `${Math.round(tw * 0.9)}px system-ui`; g.textAlign = 'center'; g.fillText('⛸️', qf.x + Math.sin(now / 1200) * r * 0.5, qf.y - tw * 0.2); });
     push(37.2 + 27.6, () => { comCtx(g, () => desenhaArvoreNatal(qa.x, qa.y, tw * 4.4, now, prog)); g.font = `800 ${Math.round(10 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#fff'; if (natalAtivo()) { const t = `🎄 ${Math.min(120, praca.prog.enfeitar || 0)}/120`; g.strokeText(t, qa.x, qa.y + tw * 0.9); g.fillText(t, qa.x, qa.y + tw * 0.9); } });
+    if (anoAtivo()) { const qo = I(58.5, 38.5); push(58.5 + 38.5, () => { for (let k = 0; k < 3; k++) { g.font = `${Math.round(tw * (1.1 + k * 0.15))}px system-ui`; g.textAlign = 'center'; g.fillText('🌊', qo.x + (k - 1) * tw * 0.9 + Math.sin(now / 500 + k) * tw * 0.2, qo.y - k * tw * 0.15); } g.font = `800 ${Math.round(10 * dpr)}px system-ui, sans-serif`; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#fff'; const tt = `🌊 Ondas ${anoDe().ondas.d === localDay() ? anoDe().ondas.n : 0}/7`; g.strokeText(tt, qo.x, qo.y + tw * 0.7); g.fillText(tt, qo.x, qo.y + tw * 0.7); }); praca.hits.push({ id: 'ondas', x: qo.x, y: qo.y - tw * 0.3, r: tw * 2 }); }
     if (natalAtivo()) praca.hits.push({ id: 'natarvore', x: qa.x, y: qa.y - tw * 1.8, r: tw * 2.4 });
   }
   for (const [id, l] of Object.entries(VILA_LOCAIS)) {
@@ -16136,6 +16299,7 @@ function pracaToque(ev) {
     if (id.startsWith('mor:')) { const i = Number(id.slice(4)), m = VILA_MORADORES[i], ped = vilaPedidos()[i]; if (!m) return; const feito = vilaPedSt().feito[m.id]; praca.npcFala[i] = { t: feito ? 'Obrigado pela ajuda de hoje! 💛' : `${ped.qtd} ${itemEmoji(ped.id)} ${((PRODUCT[ped.id] && PRODUCT[ped.id].nomePl) || ped.id).toLowerCase()}, por favor!`, ate: now + 4000 }; sfx('click'); if (!feito) { praca.avTab = 'pedidos'; setTimeout(() => { if (!praca.painel) pracaPainelAbrir('mural'); }, 700); } return; }
     if (id.startsWith('banco:')) { const i = Number(id.slice(6)), b = VILA_BANCOS[i]; if (Object.values(praca.jog).some(j => j.ia === 'sentar' && Math.hypot(j.tu - b[0], j.tv - b[1]) < 0.6)) return toast('Essa cadeira já está ocupada! 🪑'); return vilaPedirAssento('🪑 Cadeira', 'Sentar', () => vilaSentar(i)); }
     if (id === 'natarvore') return vilaArvoreNatal();
+    if (id === 'ondas') return anoOnda();
     if (id === 'fonte') { if (festaAtiva()) return escolher('A fonte congelou! O que você quer fazer?', [{ txt: '⛸️ Patinar no gelo', gold: true, fn: abrirPista }, { txt: '🪙 Fazer um desejo', fn: vilaDesejo }, { txt: 'Cancelar', ghost: true }]); return vilaDesejo(); }
     return pracaPainelAbrir(id);
   }
