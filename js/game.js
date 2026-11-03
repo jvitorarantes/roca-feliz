@@ -1576,6 +1576,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 378, txt: "🎄 Natal na Vila! A fonte da praça congelou (toque nela para ⛸️ patinar, e a pista dá pontos no Ranking de hoje), tem uma árvore de Natal gigante: todos penduram enfeites (1 ❄️ cada) até acender, e a meta coletiva dá prêmio em Vila › Mural. O Grinch Gigante virou o chefe da Vila em dias alternados. A Quermesse vende chocolate quente, panetone e rabanada. No dia 24/12 tem a Missa do Galo na Igreja. E no perfil de um amigo na Vila tem o botão 🎁 Mandar presente de Natal." },
   { v: 377, txt: "🛍️ Loja de Natal! Em Missões › 🎄 Natal você troca ❄️ flocos por enfeites (boneco de neve, pilha de presentes, estrela, pinheirinho enfeitado), chapéus para o avatar (Gorro de Natal e Chifres de rena), Poção de sorte e moedas. O caminhão também traz 🎄 Cestas de Natal: pedem biscoito, panetone, rabanada ou chocolate quente, pagam 50% a mais e dão 10 ❄️." },
   { v: 376, txt: "😈 Grinch gigante e presentes de Natal! O Grinch gigante aparece de vez em quando na sua roça: toque nele e convença-o com algo doce, quentinho ou brilhante, cantando a sequência de luzes, ou deixe um prato de biscoitos pronto (cachorro acordado também assusta). Todo dia você ganha 1 Presente de Natal, 1 Papai Noel atrapalhado e 1 Visita do Grinch (guarda até 3 dias) para mandar a amigos COM MENSAGEM sua: quando abrirem, acontece algo na roça dele (rena, árvore mágica, presentes espalhados, boneco de neve, o Grinch…). Em Missões › 🎄 Natal. Novas receitas na Fábrica: biscoito de gengibre, panetone, rabanada e chocolate quente." },
   { v: 375, txt: "🎄 NATAL! De hoje até 25/12, às 23:59: neve, luzes piscando na roça, a Casa Natalina (presente seu), uma árvore de Natal que dá para mover, e o lago congelou: toque nele para ⛸️ patinar (acerte o ponto verde para fazer piruetas e ganhar flocos ❄️ e moedas). Todo dia tem um presente do Advento em Missões › 🎄 Natal; se você não pegar, ele fica guardado por até 3 dias. Vem mais por aí: Grinch, presentes para amigos, Fábrica de Natal e a Vila!" },
@@ -14623,6 +14624,7 @@ function pistaGirar() {
     pista.fim = true; $('#pistaGirar').hidden = true;
     const fl = pista.pts, mo = pista.pts * 15;
     if (pista.premio) { const p = natDe().pista; p.n++; natFlocos(fl); state.coins += mo; track('patinar'); sfx('level'); done(); renderHUD(); }
+    if (praca.aberta) try { pracaPontos(Math.max(1, Math.round(pista.pts / 3))); } catch (e) { /* sem rank */ }
     $('#pistaInfo').textContent = pista.premio ? `Fim! ${pista.pts} pontos: +${fl} ❄️ e +${mo} moedas.` : `Fim! ${pista.pts} pontos.`;
   }
 }
@@ -14640,16 +14642,18 @@ function luzesMundo(a, b, sag, t) {
     ctx.globalAlpha = 1;
   }
 }
-function desenhaArvoreNatal(x, y, W, t) {
+const comCtx = (g, fn) => { const o = ctx; ctx = g; try { fn(); } finally { ctx = o; } };
+function desenhaArvoreNatal(x, y, W, t, prog = 1) {
   const s = W / 100;
   ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(x, y, 30 * s, 8 * s, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#6b3f1f'; ctx.fillRect(x - 5 * s, y - 14 * s, 10 * s, 14 * s);
   const tiers = [[-12, 46, 38], [-34, 36, 32], [-54, 26, 28]];
   tiers.forEach(([dy, w, h], i) => { ctx.fillStyle = ['#1f6a34', '#2a8040', '#37994d'][i]; ctx.beginPath(); ctx.moveTo(x - w * s, y + dy * s); ctx.lineTo(x + w * s, y + dy * s); ctx.lineTo(x, y + (dy - h) * s); ctx.closePath(); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.beginPath(); ctx.ellipse(x - w * 0.5 * s, y + (dy - 2) * s, 7 * s, 3 * s, 0, 0, 7); ctx.ellipse(x + w * 0.35 * s, y + (dy - 3) * s, 6 * s, 2.5 * s, 0, 0, 7); ctx.fill(); });
   const luz = [[-20, -24, 0], [18, -22, 1], [-8, -44, 2], [12, -48, 3], [-3, -64, 4], [24, -14, 1], [-26, -12, 2]], cores = ['#ff4a3a', '#ffd54a', '#4aa3ff', '#ff8ad0', '#ffffff'];
-  luz.forEach(([dx, dy, c], k) => { const on = (Math.floor(t / 420) + k) % 3 !== 0; ctx.globalAlpha = on ? 1 : 0.4; ctx.fillStyle = cores[(c + k) % 5]; ctx.beginPath(); ctx.arc(x + dx * s, y + dy * s, 3.4 * s, 0, 7); ctx.fill(); });
+  if (prog !== 1) for (let k = 0; k < 14; k++) luz.push([-30 + (k * 37) % 60, -14 - (k * 23) % 50, k]); // árvore da praça: mais enfeites
+  luz.slice(0, Math.max(1, Math.ceil(luz.length * prog))).forEach(([dx, dy, c], k) => { const on = (Math.floor(t / 420) + k) % 3 !== 0; ctx.globalAlpha = on ? 1 : 0.4; ctx.fillStyle = cores[(c + k) % 5]; ctx.beginPath(); ctx.arc(x + dx * s, y + dy * s, 3.4 * s, 0, 7); ctx.fill(); });
   ctx.globalAlpha = 1;
-  const br = 0.7 + 0.3 * Math.sin(t / 300); // estrela do topo
+  const br = prog >= 1 ? 0.7 + 0.3 * Math.sin(t / 300) : 0.25; // estrela do topo (só acende com a árvore completa)
   ctx.fillStyle = `rgba(255,224,90,${br})`; ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? 4.5 * s : 10 * s; ctx.lineTo(x + Math.cos(a) * r, y - 92 * s + Math.sin(a) * r); } ctx.closePath(); ctx.fill();
   [['#d8402f', -18, 5], ['#2f8a4a', -4, 7], ['#4aa3df', 14, 4], ['#f2b705', 26, 6]].forEach(([c, dx, w]) => { ctx.fillStyle = c; ctx.fillRect(x + dx * s - w * s, y - 2 * s, w * 2 * s, 9 * s); ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillRect(x + dx * s - 1 * s, y - 2 * s, 2 * s, 9 * s); });
 }
@@ -15141,7 +15145,9 @@ const PRACA_METAS = [
   { id: 'pescar',  ev: 'pescar',  nome: 'Pescar',                ic: '🎣', meta: 40,  moedas: 250, doce: ['bala', 3] },
   { id: 'coletar', ev: 'coletar', nome: 'Recolher dos animais',  ic: '🥚', meta: 100, moedas: 200, doce: ['pirulito', 2] },
   { id: 'minerar', ev: 'minerar', nome: 'Quebrar pedras na mina', ic: '⛏️', meta: 60,  moedas: 250, doce: ['bala', 3] },
+  { id: 'enfeitar', ev: 'enfeitar', nome: 'Enfeitar a árvore de Natal da praça', ic: '🎄', meta: 120, moedas: 400, doce: ['bala', 5], natal: true },
 ];
+const pracaMetas = () => PRACA_METAS.filter(m => !m.natal || natalAtivo());
 const VILA_LOCAIS = {
   mural:   { u: 32, v: 17, nome: 'Quadro de avisos',   ic: '📋' },
   mercado: { u: 16.8, v: 31.2, nome: 'Mercado', ic: '🏪' },
@@ -15201,7 +15207,7 @@ function pracaOuvirMetas() {
   praca.refs.metas = praca.rt.ref('praca/missao/' + praca.progDia);
   praca.refs.metas.on('value', s => {
     const antes = praca.prog; praca.prog = s.val() || {};
-    for (const m of PRACA_METAS) if ((praca.prog[m.id] || 0) >= m.meta && (antes[m.id] || 0) < m.meta && Object.keys(antes).length) { toast(`🎉 A vila completou a meta "${m.nome}"! Abra a Vila › Mural para pegar o prêmio.`, 'good'); sfx('level'); }
+    for (const m of pracaMetas()) if ((praca.prog[m.id] || 0) >= m.meta && (antes[m.id] || 0) < m.meta && Object.keys(antes).length) { toast(`🎉 A vila completou a meta "${m.nome}"! Abra a Vila › Mural para pegar o prêmio.`, 'good'); sfx('level'); }
     if (praca.aberta && praca.painel === 'mural') pracaPainel();
   });
 }
@@ -15384,7 +15390,8 @@ const BOSSES = [
   { id: 'jacare', e: '🐊', nome: 'Jacaré do Pântano', b: { forma: 'jacare', cor: '#3a7a4a', tam: 1.5, nome: 'Jacaré' },                     estatua: 'est_jacare', fala: 'SNAP! O pântano é meu!' },
   { id: 'onca',   e: '🐆', nome: 'Onça Rei',         b: { forma: 'felino', cor: '#c8903a', tam: 1.5, nome: 'Onça' },                        estatua: 'est_onca',   fala: 'RAAAWR! Eu mando nessa Vila!' },
 ];
-const pracaBossDef = () => halloweenAtivo() ? BOSSES[0] : BOSSES[1 + Math.floor(pracaAgora() / 86400e3) % 3];
+BOSSES.push({ id: 'grinch', e: '😈', nome: 'Grinch Gigante', b: { forma: 'canido', cor: '#6fbf3a', tam: 1.1, nome: 'Max, o cachorro do Grinch' }, estatua: 'est_grinch', fala: 'HEHEHE! Vou roubar o Natal da Vila inteira!' });
+const pracaBossDef = () => halloweenAtivo() ? BOSSES[0] : (natalAtivo() && Math.floor(pracaAgora() / 86400e3) % 2 === 0) ? BOSSES[4] : BOSSES[1 + Math.floor(pracaAgora() / 86400e3) % 3];
 const pracaBossNome = () => `${pracaBossDef().e} ${pracaBossDef().nome}`;
 // Fases pelo dano já dado; janelas de ponto fraco, investidas e filhotes seguem o relógio do servidor (iguais para todos)
 const bossFase = () => { const f = praca.boss / VILA_BOSS_HP; return f < 0.34 ? 1 : f < 0.67 ? 2 : 3; };
@@ -15439,7 +15446,7 @@ function pracaHtmlMural() {
     ${venceu && meus >= 5 && !jaPego ? '<button class="btn gold" type="button" data-vila-boss-premio>🎁 Pegar prêmio (600 moedas, 5 doces e uma estátua)</button>' : venceu && jaPego ? '<div>✅ Prêmio recebido</div>' : venceu ? '<div>Dê pelo menos 5 golpes na próxima vez para ter prêmio.</div>' : ''}</div>`;
   const rk = Object.entries(praca.rank).filter(([, x]) => x && typeof x.p === 'number').map(([uid, x]) => Object.assign({ uid }, x)).sort((a, b) => b.p - a.p).slice(0, 5);
   h += `<div class="vp-card"><b>🏅 Ranking de hoje</b>${rk.length ? rk.map((x, i) => `<div>${['🥇', '🥈', '🥉', '4º', '5º'][i]} ${esc(x.n || '?')} — ${x.p} pts ${btnAmizade(x.uid, 'data-vila-convidar')}</div>`).join('') : '<div>Ninguém pontuou ainda. Pesque no lago, ataque o chefe e puxe a corda!</div>'}</div>`;
-  h += `<div class="vp-card"><b>🎯 Metas de hoje (todos juntos)</b><small>Faça as tarefas na sua roça. Quando a vila bater a meta, pegue o prêmio.</small>` + PRACA_METAS.map(m => {
+  h += `<div class="vp-card"><b>🎯 Metas de hoje (todos juntos)</b><small>Faça as tarefas na sua roça. Quando a vila bater a meta, pegue o prêmio.</small>` + pracaMetas().map(m => {
     const v = Math.min(m.meta, praca.prog[m.id] || 0), ok = v >= m.meta, pego = !!st.res[praca.progDia + ':' + m.id], seu = st.c[m.ev] || 0;
     return `<div class="pracameta"><div>${m.ic} ${m.nome}: ${v}/${m.meta} <small>(você: ${seu})</small></div><div class="barra"><i style="width:${Math.round(v / m.meta * 100)}%"></i></div>
       <div>${pego ? '✅ Prêmio recebido' : ok ? (seu > 0 ? `<button class="btn gold" type="button" data-praca-resg="${m.id}">Pegar ${m.moedas} moedas + ${m.doce[1]} doces</button>` : 'Ajude pelo menos uma vez para pegar o prêmio') : `Prêmio: ${m.moedas} moedas + ${m.doce[1]} doces`}</div></div>`;
@@ -15612,7 +15619,7 @@ function pracaHtmlJogador(uid) {
   const amigo = state.friends.includes(uid), recebeu = requests.some(r => r.from === uid), enviou = !!state.sent[uid];
   const selo = j.sl && resolveFoto(j.sl);
   let h = `<div class="vp-card vp-perfil"><canvas class="vpav" id="vpAv" width="90" height="116"></canvas><div class="vp-dados"><b style="font-size:17px">${esc(j.n || 'Jogador')}</b>${j.tt ? `<div>🏅 ${esc(j.tt)}</div>` : ''}${j.sb ? `<div style="font-size:20px">${esc(j.sb)}</div>` : ''}<div>⭐ Nível ${j.lv || '?'}</div><div>🏡 ${esc(j.ft || 'Roça Feliz')}</div>${selo ? `<img alt="" class="vp-selo" src="${esc(selo)}">` : ''}<div>${amigo ? '✅ Seu amigo' : recebeu ? '🤝 Quer ser seu amigo' : enviou ? '⏳ Convite enviado' : '👤 Ainda não são amigos'}</div></div></div><div class="vp-card">`;
-  if (amigo) h += `<div>✅ Vocês são amigos.</div><div class="vp-priv"><input id="vpPrivTxt" maxlength="200" placeholder="Mensagem privada para ${esc(firstName(j.n || 'ele'))}…" autocomplete="off" data-uid="${esc(uid)}"><button class="btn" type="button" data-vila-priv="${esc(uid)}">Enviar</button></div><button class="btn ghost" type="button" data-vila-conversa="${esc(uid)}">💬 Ver conversa completa</button>`;
+  if (amigo) h += `<div>✅ Vocês são amigos.</div><div class="vp-priv"><input id="vpPrivTxt" maxlength="200" placeholder="Mensagem privada para ${esc(firstName(j.n || 'ele'))}…" autocomplete="off" data-uid="${esc(uid)}"><button class="btn" type="button" data-vila-priv="${esc(uid)}">Enviar</button></div><button class="btn ghost" type="button" data-vila-conversa="${esc(uid)}">💬 Ver conversa completa</button>${natalAtivo() ? `<button class="btn gold" type="button" data-vila-natal="${esc(uid)}">🎁 Mandar presente de Natal</button>` : ''}`;
   else {
     h += `<div>Só amigos podem trocar mensagens privadas.</div>`;
     h += recebeu ? `<button class="btn gold" type="button" data-vila-aceitar="${esc(uid)}">🤝 Aceitar o convite dele</button>` : enviou ? '<button class="btn ghost" type="button" disabled>⏳ Convite enviado</button>' : `<button class="btn gold" type="button" data-vila-convidar="${esc(uid)}">🤝 Convidar para ser amigo</button>`;
@@ -15785,6 +15792,20 @@ function vilaSentar(i) {
   praca.alvoAcao = null; praca.seguir = true; praca.eu.ia = 'sentar'; vilaConq('sentar');
   pracaIrPara(b[0], b[1], { ia: 'sentar', ic: null, iz: firebase.database.ServerValue.TIMESTAMP, ek: '😌', et: Date.now() });
   praca.eu.ia = 'sentar'; praca.eu.emote = { k: '😌', ate: performance.now() + 3000 };
+}
+// Árvore de Natal gigante da praça: todos enfeitam juntos (meta coletiva diária)
+function vilaArvoreNatal() {
+  if (!natalAtivo()) return; const m = PRACA_METAS.find(x => x.id === 'enfeitar'), v = Math.min(m.meta, praca.prog.enfeitar || 0), n = natDe();
+  escolher(`🎄 Árvore de Natal da Vila: ${v}/${m.meta} enfeites. Quando todos enfeitarem juntos ela acende e a Vila ganha prêmio (Vila › Mural)! Você tem ${n.flocos} ❄️.`, [
+    { txt: 'Pendurar um enfeite (1 ❄️)', gold: true, off: n.flocos < 1, fn: () => { if (natDe().flocos < 1) return; natDe().flocos--; pracaTrack('enfeitar', 1); praca.prog.enfeitar = (praca.prog.enfeitar || 0) + 1; sfx('coin'); toast('🎄 Enfeite pendurado na árvore da Vila!', 'good'); done(); } },
+    { txt: 'Ver as metas da Vila', fn: () => pracaPainelAbrir('mural') },
+    { txt: 'Fechar', ghost: true },
+  ]);
+}
+// Mandar presente de Natal para um amigo pela Vila
+function natPresenteAmigo(uid) {
+  if (!natalAtivo()) return; const n = natDe(); natAcumula();
+  escolher('Qual presente de Natal mandar?', [...Object.entries(NAT_PRES).map(([tipo, P]) => ({ txt: `${P.emoji} ${P.nome} (você tem ${n.pres.tem[tipo] || 0})`, off: !(n.pres.tem[tipo] > 0) || natPresEnviadas().includes(uid), fn: () => abrirMsgNat(uid, tipo) })), { txt: 'Cancelar', ghost: true }]);
 }
 function vilaDesejo() {
   if (Date.now() - (praca.ultDesejo || 0) < 1500) return; praca.ultDesejo = Date.now();
@@ -15964,6 +15985,12 @@ function pracaDesenha(g, c, now, dpr) {
   for (const d of vilaDecor) { const q = I(d.u, d.v); if (vis(q)) push(d.u + d.v, () => vilaArvore(g, d, q, tw, now, hal)); }
   praca.hits.push({ id: 'fonte', x: I(32, 25).x, y: I(32, 25).y - tw * 0.6, r: tw * 2 });
   { const q = I(32, 25); push(50, () => { const r = tw * 1.7; g.fillStyle = '#9a96a8'; g.beginPath(); g.ellipse(q.x, q.y, r, r / 2, 0, 0, 7); g.fill(); g.fillStyle = '#5fb8e8'; g.beginPath(); g.ellipse(q.x, q.y - 3 * dpr, r * 0.8, r * 0.4, 0, 0, 7); g.fill(); g.fillStyle = '#9a96a8'; g.fillRect(q.x - r * 0.12, q.y - r * 1.1, r * 0.24, r); g.strokeStyle = 'rgba(200,240,255,.85)'; g.lineWidth = 2 * dpr; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(q.x, q.y - r * 1.1); g.quadraticCurveTo(q.x + k * r * 0.5, q.y - r * 1.6, q.x + k * r * 0.8, q.y - r * 0.3 + Math.sin(now / 300 + k) * 2); g.stroke(); } }); }
+  if (festaAtiva()) { // fonte congelada (pista de patinação) e a árvore de Natal gigante da praça
+    const qf = I(32, 25), qa = I(37.2, 27.6), prog = natalAtivo() ? Math.min(1, (praca.prog.enfeitar || 0) / 120) : 1;
+    push(51, () => { const r = tw * 2.2; g.fillStyle = 'rgba(214,236,250,.95)'; g.beginPath(); g.ellipse(qf.x, qf.y - 2 * dpr, r, r / 2, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 2 * dpr; g.stroke(); g.strokeStyle = 'rgba(150,190,220,.8)'; g.lineWidth = dpr; g.beginPath(); g.moveTo(qf.x - r * 0.6, qf.y); g.lineTo(qf.x - r * 0.1, qf.y - r * 0.2); g.lineTo(qf.x + r * 0.4, qf.y + r * 0.1); g.stroke(); g.font = `${Math.round(tw * 0.9)}px system-ui`; g.textAlign = 'center'; g.fillText('⛸️', qf.x + Math.sin(now / 1200) * r * 0.5, qf.y - tw * 0.2); });
+    push(37.2 + 27.6, () => { comCtx(g, () => desenhaArvoreNatal(qa.x, qa.y, tw * 4.4, now, prog)); g.font = `800 ${Math.round(10 * dpr)}px system-ui, sans-serif`; g.textAlign = 'center'; g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.fillStyle = '#fff'; if (natalAtivo()) { const t = `🎄 ${Math.min(120, praca.prog.enfeitar || 0)}/120`; g.strokeText(t, qa.x, qa.y + tw * 0.9); g.fillText(t, qa.x, qa.y + tw * 0.9); } });
+    if (natalAtivo()) praca.hits.push({ id: 'natarvore', x: qa.x, y: qa.y - tw * 1.8, r: tw * 2.4 });
+  }
   for (const [id, l] of Object.entries(VILA_LOCAIS)) {
     const q = I(l.u, l.v); if (!vis(q)) continue;
     push(l.u + l.v, () => {
@@ -16009,7 +16036,7 @@ function pracaDesenha(g, c, now, dpr) {
     push(b.u + b.v, () => { const b2 = pracaBossPos(250), dirB = (b2.u - b2.v) - (b.u - b.v) >= 0 ? 1 : -1, pulso = 0.5 + 0.5 * Math.sin(now / 300), corAura = fase === 3 ? '255,40,40' : fase === 2 ? '255,150,40' : '255,210,80';
       g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(q.x, q.y, tw * 2.1, tw * 0.7, 0, 0, 7); g.fill();
       const au = g.createRadialGradient(q.x, q.y - tw * 1.3, tw * 0.4, q.x, q.y - tw * 1.3, tw * (3 + pulso * 0.6)); au.addColorStop(0, `rgba(${corAura},${0.28 + 0.12 * pulso})`); au.addColorStop(1, `rgba(${corAura},0)`); g.fillStyle = au; g.fillRect(q.x - tw * 4, q.y - tw * 5, tw * 8, tw * 7);
-      g.save(); g.translate(q.x, 0); g.scale(dirB, 1); drawBicho(g, 0, q.y, tw / 4.2, def.b, now, true); g.restore();
+      g.save(); g.translate(q.x, 0); g.scale(dirB, 1); if (def.id === 'grinch') comCtx(g, () => desenhaGrinch(0, q.y, tw / 30, now, true, 1, false)); else drawBicho(g, 0, q.y, tw / 4.2, def.b, now, true); g.restore();
       g.font = `900 ${Math.round(tw * 0.9)}px system-ui`; g.textAlign = 'center'; g.fillStyle = '#000';
       if (vul) { const wy = q.y - tw * 2.35 + Math.sin(now / 150) * tw * 0.15, gl = g.createRadialGradient(q.x, wy, 1, q.x, wy, tw * 0.9); gl.addColorStop(0, 'rgba(255,240,120,.95)'); gl.addColorStop(1, 'rgba(255,200,40,0)'); g.fillStyle = gl; g.fillRect(q.x - tw, wy - tw, tw * 2, tw * 2); g.fillStyle = '#fff'; g.fillText('🎯', q.x, wy + tw * 0.3); }
       g.font = `800 ${Math.round(12 * dpr)}px system-ui, sans-serif`; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.8)'; g.fillStyle = '#ffd7d0'; g.strokeText(`${def.e} ${def.nome} · fase ${fase}`, q.x, q.y - tw * 3.9); g.fillText(`${def.e} ${def.nome} · fase ${fase}`, q.x, q.y - tw * 3.9);
@@ -16108,7 +16135,8 @@ function pracaToque(ev) {
     if (id.startsWith('item:')) { const it = praca.spawns.find(z => z.i === Number(id.slice(5))); if (!it) return; if (Math.hypot(p.u - it.u, p.v - it.v) < 2.6) return vilaPegar(it); return pracaIrPara(it.u, it.v + 1.2); }
     if (id.startsWith('mor:')) { const i = Number(id.slice(4)), m = VILA_MORADORES[i], ped = vilaPedidos()[i]; if (!m) return; const feito = vilaPedSt().feito[m.id]; praca.npcFala[i] = { t: feito ? 'Obrigado pela ajuda de hoje! 💛' : `${ped.qtd} ${itemEmoji(ped.id)} ${((PRODUCT[ped.id] && PRODUCT[ped.id].nomePl) || ped.id).toLowerCase()}, por favor!`, ate: now + 4000 }; sfx('click'); if (!feito) { praca.avTab = 'pedidos'; setTimeout(() => { if (!praca.painel) pracaPainelAbrir('mural'); }, 700); } return; }
     if (id.startsWith('banco:')) { const i = Number(id.slice(6)), b = VILA_BANCOS[i]; if (Object.values(praca.jog).some(j => j.ia === 'sentar' && Math.hypot(j.tu - b[0], j.tv - b[1]) < 0.6)) return toast('Essa cadeira já está ocupada! 🪑'); return vilaPedirAssento('🪑 Cadeira', 'Sentar', () => vilaSentar(i)); }
-    if (id === 'fonte') return vilaDesejo();
+    if (id === 'natarvore') return vilaArvoreNatal();
+    if (id === 'fonte') { if (festaAtiva()) return escolher('A fonte congelou! O que você quer fazer?', [{ txt: '⛸️ Patinar no gelo', gold: true, fn: abrirPista }, { txt: '🪙 Fazer um desejo', fn: vilaDesejo }, { txt: 'Cancelar', ghost: true }]); return vilaDesejo(); }
     return pracaPainelAbrir(id);
   }
   const a = (x - G.cx) / G.tw, b = (y - G.cy) / (G.tw / 2);
@@ -16136,7 +16164,7 @@ const MOVEIS = {
   altar: { n: 'Altar', w: 4, d: 2, publico: 1, altar: 1 }, palco: { n: 'Palco do coral', w: 3, d: 2, publico: 1, palco: 1 }, pulpito: { n: 'Púlpito', e: '📖', w: 1, d: 1, publico: 1 },
   veio_carvao: { n: 'Veio de carvão', w: 1, d: 1, publico: 1, veio: 'carvao' }, veio_ferro: { n: 'Veio de ferro', w: 1, d: 1, publico: 1, veio: 'ferro' }, veio_cobre: { n: 'Veio de cobre', w: 1, d: 1, publico: 1, veio: 'cobre' }, veio_prata: { n: 'Veio de prata', w: 1, d: 1, publico: 1, veio: 'prata' }, veio_ouro: { n: 'Veio de ouro', w: 1, d: 1, publico: 1, veio: 'ouro' }, veio_gema: { n: 'Veio de gemas', w: 1, d: 1, publico: 1, veio: 'gema' },
   esc_baixo: { n: 'Escada para baixo', w: 2, d: 1, publico: 1, escada: 'baixo' }, esc_cima: { n: 'Escada para cima', w: 2, d: 1, publico: 1, escada: 'cima' },
-  est_lobo: { n: 'Estátua do Lobo Alfa', e: '🐺', w: 1, d: 1, publico: 1 }, est_javali: { n: 'Estátua do Javali Gigante', e: '🐗', w: 1, d: 1, publico: 1 }, est_jacare: { n: 'Estátua do Jacaré do Pântano', e: '🐊', w: 1, d: 1, publico: 1 }, est_onca: { n: 'Estátua da Onça Rei', e: '🐆', w: 1, d: 1, publico: 1 },
+  est_lobo: { n: 'Estátua do Lobo Alfa', e: '🐺', w: 1, d: 1, publico: 1 }, est_grinch: { n: 'Estátua do Grinch Gigante', e: '😈', w: 1, d: 1, publico: 1 }, est_javali: { n: 'Estátua do Javali Gigante', e: '🐗', w: 1, d: 1, publico: 1 }, est_jacare: { n: 'Estátua do Jacaré do Pântano', e: '🐊', w: 1, d: 1, publico: 1 }, est_onca: { n: 'Estátua da Onça Rei', e: '🐆', w: 1, d: 1, publico: 1 },
   abobora: { n: 'Abóbora', e: '🎃', w: 1, d: 1, preco: 50 }, fantasma: { n: 'Fantasma', e: '👻', w: 1, d: 1, preco: 60 }, caixa: { n: 'Presente', e: '🎁', w: 1, d: 1, preco: 40 },
 };
 const PAREDES = [{ n: 'Creme', c: '#f0e0c0' }, { n: 'Azul', c: '#9cc8e8' }, { n: 'Rosa', c: '#f0b8c8' }, { n: 'Verde', c: '#b8e0a8' }, { n: 'Madeira', c: '#b88350' }, { n: 'Noite', c: '#3a2a5a' }];
@@ -16306,17 +16334,19 @@ function quartoDefinePath(e, pts) {
 }
 // ============ ⛪ Igreja da Vila: aberta aos domingos (missa das crianças) e às quartas (missa da família) ============
 const igrejaDia = () => (typeof praca.diaTeste === 'number') ? praca.diaTeste : new Date(pracaAgora()).getDay();
-const igrejaAberta = () => [0, 3].includes(igrejaDia()); // hoje tem missa (domingo ou quarta)
+const galoDia = d => d.getMonth() === 11 && d.getDate() === 24; // 24/12: Missa do Galo
+const igrejaAberta = () => [0, 3].includes(igrejaDia()) || galoDia(new Date(pracaAgora())); // hoje tem missa (domingo, quarta ou 24/12)
 // Próximo dia de missa (hoje conta). "key" identifica o ciclo das cartas de intenção: elas valem até a missa e somem depois.
 function igrejaProx() {
   const hoje = igrejaDia(), base = new Date(pracaAgora()); base.setHours(12, 0, 0, 0);
-  for (let i = 0; i < 8; i++) { const wd = (hoje + i) % 7; if (wd === 0 || wd === 3) { const d = new Date(base.getTime() + i * 86400e3); return { key: `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`, dia: wd, hoje: i === 0 }; } }
+  for (let i = 0; i < 8; i++) { const wd = (hoje + i) % 7, d = new Date(base.getTime() + i * 86400e3); if (wd === 0 || wd === 3 || galoDia(d)) return { key: `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`, dia: galoDia(d) && wd !== 0 && wd !== 3 ? 24 : wd, hoje: i === 0 }; }
   return { key: 'x', dia: 3, hoje: false };
 }
-const igrejaDiaNome = wd => wd === 0 ? 'domingo' : 'quarta-feira';
+const igrejaDiaNome = wd => wd === 0 ? 'domingo' : wd === 24 ? 'o dia 24/12' : 'quarta-feira';
 const IGREJA_PAL = {
   0: { nome: 'Missa das Crianças', cor: 'verde', manto: '#2f8a3a', pano: '#f6f1e4', ouro: '#f2c14e', vit: ['#e0463a', '#f2c14e', '#3a8fd8', '#4aa84a', '#a05ac8'] },
   3: { nome: 'Missa da Família',   cor: 'branco e dourado', manto: '#f6f1e4', pano: '#fffaf0', ouro: '#d9b24a', vit: ['#3a8fd8', '#e0463a', '#f2c14e', '#a05ac8', '#4aa84a'] },
+  24: { nome: 'Missa do Galo',     cor: 'vermelho e dourado', manto: '#b8302a', pano: '#fffaf0', ouro: '#f2c14e', vit: ['#e0463a', '#2f8a4a', '#f2c14e', '#fff', '#e0463a'] },
 };
 const igrejaMissa = () => IGREJA_PAL[igrejaProx().dia] || IGREJA_PAL[3];
 // Etapas da missa (iguais para todos, pelo relógio do servidor). "f": falas do padre; "r": resposta dos fiéis.
@@ -16762,6 +16792,9 @@ const QUERMESSE = [
   { id: 'cana',    e: '🥤', n: 'Caldo de cana',    p: 12, k: 'beber' },
   { id: 'quentao', e: '🍵', n: 'Quentão sem álcool', p: 14, k: 'beber' },
   { id: 'coco',    e: '🥥', n: 'Água de coco',     p: 10, k: 'beber' },
+  { id: 'chocolate', e: '🍫', n: 'Chocolate quente', p: 18, k: 'beber', natal: 1 },
+  { id: 'panetoneq', e: '🎂', n: 'Fatia de panetone', p: 22, k: 'comer', natal: 1 },
+  { id: 'rabanadaq', e: '🍞', n: 'Rabanada',         p: 20, k: 'comer', natal: 1 },
 ];
 function quermesseDesenha(g, q, tw, dpr, now) {
   const W = tw * 4.6, noite = vilaNoite() > 0.5;
@@ -16787,7 +16820,7 @@ function pracaHtmlQuermesse() {
       Object.entries(JOGOS_QM).map(([k, J]) => `<div class="vp-card"><b>${J.ic} ${J.n}</b><small>${J.tiros} lances · ${J.mult} moedas por ponto · até 10 partidas por dia (hoje: ${c.alvoN || 0}/10)</small><button class="btn gold" type="button" data-vila-jogo="${k}">${J.ic} Jogar</button></div>`).join('') +
       `<div class="vp-card"><b>🦆 Pescaria de patinhos</b><small>Escolha um patinho! Custa ${MOEDA}30 e pode dar até ${MOEDA}600 (hoje: ${pat}/12).</small>${praca.patRes ? `<div><b>${praca.patRes}</b></div>` : ''}<div class="vp-decor">${[0, 1, 2, 3, 4, 5].map(i => `<button type="button" class="btn" data-vila-patinho="${i}" style="font-size:26px;padding:4px 12px">🦆</button>`).join('')}</div></div>`;
   }
-  const lista = QUERMESSE.map(it => `<button type="button" class="vm-item" data-vila-comer="${it.id}" ${state.coins >= it.p ? '' : 'style="opacity:.55"'}><span class="mv-e">${it.e}</span><span>${it.n}</span><small>${MOEDA}${it.p}</small></button>`).join('');
+  const lista = QUERMESSE.filter(it => !it.natal || festaAtiva()).map(it => `<button type="button" class="vm-item" data-vila-comer="${it.id}" ${state.coins >= it.p ? '' : 'style="opacity:.55"'}><span class="mv-e">${it.e}</span><span>${it.n}</span><small>${MOEDA}${it.p}</small></button>`).join('');
   return segs + `<div class="vp-card"><small>🎪 Barraca da Dona Maria, ao lado da igreja. Compre algo gostoso: o seu avatar come ou bebe na hora! Você tem ${MOEDA}${fmtN(state.coins)}.</small><div class="vm-grid">${lista}</div></div>`;
 }
 function vilaComer(id) {
@@ -17597,6 +17630,7 @@ $('#praca')?.addEventListener('click', e => {
   if ((b = q('[data-vila-conv]'))) return pracaConvidar(b.dataset.vilaConv);
   if (q('[data-vila-conv-todos]')) return pracaConvidarTodos();
   if ((b = q('[data-vila-priv]'))) return pracaPrivada(b.dataset.vilaPriv);
+  if ((b = q('[data-vila-natal]'))) return natPresenteAmigo(b.dataset.vilaNatal);
   if ((b = q('[data-vila-conversa]'))) { const u2 = b.dataset.vilaConversa; return abrirChat(u2); }
   if ((b = q('[data-vila-convidar]'))) { const u2 = b.dataset.vilaConvidar; return pedirAmizade(u2).then(pracaPainel).catch(() => toast('Não consegui mandar o convite agora.', 'bad')); }
   if ((b = q('[data-vila-aceitar]'))) return acceptRequest(b.dataset.vilaAceitar).then(pracaPainel);
