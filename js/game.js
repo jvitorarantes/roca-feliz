@@ -1578,6 +1578,7 @@ function buyDogFood(n) {
 const NOVIDADES = [
   { v: 265, txt: "Corrigido: 'Não consegui salvar na nuvem agora'. As roças dos vizinhos da vila ficavam guardadas dentro do seu save e, com os 4 vizinhos, ele passava de 1 MB e a nuvem recusava. Agora elas não entram mais no save (são geradas de novo a cada visita), e o salvamento volta a funcionar." },
   { v: 354, txt: "Corrigido: às vezes os botões da esquerda (Casa e Presente) ficavam um em cima do outro. Agora o encaixe é refeito sozinho sempre que o tamanho deles muda." },
+  { v: 385, txt: "⛸️ Na pista de patinação agora aparece o seu avatar de verdade (com patins) deslizando e girando a cada pirueta, tanto no painel quanto no lago, em vez de só a bota." },
   { v: 384, txt: "💃 O Cabaré da Márcia agora dá para ENTRAR: toque na porta e veja o salão por dentro, com palco, pista, bar, sofás à luz de velas, a Márcia atrás do balcão e os 4 pretendentes (Lúcia canta no palco, Antônio toca piano, Rafael com o violão e Tereza dançando). Toque neles para conversar, no bar para pedir bebidas, no palco para o show. E no chat com um amigo tem o botão 💞 para pedir namoro, noivado ou casamento (ele recebe uma mensagem e o pedido aparece na tela dele)." },
   { v: 383, txt: "💞 Relacionamentos e Cabaré da Márcia! Na Vila agora tem o 💃 Cabaré da Márcia (neon rosa, bar sem álcool, palco, mesa de casal, mural de fofocas) com 4 pretendentes NPC para paquerar (Lúcia, Rafael, Tereza e Antônio): converse, dê presentes, saia em encontros e peça em namoro (um de cada vez; namoro com NPC dá +5% de XP). Entre jogadores: toque num jogador na Vila e veja o cartão de relacionamento (amizade, romance, status de inimigo a casado), com ações (conversar, elogiar, abraçar, paquerar, provocar…), pedidos de namoro, noivado e casamento com aceite, término, rivalidade, pazes e bloqueio. Casar com outra pessoa desfaz o relacionamento anterior e avisa o(a) ex. Casais ganham bônus de XP, missões de casal e o status aparece ao lado do nome na Vila. Em Vila › Pessoas › 💞 Relacionamentos." },
   { v: 382, txt: "⛸️ Agora dá para ver o seu avatar patinando no lago congelado enquanto você joga a pista (com rastro no gelo, e ele gira a cada pirueta). O painel fica embaixo da tela. A patinação também ficou mais fácil: barra mais lenta e zona verde maior." },
@@ -8818,7 +8819,7 @@ function drawAvatarPatinando(t) {
   ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x, y, W * 0.1, W * 0.035, 0, 0, 7); ctx.fill();
   ctx.save(); ctx.translate(x, y - (gira < 1 ? Math.sin(gira * Math.PI) * W * 0.12 : 0)); ctx.scale(sx || 0.05, 1);
   drawAvatar(ctx, 0, 0, esc, state.avatar, t, true, dir); ctx.restore();
-  ctx.font = `${Math.round(W * 0.09)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.textAlign = 'center'; ctx.fillText('⛸️', x + dir * W * 0.02, y + W * 0.02);
+  ctx.strokeStyle = '#e8eef4'; ctx.lineWidth = Math.max(2, W * 0.012); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - W * 0.07, y + W * 0.012); ctx.lineTo(x - W * 0.01, y + W * 0.012); ctx.moveTo(x + W * 0.01, y + W * 0.012); ctx.lineTo(x + W * 0.07, y + W * 0.012); ctx.stroke(); // lâminas dos patins
 }
 function drawAvatarWalk(sc, t, quem = 'eu') {
   if (quem === 'eu' && sc === 'roca' && pista && !$('#pistaModal').hidden && isHome() && !praca.aberta) return drawAvatarPatinando(t);
@@ -14638,7 +14639,7 @@ function abrirPista() {
   pista = { r: 0, pts: 0, t0: performance.now(), ult: performance.now(), fase: 0, vel: 0.00038, premio: natalAtivo() && natPistaRestante() > 0, fim: false };
   const noLago = !praca.aberta; // na roça o painel fica embaixo para você ver o avatar patinando no lago
   $('#pistaModal').style.cssText = `z-index:60;${noLago ? 'place-items:end center;background:rgba(0,0,0,.12);padding-bottom:12px' : ''}`;
-  $('#pistaModal').hidden = false; $('#pistaArte').textContent = '⛸️'; $('#pistaArte').style.transform = '';
+  $('#pistaModal').hidden = false; $('#pistaArte').style.transform = ''; $('#pistaArte').innerHTML = '<canvas id="pistaAv" width="150" height="150" style="width:100px;height:100px"></canvas>';
   $('#pistaGirar').hidden = false; $('#pistaGirar').textContent = 'Girar!';
   $('#pistaInfo').textContent = pista.premio ? 'Acerte o ponto verde! São 6 piruetas.' : 'Hoje já rendeu o máximo, mas dá para treinar à vontade!';
   requestAnimationFrame(pistaLoop);
@@ -14647,15 +14648,28 @@ function abrirPista() {
 const pistaPos = t => { pista.fase += Math.max(0, t - pista.ult) * pista.vel * Math.PI * 2; pista.ult = t; return 0.5 + 0.5 * Math.sin(pista.fase); };
 function pistaLoop(t) {
   if (!pista || $('#pistaModal').hidden) return;
-  $('#pistaMarca').style.left = (pistaPos(t) * 100) + '%';
+  $('#pistaMarca').style.left = (pistaPos(t) * 100) + '%'; pistaAvatarDesenha(t);
   requestAnimationFrame(pistaLoop);
+}
+// O avatar do jogador patinando dentro do painel (gira a cada pirueta)
+function pistaAvatarDesenha(t) {
+  const c = $('#pistaAv'); if (!c || !pista) return;
+  const g = c.getContext('2d'), saved = ctx; ctx = g;
+  try {
+    g.clearRect(0, 0, c.width, c.height); g.fillStyle = 'rgba(190,225,245,.9)'; g.beginPath(); g.ellipse(75, 138, 62, 12, 0, 0, 7); g.fill();
+    const gira = pista.giro ? Math.min(1, (performance.now() - pista.giro) / 650) : 1, sx = gira < 1 ? Math.cos(gira * Math.PI * 4) : 1, pulo = gira < 1 ? Math.sin(gira * Math.PI) * 26 : 0, bal = Math.sin(t / 380) * 14;
+    g.save(); g.translate(75 + bal, 136 - pulo); g.scale(sx || 0.05, 1);
+    drawAvatar(g, 0, 0, 1.45, state.avatar, t, true, bal >= 0 ? 1 : -1);
+    g.strokeStyle = '#e8eef4'; g.lineWidth = 3; g.lineCap = 'round'; g.beginPath(); g.moveTo(-17, 3); g.lineTo(-3, 3); g.moveTo(3, 3); g.lineTo(17, 3); g.stroke();
+    g.restore();
+  } catch (e) { /* sem avatar */ }
+  ctx = saved;
 }
 function pistaGirar() {
   if (!pista || pista.fim) return;
   const x = pistaPos(performance.now()), d = Math.abs(x - 0.5);
   const pt = d < 0.12 ? 3 : d < 0.26 ? 2 : d < 0.4 ? 1 : 0;
   pista.pts += pt; pista.r++; pista.vel *= 1.05; pista.giro = performance.now();
-  const arte = $('#pistaArte'); arte.style.transition = 'transform .5s'; arte.style.transform = `rotate(${pista.r * 360}deg) scale(${1 + pt * 0.1})`;
   $('#pistaInfo').textContent = `${['😵 Escorregou!', '🙂 Bom!', '😃 Muito bem!', '🤩 Perfeito!'][pt]}  ·  piruetas ${pista.r}/6  ·  ${pista.pts} pontos`;
   sfx(pt >= 2 ? 'coin' : 'click');
   if (pista.r >= 6) {
